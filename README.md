@@ -289,7 +289,7 @@ npm run format:all        # run all static code quality checks
 ### 🔒 Production Checklist
 
 - [ ] Set `secure: true` for cookies (HTTPS only)
-- [ ] Rotate `ENCRYPTION_KEY` periodically
+- [ ] Use Strong `ENCRYPTION_KEY` (32+ chars) 
 - [ ] Use strong `NEXTAUTH_SECRET` (32+ chars)
 - [ ] Enable database connection encryption
 - [ ] Set up database backups
