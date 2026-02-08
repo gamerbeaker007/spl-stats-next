@@ -1,0 +1,45 @@
+// Prisma schema for SPL Stats
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// User's main account (the one they log in with)
+// Stores encrypted long-lived SPL token
+model User {
+  id              String   @id @default(cuid())
+  username        String   @unique // Splinterlands main username
+  encryptedToken  String   @map("encrypted_token") @db.Text // AES-256-GCM encrypted token
+  iv              String   // Initialization Vector (nonce) for AES-GCM
+  authTag         String   @map("auth_tag") // Authentication tag for AES-GCM
+  createdAt       DateTime @default(now()) @map("created_at")
+  
+  // Relation to monitored accounts
+  monitoredAccounts MonitoredAccount[]
+
+  @@map("users")
+}
+
+// Additional accounts the user wants to monitor
+// Stores encrypted long-lived SPL token
+model MonitoredAccount {
+  id              String   @id @default(cuid())
+  userId          String   @map("user_id")
+  username        String   // Splinterlands username being monitored
+  encryptedToken  String   @map("encrypted_token") @db.Text // AES-256-GCM encrypted token
+  iv              String   // Initialization Vector (nonce) for AES-GCM
+  authTag         String   @map("auth_tag") // Authentication tag for AES-GCM
+  createdAt       DateTime @default(now()) @map("created_at")
+  
+  // Relation to main user
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, username])
+  @@index([userId])
+  @@map("monitored_accounts")
+}
+
