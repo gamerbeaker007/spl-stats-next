@@ -168,6 +168,12 @@ export default function LoginComponent() {
 
         <DialogContent>
           <Stack spacing={3} sx={{ mt: 1 }}>
+            <Alert severity="info" variant="outlined">
+              By signing in, your account and portfolio data will be stored in the database to
+              retrieve Splinterlands statistics. You can remove your account from monitoring at any
+              time via the Users page.
+            </Alert>
+
             <TextField
               label="Hive Username"
               value={username}
@@ -177,6 +183,7 @@ export default function LoginComponent() {
               fullWidth
               autoFocus
               placeholder="Enter your Hive username"
+              inputProps={{ style: { textTransform: "lowercase" } }}
             />
 
             {error && (

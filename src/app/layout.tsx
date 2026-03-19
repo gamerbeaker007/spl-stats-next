@@ -3,10 +3,9 @@ import TopBar from "@/components/TopBar";
 import { AuthProvider } from "@/lib/frontend/context/AuthContext";
 import { PageTitleProvider } from "@/lib/frontend/context/PageTitleContext";
 import theme from "@/lib/frontend/themes/theme";
-import { Box, InitColorSchemeScript } from "@mui/material";
+import { CssBaseline, InitColorSchemeScript, ThemeProvider } from "@mui/material";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
-import CssBaseline from "@mui/material/CssBaseline";
-import { ThemeProvider } from "@mui/material/styles";
+import Box from "@mui/material/Box";
 import type { Metadata } from "next";
 import "./globals.css";
 

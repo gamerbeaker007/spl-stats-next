@@ -19,7 +19,7 @@ export default function SignInPage() {
             variant="contained"
             size="large"
             startIcon={<MdLogin />}
-            onClick={() => signIn("github", { callbackUrl: "/" })}
+            onClick={() => signIn("github", { redirectTo: "/" })}
             fullWidth
           >
             Sign in with GitHub

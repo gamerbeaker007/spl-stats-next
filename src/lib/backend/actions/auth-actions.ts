@@ -8,62 +8,46 @@ import { cookies } from "next/headers";
 
 const USER_COOKIE = "spl_user_id";
 
-/**
- * Get current authentication status
- */
+// ─── Auth status ─────────────────────────────────────────────────────────────
+
 export async function getAuthStatus() {
   try {
     const user = await getCurrentUser();
-
-    if (!user) {
-      return { authenticated: false, username: null };
-    }
-
-    return {
-      authenticated: true,
-      username: user.username,
-    };
+    if (!user) return { authenticated: false, username: null };
+    return { authenticated: true, username: user.username };
   } catch (error) {
     logger.error(`getAuthStatus error: ${error}`);
     return { authenticated: false, username: null };
   }
 }
 
-/**
- * Login action for keychain authentication
- * Encrypts and stores the long-lived SPL token using AES-256-GCM
- */
+// ─── Login ───────────────────────────────────────────────────────────────────
+
 export async function loginAction(username: string, timestamp: number, signature: string) {
   try {
     logger.info(`loginAction: ${username}`);
 
-    // Call Splinterlands API to validate credentials and get token
     const splResponse = await splLogin(username, timestamp, signature);
-
     if (!splResponse.token) {
       return { success: false, error: "No token received from Splinterlands" };
     }
 
-    // Encrypt the token with AES-256-GCM (random IV per encryption)
     const { encryptedValue, iv, authTag } = await encryptToken(splResponse.token);
 
-    // Upsert user in database with encrypted token
+    // Upsert the app user (identity only — token NOT stored here)
     const user = await prisma.user.upsert({
       where: { username },
-      create: {
-        username,
-        encryptedToken: encryptedValue,
-        iv,
-        authTag,
-      },
-      update: {
-        encryptedToken: encryptedValue,
-        iv,
-        authTag,
-      },
+      create: { username },
+      update: {},
     });
 
-    // Set cookie with user ID
+    // Upsert the shared SplAccount (token lives here, shared across users)
+    await prisma.splAccount.upsert({
+      where: { username },
+      create: { username, encryptedToken: encryptedValue, iv, authTag },
+      update: { encryptedToken: encryptedValue, iv, authTag },
+    });
+
     const cookieStore = await cookies();
     cookieStore.set(USER_COOKIE, user.id, {
       httpOnly: true,
@@ -73,247 +57,225 @@ export async function loginAction(username: string, timestamp: number, signature
     });
 
     logger.info(`User ${username} logged in successfully`);
-
-    return {
-      success: true,
-      username: user.username,
-    };
+    return { success: true, username: user.username };
   } catch (error) {
     logger.error(`loginAction error: ${error}`);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
 }
 
-/**
- * Logout action
- */
+// ─── Logout ──────────────────────────────────────────────────────────────────
+
 export async function logoutAction() {
   return logout();
 }
 
-/**
- * Add a monitored account to the current user
- * Encrypts and stores the long-lived SPL token using AES-256-GCM
- */
-export async function addMonitoredAccount(username: string, timestamp: number, signature: string) {
+export async function logout() {
   try {
-    // Get current user from cookie
+    const cookieStore = await cookies();
+    cookieStore.delete(USER_COOKIE);
+    return { success: true };
+  } catch (error) {
+    logger.error(`logout error: ${error}`);
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+  }
+}
+
+// ─── Monitor accounts: smart-add ─────────────────────────────────────────────
+
+/**
+ * Check whether a username is already being monitored by this user.
+ * Keychain is always required to add an account — this only guards against duplicates.
+ *
+ * Returns one of:
+ *  - { status: 'already_monitoring' }  – already in the user's list
+ *  - { status: 'keychain_required' }   – not yet monitored; caller must use Keychain
+ *  - { status: 'error'; error }
+ */
+export async function checkAndAddMonitoredAccount(
+  username: string
+): Promise<
+  | { status: "already_monitoring" }
+  | { status: "keychain_required" }
+  | { status: "error"; error: string }
+> {
+  try {
     const cookieStore = await cookies();
     const userId = cookieStore.get(USER_COOKIE)?.value;
+    if (!userId) return { status: "error", error: "Not logged in" };
 
-    if (!userId) {
-      return { success: false, error: "Not logged in" };
-    }
+    const lc = username.toLowerCase();
 
-    logger.info(`addMonitoredAccount: ${username} for user ${userId}`);
-
-    // Call Splinterlands API to validate credentials and get token
-    const splResponse = await splLogin(username, timestamp, signature);
-
-    if (!splResponse.token) {
-      return { success: false, error: "No token received from Splinterlands" };
-    }
-
-    // Encrypt the token with AES-256-GCM (random IV per encryption)
-    const { encryptedValue, iv, authTag } = await encryptToken(splResponse.token);
-
-    // Add monitored account with encrypted token
-    const account = await prisma.monitoredAccount.upsert({
-      where: {
-        userId_username: {
-          userId,
-          username,
-        },
-      },
-      create: {
-        userId,
-        username,
-        encryptedToken: encryptedValue,
-        iv,
-        authTag,
-      },
-      update: {
-        encryptedToken: encryptedValue,
-        iv,
-        authTag,
-      },
+    const existing = await prisma.monitoredAccount.findUnique({
+      where: { userId_username: { userId, username: lc } },
     });
+    if (existing) return { status: "already_monitoring" };
 
-    logger.info(`Monitored account ${username} added successfully`);
-
-    return {
-      success: true,
-      accountId: account.id,
-      username: account.username,
-    };
+    return { status: "keychain_required" };
   } catch (error) {
-    logger.error(`addMonitoredAccount error: ${error}`);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
+    logger.error(`checkAndAddMonitoredAccount error: ${error}`);
+    return { status: "error", error: error instanceof Error ? error.message : "Unknown error" };
   }
 }
 
 /**
- * Get current user's info
+ * Called after a successful Keychain signature to add a monitored account.
+ *
+ * Smart-link logic:
+ *  - If SplAccount already exists in the DB (added by another user) → create the
+ *    MonitoredAccount junction row only; no SPL API call needed.
+ *  - If SplAccount is new → validate via SPL API, store encrypted token, then link.
+ *
+ * Keychain is always required so the caller proves they hold the posting key.
  */
+export async function addMonitoredAccountWithKeychain(
+  username: string,
+  timestamp: number,
+  signature: string
+) {
+  try {
+    const cookieStore = await cookies();
+    const userId = cookieStore.get(USER_COOKIE)?.value;
+    if (!userId) return { success: false, error: "Not logged in" };
+
+    const lc = username.toLowerCase();
+    logger.info(`addMonitoredAccountWithKeychain: ${lc} for user ${userId}`);
+
+    // Already in this user's list → caller shows a warning, not an error.
+    const existingLink = await prisma.monitoredAccount.findUnique({
+      where: { userId_username: { userId, username: lc } },
+    });
+    if (existingLink)
+      return {
+        success: false as const,
+        alreadyMonitoring: true as const,
+        error: "Account is already in your monitored list",
+      };
+
+    // SplAccount already in DB (linked by another user)?
+    // Keychain proves posting-key possession; token is already stored — just link.
+    const existingSpl = await prisma.splAccount.findUnique({ where: { username: lc } });
+    if (existingSpl) {
+      const link = await prisma.monitoredAccount.create({
+        data: { userId, splAccountId: existingSpl.id, username: lc },
+      });
+      logger.info(`Linked existing SplAccount '${lc}' for user ${userId} (no SPL API call)`);
+      return { success: true, accountId: link.id, username: lc };
+    }
+
+    // New account — validate via SPL API and store the token.
+    const splResponse = await splLogin(lc, timestamp, signature);
+    if (!splResponse.token) {
+      return { success: false, error: "No token received from Splinterlands" };
+    }
+
+    const { encryptedValue, iv, authTag } = await encryptToken(splResponse.token);
+
+    // Upsert SplAccount in case another user raced in since the check above.
+    const splAccount = await prisma.splAccount.upsert({
+      where: { username: lc },
+      create: { username: lc, encryptedToken: encryptedValue, iv, authTag },
+      update: { encryptedToken: encryptedValue, iv, authTag },
+    });
+
+    const link = await prisma.monitoredAccount.upsert({
+      where: { userId_username: { userId, username: lc } },
+      create: { userId, splAccountId: splAccount.id, username: lc },
+      update: {},
+    });
+
+    logger.info(`Monitored account '${lc}' added for user ${userId}`);
+    return { success: true, accountId: link.id, username: lc };
+  } catch (error) {
+    logger.error(`addMonitoredAccountWithKeychain error: ${error}`);
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
+  }
+}
+
+// ─── Queries ─────────────────────────────────────────────────────────────────
+
 export async function getCurrentUser() {
   try {
     const cookieStore = await cookies();
     const userId = cookieStore.get(USER_COOKIE)?.value;
+    if (!userId) return null;
 
-    if (!userId) {
-      return null;
-    }
-
-    const user = await prisma.user.findUnique({
+    return await prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        username: true,
-        createdAt: true,
-      },
+      select: { id: true, username: true, createdAt: true },
     });
-
-    return user;
   } catch (error) {
     logger.error(`getCurrentUser error: ${error}`);
     return null;
   }
 }
 
-/**
- * Get all monitored accounts for current user
- */
 export async function getMonitoredAccounts() {
   try {
     const cookieStore = await cookies();
     const userId = cookieStore.get(USER_COOKIE)?.value;
+    if (!userId) return [];
 
-    if (!userId) {
-      return [];
-    }
-
-    const accounts = await prisma.monitoredAccount.findMany({
+    return await prisma.monitoredAccount.findMany({
       where: { userId },
-      select: {
-        id: true,
-        username: true,
-        createdAt: true,
-      },
+      select: { id: true, username: true, createdAt: true },
       orderBy: { username: "asc" },
     });
-
-    return accounts;
   } catch (error) {
     logger.error(`getMonitoredAccounts error: ${error}`);
     return [];
   }
 }
 
-/**
- * Remove a monitored account
- */
 export async function removeMonitoredAccount(accountId: string) {
   try {
     const cookieStore = await cookies();
     const userId = cookieStore.get(USER_COOKIE)?.value;
+    if (!userId) return { success: false, error: "Not logged in" };
 
-    if (!userId) {
-      return { success: false, error: "Not logged in" };
-    }
+    // Fetch before delete to get splAccountId for orphan check
+    const record = await prisma.monitoredAccount.findUnique({
+      where: { id: accountId, userId },
+      select: { splAccountId: true },
+    });
+    if (!record) return { success: false, error: "Account not found" };
 
     await prisma.monitoredAccount.delete({
-      where: {
-        id: accountId,
-        userId, // Ensure user owns this account
-      },
+      where: { id: accountId, userId },
     });
 
-    logger.info(`Monitored account ${accountId} removed`);
+    // If no other user monitors the same SplAccount, delete the token too
+    const remainingLinks = await prisma.monitoredAccount.count({
+      where: { splAccountId: record.splAccountId },
+    });
+    if (remainingLinks === 0) {
+      await prisma.splAccount.delete({ where: { id: record.splAccountId } });
+      logger.info(`SplAccount ${record.splAccountId} deleted — no remaining links`);
+    }
 
+    logger.info(`Monitored account ${accountId} removed`);
     return { success: true };
   } catch (error) {
     logger.error(`removeMonitoredAccount error: ${error}`);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
+    return { success: false, error: error instanceof Error ? error.message : "Unknown error" };
   }
 }
 
-/**
- * Logout current user
- */
-export async function logout() {
-  try {
-    const cookieStore = await cookies();
-    cookieStore.delete(USER_COOKIE);
-
-    return { success: true };
-  } catch (error) {
-    logger.error(`logout error: ${error}`);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
-}
+// ─── Token helpers (internal use only) ───────────────────────────────────────
 
 /**
- * Get decrypted token for a user (internal use only)
+ * Returns the decrypted SPL token for a given Splinterlands username.
  */
-export async function getUserToken(userId: string): Promise<string | null> {
+export async function getSplAccountToken(username: string): Promise<string | null> {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        encryptedToken: true,
-        iv: true,
-        authTag: true,
-      },
+    const splAccount = await prisma.splAccount.findUnique({
+      where: { username },
+      select: { encryptedToken: true, iv: true, authTag: true },
     });
-
-    if (!user) {
-      return null;
-    }
-
-    const token = await decryptToken(user.encryptedToken, user.iv, user.authTag);
-
-    return token;
+    if (!splAccount) return null;
+    return await decryptToken(splAccount.encryptedToken, splAccount.iv, splAccount.authTag);
   } catch (error) {
-    logger.error(`getUserToken error: ${error}`);
-    return null;
-  }
-}
-
-/**
- * Get decrypted token for a monitored account (internal use only)
- */
-export async function getMonitoredAccountToken(accountId: string): Promise<string | null> {
-  try {
-    const account = await prisma.monitoredAccount.findUnique({
-      where: { id: accountId },
-      select: {
-        encryptedToken: true,
-        iv: true,
-        authTag: true,
-      },
-    });
-
-    if (!account) {
-      return null;
-    }
-
-    const token = await decryptToken(account.encryptedToken, account.iv, account.authTag);
-
-    return token;
-  } catch (error) {
-    logger.error(`getMonitoredAccountToken error: ${error}`);
+    logger.error(`getSplAccountToken error: ${error}`);
     return null;
   }
 }

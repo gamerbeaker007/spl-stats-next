@@ -8,38 +8,47 @@ datasource db {
   provider = "postgresql"
 }
 
-// User's main account (the one they log in with)
-// Stores encrypted long-lived SPL token
+// User's login account (app session identity — no token stored here)
 model User {
-  id              String   @id @default(cuid())
-  username        String   @unique // Splinterlands main username
-  encryptedToken  String   @map("encrypted_token") @db.Text // AES-256-GCM encrypted token
-  iv              String   // Initialization Vector (nonce) for AES-GCM
-  authTag         String   @map("auth_tag") // Authentication tag for AES-GCM
-  createdAt       DateTime @default(now()) @map("created_at")
-  
-  // Relation to monitored accounts
+  id        String   @id @default(cuid())
+  username  String   @unique // Splinterlands main username
+  createdAt DateTime @default(now()) @map("created_at")
+
   monitoredAccounts MonitoredAccount[]
 
   @@map("users")
 }
 
-// Additional accounts the user wants to monitor
-// Stores encrypted long-lived SPL token
+// Junction: which users monitor which SPL accounts.
+// username is denormalised from SplAccount for simpler queries.
 model MonitoredAccount {
-  id              String   @id @default(cuid())
-  userId          String   @map("user_id")
-  username        String   // Splinterlands username being monitored
-  encryptedToken  String   @map("encrypted_token") @db.Text // AES-256-GCM encrypted token
-  iv              String   // Initialization Vector (nonce) for AES-GCM
-  authTag         String   @map("auth_tag") // Authentication tag for AES-GCM
-  createdAt       DateTime @default(now()) @map("created_at")
-  
-  // Relation to main user
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  splAccountId String   @map("spl_account_id")
+  username     String   // denormalised from SplAccount.username
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  splAccount SplAccount @relation(fields: [splAccountId], references: [id], onDelete: Cascade)
 
   @@unique([userId, username])
   @@index([userId])
   @@map("monitored_accounts")
 }
 
+// Centralised SPL account token store.
+// One row per unique SPL username; multiple users can link to the same row
+// without needing to re-authenticate via Keychain.
+model SplAccount {
+  id             String   @id @default(cuid())
+  username       String   @unique // Splinterlands username
+  encryptedToken String   @map("encrypted_token") @db.Text // AES-256-GCM encrypted token
+  iv             String   // Initialization Vector (nonce) for AES-GCM
+  authTag        String   @map("auth_tag") // Authentication tag for AES-GCM
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  monitoredBy MonitoredAccount[]
+
+  @@map("spl_accounts")
+}

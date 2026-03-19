@@ -3,8 +3,9 @@
 import { Container, Typography, Paper, Button } from "@mui/material";
 import { useRouter, useSearchParams } from "next/navigation";
 import { MdError } from "react-icons/md";
+import { Suspense } from "react";
 
-export default function AuthErrorPage() {
+function AuthErrorContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
@@ -37,5 +38,13 @@ export default function AuthErrorPage() {
         </Button>
       </Paper>
     </Container>
+  );
+}
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense>
+      <AuthErrorContent />
+    </Suspense>
   );
 }

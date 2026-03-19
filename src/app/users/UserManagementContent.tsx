@@ -1,6 +1,9 @@
 "use client";
 
-import { addMonitoredAccount, removeMonitoredAccount } from "@/lib/backend/actions/auth-actions";
+import {
+  addMonitoredAccountWithKeychain,
+  removeMonitoredAccount,
+} from "@/lib/backend/actions/auth-actions";
 import { usePageTitle } from "@/lib/frontend/context/PageTitleContext";
 import { Add as AddIcon, Delete as DeleteIcon } from "@mui/icons-material";
 import {
@@ -9,15 +12,20 @@ import {
   Button,
   Card,
   CardContent,
+  Chip,
   CircularProgress,
   Dialog,
+  DialogActions,
   DialogContent,
+  DialogContentText,
+  DialogTitle,
   IconButton,
   List,
   ListItem,
   ListItemText,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { useState } from "react";
@@ -41,83 +49,85 @@ export default function UserManagementContent({
 
   const [accounts, setAccounts] = useState<MonitoredAccount[]>(initialAccounts);
   const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  // Add dialog state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newUsername, setNewUsername] = useState("");
-  const [signingInProgress, setSigningInProgress] = useState(false);
+  const [adding, setAdding] = useState(false);
 
-  const handleAddAccount = async () => {
-    if (!newUsername.trim()) {
+  // Remove confirm dialog state
+  const [confirmRemoveAccount, setConfirmRemoveAccount] = useState<MonitoredAccount | null>(null);
+
+  const resetAddDialog = () => {
+    setAddDialogOpen(false);
+    setNewUsername("");
+    setAdding(false);
+    setError(null);
+  };
+
+  const handleAdd = async () => {
+    const lc = newUsername.trim();
+    if (!lc) {
       setError("Please enter a username");
       return;
     }
-
     setError(null);
-    setSigningInProgress(true);
+    setInfo(null);
+    setAdding(true);
 
     try {
-      // Get signature from keychain
       interface HiveKeychainWindow extends Window {
         hive_keychain?: unknown;
       }
       const win = window as HiveKeychainWindow;
-      if (!win || !win.hive_keychain) {
-        throw new Error("Keychain extension not found");
-      }
+      if (!win?.hive_keychain) throw new Error("Hive Keychain extension not found");
 
       const { KeychainSDK, KeychainKeyTypes } = await import("keychain-sdk");
       const keychain = new KeychainSDK(win);
-
       const timestamp = Date.now();
-      const message = `${newUsername.toLowerCase()}${timestamp}`;
 
       const result = await keychain.signBuffer({
-        username: newUsername.toLowerCase(),
-        message,
+        username: lc,
+        message: `${lc}${timestamp}`,
         method: KeychainKeyTypes.posting,
       });
 
-      if (!result?.success) {
-        throw new Error("Keychain signature was rejected or failed");
-      }
+      if (!result?.success) throw new Error("Keychain signature was rejected or failed");
 
-      const signature = typeof result.result === "string" ? result.result : result.message || "";
+      const signature = typeof result.result === "string" ? result.result : (result.message ?? "");
+      if (!signature) throw new Error("Keychain returned empty signature");
 
-      if (!signature) {
-        throw new Error("Keychain returned empty signature");
-      }
-
-      // Add account via server action
-      const response = await addMonitoredAccount(newUsername.toLowerCase(), timestamp, signature);
-
+      const response = await addMonitoredAccountWithKeychain(lc, timestamp, signature);
       if (!response.success) {
-        throw new Error(response.error || "Failed to add account");
+        if ("alreadyMonitoring" in response && response.alreadyMonitoring) {
+          setInfo(`'${lc}' is already in your monitored list.`);
+        } else {
+          setError(response.error ?? "Failed to add account");
+        }
+        return;
       }
 
-      // Add to local state
       setAccounts((prev) => [
         ...prev,
-        {
-          id: response.accountId!,
-          username: newUsername.toLowerCase(),
-          createdAt: new Date(),
-        },
+        { id: response.accountId!, username: lc, createdAt: new Date() },
       ]);
-      setAddDialogOpen(false);
-      setNewUsername("");
+      resetAddDialog();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
-      setSigningInProgress(false);
+      setAdding(false);
     }
   };
 
   const handleRemoveAccount = async (accountId: string) => {
+    setConfirmRemoveAccount(null);
     try {
       const response = await removeMonitoredAccount(accountId);
       if (response.success) {
         setAccounts((prev) => prev.filter((acc) => acc.id !== accountId));
       } else {
-        setError(response.error || "Failed to remove account");
+        setError(response.error ?? "Failed to remove account");
       }
     } catch {
       setError("Failed to remove account");
@@ -127,18 +137,16 @@ export default function UserManagementContent({
   return (
     <Box sx={{ p: 3 }}>
       <Stack spacing={3}>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Typography variant="h5">Monitored Accounts</Typography>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
-            onClick={() => setAddDialogOpen(true)}
+            onClick={() => {
+              setError(null);
+              setInfo(null);
+              setAddDialogOpen(true);
+            }}
           >
             Add Account
           </Button>
@@ -149,6 +157,11 @@ export default function UserManagementContent({
             {error}
           </Alert>
         )}
+        {info && (
+          <Alert severity="info" onClose={() => setInfo(null)}>
+            {info}
+          </Alert>
+        )}
 
         <Card>
           <CardContent>
@@ -156,7 +169,8 @@ export default function UserManagementContent({
               Main Account: {mainUsername}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              This is your logged-in account
+              Your login account. It is automatically added to the monitored list below so your own
+              portfolio data is collected.
             </Typography>
           </CardContent>
         </Card>
@@ -168,39 +182,58 @@ export default function UserManagementContent({
                 Monitored Accounts ({accounts.length})
               </Typography>
               <List>
-                {accounts.map((account) => (
-                  <ListItem
-                    key={account.id}
-                    secondaryAction={
-                      <IconButton
-                        edge="end"
-                        aria-label="delete"
-                        onClick={() => handleRemoveAccount(account.id)}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    }
-                  >
-                    <ListItemText
-                      primary={account.username}
-                      secondary={`Added: ${new Date(account.createdAt).toLocaleDateString()}`}
-                    />
-                  </ListItem>
-                ))}
+                {accounts.map((account) => {
+                  const isMain = account.username === mainUsername;
+                  return (
+                    <ListItem
+                      key={account.id}
+                      secondaryAction={
+                        <Tooltip
+                          title={
+                            isMain
+                              ? "Remove your own account from monitoring (you stay logged in)"
+                              : "Remove account"
+                          }
+                        >
+                          <IconButton
+                            edge="end"
+                            aria-label="delete"
+                            onClick={() => setConfirmRemoveAccount(account)}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                      }
+                    >
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            {account.username}
+                            {isMain && (
+                              <Chip label="you" size="small" color="primary" variant="outlined" />
+                            )}
+                          </Box>
+                        }
+                        secondary={`Added: ${new Date(account.createdAt).toLocaleDateString()}`}
+                      />
+                    </ListItem>
+                  );
+                })}
               </List>
             </CardContent>
           </Card>
         ) : (
           <Alert severity="info">
-            No monitored accounts yet. Click &quot;Add Account&quot; to add one.
+            No monitored accounts. Sign in to automatically add your own account, or click &quot;Add
+            Account&quot; to add others.
           </Alert>
         )}
       </Stack>
 
-      {/* Add Account Dialog */}
+      {/* ── Add Account Dialog ─────────────────────────────────── */}
       <Dialog
         open={addDialogOpen}
-        onClose={() => !signingInProgress && setAddDialogOpen(false)}
+        onClose={() => !adding && resetAddDialog()}
         maxWidth="sm"
         fullWidth
       >
@@ -209,7 +242,7 @@ export default function UserManagementContent({
             Add Monitored Account
           </Typography>
           <Typography variant="body2" color="text.secondary" textAlign="center">
-            Sign in with Hive Keychain to add an account
+            Enter the Hive username to monitor and sign with Keychain
           </Typography>
         </Box>
 
@@ -219,33 +252,75 @@ export default function UserManagementContent({
               label="Hive Username"
               value={newUsername}
               onChange={(e) => setNewUsername(e.target.value.toLowerCase())}
-              onKeyDown={(e) => e.key === "Enter" && handleAddAccount()}
-              disabled={signingInProgress}
+              onKeyDown={(e) => e.key === "Enter" && !adding && handleAdd()}
+              disabled={adding}
               fullWidth
               autoFocus
-              placeholder="Enter Hive username to monitor"
+              placeholder="e.g. beaker007"
+              inputProps={{ style: { textTransform: "lowercase" } }}
             />
 
-            {signingInProgress && (
+            {error && (
+              <Alert severity="error" variant="outlined">
+                {error}
+              </Alert>
+            )}
+            {info && (
+              <Alert severity="info" variant="outlined">
+                {info}
+              </Alert>
+            )}
+
+            {adding && (
               <Stack direction="row" spacing={2} alignItems="center" justifyContent="center">
                 <CircularProgress size={20} />
                 <Typography variant="body2" color="text.secondary">
-                  Waiting for Keychain signature...
+                  Waiting for Keychain…
                 </Typography>
               </Stack>
             )}
 
             <Button
-              onClick={handleAddAccount}
+              onClick={handleAdd}
               variant="contained"
               size="large"
-              disabled={signingInProgress || !newUsername.trim()}
+              disabled={adding || !newUsername.trim()}
               fullWidth
             >
-              {signingInProgress ? "Signing..." : "Add with Keychain"}
+              {adding ? "Signing…" : "Add via Keychain"}
             </Button>
           </Stack>
         </DialogContent>
+      </Dialog>
+
+      {/* ── Confirm Remove Dialog ──────────────────────────────── */}
+      <Dialog open={Boolean(confirmRemoveAccount)} onClose={() => setConfirmRemoveAccount(null)}>
+        <DialogTitle>Remove Monitored Account</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {confirmRemoveAccount?.username === mainUsername ? (
+              <>
+                Remove <strong>{confirmRemoveAccount.username}</strong> (your own account) from
+                monitoring? You will remain logged in, but portfolio data collection for this
+                account will stop.
+              </>
+            ) : (
+              <>
+                Remove <strong>{confirmRemoveAccount?.username}</strong> from monitored accounts?
+                Portfolio data collection for this account will stop.
+              </>
+            )}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmRemoveAccount(null)}>Cancel</Button>
+          <Button
+            color="error"
+            onClick={() => confirmRemoveAccount && handleRemoveAccount(confirmRemoveAccount.id)}
+          >
+            Remove
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   );
