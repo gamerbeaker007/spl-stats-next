@@ -1,30 +1,14 @@
-import { getCurrentUser, getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
-import { Alert, Box } from "@mui/material";
-import UserManagementContent from "./UserManagementContent";
+import PageErrorBoundary from "@/components/shared/error-boundaries/PageErrorBoundary";
+import UserManagementSkeleton from "@/components/shared/skeletons/UserManagementSkeleton";
+import UserManagementServer from "@/components/users/UserManagementServer";
+import { Suspense } from "react";
 
-export default async function UserManagementPage() {
-  // Get current user on server
-  const user = await getCurrentUser();
-
-  if (!user) {
-    return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="warning">Please login to manage monitored accounts</Alert>
-      </Box>
-    );
-  }
-
-  // Get monitored accounts on server
-  const accounts = await getMonitoredAccounts();
-
+export default function UserManagementPage() {
   return (
-    <UserManagementContent
-      mainUsername={user.username}
-      initialAccounts={accounts.map((acc) => ({
-        id: acc.id,
-        username: acc.username,
-        createdAt: acc.createdAt,
-      }))}
-    />
+    <PageErrorBoundary>
+      <Suspense fallback={<UserManagementSkeleton />}>
+        <UserManagementServer />
+      </Suspense>
+    </PageErrorBoundary>
   );
 }

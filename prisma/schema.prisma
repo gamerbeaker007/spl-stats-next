@@ -52,3 +52,18 @@ model SplAccount {
 
   @@map("spl_accounts")
 }
+
+// Lightweight application log store.
+// Replaces Winston file logging — survives container restarts, queryable.
+// Retention managed by a cron job (delete rows older than N days).
+model Log {
+  id        String   @id @default(cuid())
+  level     String   // "info" | "warn" | "error"
+  message   String   @db.Text
+  meta      Json?    // optional structured metadata
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([level])
+  @@index([createdAt])
+  @@map("logs")
+}

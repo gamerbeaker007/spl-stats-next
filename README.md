@@ -219,18 +219,20 @@ Uses `usePageTitle("Page Title")` hook in Client Components to automatically set
 
 ```bash
 # Database
-DATABASE_URL="postgresql://user:pass@localhost:5432/spl_stats"
+DATABASE_URL="postgresql://user:pass@localhost:5432/splstats"
 
 # Encryption Key (AES-256-GCM)
 # Generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ENCRYPTION_KEY="64-character-hex-string"
 
-# NextAuth (GitHub OAuth for admin)
+# NextAuth
 NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="your-secret"
-GITHUB_ID="oauth-app-id"
-GITHUB_SECRET="oauth-app-secret"
-GITHUB_ALLOWED_USERS="username1,username2"
+NEXTAUTH_SECRET="your-nextauth-secret-min-32-chars"
+
+# Logging
+# Set to "true" to echo logs to stdout. Recommended for local dev, disable in production.
+# Logs are always written to the DB regardless of this setting.
+LOG_CONSOLE="true"
 ```
 
 ## Database Schema
@@ -289,7 +291,7 @@ npm run format:all        # run all static code quality checks
 ### 🔒 Production Checklist
 
 - [ ] Set `secure: true` for cookies (HTTPS only)
-- [ ] Use Strong `ENCRYPTION_KEY` (32+ chars) 
+- [ ] Use Strong `ENCRYPTION_KEY` (32+ chars)
 - [ ] Use strong `NEXTAUTH_SECRET` (32+ chars)
 - [ ] Enable database connection encryption
 - [ ] Set up database backups
