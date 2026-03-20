@@ -14,12 +14,12 @@ import {
 } from "@mui/material";
 import Link from "next/link";
 import { useState } from "react";
-import { MdDashboard, MdHome, MdMenu, MdPeople } from "react-icons/md";
+import { MdAdminPanelSettings, MdHome, MdMenu, MdPeople } from "react-icons/md";
 
 const links = [
   { href: "/", label: "Home", icon: <MdHome /> },
-  { href: "/dashboard", label: "Dashboard", icon: <MdDashboard /> },
   { href: "/users", label: "Users", icon: <MdPeople /> },
+  { href: "/admin", label: "Admin", icon: <MdAdminPanelSettings /> },
 ];
 
 const SIDEBAR_WIDTH_EXPANDED = 240;
@@ -67,6 +67,7 @@ export default function SideBar() {
         {links.map(({ href, label, icon }) => (
           <ListItem key={href} disablePadding sx={{ display: "block" }}>
             <ListItemButton
+              suppressHydrationWarning
               component={Link}
               href={href}
               sx={{

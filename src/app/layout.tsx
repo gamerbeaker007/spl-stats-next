@@ -1,5 +1,5 @@
-import SideBar from "@/components/shared/SideBar";
-import TopBar from "@/components/shared/TopBar";
+import SideBar from "@/components/side-bar/SideBar";
+import TopBar from "@/components/top-bar/TopBar";
 import { AuthProvider } from "@/lib/frontend/context/AuthContext";
 import { PageTitleProvider } from "@/lib/frontend/context/PageTitleContext";
 import theme from "@/lib/frontend/themes/theme";

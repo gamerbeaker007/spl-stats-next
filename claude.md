@@ -8,27 +8,34 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
 
 ### Security
 
-- Keep `NEXT_AUTH_SECRET` (NextAuth JWT signing) and `ENCRYPTION_KEY` (AES-256-GCM for SPL tokens) as **separate** env variables — different cryptographic purposes, independent compromise surface.
+- `ENCRYPTION_KEY` (AES-256-GCM for SPL tokens) and `COOKIE_SECRET` (HMAC signing for session cookie) are **separate** env variables — different cryptographic purposes, independent compromise surface.
 - Encryption key derived via SHA-256 hash if not already 32-byte hex.
+- Session cookie (`spl_user_id`) is HMAC-signed with `COOKIE_SECRET` to prevent forgery.
 
 ### Architecture
 
-- Admin logger view removed — it simplified the app.
-- Winston file logging replaced with a lightweight DB logger (`Log` Prisma table). Logs write to the DB and always echo to `console` as a fallback when the DB is unavailable.
-- Hive Keychain is the primary auth mechanism (not NextAuth GitHub OAuth, which is a leftover scaffold — can be cleaned up later).
+- Winston file logging replaced with a lightweight DB logger (`Log` Prisma table). Controlled by `LOG_DB` (write to DB) env vars.
+- Hive Keychain is the sole auth mechanism. NextAuth was removed — cookie-based sessions with HMAC signing.
+
+### Admin
+
+- `/admin` page shows the application log viewer (queries the `Log` DB table).
+- Access controlled by `ADMIN_USERNAMES` env var — comma-separated list of Hive usernames.
+- No separate auth system: admin users log in via Hive Keychain like any other user; access is checked server-side on every request via `isAdmin(username)` in `lib/backend/auth/admin.ts`.
+- The Admin link is always visible in the sidebar; non-admins see a "Access denied" error page.
 
 ### Monitor Accounts
 
-- When a user logs in, their own account is **automatically** added as a `MonitoredAccount` (so their own portfolio data is collected alongside any extra accounts they add).
-- Users can remove their own account from monitoring (stops data collection, does NOT log them out).
-- Future: when portfolio data tables are added, `removeMonitoredAccount` must check if other users also monitor the same username before deleting portfolio data. Only delete portfolio data if no other users share that monitored account.
+- Login creates a `User` and an `SplAccount` (with encrypted token), but does **not** auto-add a `MonitoredAccount`. Users add accounts to monitor explicitly via the Users page (including their own).
+- Users can remove any account from monitoring (stops data collection, does NOT log them out).
+- Removing a monitored account deletes the `SplAccount` token if no other user monitors that same username.
+- Future: when portfolio data tables are added, `removeMonitoredAccount` must check if other users also monitor the same username before deleting portfolio data.
 
 ### Themes
 
-- Three themes: `light`, `dark`, `highContrast`.
-- High contrast: pure black background, white text, yellow/cyan accents — WCAG AA/AAA.
-- Theme stored via MUI `useColorScheme` / `setMode` (class-based ColorSchemeSelector).
-- ThemeToggle cycles: light → dark → highContrast → light.
+- Two themes: `light` and `dark`.
+- Uses MUI v7 `extendTheme` with `colorSchemeSelector: "class"` and `InitColorSchemeScript` — no flicker on load, no custom context needed.
+- ThemeToggle uses `useColorScheme` / `setMode` to toggle between light and dark.
 
 ## Folder Structure
 
@@ -123,12 +130,11 @@ scripts/
 
 ## Packages (as of March 2026)
 
-- Next.js 16, React 19, MUI v7 (CSS vars / extendTheme), Prisma 7, NextAuth **v5** (beta.30).
+- Next.js 16, React 19, MUI v7 (CSS vars / extendTheme), Prisma 7.
 - Prefer minor/patch upgrades; handle major bumps manually.
 
 ## TODO / Future Work
 
-- Clean up `src/app/auth/signin/page.tsx` (still has old GitHub sign-in button — not used).
 - Add portfolio data tables and hook up cascade delete in `removeMonitoredAccount`.
 - Set up `tsx` / `tsconfig-paths` for scripts when first cron job is created.
 - Add a cron job to prune old `Log` rows (`pruneLogs(days)` in `db/logs.ts`) — e.g. keep 30 days.

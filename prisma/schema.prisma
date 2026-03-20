@@ -42,11 +42,13 @@ model MonitoredAccount {
 model SplAccount {
   id             String   @id @default(cuid())
   username       String   @unique // Splinterlands username
-  encryptedToken String   @map("encrypted_token") @db.Text // AES-256-GCM encrypted token
-  iv             String   // Initialization Vector (nonce) for AES-GCM
-  authTag        String   @map("auth_tag") // Authentication tag for AES-GCM
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  createdAt      DateTime @default(now()) @map("created_at")
+  encryptedToken  String    @map("encrypted_token") @db.Text // AES-256-GCM encrypted token
+  iv              String    // Initialization Vector (nonce) for AES-GCM
+  authTag         String    @map("auth_tag") // Authentication tag for AES-GCM
+  tokenStatus     String    @default("unknown") @map("token_status") // "valid" | "invalid" | "unknown"
+  tokenVerifiedAt DateTime? @map("token_verified_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
 
   monitoredBy MonitoredAccount[]
 

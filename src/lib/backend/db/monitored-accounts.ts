@@ -31,7 +31,12 @@ export async function upsertMonitoredAccount(
 export async function listMonitoredAccounts(userId: string) {
   return prisma.monitoredAccount.findMany({
     where: { userId },
-    select: { id: true, username: true, createdAt: true },
+    select: {
+      id: true,
+      username: true,
+      createdAt: true,
+      splAccount: { select: { id: true, tokenStatus: true } },
+    },
     orderBy: { username: "asc" },
   });
 }
@@ -39,7 +44,7 @@ export async function listMonitoredAccounts(userId: string) {
 export async function findMonitoredAccountById(accountId: string, userId: string) {
   return prisma.monitoredAccount.findUnique({
     where: { id: accountId, userId },
-    select: { splAccountId: true },
+    select: { splAccountId: true, username: true },
   });
 }
 

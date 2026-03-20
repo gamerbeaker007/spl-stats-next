@@ -6,10 +6,18 @@ export async function upsertSplAccount(
   iv: string,
   authTag: string
 ) {
+  const now = new Date();
   return prisma.splAccount.upsert({
     where: { username },
-    create: { username, encryptedToken, iv, authTag },
-    update: { encryptedToken, iv, authTag },
+    create: { username, encryptedToken, iv, authTag, tokenStatus: "valid", tokenVerifiedAt: now },
+    update: { encryptedToken, iv, authTag, tokenStatus: "valid", tokenVerifiedAt: now },
+  });
+}
+
+export async function updateSplAccountStatus(id: string, status: "valid" | "invalid" | "unknown") {
+  return prisma.splAccount.update({
+    where: { id },
+    data: { tokenStatus: status, tokenVerifiedAt: new Date() },
   });
 }
 

@@ -1,9 +1,6 @@
 import { createLog, type LogLevel } from "@/lib/backend/db/logs";
 
-const logToConsole = process.env.LOG_CONSOLE === "true";
-
 function consoleLog(level: LogLevel, message: string) {
-  if (!logToConsole) return;
   const ts = new Date().toISOString();
   if (level === "error") {
     console.error(`${ts} [${level.toUpperCase()}]: ${message}`);

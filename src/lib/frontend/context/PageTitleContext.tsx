@@ -7,11 +7,11 @@ const PageTitleContext = createContext<{
   setTitle: (title: string) => void;
 }>({ title: "Dashboard", setTitle: () => {} });
 
-export function PageTitleProvider({ children }: { children: ReactNode }) {
-  const [title, setTitle] = useState("Dashboard");
-  return (
-    <PageTitleContext.Provider value={{ title, setTitle }}>{children}</PageTitleContext.Provider>
-  );
+export function PageTitleProvider({ children }: Readonly<{ children: ReactNode }>) {
+  const [title, setTitle] = useState("SPL Stats");
+  const contextValue = { title, setTitle };
+
+  return <PageTitleContext.Provider value={contextValue}>{children}</PageTitleContext.Provider>;
 }
 
 /**

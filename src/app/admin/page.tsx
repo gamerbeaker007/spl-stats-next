@@ -1,0 +1,27 @@
+import PageErrorBoundary from "@/components/shared/error-boundaries/PageErrorBoundary";
+import AdminLogsSkeleton from "@/components/admin/AdminLogsSkeleton";
+import LogsContent from "@/components/admin/LogsContent";
+import { isAdmin } from "@/lib/backend/auth/admin";
+import { getCurrentUser } from "@/lib/backend/actions/auth-actions";
+import { Alert, Box } from "@mui/material";
+import { Suspense } from "react";
+
+export default async function AdminPage() {
+  const user = await getCurrentUser();
+
+  if (!user || !isAdmin(user.username)) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">Access denied. Admin privileges required.</Alert>
+      </Box>
+    );
+  }
+
+  return (
+    <PageErrorBoundary>
+      <Suspense fallback={<AdminLogsSkeleton />}>
+        <LogsContent />
+      </Suspense>
+    </PageErrorBoundary>
+  );
+}

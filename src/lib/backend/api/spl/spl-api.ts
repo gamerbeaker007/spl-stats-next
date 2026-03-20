@@ -1,6 +1,7 @@
 import logger from "@/lib/backend/log/logger.server";
+import { SplBalanceHistoryResponse } from "@/types/spl/balance";
 import { SplLoginResponse } from "@/types/spl/auth";
-import axios from "axios";
+import axios, { AxiosResponse } from "axios";
 import * as rax from "retry-axios";
 
 const SPL_BASE_URL = "https://api2.splinterlands.com/";
@@ -30,6 +31,27 @@ splBaseClient.defaults.raxConfig = {
 };
 
 /**
+ * Verifies a SPL token by attempting to fetch balance history.
+ * Returns true if the token is valid, false otherwise.
+ */
+export async function verifySplToken(username: string, token: string): Promise<boolean> {
+  try {
+    const url = "/players/balance_history";
+    const params = { limit: 1, offset: 0, username, token_type: "SPS", token };
+
+    const response: AxiosResponse<SplBalanceHistoryResponse> = await splBaseClient.get(url, {
+      params,
+    });
+    const data = response.data;
+    if (Array.isArray(data)) return true;
+    if (data && typeof data === "object" && "error" in data) return false;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Login to Splinterlands using Hive Keychain signature
  * @param username - Splinterlands username
  * @param timestamp - Unix timestamp in milliseconds
@@ -51,17 +73,13 @@ export async function splLogin(
   };
 
   try {
-    const response = await splBaseClient.get(url, {
-      params: { ...params },
-    });
+    const response = await splBaseClient.get(url, { params });
 
     if (response.status === 200 && response.data) {
       if (response.data.error) {
         throw new Error(response.data.error);
       }
-      const result = response.data as SplLoginResponse;
-
-      return result as SplLoginResponse;
+      return response.data as SplLoginResponse;
     } else {
       throw new Error("Login request failed");
     }

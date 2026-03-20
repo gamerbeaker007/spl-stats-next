@@ -22,6 +22,8 @@ export default async function UserManagementServer() {
         id: acc.id,
         username: acc.username,
         createdAt: acc.createdAt,
+        splAccountId: acc.splAccount.id,
+        tokenStatus: acc.splAccount.tokenStatus as "valid" | "invalid" | "unknown",
       }))}
     />
   );

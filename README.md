@@ -1,219 +1,75 @@
-# SPL Stats - Splinterlands Statistics Dashboard
+# SPL Stats — Splinterlands Statistics Dashboard
 
-A Next.js 16 application for tracking and analyzing Splinterlands game statistics across multiple accounts with secure authentication and encrypted token storage.
+A Next.js 16 application for tracking Splinterlands portfolio statistics across multiple accounts, with secure Hive Keychain authentication and AES-256-GCM encrypted token storage.
 
-## Architecture Overview
-
-### Tech Stack
+## Tech Stack
 
 - **Frontend**: Next.js 16 (App Router), React 19, Material-UI v7
 - **Backend**: Next.js Server Actions, Prisma ORM v7, PostgreSQL
-- **Authentication**: Dual-auth system (Hive Keychain + GitHub OAuth)
-- **Security**: AES-256-GCM encryption for token storage
-- **Styling**: Material-UI with custom Splinterlands theme
-- **State Management**: React Context API (Auth, PageTitle)
+- **Authentication**: Hive Keychain (browser extension) — cookie-based sessions with HMAC signing
+- **Security**: AES-256-GCM encryption for SPL token storage
 
-### Key Architectural Decisions
+## Authentication
 
-#### 1. Server-Side Rendering (SSR) First
+Users sign in with their Hive account via the Hive Keychain browser extension:
 
-**Pattern**: Server Components by default, Client Components only when needed
+1. User enters their Hive username
+2. Keychain signs `username + timestamp` with the posting key
+3. Server validates the signature with the Splinterlands API (`/players/v2/login`)
+4. SPL token is encrypted (AES-256-GCM, random IV per token) and stored in the database
+5. A signed session cookie (`spl_user_id`) is set — HMAC-signed with `COOKIE_SECRET` to prevent forgery
 
-**Why SSR?**
+Only the posting key is used — no active key actions are possible through this app.
 
-- **Performance**: Data fetching happens on the server, reducing client-side JavaScript
-- **SEO**: Better search engine indexing with pre-rendered content
-- **Security**: Sensitive operations (database queries, token decryption) never exposed to client
-- **User Experience**: Faster initial page loads, no loading spinners for data
+### Admin Access
 
-**Implementation Pattern**:
+`/admin` is restricted to usernames listed in `ADMIN_USERNAMES`. No separate login — admin users authenticate the same way as regular users. Access is checked server-side on every request.
 
-```typescript
-// Page (Server Component)
-export default async function UsersPage() {
-  const user = await getCurrentUser();
-  const accounts = await getMonitoredAccounts();
-  return <UsersPageContent user={user} accounts={accounts} />;
-}
-
-// Client Component (interactions only)
-"use client";
-export default function UsersPageContent({ user, accounts }) {
-  // Handle user interactions, dialogs, etc.
-}
-```
-
-**When to Use Client Components**:
-
-- User interactions (buttons, forms, dialogs)
-- React hooks (useState, useEffect, useContext)
-- Browser APIs (localStorage, window)
-- Event handlers
-
-#### 2. Prisma 7 with Database Adapters
-
-Uses the new Prisma 7 pattern with PostgreSQL adapter instead of direct connection strings in PrismaClient constructor:
-
-```typescript
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter });
-```
-
-**Benefits**:
-
-- Connection pooling for better performance
-- Required for Prisma 7+ (no direct URL support)
-- Better resource management
-
-## Authentication Architecture
-
-### Dual Authentication System
-
-#### 1. User Authentication (Hive Keychain)
-
-**Purpose**: Main user login for Splinterlands account access
-
-**Flow**:
-
-1. User enters Hive username
-2. Client requests Hive Keychain signature (browser extension)
-3. Keychain signs message: `username + timestamp`
-4. Server validates signature with Splinterlands API (`/players/v2/login`)
-5. Server receives long-lived SPL token
-6. Token is encrypted (AES-256-GCM) and stored in database
-7. User ID stored in HTTP-only cookie
-
-**Why This Approach?**
-
-- **No Password Storage**: Uses Hive blockchain signatures
-- **Decentralized**: Leverages existing Hive accounts
-- **Splinterlands Native**: Same auth method used by Splinterlands game
-- **Secure**: Cryptographic signatures prevent forgery
-
-#### 2. Admin Authentication (GitHub OAuth)
-
-**Purpose**: Administrative dashboard access (`/admin` page)
-
-**Flow**:
-
-1. NextAuth.js handles OAuth flow
-2. GitHub callback validates user
-3. Checks against whitelist (`GITHUB_ALLOWED_USERS` env var)
-4. Session stored in HTTP-only cookie
-
-**Why Separate Admin Auth?**
-
-- **Role Separation**: Admin functions distinct from user features
-- **Trusted Access**: GitHub accounts as identity source
-- **Familiar**: Standard OAuth flow developers understand
-
-### Token Security: AES-256-GCM Encryption
-
-#### Why Encrypt Tokens in Database?
-
-**The Problem**: Splinterlands tokens grant authenticated API access
-
-- Tokens allow full access to Splinterlands game actions (like balances)
-- Database breach or SQL injection could expose all user tokens
-- Best practice: defense in depth - minimize damage even if infrastructure is compromised
-
-**The Solution**: AES-256-GCM Encryption with unique random IV per token
-Also only hive posting key authority is used with this site, No action can be done which needs a active key
-
-**Security Properties**:
-
-1. **Confidentiality**: Token unreadable without encryption key (stored in env var, never in code)
-2. **Authenticity**: Auth tag prevents tampering (GCM mode detects modifications)
-3. **Unique IV**: Each encryption uses random nonce (prevents pattern analysis attacks)
-4. **Server-Only Decryption**: Tokens decrypted on-demand for API calls, never sent to client
-
-**Token Lifecycle**:
-
-1. **Login**: Token encrypted with random IV → stored in DB
-2. **API Calls**: Token decrypted server-side → used for API request
-3. **Logout**: Database record deleted (token unrecoverable)
-
-**Attack Resistance**:
-
-- ✅ **Database Breach**: Tokens encrypted, attacker needs encryption key
-- ✅ **SQL Injection**: Even if data extracted, tokens are ciphertext
-- ✅ **Replay Attacks**: Auth tag prevents token modification
-- ✅ **Client Exposure**: Tokens never sent to browser, only server-side decryption
-
-#### Cookie Security
-
-Both auth systems use HTTP-only cookies:
-
-```typescript
-cookieStore.set(USER_COOKIE, userId, {
-  httpOnly: true, // Not accessible via JavaScript
-  secure: process.env.NODE_ENV === "production", // HTTPS only in prod
-  sameSite: "lax", // CSRF protection
-  maxAge: 60 * 60 * 24 * 30, // 30 days
-});
-```
-
-## Project Structure
+## Architecture
 
 ```
 src/
-├── app/                          # Next.js 16 App Router
-│   ├── layout.tsx               # Root layout (SSR, providers)
-│   ├── page.tsx                 # Home page
-│   ├── admin/                   # Admin dashboard (GitHub OAuth)
-│   │   └── page.tsx            # Server Component
-│   ├── users/                   # User management (Keychain auth)
-│   │   ├── page.tsx            # Server Component (fetch data)
-│   │   └── UserManagementContent.tsx  # Client Component (interactions)
-│   └── api/
-│       └── auth/[...nextauth]/  # NextAuth endpoints
-├── components/                   # Reusable UI components
-│   ├── LoginComponent.tsx       # Keychain login dialog
-│   ├── SideBar.tsx             # Navigation
-│   ├── TopBar.tsx              # Header with theme toggle
-│   └── ThemeToggle.tsx         # Dark/light mode switch
-├── lib/
-│   ├── backend/                 # Server-side code
-│   │   ├── actions/            # Server Actions (use server directive)
-│   │   │   └── auth-actions.ts # Authentication logic
-│   │   ├── api/
-│   │   │   └── spl/            # Splinterlands API client
-│   │   ├── auth/
-│   │   │   ├── authOptions.ts  # NextAuth config
-│   │   │   └── encryption.ts   # AES-256-GCM functions
-│   │   └── log/
-│   │       └── logger.server.ts # Winston logging
-│   ├── frontend/               # Client-side code
-│   │   ├── context/           # React Context providers
-│   │   │   ├── AuthContext.tsx  # User auth state
-│   │   │   └── PageTitleContext.tsx # Dynamic page titles
-│   │   └── themes/
-│   │       └── theme.ts        # Material-UI theme
-│   └── prisma.ts              # Prisma client singleton
-└── types/                      # TypeScript definitions
-    └── spl/                    # Splinterlands API types
+  app/                          # Thin pages — layout + Suspense boundaries
+  components/
+    admin/                      # Admin page components
+    side-bar/                   # Sidebar navigation
+    top-bar/                    # TopBar + LoginComponent
+    users/                      # Users page components
+    shared/
+      error-boundaries/         # Error boundary components
+      skeletons/                # Loading skeleton components
+  hooks/                        # ALL custom React hooks
+  lib/
+    backend/                    # Server-only code
+      actions/                  # Next.js Server Actions
+      api/spl/                  # Splinterlands API client
+      auth/                     # admin.ts, cookie.ts, encryption.ts
+      db/                       # Single point of Prisma access (one file per entity)
+      log/                      # DB-backed logger
+    frontend/
+      context/                  # React context providers
+      themes/                   # MUI theme
+      keychain.ts               # Shared Hive Keychain signing utility
+  types/spl/                    # Splinterlands API types
 ```
 
-## Development Patterns
+### Key Patterns
 
-### Server Actions Pattern
+- **Server Components by default** — `'use client'` only when interactivity or browser APIs are needed
+- **DB layer** — all Prisma calls in `lib/backend/db/`, never directly in actions or components
+- **Hooks** — all Server Action calls wrapped in hooks in `src/hooks/`
+- **Suspense pattern** — `<Suspense fallback={<Skeleton />}><AsyncServerComponent /></Suspense>` paired with error boundaries
 
-All database/API operations use Server Actions marked with `"use server"` directive. Server-side only code never exposed to client.
+## Token Security
 
-### Page Title Management
+SPL tokens grant full Splinterlands API access. They are encrypted at rest:
 
-Uses `usePageTitle("Page Title")` hook in Client Components to automatically set page titles on mount.
+- **Algorithm**: AES-256-GCM (authenticated encryption — detects tampering)
+- **IV**: Random 16 bytes per token (prevents pattern analysis)
+- **Storage**: `encryptedToken`, `iv`, `authTag` stored separately in `SplAccount` table
+- **Decryption**: Server-side only, on-demand for API calls — never sent to the client
 
-### Material-UI Integration
-
-- `InitColorSchemeScript` in `<head>` prevents theme flash
-- `AppRouterCacheProvider` for emotion cache (SSR compatibility)
-- `ThemeProvider` with custom Splinterlands theme
-- Dark/light mode with persistent localStorage
+A single `SplAccount` row is shared across all users monitoring that username, so the token is stored once even if multiple users monitor the same account.
 
 ## Environment Variables
 
@@ -221,142 +77,65 @@ Uses `usePageTitle("Page Title")` hook in Client Components to automatically set
 # Database
 DATABASE_URL="postgresql://user:pass@localhost:5432/splstats"
 
-# Encryption Key (AES-256-GCM)
-# Generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-ENCRYPTION_KEY="64-character-hex-string"
+# Encryption Key for AES-256-GCM token storage (generate: openssl rand -hex 32)
+ENCRYPTION_KEY="64-char-hex-string"
 
-# NextAuth
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="your-nextauth-secret-min-32-chars"
+# Cookie Secret for HMAC-signing the session cookie (generate: openssl rand -hex 32)
+COOKIE_SECRET="64-char-hex-string"
+
+# Admin — comma-separated Hive usernames with access to /admin
+ADMIN_USERNAMES="yourusername"
 
 # Logging
-# Set to "true" to echo logs to stdout. Recommended for local dev, disable in production.
-# Logs are always written to the DB regardless of this setting.
-LOG_CONSOLE="true"
+LOG_DB="true"       # persist logs to DB (recommended in production)
 ```
 
-## Database Schema
-
-See [prisma/schema.prisma](prisma/schema.prisma) for the complete database schema. Key models include User and MonitoredAccount with encrypted token storage (AES-256-GCM fields: encryptedToken, iv, authTag).
-
-### Setup
+## Setup
 
 ```bash
-# Install dependencies
+# 1. Install dependencies
 npm install
 
-# Setup environment variables
+# 2. Configure environment
 cp .env.example .env
 # Edit .env with your values
 
-# Generate Prisma client
-npx prisma generate
+# 3. Start database
+docker-compose up -d
 
-# Run migrations
+# 4. Run migrations and generate Prisma client
 npx prisma migrate dev
 
-# Start dev server
+# 5. Start dev server
 npm run dev
 ```
 
-### Database Commands
+## Database
 
 ```bash
-npx prisma studio         # Visual database browser
-npx prisma migrate dev    # Create and apply migration
-npx prisma generate       # Regenerate client after schema changes
+npx prisma studio          # Visual DB browser
+npx prisma migrate dev     # Create and apply a new migration
+npx prisma generate        # Regenerate client after schema changes
 ```
 
-### Code Quality
+## Code Quality
 
 ```bash
-npm run lint              # ESLint
-npm run lint:fix          # Auto-fix ESLint issues
-npm run format            # Prettier format
-npm run format:check      # Check formatting
-npm run format:all        # run all static code quality checks
+npm run lint:fix    # ESLint auto-fix
+npm run format      # Prettier
+npm run format:all  # Prettier + ESLint + type-check
 ```
 
-## Security Best Practices
+## Production Checklist
 
-### ✅ Implemented
-
-- AES-256-GCM encryption for sensitive tokens
-- HTTP-only cookies (no XSS access)
-- CSRF protection (SameSite cookies)
-- Server-side only token decryption
-- Environment variable secrets
-- Prisma parameterized queries (SQL injection protection)
-
-### 🔒 Production Checklist
-
-- [ ] Set `secure: true` for cookies (HTTPS only)
-- [ ] Use Strong `ENCRYPTION_KEY` (32+ chars)
-- [ ] Use strong `NEXTAUTH_SECRET` (32+ chars)
-- [ ] Enable database connection encryption
+- [ ] Generate strong `ENCRYPTION_KEY` (`openssl rand -hex 32`)
+- [ ] Generate strong `COOKIE_SECRET` (`openssl rand -hex 32`)
+- [ ] Set `LOG_DB=true`
+- [ ] Set `ADMIN_USERNAMES` to your Hive username(s)
+- [ ] Enable HTTPS (cookies use `secure: true` in production automatically)
 - [ ] Set up database backups
 - [ ] Configure rate limiting on auth endpoints
-- [ ] Enable CORS restrictions
-- [ ] Use environment-specific secrets (dev/staging/prod)
-
-## Common Tasks
-
-### Add a New SSR Page
-
-```bash
-# 1. Create Server Component page
-src/app/new-page/page.tsx
-
-# 2. Fetch data with Server Actions
-const data = await getServerData();
-
-# 3. Pass to Client Component if interactions needed
-<NewPageContent data={data} />
-```
-
-### Add a Monitored Account
-
-1. User navigates to `/users`
-2. Clicks "Add Account"
-3. Signs with Keychain
-4. Token encrypted and stored in `monitored_accounts` table
-
-### Decrypt Token (Internal Use)
-
-```typescript
-// Server-side only
-const token = await getUserToken(userId);
-const response = await splinterlandsAPI(token);
-```
-
-## Future AI Copilot Context
-
-**When assisting with this project**:
-
-- Always use Server Components by default (async functions in `app/`)
-- Add `"use server"` directive for Server Actions
-- Use Prisma with adapter pattern (never direct URL in constructor)
-- Encrypt tokens before database storage (use `encryptToken()`)
-- Import Prisma client from `@/lib/prisma`, not `@prisma/client`
-- Follow existing patterns: check similar files before creating new ones
-- Use `usePageTitle("Title")` for page titles in Client Components
-- Material-UI: Import from `@mui/material`, use theme system
-- Never expose tokens or encryption keys to client-side code
 
 ## License
 
-This project is licensed under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License](LICENSE).
-
-**You are free to**:
-
-- Use this code for personal, educational, or non-commercial projects
-- Modify and build upon this code
-- Share your modifications
-
-**Under the following terms**:
-
-- **Attribution**: You must give appropriate credit
-- **NonCommercial**: You may not use this for commercial purposes without permission
-- **ShareAlike**: Your modifications must use the same license
-
-For commercial licensing inquiries, please contact the repository owner.
+[Creative Commons Attribution-NonCommercial-ShareAlike 4.0](LICENSE) — free for personal/educational use, not for commercial use without permission.
