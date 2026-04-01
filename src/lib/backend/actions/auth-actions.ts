@@ -20,6 +20,9 @@ import {
   upsertSplAccount,
 } from "@/lib/backend/db/spl-accounts";
 import { getUserById, upsertUser } from "@/lib/backend/db/users";
+import { deleteSyncStatesByUsername } from "@/lib/backend/db/account-sync-states";
+import { deletePlayerLeaderboardByUsername } from "@/lib/backend/db/player-leaderboard";
+import { deleteSeasonBalancesByUsername } from "@/lib/backend/db/season-balances";
 import logger from "@/lib/backend/log/logger.server";
 
 function errorMessage(err: unknown): string {
@@ -241,11 +244,16 @@ export async function removeMonitoredAccount(accountId: string) {
 
     await deleteMonitoredAccount(accountId, userId);
 
-    // If no other user monitors the same SplAccount, delete the token too
+    // If no other user monitors the same SplAccount, delete the token and all collected data
     const remainingLinks = await countMonitoredAccountsBySplAccount(record.splAccountId);
     if (remainingLinks === 0) {
-      await deleteSplAccount(record.splAccountId);
-      logger.info(`SplAccount ${record.username} deleted — no remaining links`);
+      await Promise.all([
+        deleteSplAccount(record.splAccountId),
+        deleteSyncStatesByUsername(record.username),
+        deleteSeasonBalancesByUsername(record.username),
+        deletePlayerLeaderboardByUsername(record.username),
+      ]);
+      logger.info(`SplAccount ${record.username} deleted — no remaining links, data purged`);
     }
 
     logger.info(`Monitored account ${record.username} removed`);

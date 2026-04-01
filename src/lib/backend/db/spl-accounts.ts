@@ -35,3 +35,22 @@ export async function getSplAccountCredentials(username: string) {
 export async function deleteSplAccount(id: string) {
   return prisma.splAccount.delete({ where: { id } });
 }
+
+/**
+ * Returns distinct SPL accounts that are monitored by at least one user
+ * and have a valid token. Used by the worker to know which accounts to sync.
+ */
+export async function getDistinctAccountsWithCredentials() {
+  return prisma.splAccount.findMany({
+    where: {
+      tokenStatus: "valid",
+      monitoredBy: { some: {} },
+    },
+    select: {
+      username: true,
+      encryptedToken: true,
+      iv: true,
+      authTag: true,
+    },
+  });
+}

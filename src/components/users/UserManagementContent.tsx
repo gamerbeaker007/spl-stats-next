@@ -33,6 +33,7 @@ interface MonitoredAccount {
   createdAt: Date;
   splAccountId: string;
   tokenStatus: "valid" | "invalid" | "unknown";
+  syncStatus: "pending" | "processing" | "failed" | "completed";
 }
 
 interface UserManagementContentProps {
@@ -47,6 +48,16 @@ const TOKEN_STATUS_CHIP: Record<
   valid: { label: "valid", color: "success" },
   invalid: { label: "invalid", color: "error" },
   unknown: { label: "unknown", color: "default" },
+};
+
+const SYNC_STATUS_CHIP: Record<
+  "pending" | "processing" | "failed" | "completed",
+  { label: string; color: "default" | "info" | "error" | "success" }
+> = {
+  pending: { label: "pending", color: "default" },
+  processing: { label: "syncing", color: "info" },
+  failed: { label: "sync error", color: "error" },
+  completed: { label: "synced", color: "success" },
 };
 
 export default function UserManagementContent({
@@ -131,6 +142,7 @@ export default function UserManagementContent({
                   const isMain = account.username === mainUsername;
                   const isBusy = busyIds.includes(account.id);
                   const statusChip = TOKEN_STATUS_CHIP[account.tokenStatus];
+                  const syncChip = SYNC_STATUS_CHIP[account.syncStatus];
                   const showReAuth = account.tokenStatus === "invalid" && !isBusy;
 
                   return (
@@ -186,6 +198,12 @@ export default function UserManagementContent({
                               label={statusChip.label}
                               size="small"
                               color={statusChip.color}
+                              variant="outlined"
+                            />
+                            <Chip
+                              label={syncChip.label}
+                              size="small"
+                              color={syncChip.color}
                               variant="outlined"
                             />
                           </Box>

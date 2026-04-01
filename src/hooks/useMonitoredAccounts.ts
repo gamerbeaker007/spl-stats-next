@@ -15,6 +15,7 @@ interface MonitoredAccount {
   createdAt: Date;
   splAccountId: string;
   tokenStatus: "valid" | "invalid" | "unknown";
+  syncStatus: "pending" | "processing" | "failed" | "completed";
 }
 
 interface UseMonitoredAccountsReturn {
@@ -96,6 +97,7 @@ export function useMonitoredAccounts(
           createdAt: new Date(),
           splAccountId: "",
           tokenStatus: "valid",
+          syncStatus: "pending",
         },
       ]);
       return true;

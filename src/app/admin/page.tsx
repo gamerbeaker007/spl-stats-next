@@ -1,6 +1,8 @@
 import PageErrorBoundary from "@/components/shared/error-boundaries/PageErrorBoundary";
 import AdminLogsSkeleton from "@/components/admin/AdminLogsSkeleton";
 import LogsContent from "@/components/admin/LogsContent";
+import WorkerStatusContent from "@/components/admin/WorkerStatusContent";
+import WorkerStatusSkeleton from "@/components/admin/WorkerStatusSkeleton";
 import { isAdmin } from "@/lib/backend/auth/admin";
 import { getCurrentUser } from "@/lib/backend/actions/auth-actions";
 import { Alert, Box } from "@mui/material";
@@ -18,10 +20,17 @@ export default async function AdminPage() {
   }
 
   return (
-    <PageErrorBoundary>
-      <Suspense fallback={<AdminLogsSkeleton />}>
-        <LogsContent />
-      </Suspense>
-    </PageErrorBoundary>
+    <>
+      <PageErrorBoundary>
+        <Suspense fallback={<WorkerStatusSkeleton />}>
+          <WorkerStatusContent />
+        </Suspense>
+      </PageErrorBoundary>
+      <PageErrorBoundary>
+        <Suspense fallback={<AdminLogsSkeleton />}>
+          <LogsContent />
+        </Suspense>
+      </PageErrorBoundary>
+    </>
   );
 }

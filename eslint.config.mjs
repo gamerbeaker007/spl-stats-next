@@ -13,6 +13,24 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  // Enforce one-way dependency: src/ must never import from scripts/.
+  // scripts/ may import from src/ (e.g. db, api, service layers).
+  {
+    files: ["src/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/scripts/**"],
+              message: "src/ must not import from scripts/ — the dependency only flows scripts/ → src/.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

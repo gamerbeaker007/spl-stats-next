@@ -59,3 +59,14 @@ export async function countMonitoredAccountsBySplAccount(splAccountId: string) {
     where: { splAccountId },
   });
 }
+
+/** Distinct usernames of monitored accounts whose SPL token is valid. */
+export async function getValidMonitoredAccountUsernames(): Promise<string[]> {
+  const rows = await prisma.monitoredAccount.findMany({
+    where: { splAccount: { tokenStatus: "valid" } },
+    select: { username: true },
+    distinct: ["username"],
+    orderBy: { username: "asc" },
+  });
+  return rows.map((r) => r.username);
+}

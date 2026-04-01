@@ -13,9 +13,11 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
+    "worker": "tsx --env-file=.env --tsconfig scripts/tsconfig.json scripts/worker.ts",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f app"
+    "docker:logs": "docker-compose logs -f app",
+    "docker:worker-logs": "docker-compose logs -f worker"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -34,7 +36,8 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-icons": "^5.6.0",
-    "retry-axios": "^4.0.1"
+    "retry-axios": "^4.0.1",
+    "tsx": "^4.21.0"
   },
   "devDependencies": {
     "@types/node": "^20.19.33",

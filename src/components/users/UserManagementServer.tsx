@@ -1,6 +1,18 @@
 import { getCurrentUser, getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
+import { getSyncStatesForUsernames } from "@/lib/backend/db/account-sync-states";
+import { AccountSyncState } from "@prisma/client";
 import { Alert, Box } from "@mui/material";
 import UserManagementContent from "./UserManagementContent";
+
+type SyncStatus = "pending" | "processing" | "failed" | "completed";
+
+function aggregateSyncStatus(states: AccountSyncState[]): SyncStatus {
+  if (states.length === 0) return "pending";
+  if (states.some((s) => s.status === "failed")) return "failed";
+  if (states.some((s) => s.status === "processing")) return "processing";
+  if (states.every((s) => s.status === "completed")) return "completed";
+  return "pending";
+}
 
 export default async function UserManagementServer() {
   const user = await getCurrentUser();
@@ -14,6 +26,15 @@ export default async function UserManagementServer() {
   }
 
   const accounts = await getMonitoredAccounts();
+  const usernames = accounts.map((a) => a.username);
+  const syncStates = await getSyncStatesForUsernames(usernames);
+
+  const syncByUsername = new Map<string, AccountSyncState[]>();
+  for (const state of syncStates) {
+    const list = syncByUsername.get(state.username) ?? [];
+    list.push(state);
+    syncByUsername.set(state.username, list);
+  }
 
   return (
     <UserManagementContent
@@ -24,6 +45,7 @@ export default async function UserManagementServer() {
         createdAt: acc.createdAt,
         splAccountId: acc.splAccount.id,
         tokenStatus: acc.splAccount.tokenStatus as "valid" | "invalid" | "unknown",
+        syncStatus: aggregateSyncStatus(syncByUsername.get(acc.username) ?? []),
       }))}
     />
   );

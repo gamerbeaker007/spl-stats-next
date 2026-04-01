@@ -1,6 +1,15 @@
 import logger from "@/lib/backend/log/logger.server";
-import { SplBalanceHistoryResponse } from "@/types/spl/balance";
+import {
+  BalanceHistoryTokenType,
+  SplBalanceHistoryItem,
+  SplBalanceHistoryResponse,
+  SplUnclaimedBalanceHistoryItem,
+  UnclaimedTokenType,
+} from "@/types/spl/balance";
 import { SplLoginResponse } from "@/types/spl/auth";
+import { SplPlayerDetails } from "@/types/spl/player";
+import { SplSeasonInfo, SplSettings } from "@/types/spl/season";
+import { SplLeaderboardPlayer, SplLeaderboardResponse, SplFormats } from "@/types/spl/leaderboard";
 import axios, { AxiosResponse } from "axios";
 import * as rax from "retry-axios";
 
@@ -91,6 +100,149 @@ export async function splLogin(
       }
       throw new Error(error.message || "Network error occurred");
     }
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Season & Settings
+// ---------------------------------------------------------------------------
+
+/** Fetch the current active season from /settings. */
+export async function fetchSettings(): Promise<SplSettings> {
+  try {
+    const res = await splBaseClient.get("/settings");
+    return res.data as SplSettings;
+  } catch (error) {
+    logger.error(
+      `Failed to fetch settings: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+/** Fetch season info by id from /season?id=N. */
+export async function fetchSeason(seasonId: number): Promise<SplSeasonInfo> {
+  try {
+    const res = await splBaseClient.get("/season", { params: { id: seasonId } });
+    return res.data as SplSeasonInfo;
+  } catch (error) {
+    logger.error(
+      `Failed to fetch season ${seasonId}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Player Details
+// ---------------------------------------------------------------------------
+
+/** Fetch player details (includes join_date) from /players/details. */
+export async function fetchPlayerDetails(username: string): Promise<SplPlayerDetails> {
+  try {
+    const res = await splBaseClient.get("/players/details", {
+      params: { name: username },
+    });
+    return res.data as SplPlayerDetails;
+  } catch (error) {
+    logger.error(
+      `Failed to fetch player details for ${username}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Balance History (authenticated) — single-page API calls only
+// ---------------------------------------------------------------------------
+
+/** Fetch a single page of /players/balance_history using dual-cursor pagination. */
+export async function fetchBalanceHistoryPage(
+  username: string,
+  tokenType: BalanceHistoryTokenType,
+  token: string,
+  fromDate?: string,
+  lastUpdateDate?: string,
+  limit: number = 1000
+): Promise<SplBalanceHistoryItem[]> {
+  const params: Record<string, string | number> = {
+    username,
+    token_type: tokenType,
+    limit,
+    token,
+  };
+  if (fromDate) params.from = fromDate;
+  if (lastUpdateDate) params.last_update_date = lastUpdateDate;
+
+  try {
+    const res = await splBaseClient.get("/players/balance_history", {
+      params,
+    });
+    if (!res.data || !Array.isArray(res.data)) return [];
+    return res.data as SplBalanceHistoryItem[];
+  } catch (error) {
+    logger.error(
+      `Failed to fetch balance history ${username}/${tokenType}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Unclaimed Balance History (authenticated) — single-page API calls only
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Leaderboard (public — no token required)
+// ---------------------------------------------------------------------------
+
+/** Fetch the player's leaderboard entry for a given season and format. Returns null if not ranked. */
+export async function fetchLeaderboardWithPlayer(
+  username: string,
+  season: number,
+  format: SplFormats
+): Promise<SplLeaderboardPlayer | null> {
+  try {
+    const res = await splBaseClient.get("/players/leaderboard_with_player", {
+      params: { season, format, username },
+    });
+    const data = res.data as SplLeaderboardResponse;
+    return data?.player ?? null;
+  } catch (error) {
+    logger.error(
+      `Failed to fetch leaderboard ${username}/${format}/season${season}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+/** Fetch a single page of /players/unclaimed_balance_history using id-based offset. */
+export async function fetchUnclaimedBalanceHistoryPage(
+  username: string,
+  tokenTypes: UnclaimedTokenType[],
+  token: string,
+  offset?: string,
+  limit: number = 1000
+): Promise<SplUnclaimedBalanceHistoryItem[]> {
+  const params: Record<string, string | number> = {
+    username,
+    token_type: tokenTypes.join(","),
+    limit,
+    token,
+  };
+  if (offset) params.offset = offset;
+
+  try {
+    const res = await splBaseClient.get("/players/unclaimed_balance_history", {
+      params,
+    });
+    if (!res.data || !Array.isArray(res.data)) return [];
+    return res.data as SplUnclaimedBalanceHistoryItem[];
+  } catch (error) {
+    logger.error(
+      `Failed to fetch unclaimed balance history for ${username}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
     throw error;
   }
 }

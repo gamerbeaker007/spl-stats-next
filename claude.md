@@ -31,6 +31,20 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
 - Removing a monitored account deletes the `SplAccount` token if no other user monitors that same username.
 - Future: when portfolio data tables are added, `removeMonitoredAccount` must check if other users also monitor the same username before deleting portfolio data.
 
+### Worker (Background Data Collection)
+
+- Worker runs as a **separate Docker service** (`worker`) sharing the same image, using `docker-entrypoint-worker.sh` as entrypoint.
+- Executes a loop every ~30 minutes. If a cycle exceeds 30 minutes, the next starts immediately.
+- **Interruptible and resumable**: designed for `docker-compose up` deployments that replace containers. Progress is committed at season-level granularity per account/token via `AccountSyncState`.
+- Scripts use `tsx` with a separate `scripts/tsconfig.json` for Node.js module resolution.
+- Graceful shutdown on SIGTERM/SIGINT: finishes current season, then exits.
+- Current flow: **season balance collection** — syncs seasons from SPL API, then fetches and aggregates balance history for all monitored accounts.
+- `SeasonBalance` stores pre-aggregated data per `(username, seasonId, token, type)` with raw `amount` (positive=earned, negative=spent) and `count`.
+- Spillover transactions (season rewards arriving after season end) are attributed to the previous season.
+- Unclaimed balance (SPS/VOUCHER) stored as separate tokens: `UNCLAIMED_SPS`, `UNCLAIMED_VOUCHER`.
+- `Season` is a standalone lookup table (id + endsAt), no FK relations to other tables.
+- **Designed for extension**: the worker architecture will support additional flows in the future (e.g. match history, portfolio data).
+
 ### Themes
 
 - Two themes: `light` and `dark`.
@@ -61,6 +75,7 @@ src/
     <api>/                    # Types for 3rd-party APIs (e.g., types/spl/)
     <domain>/                 # Internal domain types, grouped by domain if needed
 scripts/
+  worker.ts                   # Background worker entry point (balance collection loop)
   lib/                        # Script-dedicated utilities — NO Next.js runtime imports
                               # May import from src/lib/backend/ and src/lib/shared/
 ```
@@ -136,5 +151,7 @@ scripts/
 ## TODO / Future Work
 
 - Add portfolio data tables and hook up cascade delete in `removeMonitoredAccount`.
-- Set up `tsx` / `tsconfig-paths` for scripts when first cron job is created.
 - Add a cron job to prune old `Log` rows (`pruneLogs(days)` in `db/logs.ts`) — e.g. keep 30 days.
+- Add match history worker flow.
+- Add portfolio data worker flow.
+- Add admin UI for viewing worker run history and sync state.

@@ -69,3 +69,82 @@ model Log {
   @@index([createdAt])
   @@map("logs")
 }
+
+// SPL season metadata — standalone lookup table.
+// id is the SPL season number (natural key, not a cuid).
+model Season {
+  id     Int      @id // SPL season number (1, 2, 3, ...)
+  endsAt DateTime @map("ends_at")
+
+  @@map("seasons")
+}
+
+// Aggregated balance per account, per season, per token, per transaction type.
+// One row = one (account, season, token, type) tuple with summed amount and count.
+model SeasonBalance {
+  id       String @id @default(cuid())
+  username String // SPL username
+  seasonId Int    @map("season_id") // SPL season number (no FK — standalone lookup)
+  token    String // e.g. "DEC", "SPS", "GLINT", "UNCLAIMED_SPS", "UNCLAIMED_VOUCHER"
+  type     String // transaction type from API (e.g. "season_rewards", "quest_reward")
+  amount   Float  @default(0) // raw sum (positive = earned, negative = spent)
+  count    Int    @default(0) // number of transactions aggregated
+
+  @@unique([username, seasonId, token, type])
+  @@index([username])
+  @@index([seasonId])
+  @@map("season_balances")
+}
+
+// Tracks each full worker cycle (one iteration of the main loop).
+model WorkerRun {
+  id                String    @id @default(cuid())
+  startedAt         DateTime  @default(now()) @map("started_at")
+  completedAt       DateTime? @map("completed_at")
+  durationMs        Int?      @map("duration_ms")
+  status            String    @default("running") // "running" | "completed" | "failed"
+  error             String?   @db.Text
+  accountsProcessed Int       @default(0) @map("accounts_processed")
+
+  @@index([startedAt])
+  @@map("worker_runs")
+}
+
+// Leaderboard ranking per account, per season, per format.
+// format is "foundation" | "wild" | "modern".
+model PlayerLeaderboard {
+  id            String @id @default(cuid())
+  username      String
+  seasonId      Int    @map("season_id")
+  format        String // "foundation" | "wild" | "modern"
+  rating        Int?
+  rank          Int?
+  battles       Int?
+  wins          Int?
+  longestStreak Int?   @map("longest_streak")
+  maxRating     Int?   @map("max_rating")
+  league        Int?
+  maxLeague     Int?   @map("max_league")
+  rshares       Float?
+
+  @@unique([username, seasonId, format])
+  @@index([username])
+  @@index([seasonId])
+  @@map("player_leaderboards")
+}
+
+// Per-account sync cursor. Tracks where the worker left off
+// for each (username, token) combination, enabling resumability.
+model AccountSyncState {
+  id                  String   @id @default(cuid())
+  username            String
+  key                 String // e.g. "DEC", "SPS", "UNCLAIMED_SPS", LEADERBOARD_wild, etc.
+  lastSeasonProcessed Int      @default(0) @map("last_season_processed")
+  status              String   @default("pending") // "pending" | "processing" | "completed" | "failed"
+  errorMessage        String?  @db.Text @map("error_message")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  @@unique([username, key])
+  @@index([status])
+  @@map("account_sync_states")
+}
