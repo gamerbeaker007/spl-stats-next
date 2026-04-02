@@ -2,7 +2,6 @@
 
 import { useLogs } from "@/hooks/useLogs";
 import type { LogLevel } from "@/lib/backend/db/logs";
-import { usePageTitle } from "@/lib/frontend/context/PageTitleContext";
 import { Refresh as RefreshIcon } from "@mui/icons-material";
 import {
   Alert,
@@ -71,8 +70,6 @@ function MetaCell({ meta }: { meta: unknown }) {
 }
 
 export default function LogsContent() {
-  usePageTitle("Admin — Logs");
-
   const { logs, total, pages, loading, error, page, setPage, level, changeLevel, refresh } =
     useLogs();
 

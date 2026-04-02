@@ -1,7 +1,6 @@
 "use client";
 
 import { useMonitoredAccounts } from "@/hooks/useMonitoredAccounts";
-import { usePageTitle } from "@/lib/frontend/context/PageTitleContext";
 import { Add as AddIcon, Delete as DeleteIcon, Key as KeyIcon } from "@mui/icons-material";
 import {
   Alert,
@@ -64,8 +63,6 @@ export default function UserManagementContent({
   mainUsername,
   initialAccounts,
 }: Readonly<UserManagementContentProps>) {
-  usePageTitle("User Management");
-
   const {
     accounts,
     adding,

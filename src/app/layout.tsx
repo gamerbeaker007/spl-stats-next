@@ -1,7 +1,5 @@
-import SideBar from "@/components/side-bar/SideBar";
 import TopBar from "@/components/top-bar/TopBar";
 import { AuthProvider } from "@/lib/frontend/context/AuthContext";
-import { PageTitleProvider } from "@/lib/frontend/context/PageTitleContext";
 import theme from "@/lib/frontend/themes/theme";
 import { CssBaseline, InitColorSchemeScript, ThemeProvider } from "@mui/material";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
@@ -29,17 +27,11 @@ export default function RootLayout({
           <ThemeProvider theme={theme}>
             <CssBaseline />
             <AuthProvider>
-              <PageTitleProvider>
-                <Box sx={{ display: "flex", minHeight: "100vh" }}>
-                  <SideBar />
-                  <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
-                    <TopBar />
-                    <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
-                      {children}
-                    </Box>
-                  </Box>
-                </Box>
-              </PageTitleProvider>
+              <TopBar />
+              {/* pt offsets the fixed AppBar (64px). px/pb provide default page padding. */}
+              <Box component="main" sx={{ pt: "64px", px: 3, pb: 3 }}>
+                {children}
+              </Box>
             </AuthProvider>
           </ThemeProvider>
         </AppRouterCacheProvider>

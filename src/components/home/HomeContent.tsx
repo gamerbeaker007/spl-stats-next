@@ -1,12 +1,9 @@
 "use client";
 
-import { usePageTitle } from "@/lib/frontend/context/PageTitleContext";
 import { Container, Paper, Typography } from "@mui/material";
 import Box from "@mui/material/Box";
 
 export default function HomeContent() {
-  usePageTitle("SPL Stats");
-
   return (
     <Container maxWidth="lg">
       <Paper elevation={2} sx={{ p: 4, mt: 4 }}>

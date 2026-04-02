@@ -138,10 +138,10 @@ export default function PlayerInfo({ username, playerDetails }: Props) {
         </Typography>
       </Box>
 
-      {/* Dashboard Link Icon */}
+      {/* Collection Link Icon */}
       <IconButton
         component={Link}
-        href={`/dashboard?users=${encodeURIComponent(username)}`}
+        href={`/multi-dashboard/collection?users=${encodeURIComponent(username)}`}
         size="small"
         sx={{
           position: "absolute",
