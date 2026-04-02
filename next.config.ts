@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  cacheComponents: true,
+
   images: {
     remotePatterns: [
       {
@@ -13,6 +15,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "d36mxiodymuqjm.cloudfront.net",
         pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "peakmonsters.com",
+        pathname: "/app/img/**",
       },
     ],
   },

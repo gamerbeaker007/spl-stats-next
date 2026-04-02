@@ -14,11 +14,13 @@ import {
 } from "@mui/material";
 import Link from "next/link";
 import { useState } from "react";
-import { MdAdminPanelSettings, MdHome, MdMenu, MdPeople } from "react-icons/md";
+import { GiChest } from "react-icons/gi";
+import { MdAdminPanelSettings, MdDashboard, MdHome, MdMenu, MdPeople } from "react-icons/md";
 
 const links = [
   { href: "/", label: "Home", icon: <MdHome /> },
-  { href: "/multi-dashboard", label: "Multi Account Dashboard", icon: <MdPeople /> },
+  { href: "/jackpot-prizes", label: "Jackpot Prizes", icon: <GiChest /> },
+  { href: "/multi-dashboard", label: "Multi Account Dashboard", icon: <MdDashboard /> },
   { href: "/users", label: "Users", icon: <MdPeople /> },
   { href: "/admin", label: "Admin", icon: <MdAdminPanelSettings /> },
 ];
