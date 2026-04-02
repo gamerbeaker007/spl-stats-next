@@ -25,6 +25,13 @@ export async function findSplAccountByUsername(username: string) {
   return prisma.splAccount.findUnique({ where: { username } });
 }
 
+export async function getSplAccountTokenStatus(username: string) {
+  return prisma.splAccount.findUnique({
+    where: { username },
+    select: { tokenStatus: true },
+  });
+}
+
 export async function getSplAccountCredentials(username: string) {
   return prisma.splAccount.findUnique({
     where: { username },

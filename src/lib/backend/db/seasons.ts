@@ -15,3 +15,7 @@ export async function getLatestSeason() {
 export async function getAllSeasons() {
   return prisma.season.findMany({ orderBy: { id: "asc" } });
 }
+
+export async function getSeasonById(id: number) {
+  return prisma.season.findUnique({ where: { id } });
+}

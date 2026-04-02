@@ -3,6 +3,7 @@
 import { splLogin, verifySplToken } from "@/lib/backend/api/spl/spl-api";
 import { deleteUserCookie, getUserIdFromCookie, setUserCookie } from "@/lib/backend/auth/cookie";
 import { decryptToken, encryptToken } from "@/lib/backend/auth/encryption";
+import { deleteSyncStatesByUsername } from "@/lib/backend/db/account-sync-states";
 import {
   countMonitoredAccountsBySplAccount,
   createMonitoredAccount,
@@ -12,17 +13,17 @@ import {
   listMonitoredAccounts,
   upsertMonitoredAccount,
 } from "@/lib/backend/db/monitored-accounts";
+import { deletePlayerLeaderboardByUsername } from "@/lib/backend/db/player-leaderboard";
+import { deleteSeasonBalancesByUsername } from "@/lib/backend/db/season-balances";
 import {
   deleteSplAccount,
   findSplAccountByUsername,
   getSplAccountCredentials,
+  getSplAccountTokenStatus,
   updateSplAccountStatus,
   upsertSplAccount,
 } from "@/lib/backend/db/spl-accounts";
 import { getUserById, upsertUser } from "@/lib/backend/db/users";
-import { deleteSyncStatesByUsername } from "@/lib/backend/db/account-sync-states";
-import { deletePlayerLeaderboardByUsername } from "@/lib/backend/db/player-leaderboard";
-import { deleteSeasonBalancesByUsername } from "@/lib/backend/db/season-balances";
 import logger from "@/lib/backend/log/logger.server";
 
 function errorMessage(err: unknown): string {
@@ -230,6 +231,18 @@ export async function verifyMonitoredAccountToken(monitoredAccountId: string) {
   } catch (error) {
     logger.error(`verifyMonitoredAccountToken error: ${error}`);
     return { success: false, error: errorMessage(error) };
+  }
+}
+
+export async function getAccountTokenStatus(
+  username: string
+): Promise<"valid" | "invalid" | "unknown" | "not_found"> {
+  try {
+    const account = await getSplAccountTokenStatus(username.toLowerCase());
+    if (!account) return "not_found";
+    return account.tokenStatus as "valid" | "invalid" | "unknown";
+  } catch {
+    return "not_found";
   }
 }
 

@@ -1,5 +1,2 @@
-/** Partial player details from GET /players/details?name=X — only what we need */
-export interface SplPlayerDetails {
-  name: string;
-  join_date: string; // ISO date string
-}
+// Re-export the full SplPlayerDetails type from details.ts for backward compatibility
+export type { SplPlayerDetails } from "@/types/spl/details";

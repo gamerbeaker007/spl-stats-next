@@ -1,15 +1,39 @@
 import logger from "@/lib/backend/log/logger.server";
 import {
+  ClaimDailyData,
+  ClaimDailyResult,
+  ClaimDailyResultReward,
+  ClaimLeagueRewardData,
+  ClaimLeagueRewardResult,
+  ParsedHistory,
+  PurchaseData,
+  PurchaseResult,
+  purchaseTypes,
+  RankedDrawEntry,
+  RewardDraw,
+  RewardMerits,
+} from "@/types/parsedHistory";
+import { SplLoginResponse } from "@/types/spl/auth";
+import {
   BalanceHistoryTokenType,
   SplBalanceHistoryItem,
   SplBalanceHistoryResponse,
   SplUnclaimedBalanceHistoryItem,
   UnclaimedTokenType,
 } from "@/types/spl/balance";
-import { SplLoginResponse } from "@/types/spl/auth";
-import { SplPlayerDetails } from "@/types/spl/player";
+import { SplBalance } from "@/types/spl/balances";
+import { SplBrawlDetails } from "@/types/spl/brawl";
+import { SplCardCollection } from "@/types/spl/card";
+import { SplCardDetail } from "@/types/spl/cardDetails";
+import { SplDailyProgress } from "@/types/spl/dailies";
+import { SplPlayerDetails } from "@/types/spl/details";
+import { SplFrontierDrawStatus, SplRankedDrawStatus } from "@/types/spl/draws";
+import { SplFormat } from "@/types/spl/format";
+import { SplHistory } from "@/types/spl/history";
+import { SplFormats, SplLeaderboardPlayer, SplLeaderboardResponse } from "@/types/spl/leaderboard";
+import { SplCardListingPriceEntry } from "@/types/spl/market";
 import { SplSeasonInfo, SplSettings } from "@/types/spl/season";
-import { SplLeaderboardPlayer, SplLeaderboardResponse, SplFormats } from "@/types/spl/leaderboard";
+import { SPLSeasonRewards } from "@/types/spl/seasonRewards";
 import axios, { AxiosResponse } from "axios";
 import * as rax from "retry-axios";
 
@@ -138,11 +162,11 @@ export async function fetchSeason(seasonId: number): Promise<SplSeasonInfo> {
 // Player Details
 // ---------------------------------------------------------------------------
 
-/** Fetch player details (includes join_date) from /players/details. */
+/** Fetch full player details (includes season, guild, league info) from /players/details. */
 export async function fetchPlayerDetails(username: string): Promise<SplPlayerDetails> {
   try {
     const res = await splBaseClient.get("/players/details", {
-      params: { name: username },
+      params: { name: username, season_details: true, format: "all" },
     });
     return res.data as SplPlayerDetails;
   } catch (error) {
@@ -245,4 +269,325 @@ export async function fetchUnclaimedBalanceHistoryPage(
     );
     throw error;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Player Balances (public — no token required)
+// ---------------------------------------------------------------------------
+
+/** Fetch all balances for a player from /players/balances. */
+export async function fetchPlayerBalances(username: string): Promise<SplBalance[]> {
+  try {
+    const res = await splBaseClient.get("/players/balances", { params: { username } });
+    if (!res.data || !Array.isArray(res.data)) {
+      throw new Error("Invalid response from Splinterlands API: expected array");
+    }
+    return res.data as SplBalance[];
+  } catch (error) {
+    logger.error(
+      `Failed to fetch player balances for ${username}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Draws (public — no token required)
+// ---------------------------------------------------------------------------
+
+/** Fetch ranked draw status for a player. */
+export async function fetchRankedDraws(username: string): Promise<SplRankedDrawStatus> {
+  try {
+    const res = await splBaseClient.get("/ranked_draws/status", { params: { username } });
+    if (!res.data) throw new Error("Invalid response from Splinterlands API");
+    return res.data as SplRankedDrawStatus;
+  } catch (error) {
+    logger.error(
+      `Failed to fetch ranked draws for ${username}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+/** Fetch frontier draw status for a player. */
+export async function fetchFrontierDraws(username: string): Promise<SplFrontierDrawStatus> {
+  try {
+    const res = await splBaseClient.get("/frontier_draws/status", { params: { username } });
+    if (!res.data) throw new Error("Invalid response from Splinterlands API");
+    return res.data as SplFrontierDrawStatus;
+  } catch (error) {
+    logger.error(
+      `Failed to fetch frontier draws for ${username}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Brawl (optionally authenticated via token query param)
+// ---------------------------------------------------------------------------
+
+/** Fetch brawl details for a guild/tournament. Pass token to access private data. */
+export async function fetchBrawlDetails(
+  guildId: string,
+  tournamentId: string,
+  player: string,
+  token?: string
+): Promise<SplBrawlDetails> {
+  const params: Record<string, string> = {
+    guild_id: guildId,
+    id: tournamentId,
+    username: player,
+    ...(token ? { token } : {}),
+  };
+  try {
+    const res = await splBaseClient.get("/tournaments/find_brawl", { params });
+    if (!res.data) throw new Error("Invalid response from Splinterlands API");
+    return res.data as SplBrawlDetails;
+  } catch (error) {
+    logger.error(
+      `Failed to fetch brawl details for ${player}/${guildId}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Cards (public — no token required)
+// ---------------------------------------------------------------------------
+
+/** Fetch a player's card collection from /cards/collection/<username>. */
+export async function fetchCardCollection(username: string): Promise<SplCardCollection> {
+  try {
+    const res = await splBaseClient.get(`/cards/collection/${encodeURIComponent(username)}`);
+    if (!res.data) throw new Error("Invalid response from Splinterlands API");
+    return res.data as SplCardCollection;
+  } catch (error) {
+    logger.error(
+      `Failed to fetch card collection for ${username}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+/** Fetch all card details from /cards/get_details. */
+export async function fetchCardDetails(): Promise<SplCardDetail[]> {
+  try {
+    const res = await splBaseClient.get("/cards/get_details");
+    if (!res.data || !Array.isArray(res.data)) {
+      throw new Error("Invalid response from Splinterlands API: expected array");
+    }
+    return res.data as SplCardDetail[];
+  } catch (error) {
+    logger.error(
+      `Failed to fetch card details: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Daily Progress (authenticated via token query param)
+// ---------------------------------------------------------------------------
+
+/** Fetch daily quest/focus progress. Token is passed as query param. */
+export async function fetchDailyProgress(
+  player: string,
+  token: string,
+  format: SplFormat
+): Promise<SplDailyProgress> {
+  try {
+    const res = await splBaseClient.get("/dailies/progress", {
+      params: { username: player, token, format },
+    });
+    if (!res.data) throw new Error("Invalid response from Splinterlands API");
+    return res.data as SplDailyProgress;
+  } catch (error) {
+    logger.error(
+      `Failed to fetch daily progress for ${player}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Season Rewards (public — no token required)
+// ---------------------------------------------------------------------------
+
+/** Fetch current season reward info for a player. */
+export async function fetchCurrentRewards(username: string): Promise<SPLSeasonRewards> {
+  try {
+    const res = await splBaseClient.get("/players/current_rewards", { params: { username } });
+    if (!res.data) throw new Error("Invalid response from Splinterlands API");
+    return res.data as SPLSeasonRewards;
+  } catch (error) {
+    logger.error(
+      `Failed to fetch current rewards for ${username}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Market (public — no token required)
+// ---------------------------------------------------------------------------
+
+/** Fetch grouped market listing prices from /market/for_sale_grouped. */
+export async function fetchListingPrices(): Promise<SplCardListingPriceEntry[]> {
+  try {
+    const res = await splBaseClient.get("/market/for_sale_grouped");
+    if (!res.data) throw new Error("Invalid response from Splinterlands API");
+    return res.data as SplCardListingPriceEntry[];
+  } catch (error) {
+    logger.error(
+      `Failed to fetch listing prices: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Player History (authenticated via token query param)
+// ---------------------------------------------------------------------------
+
+const VALID_PURCHASE_TYPES: purchaseTypes[] = [
+  "reward_merits",
+  "reward_draw",
+  "ranked_draw_entry",
+  "potion",
+  "unbind_scroll",
+];
+
+const HISTORY_PAGE_LIMIT = 500;
+const HISTORY_PAGE_DELAY_MS = 100;
+
+function parseHistoryToInternalTypes(entry: SplHistory): ParsedHistory | null {
+  try {
+    let parsedData: ClaimLeagueRewardData | ClaimDailyData | PurchaseData;
+    let parsedResult: ClaimLeagueRewardResult | ClaimDailyResult | PurchaseResult | null = null;
+
+    if (entry.type === "claim_reward") {
+      parsedData = JSON.parse(entry.data) as ClaimLeagueRewardData;
+      if (entry.result) parsedResult = JSON.parse(entry.result) as ClaimLeagueRewardResult;
+    } else if (entry.type === "claim_daily") {
+      parsedData = JSON.parse(entry.data) as ClaimDailyData;
+      if (entry.result) {
+        parsedResult = JSON.parse(entry.result) as ClaimDailyResult;
+        parsedResult.quest_data.rewards = JSON.parse(
+          parsedResult.quest_data.rewards as unknown as string
+        ) as ClaimDailyResultReward;
+      }
+    } else if (entry.type === "purchase") {
+      parsedData = JSON.parse(entry.data) as PurchaseData;
+      if (!VALID_PURCHASE_TYPES.includes(parsedData.type)) return null;
+      if (entry.result) {
+        parsedResult = JSON.parse(entry.result) as PurchaseResult;
+        parsedResult.data = JSON.parse(parsedResult.data as unknown as string) as
+          | RankedDrawEntry
+          | RewardMerits
+          | RewardDraw;
+      }
+    } else {
+      return null;
+    }
+
+    if (!parsedResult) return null;
+
+    return {
+      id: entry.id,
+      block_id: entry.block_id,
+      prev_block_id: entry.prev_block_id,
+      type: entry.type as "claim_daily" | "claim_reward" | "purchase",
+      player: entry.player,
+      affected_player: entry.affected_player,
+      data: parsedData,
+      success: entry.success,
+      error: entry.error,
+      block_num: entry.block_num,
+      created_date: entry.created_date,
+      result: parsedResult,
+      steem_price: entry.steem_price,
+      sbd_price: entry.sbd_price,
+      is_owner: entry.is_owner,
+    };
+  } catch (error) {
+    logger.error(`Failed to parse history entry ${entry.id}: ${error}`);
+    return null;
+  }
+}
+
+/**
+ * Fetch a page of player history. Token is passed as query param.
+ * Returns typed ParsedHistory entries, filtering out unknown/invalid types.
+ */
+export async function fetchPlayerHistory(
+  player: string,
+  token: string,
+  types: string,
+  beforeBlock?: number
+): Promise<ParsedHistory[]> {
+  const params: Record<string, string | number> = {
+    username: player,
+    types,
+    limit: HISTORY_PAGE_LIMIT,
+    token,
+  };
+  if (beforeBlock) params.before_block = beforeBlock;
+
+  try {
+    const res = await splBaseClient.get("/players/history", { params });
+    if (!Array.isArray(res.data)) throw new Error("Invalid response: expected array");
+    return (res.data as SplHistory[])
+      .map(parseHistoryToInternalTypes)
+      .filter((e): e is ParsedHistory => e !== null);
+  } catch (error) {
+    logger.error(
+      `Failed to fetch player history for ${player}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+/**
+ * Paginates fetchPlayerHistory until entries older than startDate are reached.
+ * Returns entries within [startDate, endDate] sorted newest first.
+ */
+export async function fetchPlayerHistoryByDateRange(
+  player: string,
+  token: string,
+  types: string,
+  startDate: Date,
+  endDate: Date
+): Promise<ParsedHistory[]> {
+  const allEntries: ParsedHistory[] = [];
+  let lastBlockNum: number | undefined;
+  let hasMoreData = true;
+  let iterations = 0;
+  const MAX_ITERATIONS = 100;
+
+  while (hasMoreData && iterations < MAX_ITERATIONS) {
+    iterations++;
+    if (iterations > 1) {
+      await new Promise((resolve) => setTimeout(resolve, HISTORY_PAGE_DELAY_MS));
+    }
+
+    const batch = await fetchPlayerHistory(player, token, types, lastBlockNum);
+    if (batch.length === 0) break;
+
+    const filtered = batch.filter((entry) => {
+      const d = new Date(entry.created_date);
+      return d >= startDate && d <= endDate;
+    });
+    allEntries.push(...filtered);
+
+    const oldest = batch[batch.length - 1];
+    if (new Date(oldest.created_date) < startDate) break;
+
+    lastBlockNum = oldest.block_num - 1;
+    if (batch.length < HISTORY_PAGE_LIMIT) hasMoreData = false;
+  }
+
+  return allEntries.sort(
+    (a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime()
+  );
 }

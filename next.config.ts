@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
         hostname: "images.hive.blog",
         pathname: "/u/**",
       },
+      {
+        protocol: "https",
+        hostname: "d36mxiodymuqjm.cloudfront.net",
+        pathname: "/**",
+      },
     ],
   },
 };

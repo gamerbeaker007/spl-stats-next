@@ -18,6 +18,7 @@ import { MdAdminPanelSettings, MdHome, MdMenu, MdPeople } from "react-icons/md";
 
 const links = [
   { href: "/", label: "Home", icon: <MdHome /> },
+  { href: "/multi-dashboard", label: "Multi Account Dashboard", icon: <MdPeople /> },
   { href: "/users", label: "Users", icon: <MdPeople /> },
   { href: "/admin", label: "Admin", icon: <MdAdminPanelSettings /> },
 ];
