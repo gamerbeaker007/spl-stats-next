@@ -27,7 +27,6 @@ import {
   VapiDeed,
 } from "@/lib/backend/api/spl/vapi-spl";
 import { getPlayerCollectionValue } from "@/lib/collectionUtils";
-import { editionMap } from "@/types/card";
 import type {
   CollectionEditionDetail,
   DeedDetail,
