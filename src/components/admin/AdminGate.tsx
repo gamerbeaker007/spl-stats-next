@@ -1,5 +1,7 @@
 import AdminLogsSkeleton from "@/components/admin/AdminLogsSkeleton";
 import LogsContent from "@/components/admin/LogsContent";
+import PortfolioImport from "@/components/admin/PortfolioImport";
+import PortfolioImportSkeleton from "@/components/admin/PortfolioImportSkeleton";
 import WorkerStatusContent from "@/components/admin/WorkerStatusContent";
 import WorkerStatusSkeleton from "@/components/admin/WorkerStatusSkeleton";
 import PageErrorBoundary from "@/components/shared/error-boundaries/PageErrorBoundary";
@@ -30,6 +32,11 @@ export default async function AdminGate() {
       <PageErrorBoundary>
         <Suspense fallback={<AdminLogsSkeleton />}>
           <LogsContent />
+        </Suspense>
+      </PageErrorBoundary>
+      <PageErrorBoundary>
+        <Suspense fallback={<PortfolioImportSkeleton />}>
+          <PortfolioImport />
         </Suspense>
       </PageErrorBoundary>
     </>

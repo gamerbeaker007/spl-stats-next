@@ -138,9 +138,9 @@ model PlayerLeaderboard {
 model AccountSyncState {
   id                   String    @id @default(cuid())
   username             String
-  key                  String    // e.g. "DEC", "SPS", "UNCLAIMED", LEADERBOARD_wild, etc.
+  key                  String    // e.g. "DEC", "SPS", "UNCLAIMED", LEADERBOARD_wild, PORTFOLIO
   lastSeasonProcessed  Int       @default(0) @map("last_season_processed") // used by leaderboard sync
-  lastSyncedCreatedDate DateTime? @map("last_synced_created_date")          // cursor for balance/unclaimed sync
+  lastSyncedCreatedDate DateTime? @map("last_synced_created_date")          // cursor for balance/unclaimed sync; for PORTFOLIO: date of last completed daily sync
   status               String    @default("pending") // "pending" | "processing" | "completed" | "failed"
   errorMessage         String?   @db.Text @map("error_message")
   updatedAt            DateTime  @updatedAt @map("updated_at")
@@ -148,4 +148,74 @@ model AccountSyncState {
   @@unique([username, key])
   @@index([status])
   @@map("account_sync_states")
+}
+
+// Daily portfolio snapshot per account, capturing current market value
+// of all assets: cards, tokens, land deeds, resources, and liquidity pools.
+model PortfolioSnapshot {
+  id       String   @id @default(cuid())
+  date     DateTime @db.Date
+  username String
+
+  // Collection totals
+  collectionMarketValue Float @default(0) @map("collection_market_value")
+  collectionListValue   Float @default(0) @map("collection_list_value")
+  // [{edition, editionName, listValue, marketValue, bcx, numberOfCards}]
+  collectionDetails     Json? @map("collection_details")
+
+  // Core named tokens
+  decValue      Float @default(0) @map("dec_value")
+  decQty        Float @default(0) @map("dec_qty")
+  decStakedValue Float @default(0) @map("dec_staked_value")
+  decStakedQty   Float @default(0) @map("dec_staked_qty")
+  spsValue      Float @default(0) @map("sps_value")
+  spsQty        Float @default(0) @map("sps_qty")
+  spspValue     Float @default(0) @map("spsp_value")
+  spspQty       Float @default(0) @map("spsp_qty")
+  voucherValue  Float @default(0) @map("voucher_value")
+  voucherQty    Float @default(0) @map("voucher_qty")
+  creditsValue  Float @default(0) @map("credits_value")
+  creditsQty    Float @default(0) @map("credits_qty")
+  decBValue     Float @default(0) @map("dec_b_value")
+  decBQty       Float @default(0) @map("dec_b_qty")
+  voucherGValue Float @default(0) @map("voucher_g_value")
+  voucherGQty   Float @default(0) @map("voucher_g_qty")
+  licenseValue  Float @default(0) @map("license_value")
+  licenseQty    Float @default(0) @map("license_qty")
+
+  // Land deeds
+  deedsValue  Float @default(0) @map("deeds_value")
+  deedsQty    Int   @default(0) @map("deeds_qty")
+  // [{rarity, plotStatus, magicType, deedType, qty, minListingPrice}]
+  deedDetails Json? @map("deed_details")
+
+  // Land resources
+  landResourceValue    Float @default(0) @map("land_resource_value")
+  landResourceQty      Float @default(0) @map("land_resource_qty")
+  // [{resource, qty, value}]
+  landResourceDetailed Json? @map("land_resource_detailed")
+
+  // DEC:SPS liquidity pool on Hive Engine
+  liqPoolDecValue Float @default(0) @map("liq_pool_dec_value")
+  liqPoolDecQty   Float @default(0) @map("liq_pool_dec_qty")
+  liqPoolSpsValue Float @default(0) @map("liq_pool_sps_value")
+  liqPoolSpsQty   Float @default(0) @map("liq_pool_sps_qty")
+
+  // Inventory items (packs, skins, totems, etc.) → [{name, assetName, qty, value}]
+  inventoryValue  Float @default(0) @map("inventory_value")
+  inventoryQty    Int   @default(0) @map("inventory_qty")
+  inventoryDetail Json? @map("inventory_detail")
+
+  // Price snapshot used for all calculations
+  decPriceUsd  Float? @map("dec_price_usd")
+  hivePriceUsd Float? @map("hive_price_usd")
+  spsPriceUsd  Float? @map("sps_price_usd")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([username, date])
+  @@index([username])
+  @@index([date])
+  @@map("portfolio_snapshots")
 }

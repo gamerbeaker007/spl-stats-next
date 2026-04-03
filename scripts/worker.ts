@@ -1,18 +1,17 @@
 import { fetchSettings } from "@/lib/backend/api/spl/spl-api";
-import { getDistinctAccountsWithCredentials } from "@/lib/backend/db/spl-accounts";
 import { resetStaleSyncStates } from "@/lib/backend/db/account-sync-states";
-import { createWorkerRun, completeWorkerRun } from "@/lib/backend/db/worker-runs";
+import { getAllSeasons } from "@/lib/backend/db/seasons";
+import { getDistinctAccountsWithCredentials } from "@/lib/backend/db/spl-accounts";
+import { completeWorkerRun, createWorkerRun } from "@/lib/backend/db/worker-runs";
 import logger from "@/lib/backend/log/logger.server";
 import {
+  interruptibleSleep,
   registerShutdownHandlers,
   shouldShutdown,
-  interruptibleSleep,
 } from "./lib/graceful-shutdown";
+import { syncPortfolio } from "./lib/portfolio-sync";
 import { syncSeasonsEndDates } from "./lib/season-end-dates-sync";
-import { syncSeasonBalances } from "./lib/balance-sync";
-import { syncLeaderboard } from "./lib/leaderboard-sync";
 import { WORKER_INTERVAL_MS } from "./lib/worker-config";
-import { getAllSeasons } from "@/lib/backend/db/seasons";
 
 registerShutdownHandlers();
 
@@ -24,7 +23,7 @@ async function runCycle(): Promise<void> {
     // Step 1: Check settings — bail early if game is in maintenance mode
     const settings = await fetchSettings();
     const currentSeasonId = settings.season.id;
-    const maintenance= settings.maintenance_mode;
+    const maintenance = settings.maintenance_mode;
 
     if (maintenance) {
       logger.info("Worker: game is in maintenance mode, skipping cycle");
@@ -62,10 +61,10 @@ async function runCycle(): Promise<void> {
       }
 
       logger.info(`Worker: syncing account ${account.username}`);
-      let seasonSuccess = false
+      let seasonSuccess = false;
       try {
-        await syncSeasonBalances(account, allSeasons);
-        seasonSuccess = true
+        // await syncSeasonBalances(account, allSeasons);
+        seasonSuccess = true;
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         logger.error(`Worker: failed to sync balances ${account.username}: ${msg}`);
@@ -77,21 +76,31 @@ async function runCycle(): Promise<void> {
         break;
       }
 
-      let leaderboardSuccess = false
+      let leaderboardSuccess = false;
       try {
-        await syncLeaderboard(account.username, allSeasons, currentSeasonId);
-        leaderboardSuccess = true
+        // await syncLeaderboard(account.username, allSeasons, currentSeasonId);
+        leaderboardSuccess = true;
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         logger.error(`Worker: failed to sync leaderboard ${account.username}: ${msg}`);
         // Continue with next account — don't let one failure stop the cycle
       }
 
-      if (seasonSuccess && leaderboardSuccess ){
+      if (seasonSuccess && leaderboardSuccess) {
         accountsProcessed++;
       }
 
-      //TODO portfolio scan
+      if (shouldShutdown()) {
+        logger.info("Worker: shutdown requested, stopping gracefully");
+        break;
+      }
+
+      try {
+        await syncPortfolio(account.username);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        logger.error(`Worker: failed to sync portfolio ${account.username}: ${msg}`);
+      }
     }
 
     await completeWorkerRun(run.id, "completed", accountsProcessed);

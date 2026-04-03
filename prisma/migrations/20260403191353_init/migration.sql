@@ -111,6 +111,54 @@ CREATE TABLE "account_sync_states" (
     CONSTRAINT "account_sync_states_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "portfolio_snapshots" (
+    "id" TEXT NOT NULL,
+    "date" DATE NOT NULL,
+    "username" TEXT NOT NULL,
+    "collection_market_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "collection_list_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "collection_details" JSONB,
+    "dec_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "dec_qty" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "dec_staked_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "dec_staked_qty" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "sps_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "sps_qty" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "spsp_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "spsp_qty" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "voucher_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "voucher_qty" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "credits_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "credits_qty" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "dec_b_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "dec_b_qty" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "voucher_g_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "voucher_g_qty" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "license_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "license_qty" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "deeds_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "deeds_qty" INTEGER NOT NULL DEFAULT 0,
+    "deed_details" JSONB,
+    "land_resource_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "land_resource_qty" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "land_resource_detailed" JSONB,
+    "liq_pool_dec_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "liq_pool_dec_qty" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "liq_pool_sps_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "liq_pool_sps_qty" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "inventory_value" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "inventory_qty" INTEGER NOT NULL DEFAULT 0,
+    "inventory_detail" JSONB,
+    "dec_price_usd" DOUBLE PRECISION,
+    "hive_price_usd" DOUBLE PRECISION,
+    "sps_price_usd" DOUBLE PRECISION,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "portfolio_snapshots_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_username_key" ON "users"("username");
 
@@ -155,6 +203,15 @@ CREATE INDEX "account_sync_states_status_idx" ON "account_sync_states"("status")
 
 -- CreateIndex
 CREATE UNIQUE INDEX "account_sync_states_username_key_key" ON "account_sync_states"("username", "key");
+
+-- CreateIndex
+CREATE INDEX "portfolio_snapshots_username_idx" ON "portfolio_snapshots"("username");
+
+-- CreateIndex
+CREATE INDEX "portfolio_snapshots_date_idx" ON "portfolio_snapshots"("date");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "portfolio_snapshots_username_date_key" ON "portfolio_snapshots"("username", "date");
 
 -- AddForeignKey
 ALTER TABLE "monitored_accounts" ADD CONSTRAINT "monitored_accounts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -958,3 +958,37 @@ export async function fetchFrontierDrawsRecentPrizes(
     throw error;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Prices API  (https://prices.splinterlands.com)
+// ---------------------------------------------------------------------------
+
+export interface SplPrices {
+  hive: number;
+  dec: number;
+  sps: number;
+  voucher?: number;
+  [key: string]: number | undefined;
+}
+
+const splPricesClient = axios.create({
+  baseURL: "https://prices.splinterlands.com",
+  timeout: 15000,
+  headers: { "User-Agent": "SPL-Data/1.0" },
+});
+
+/** Fetch current token prices from prices.splinterlands.com/prices. */
+export async function fetchSplPrices(): Promise<SplPrices> {
+  try {
+    const res = await splPricesClient.get<SplPrices>("/prices");
+    if (!res.data || typeof res.data.hive !== "number") {
+      throw new Error("Invalid prices response");
+    }
+    return res.data;
+  } catch (error) {
+    logger.error(
+      `Failed to fetch SPL prices: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
