@@ -3,7 +3,10 @@ import { getOrCreateSyncState, updateSyncState } from "@/lib/backend/db/account-
 import { incrementSeasonBalanceBatch } from "@/lib/backend/db/season-balances";
 import logger from "@/lib/backend/log/logger.server";
 import { fetchBalanceHistoryDelta, IncrementalResult } from "./service/balance-history";
-import { fetchIncrementalUnclaimedHistory, UNCLAIMED_MIN_SEASON } from "./service/unclaimed-balance-history";
+import {
+  fetchIncrementalUnclaimedHistory,
+  UNCLAIMED_MIN_SEASON,
+} from "./service/unclaimed-balance-history";
 import { BALANCE_HISTORY_TOKEN_TYPES } from "@/types/spl/balance";
 import { Season } from "@prisma/client";
 import { shouldShutdown } from "./graceful-shutdown";
@@ -68,19 +71,25 @@ async function syncBalancesForToken(
   if (!syncState.lastSyncedCreatedDate) {
     const firstSeasonId = await getPlayerFirstSeasonId(username, allSeasons);
     if (!firstSeasonId) {
-      logger.warn(`syncBalances ${username}/${tokenKey}: could not determine join season, skipping`);
+      logger.warn(
+        `syncBalances ${username}/${tokenKey}: could not determine join season, skipping`
+      );
       return;
     }
     const sorted = [...allSeasons].sort((a, b) => a.id - b.id);
     const idx = sorted.findIndex((s) => s.id === firstSeasonId);
-    cursor = idx > 0 ? sorted[idx - 1].endsAt : new Date(0);
+    if (idx > 0) {
+      cursor = sorted[idx - 1].endsAt;
+    } else {
+      // Season 1 has no preceding season — approximate its start as 2 weeks before it ends.
+      const twoWeeksMs = 14 * 24 * 60 * 60 * 1000;
+      cursor = new Date(sorted[Math.max(idx, 0)].endsAt.getTime() - twoWeeksMs);
+    }
   }
 
   // Seasons that still need data: those whose window ends after the cursor.
   const now = new Date();
-  const pending = [...allSeasons]
-    .sort((a, b) => a.id - b.id)
-    .filter((s) => s.endsAt > cursor);
+  const pending = [...allSeasons].sort((a, b) => a.id - b.id).filter((s) => s.endsAt > cursor);
 
   if (pending.length === 0) return; // already up to date
 
@@ -107,7 +116,7 @@ async function syncBalancesForToken(
       // Advance the cursor and checkpoint.
       cursor = isCurrentSeason
         ? (result.maxCreatedDate ?? cursor) // advance to newest item seen
-        : season.endsAt;                    // advance to definitive season boundary
+        : season.endsAt; // advance to definitive season boundary
 
       await updateSyncState(syncState.id, { lastSyncedCreatedDate: cursor });
 
