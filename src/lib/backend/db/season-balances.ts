@@ -44,6 +44,39 @@ export async function upsertSeasonBalanceBatch(
   );
 }
 
+/**
+ * Increment existing season balance aggregates by the given delta amounts.
+ * Creates the row if it doesn't exist yet. Safe to call repeatedly — never overwrites,
+ * only adds the delta on top of whatever is already stored.
+ */
+export async function incrementSeasonBalanceBatch(
+  rows: Array<{
+    username: string;
+    seasonId: number;
+    token: string;
+    type: string;
+    amount: number;
+    count: number;
+  }>
+) {
+  return prisma.$transaction(
+    rows.map((row) =>
+      prisma.seasonBalance.upsert({
+        where: {
+          username_seasonId_token_type: {
+            username: row.username,
+            seasonId: row.seasonId,
+            token: row.token,
+            type: row.type,
+          },
+        },
+        create: row,
+        update: { amount: { increment: row.amount }, count: { increment: row.count } },
+      })
+    )
+  );
+}
+
 export async function getSeasonBalances(username: string, seasonId?: number) {
   return prisma.seasonBalance.findMany({
     where: { username, ...(seasonId !== undefined ? { seasonId } : {}) },

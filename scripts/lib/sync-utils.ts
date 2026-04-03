@@ -3,7 +3,7 @@ import { fetchPlayerDetails } from "@/lib/backend/api/spl/spl-api";
 import { RESCAN_MIN_INTERVAL_MS } from "./worker-config";
 
 
-async function getPlayerFirstSeasonId(
+export async function getPlayerFirstSeasonId(
   username: string,
   allSeasons: Season[]
 ): Promise<number | undefined> {
@@ -23,7 +23,7 @@ export async function buildSeasonsToProcess(
   minSeasonId = 1 // only used for UNCLAIMED_MIN_SEASON
 ): Promise<Season[] | undefined> {
 
-  // Step 1 determine if a user has data synced alteady start form there when not determine by first join.
+  // Step 1 determine if a user has data synced already start form there when not determine by first join.
   const startFromSeason =
     syncState.lastSeasonProcessed === 0
       ? await getPlayerFirstSeasonId(username, allSeasons)
@@ -32,14 +32,15 @@ export async function buildSeasonsToProcess(
   // Not able to determine the first season, return, break flow.
   if (!startFromSeason) return;
 
-  // Step 2 filter seasons based on startFromSeason, currentSeasonId, and minSeasonId
+  // Step 2: filter completed historical seasons (strictly before the current season).
+  // The current season is excluded here so step 3 can apply throttling to it independently.
   const result = allSeasons.filter(
-    (s) => s.id >= startFromSeason && s.id <= currentSeasonId && s.id >= minSeasonId
+    (s) => s.id >= startFromSeason && s.id < currentSeasonId && s.id >= minSeasonId
   );
 
-  // Step 3 check if current season is missing and add if fresh enough
-  // once a day is enough but when new season is added include it)
-  if (!result.some((s) => s.id === currentSeasonId) && currentSeasonId >= minSeasonId) {
+  // Step 3: conditionally add the current season.
+  // Skip it if it was already synced within the throttle window (once per day is enough).
+  if (currentSeasonId >= minSeasonId) {
     const freshEnough =
       syncState.status === "completed" &&
       Date.now() - syncState.updatedAt.getTime() < RESCAN_MIN_INTERVAL_MS;

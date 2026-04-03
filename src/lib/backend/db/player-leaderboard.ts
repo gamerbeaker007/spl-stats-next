@@ -24,10 +24,26 @@ export async function upsertPlayerLeaderboard(entry: PlayerLeaderboardEntry) {
         format: entry.format,
       },
     },
-    create: entry,
-    update: {
+    create: {
+      username: entry.username,
+      seasonId: entry.seasonId,
+      format: entry.format,
       rating: entry.rating,
       rank: entry.rank,
+      battles: entry.battles,
+      wins: entry.wins,
+      longestStreak: entry.longestStreak,
+      maxRating: entry.maxRating,
+      league: entry.league,
+      maxLeague: entry.maxLeague,
+      rshares: entry.rshares,
+    },
+    update: {
+      rating: entry.rating,
+      // Preserve an existing rank when the API returns null (e.g. mid-season,
+      // not yet ranked). The current season is re-synced each worker cycle so
+      // the rank will be written as soon as the API provides it.
+      rank: entry.rank ?? undefined,
       battles: entry.battles,
       wins: entry.wins,
       longestStreak: entry.longestStreak,

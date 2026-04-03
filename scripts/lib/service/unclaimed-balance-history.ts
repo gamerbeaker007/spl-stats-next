@@ -6,7 +6,7 @@ import {
   UNCLAIMED_TOKEN_TYPES,
 } from "@/types/spl/balance";
 import { Season } from "@prisma/client";
-import { AggregatedEntry, getSeasonDateRange } from "./balance-history";
+import { AggregatedEntry, IncrementalResult } from "./balance-history";
 import { BALANCE_HISTORY_PAGE_LIMIT, REQUEST_DELAY_MS } from "../worker-config";
 
 /** Unclaimed balance history only exists from this season onwards. */
@@ -14,7 +14,81 @@ export const UNCLAIMED_MIN_SEASON = 93;
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-function aggregateUnclaimedItems(items: SplUnclaimedBalanceHistoryItem[]): AggregatedEntry[] {
+const isSpilloverType = (type: string): boolean =>
+  UNCLAIMED_SPILLOVER_TYPES.includes(type as (typeof UNCLAIMED_SPILLOVER_TYPES)[number]);
+
+/**
+ * Fetch unclaimed balance history items newer than stopAt (exclusive).
+ * The API uses ID-based pagination; we stop when created_date passes the cutoff.
+ * When stopAt is null, fetches all pages.
+ */
+async function fetchItemsSince(
+  username: string,
+  token: string,
+  stopAt: Date | null
+): Promise<SplUnclaimedBalanceHistoryItem[]> {
+  const all: SplUnclaimedBalanceHistoryItem[] = [];
+  let offset: string | undefined;
+
+  while (true) {
+    await delay(REQUEST_DELAY_MS);
+
+    const batch = await fetchUnclaimedBalanceHistoryPage(
+      username,
+      [...UNCLAIMED_TOKEN_TYPES],
+      token,
+      offset,
+      BALANCE_HISTORY_PAGE_LIMIT
+    );
+    if (batch.length === 0) break;
+
+    for (const item of batch) {
+      if (!stopAt || new Date(item.created_date) > stopAt) {
+        all.push(item);
+      }
+    }
+
+    const lastItem = batch[batch.length - 1];
+    if (stopAt && new Date(lastItem.created_date) <= stopAt) break;
+    if (batch.length < BALANCE_HISTORY_PAGE_LIMIT) break;
+
+    offset = lastItem.id;
+  }
+
+  return all;
+}
+
+/**
+ * Assign each unclaimed item to its season bucket using created_date, applying spillover:
+ * "season"-type items arrive in season N's window but belong to season N-1.
+ */
+function routeItemsToSeasons(
+  items: SplUnclaimedBalanceHistoryItem[],
+  allSeasons: Season[]
+): Map<number, SplUnclaimedBalanceHistoryItem[]> {
+  const sorted = [...allSeasons].sort((a, b) => a.id - b.id);
+  const ranges = sorted.map((s, i) => ({
+    id: s.id,
+    start: i > 0 ? sorted[i - 1].endsAt : new Date(0),
+    end: s.endsAt,
+  }));
+
+  const buckets = new Map<number, SplUnclaimedBalanceHistoryItem[]>();
+
+  for (const item of items) {
+    const d = new Date(item.created_date);
+    const season = ranges.find((r) => d > r.start && d <= r.end);
+    if (!season) continue;
+
+    const targetId = isSpilloverType(item.type) ? season.id - 1 : season.id;
+    if (!buckets.has(targetId)) buckets.set(targetId, []);
+    buckets.get(targetId)!.push(item);
+  }
+
+  return buckets;
+}
+
+function aggregateItems(items: SplUnclaimedBalanceHistoryItem[]): AggregatedEntry[] {
   const map = new Map<string, AggregatedEntry>();
   for (const item of items) {
     const amount = Number.parseFloat(item.amount);
@@ -39,113 +113,43 @@ function aggregateUnclaimedItems(items: SplUnclaimedBalanceHistoryItem[]): Aggre
   return Array.from(map.values());
 }
 
-const isSpilloverType = (type: string): boolean =>
-  UNCLAIMED_SPILLOVER_TYPES.includes(type as (typeof UNCLAIMED_SPILLOVER_TYPES)[number]);
-
 /**
- * Fetch all unclaimed balance history pages in a single pass, stopping once
- * items older than `oldestStartDate` are reached.
+ * Fetch all unclaimed balance history newer than sinceDate and return per-season deltas.
  *
- * The API uses ID-based (not date-based) pagination, so fetching per-season would
- * restart from the top each time — O(n²) for full scans. One pass is O(n).
+ * - sinceDate = null  →  initial full scan; oldestDate is the lower bound
+ *                        (start of UNCLAIMED_MIN_SEASON to avoid fetching pre-history).
+ * - sinceDate = Date  →  incremental: only items created after that date.
  */
-async function fetchAllUnclaimedHistory(
-  username: string,
-  token: string,
-  oldestStartDate: Date
-): Promise<SplUnclaimedBalanceHistoryItem[]> {
-  const all: SplUnclaimedBalanceHistoryItem[] = [];
-  let offset: string | undefined;
-
-  while (true) {
-    await delay(REQUEST_DELAY_MS);
-
-    const batch = await fetchUnclaimedBalanceHistoryPage(
-      username,
-      [...UNCLAIMED_TOKEN_TYPES],
-      token,
-      offset,
-      BALANCE_HISTORY_PAGE_LIMIT
-    );
-    if (batch.length === 0) break;
-
-    all.push(...batch);
-
-    const lastItem = batch[batch.length - 1];
-    offset = lastItem.id;
-
-    if (new Date(lastItem.created_date) < oldestStartDate) break;
-    if (batch.length < BALANCE_HISTORY_PAGE_LIMIT) break;
-  }
-
-  return all;
-}
-
-/**
- * Fetch all unclaimed balance history in one pass, then distribute items across
- * the seasons to process in memory, applying spillover logic.
- *
- * Spillover: "season"-type transactions arrive in the early window of season N+1
- * but were earned in season N. They are detected by type and moved to the N bucket.
- *
- * Returns a Map<seasonId, AggregatedEntry[]> for every season in `seasonsToProcess`.
- */
-export async function fetchAndDistributeUnclaimedBySeason(
+export async function fetchIncrementalUnclaimedHistory(
   username: string,
   token: string,
   allSeasons: Season[],
-  seasonsToProcess: Season[]
-): Promise<Map<number, AggregatedEntry[]>> {
-  // Determine the oldest date we need — start of the earliest season to process
-  const oldestSeason = seasonsToProcess[0];
-  const { startDate: oldestStartDate } = getSeasonDateRange(oldestSeason, allSeasons);
+  sinceDate: Date | null,
+  oldestDate: Date | null
+): Promise<IncrementalResult> {
+  const stopAt = sinceDate ?? oldestDate;
 
-  const allItems = await fetchAllUnclaimedHistory(username, token, oldestStartDate);
+  const items = await fetchItemsSince(username, token, stopAt);
+  if (items.length === 0) return { deltas: new Map(), maxCreatedDate: null };
 
-  // Pre-compute date ranges for all known seasons (needed to handle spillover windows)
-  const dateRanges = new Map<number, { startDate: Date; endDate: Date }>();
-  for (const s of allSeasons) {
-    dateRanges.set(s.id, getSeasonDateRange(s, allSeasons));
-  }
+  const maxCreatedDate = items.reduce<Date | null>((max, item) => {
+    const d = new Date(item.created_date);
+    return max === null || d > max ? d : max;
+  }, null);
 
-  // Initialize a bucket for every season we need to write results for
-  const buckets = new Map<number, SplUnclaimedBalanceHistoryItem[]>();
-  for (const s of seasonsToProcess) {
-    buckets.set(s.id, []);
-  }
+  const buckets = routeItemsToSeasons(items, allSeasons);
 
-  // Iterate allSeasons descending (API returns newest-first, so most items are in recent seasons)
-  const seasonsSortedDesc = [...allSeasons].sort((a, b) => b.id - a.id);
-
-  for (const item of allItems) {
-    const itemDate = new Date(item.created_date);
-
-    for (const season of seasonsSortedDesc) {
-      const range = dateRanges.get(season.id);
-      if (!range) continue;
-      if (itemDate <= range.startDate || itemDate > range.endDate) continue;
-
-      if (isSpilloverType(item.type)) {
-        // Spillover item: arrives in season N's window but belongs to season N-1
-        const prevBucket = buckets.get(season.id - 1);
-        if (prevBucket) prevBucket.push(item);
-      } else {
-        const bucket = buckets.get(season.id);
-        if (bucket) bucket.push(item);
-      }
-      break;
-    }
-  }
-
-  // Aggregate and log spillover counts per season
-  const result = new Map<number, AggregatedEntry[]>();
-  for (const [seasonId, items] of buckets) {
-    const spilloverCount = items.filter((i) => isSpilloverType(i.type)).length;
+  for (const [seasonId, bucketItems] of buckets) {
+    const spilloverCount = bucketItems.filter((i) => isSpilloverType(i.type)).length;
     if (spilloverCount > 0) {
       logger.info(`${username}/UNCLAIMED/S${seasonId}: ${spilloverCount} spillover items`);
     }
-    result.set(seasonId, aggregateUnclaimedItems(items));
   }
 
-  return result;
+  const deltas = new Map<number, AggregatedEntry[]>();
+  for (const [seasonId, seasonItems] of buckets) {
+    deltas.set(seasonId, aggregateItems(seasonItems));
+  }
+
+  return { deltas, maxCreatedDate };
 }

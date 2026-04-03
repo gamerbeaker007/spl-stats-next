@@ -12,6 +12,7 @@ export async function updateSyncState(
   id: string,
   data: {
     lastSeasonProcessed?: number;
+    lastSyncedCreatedDate?: Date | null;
     status?: "pending" | "processing" | "completed" | "failed";
     errorMessage?: string | null;
   }

@@ -4,21 +4,25 @@ body {
   overflow-x: hidden;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
-}
-
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
+/* High-contrast overrides MUI's dark scheme CSS vars.
+   Two-class selector (.dark.high-contrast) beats MUI's single-class .dark. */
+.dark.high-contrast {
+  --mui-palette-primary-main: #90caf9;
+  --mui-palette-primary-mainChannel: 144 202 249;
+  --mui-palette-primary-dark: #42a5f5;
+  --mui-palette-primary-light: #bbdefb;
+  --mui-palette-primary-contrastText: #000000;
+  --mui-palette-secondary-main: #f48fb1;
+  --mui-palette-secondary-mainChannel: 244 143 177;
+  --mui-palette-secondary-dark: #f06292;
+  --mui-palette-secondary-light: #f8bbd9;
+  --mui-palette-secondary-contrastText: #000000;
+  --mui-palette-background-default: #0a0a0a;
+  --mui-palette-background-paper: #121212;
+  --mui-palette-text-primary: #ffffff;
+  --mui-palette-text-primaryChannel: 255 255 255;
+  --mui-palette-text-secondary: #e0e0e0;
+  --mui-palette-text-secondaryChannel: 224 224 224;
 }
 
 * {

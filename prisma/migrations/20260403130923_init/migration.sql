@@ -103,6 +103,7 @@ CREATE TABLE "account_sync_states" (
     "username" TEXT NOT NULL,
     "key" TEXT NOT NULL,
     "last_season_processed" INTEGER NOT NULL DEFAULT 0,
+    "last_synced_created_date" TIMESTAMP(3),
     "status" TEXT NOT NULL DEFAULT 'pending',
     "error_message" TEXT,
     "updated_at" TIMESTAMP(3) NOT NULL,

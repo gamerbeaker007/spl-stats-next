@@ -10,10 +10,10 @@ import { useEffect, useState } from "react";
 export function PlayerDashboardContent({
   username,
   showHeader = false,
-}: {
+}: Readonly<{
   username: string;
   showHeader?: boolean;
-}) {
+}>) {
   const [cardCollection, setCardCollection] = useState<DetailedPlayerCardCollection | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

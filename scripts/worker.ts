@@ -64,7 +64,7 @@ async function runCycle(): Promise<void> {
       logger.info(`Worker: syncing account ${account.username}`);
       let seasonSuccess = false
       try {
-        await syncSeasonBalances(account, allSeasons, currentSeasonId);
+        await syncSeasonBalances(account, allSeasons);
         seasonSuccess = true
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);

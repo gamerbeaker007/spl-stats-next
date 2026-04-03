@@ -8,30 +8,28 @@ import {
   land_icon_url,
   ranked_icon_url,
 } from "@/lib/utils/staticUrls";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import MenuIcon from "@mui/icons-material/Menu";
-import {
-  Box,
-  Button,
-  Divider,
-  Drawer,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  ListSubheader,
-  Menu,
-  MenuItem,
-  Typography,
-  useMediaQuery,
-  useTheme,
-} from "@mui/material";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import AppBar from "@mui/material/AppBar";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Divider from "@mui/material/Divider";
+import Drawer from "@mui/material/Drawer";
+import IconButton from "@mui/material/IconButton";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import ListSubheader from "@mui/material/ListSubheader";
+import Menu from "@mui/material/Menu";
+import MenuItem from "@mui/material/MenuItem";
+import Toolbar from "@mui/material/Toolbar";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MouseEvent, useState } from "react";
+import { useState } from "react";
+import { MdExpandMore, MdClose, MdMenu } from "react-icons/md";
+import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 
 const BASE = "/jackpot-prizes";
 
@@ -106,78 +104,55 @@ function NavDropdown({
   items,
   activeRoutes,
   pathname,
-}: {
+}: Readonly<{
   label: string;
   items: NavItem[];
   activeRoutes: string[];
   pathname: string;
-}) {
-  const [anchor, setAnchor] = useState<null | HTMLElement>(null);
-  const open = Boolean(anchor);
+}>) {
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
   const isActive = activeRoutes.includes(pathname);
-
-  const handleOpen = (e: MouseEvent<HTMLElement>) => setAnchor(e.currentTarget);
-  const handleClose = () => setAnchor(null);
 
   return (
     <>
       <Button
         suppressHydrationWarning
-        onClick={handleOpen}
+        onClick={(e) => setAnchorEl(e.currentTarget)}
+        color={isActive ? "secondary" : "inherit"}
+        variant={isActive ? "outlined" : "text"}
         endIcon={
-          <ExpandMoreIcon
-            sx={{ transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "none" }}
+          <MdExpandMore
+            style={{
+              transition: "transform 200ms",
+              transform: open ? "rotate(180deg)" : undefined,
+            }}
           />
         }
-        sx={{
-          color: isActive ? "secondary.main" : "inherit",
-          border: isActive ? "1px solid" : "1px solid transparent",
-          borderColor: isActive ? "secondary.main" : "transparent",
-          borderRadius: 2,
-          textTransform: "none",
-          fontWeight: isActive ? 700 : 400,
-          px: 1.5,
-        }}
+        size="small"
       >
         {label}
       </Button>
 
       <Menu
-        anchorEl={anchor}
+        anchorEl={anchorEl}
         open={open}
-        onClose={handleClose}
-        slotProps={{
-          paper: {
-            sx: {
-              mt: 0.5,
-              minWidth: 220,
-              bgcolor: "background.paper",
-              border: "1px solid",
-              borderColor: "divider",
-            },
-          },
-        }}
+        onClose={() => setAnchorEl(null)}
+        slotProps={{ paper: { elevation: 4, sx: { minWidth: 220, mt: 0.5 } } }}
       >
         {items.map((item, idx) => (
           <Box key={item.href}>
             {idx > 0 && <Divider />}
             <MenuItem
-              suppressHydrationWarning
               component={Link}
               href={item.href}
-              onClick={handleClose}
+              suppressHydrationWarning
               selected={pathname === item.href}
-              sx={{
-                gap: 1.5,
-                py: 1,
-                color: item.color ?? "inherit",
-                "&.Mui-selected": { bgcolor: "action.selected" },
-              }}
+              onClick={() => setAnchorEl(null)}
+              sx={{ gap: 1.5, color: item.color ?? "inherit" }}
             >
               <Image src={item.icon} alt={item.alt} width={22} height={22} />
-              <Typography variant="body2" fontWeight={pathname === item.href ? 700 : 400}>
-                {item.label}
-              </Typography>
+              {item.label}
             </MenuItem>
           </Box>
         ))}
@@ -186,93 +161,76 @@ function NavDropdown({
   );
 }
 
+const allGroups: { title: string; items: NavItem[] }[] = [
+  { title: "Mint History", items: mintHistory },
+  { title: "Jackpot Prizes", items: jackpotPrizes },
+];
+
 export default function JackpotNavigation() {
   const pathname = usePathname();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const isMobile = useMediaQuery("(max-width: 767px)");
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const allGroups: { title: string; items: NavItem[] }[] = [
-    { title: "Mint History", items: mintHistory },
-    { title: "Jackpot Prizes", items: jackpotPrizes },
-  ];
-
   return (
-    <Box
-      component="nav"
+    <AppBar
+      position="sticky"
+      color="default"
+      elevation={0}
       sx={{
-        position: "sticky",
-        top: 0,
-        zIndex: 1100,
-        bgcolor: "background.paper",
+        top: APP_BAR_HEIGHT,
+        zIndex: (t) => t.zIndex.appBar - 1,
         borderBottom: "1px solid",
         borderColor: "divider",
         mb: 2,
       }}
     >
-      {/* Desktop nav — items centered */}
-      {!isMobile && (
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: 0.5,
-            flexWrap: "wrap",
-            py: 1,
-            px: 2,
-          }}
-        >
-          <NavDropdown
-            label="Mint History"
-            items={mintHistory}
-            activeRoutes={mintHistory.map((item) => item.href)}
-            pathname={pathname}
-          />
-          <NavDropdown
-            label="Jackpot Prizes"
-            items={jackpotPrizes}
-            activeRoutes={jackpotPrizes.map((item) => item.href)}
-            pathname={pathname}
-          />
-        </Box>
-      )}
-
-      {/* Mobile — title left, hamburger right */}
-      {isMobile && (
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            py: 0.5,
-            px: 1,
-          }}
-        >
-          <Typography
-            variant="subtitle1"
-            suppressHydrationWarning
-            component={Link}
-            href={BASE}
-            sx={{ fontWeight: 700, textDecoration: "none", color: "text.primary", pl: 1 }}
-          >
-            SPL Jackpot Prizes
-          </Typography>
-          <IconButton onClick={() => setDrawerOpen(true)} aria-label="Open navigation menu">
-            <MenuIcon />
-          </IconButton>
-        </Box>
-      )}
+      <Toolbar
+        variant="dense"
+        sx={{ justifyContent: isMobile ? "space-between" : "center", gap: 1, flexWrap: "wrap" }}
+      >
+        {isMobile ? (
+          <>
+            <Link
+              suppressHydrationWarning
+              href={BASE}
+              style={{ textDecoration: "none", color: "inherit", fontWeight: "bold" }}
+            >
+              SPL Jackpot Prizes
+            </Link>
+            <IconButton
+              onClick={() => setDrawerOpen(true)}
+              aria-label="Open navigation menu"
+              color="inherit"
+              size="small"
+            >
+              <MdMenu size={20} />
+            </IconButton>
+          </>
+        ) : (
+          <>
+            <NavDropdown
+              label="Mint History"
+              items={mintHistory}
+              activeRoutes={mintHistory.map((i) => i.href)}
+              pathname={pathname}
+            />
+            <NavDropdown
+              label="Jackpot Prizes"
+              items={jackpotPrizes}
+              activeRoutes={jackpotPrizes.map((i) => i.href)}
+              pathname={pathname}
+            />
+          </>
+        )}
+      </Toolbar>
 
       {/* Mobile drawer */}
       <Drawer
         anchor="left"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        slotProps={{
-          paper: {
-            sx: { width: 270, bgcolor: "background.default" },
-          },
+        PaperProps={{
+          sx: { width: 270, top: APP_BAR_HEIGHT, height: `calc(100% - ${APP_BAR_HEIGHT}px)` },
         }}
       >
         <Box
@@ -281,72 +239,58 @@ export default function JackpotNavigation() {
             py: 1.5,
             bgcolor: "primary.main",
             color: "primary.contrastText",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
           }}
         >
-          <Typography variant="h6" fontWeight={700}>
-            SPL Jackpot Prizes
-          </Typography>
+          <span style={{ fontWeight: "bold", fontSize: "1.1rem" }}>SPL Jackpot Prizes</span>
+          <IconButton
+            onClick={() => setDrawerOpen(false)}
+            aria-label="Close navigation"
+            sx={{ color: "inherit" }}
+            size="small"
+          >
+            <MdClose size={18} />
+          </IconButton>
         </Box>
 
         <Divider />
 
-        {allGroups.map((group) => (
-          <List
-            key={group.title}
-            subheader={
-              <ListSubheader
-                sx={{
-                  bgcolor: "transparent",
-                  color: "text.secondary",
-                  fontWeight: 700,
-                  letterSpacing: 1,
-                  textTransform: "uppercase",
-                  fontSize: "0.7rem",
-                }}
-              >
-                {group.title}
-              </ListSubheader>
-            }
-          >
-            {group.items.map((item) => {
-              const active = pathname === item.href;
-              const isGold = !!item.color;
-              return (
-                <ListItem key={item.href} disablePadding>
-                  <ListItemButton
-                    component={Link}
-                    href={item.href}
-                    selected={active}
-                    onClick={() => setDrawerOpen(false)}
-                    sx={{
-                      borderRadius: 1,
-                      mx: 1,
-                      color: isGold ? item.color : "inherit",
-                      "&.Mui-selected": { bgcolor: "action.selected", fontWeight: 700 },
-                      "&:hover": isGold ? { color: "#FFD700" } : {},
-                    }}
-                  >
-                    <ListItemIcon sx={{ minWidth: 36 }}>
-                      <Image src={item.icon} alt={item.alt} width={22} height={22} />
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={item.label}
-                      slotProps={{
-                        primary: {
-                          variant: "body2",
-                          fontWeight: active ? 700 : 400,
-                          color: isGold ? item.color : "inherit",
-                        },
-                      }}
-                    />
-                  </ListItemButton>
-                </ListItem>
-              );
-            })}
-            <Divider sx={{ mt: 1 }} />
-          </List>
-        ))}
+        <List sx={{ overflowY: "auto", flex: 1 }}>
+          {allGroups.map((group) => (
+            <Box key={group.title}>
+              <ListSubheader sx={{ lineHeight: "32px", mt: 1 }}>{group.title}</ListSubheader>
+              {group.items.map((item) => {
+                const active = pathname === item.href;
+                return (
+                  <ListItem key={item.href} disablePadding sx={{ mx: 0.5 }}>
+                    <ListItemButton
+                      component={Link}
+                      href={item.href}
+                      suppressHydrationWarning
+                      selected={active}
+                      onClick={() => setDrawerOpen(false)}
+                      sx={{ borderRadius: 1, color: item.color ?? "inherit" }}
+                    >
+                      <ListItemIcon sx={{ minWidth: 36 }}>
+                        <Image src={item.icon} alt={item.alt} width={22} height={22} />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary={item.label}
+                        slotProps={{
+                          primary: { variant: "body2", fontWeight: active ? "bold" : "normal" },
+                        }}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                );
+              })}
+              <Divider sx={{ mt: 1 }} />
+            </Box>
+          ))}
+        </List>
       </Drawer>
-    </Box>
+    </AppBar>
   );
 }

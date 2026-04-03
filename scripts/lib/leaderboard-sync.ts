@@ -43,11 +43,11 @@ export async function syncLeaderboard(
     try {
       for (const season of seasonToProcess) {
         if (shouldShutdown()) return;
-
         const player = await fetchLeaderboardWithPlayer(username, season.id, format);
         // Skip stub entries — API returns { player: username } with no stats when
         // the account did not participate in this format/season.
-        if (player && player.battles != null) {
+        if (player?.battles != null) {
+          logger.info(`Processing season ${season.id} for ${username} in format ${format}`);
           await upsertPlayerLeaderboard({
             username,
             seasonId: season.id,

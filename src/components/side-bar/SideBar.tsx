@@ -1,98 +1,134 @@
 "use client";
 
-import {
-  Divider,
-  Drawer,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Toolbar,
-  Typography,
-} from "@mui/material";
+import { isActive, navLinks } from "@/components/nav/navLinks";
+import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import Box from "@mui/material/Box";
+import Drawer from "@mui/material/Drawer";
+import List from "@mui/material/List";
+import ListItem from "@mui/material/ListItem";
+import ListItemButton from "@mui/material/ListItemButton";
+import ListItemIcon from "@mui/material/ListItemIcon";
+import ListItemText from "@mui/material/ListItemText";
+import Tooltip from "@mui/material/Tooltip";
 import Link from "next/link";
-import { useState } from "react";
-import { GiChest } from "react-icons/gi";
-import { MdAdminPanelSettings, MdDashboard, MdHome, MdMenu, MdPeople } from "react-icons/md";
+import { usePathname } from "next/navigation";
 
-const links = [
-  { href: "/", label: "Home", icon: <MdHome /> },
-  { href: "/jackpot-prizes", label: "Jackpot Prizes", icon: <GiChest /> },
-  { href: "/multi-dashboard", label: "Multi Account Dashboard", icon: <MdDashboard /> },
-  { href: "/users", label: "Users", icon: <MdPeople /> },
-  { href: "/admin", label: "Admin", icon: <MdAdminPanelSettings /> },
-];
+const COLLAPSED_WIDTH = 56;
+const EXPANDED_WIDTH = 240;
 
-const SIDEBAR_WIDTH_EXPANDED = 240;
-const SIDEBAR_WIDTH_COLLAPSED = 60;
+interface NavSidebarProps {
+  expanded: boolean;
+  mobileOpen: boolean;
+  onMobileClose: () => void;
+}
 
-export default function SideBar() {
-  const [collapsed, setCollapsed] = useState(true);
-
-  const drawerWidth = collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED;
+function NavList({ expanded, onNavigate }: { expanded: boolean; onNavigate?: () => void }) {
+  const pathname = usePathname();
 
   return (
-    <Drawer
-      variant="permanent"
-      sx={{
-        width: drawerWidth,
-        flexShrink: 0,
-        [`& .MuiDrawer-paper`]: {
-          width: drawerWidth,
-          boxSizing: "border-box",
-          transition: "width 0.3s ease-in-out",
-          overflowX: "hidden",
-        },
-      }}
-    >
-      <Toolbar
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: collapsed ? "center" : "space-between",
-          minHeight: 64,
-          px: collapsed ? 1 : 2,
-        }}
-      >
-        {!collapsed && (
-          <Typography variant="h6" noWrap>
-            SPL Stats
-          </Typography>
-        )}
-        <IconButton onClick={() => setCollapsed(!collapsed)}>
-          <MdMenu />
-        </IconButton>
-      </Toolbar>
-      <Divider />
-      <List>
-        {links.map(({ href, label, icon }) => (
-          <ListItem key={href} disablePadding sx={{ display: "block" }}>
-            <ListItemButton
+    <List disablePadding>
+      {navLinks.map(({ href, label, icon }) => {
+        const active = isActive(href, pathname);
+        const button = (
+          <ListItem disablePadding key={href}>
+            <Link
               suppressHydrationWarning
-              component={Link}
               href={href}
-              sx={{
-                minHeight: 48,
-                justifyContent: collapsed ? "center" : "flex-start",
-                px: 2.5,
-              }}
+              onClick={onNavigate}
+              style={{ textDecoration: "none", color: "inherit", width: "100%" }}
             >
-              <ListItemIcon
+              <ListItemButton
+                selected={active}
                 sx={{
-                  minWidth: 0,
-                  mr: collapsed ? 0 : 3,
-                  justifyContent: "center",
+                  minHeight: 48,
+                  justifyContent: expanded ? "initial" : "center",
+                  px: expanded ? 2 : 1,
                 }}
               >
-                {icon}
-              </ListItemIcon>
-              {!collapsed && <ListItemText primary={label} />}
-            </ListItemButton>
+                <ListItemIcon
+                  sx={{
+                    minWidth: 0,
+                    mr: expanded ? 2 : "auto",
+                    justifyContent: "center",
+                    color: active ? "primary.main" : "text.secondary",
+                  }}
+                >
+                  {icon}
+                </ListItemIcon>
+                {expanded && (
+                  <ListItemText
+                    primary={label}
+                    slotProps={{
+                      primary: {
+                        variant: "body2",
+                        fontWeight: active ? "bold" : "normal",
+                      },
+                    }}
+                  />
+                )}
+              </ListItemButton>
+            </Link>
           </ListItem>
-        ))}
-      </List>
-    </Drawer>
+        );
+
+        return expanded ? (
+          button
+        ) : (
+          <Tooltip key={href} title={label} placement="right" arrow>
+            {button}
+          </Tooltip>
+        );
+      })}
+    </List>
+  );
+}
+
+const drawerPaperSx = (width: number) => ({
+  width,
+  top: APP_BAR_HEIGHT,
+  height: `calc(100% - ${APP_BAR_HEIGHT}px)`,
+  overflowX: "hidden",
+  boxSizing: "border-box",
+});
+
+export default function NavSidebar({ expanded, mobileOpen, onMobileClose }: NavSidebarProps) {
+  const isMobile = useMediaQuery("(max-width: 767px)");
+
+  if (isMobile) {
+    return (
+      <Drawer
+        variant="temporary"
+        open={mobileOpen}
+        onClose={onMobileClose}
+        ModalProps={{ keepMounted: true }}
+        sx={{ zIndex: (t) => t.zIndex.appBar + 1 }}
+        PaperProps={{ sx: drawerPaperSx(EXPANDED_WIDTH) }}
+      >
+        <NavList expanded={true} onNavigate={onMobileClose} />
+      </Drawer>
+    );
+  }
+
+  return (
+    <Box
+      component="nav"
+      aria-label="Main navigation"
+      sx={{
+        position: "fixed",
+        left: 0,
+        bottom: 0,
+        top: APP_BAR_HEIGHT,
+        width: expanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
+        overflowX: "hidden",
+        transition: "width 200ms",
+        borderRight: "1px solid",
+        borderColor: "divider",
+        bgcolor: "background.paper",
+        zIndex: (t) => t.zIndex.drawer,
+      }}
+    >
+      <NavList expanded={expanded} />
+    </Box>
   );
 }

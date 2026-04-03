@@ -46,7 +46,7 @@ export default function HomePage() {
             information and the lucky winners.
           </Typography>
           <Button
-            onClick={() => handleNavigate("/jackpot-prizes-main/ca-mint-history")}
+            onClick={() => handleNavigate("/jackpot-prizes/ca-mint-history")}
             variant="contained"
             size="large"
             fullWidth
@@ -73,7 +73,7 @@ export default function HomePage() {
             information and the lucky winners.
           </Typography>
           <Button
-            onClick={() => handleNavigate("/jackpot-prizes-main/escalation-mint-history")}
+            onClick={() => handleNavigate("/jackpot-prizes/escalation-mint-history")}
             variant="contained"
             size="large"
             fullWidth
@@ -100,7 +100,7 @@ export default function HomePage() {
             in the so-called &quot;Gator Buckets&quot;.
           </Typography>
           <Button
-            onClick={() => handleNavigate("/jackpot-prizes-main/jackpot-prizes")}
+            onClick={() => handleNavigate("/jackpot-prizes/jackpot-prizes")}
             variant="contained"
             size="large"
             fullWidth
@@ -126,7 +126,7 @@ export default function HomePage() {
             the Conclave Arcana reward set.
           </Typography>
           <Button
-            onClick={() => handleNavigate("/jackpot-prizes-main/ca-gold-rewards")}
+            onClick={() => handleNavigate("/jackpot-prizes/ca-gold-rewards")}
             variant="contained"
             size="large"
             fullWidth
@@ -153,7 +153,7 @@ export default function HomePage() {
             foil statistics.
           </Typography>
           <Button
-            onClick={() => handleNavigate("/jackpot-prizes-main/ranked-reward-draws")}
+            onClick={() => handleNavigate("/jackpot-prizes/ranked-reward-draws")}
             variant="contained"
             size="large"
             fullWidth
@@ -180,7 +180,7 @@ export default function HomePage() {
             foil statistics.
           </Typography>
           <Button
-            onClick={() => handleNavigate("/jackpot-prizes-main/frontier-reward-draws")}
+            onClick={() => handleNavigate("/jackpot-prizes/frontier-reward-draws")}
             variant="contained"
             size="large"
             fullWidth
@@ -206,7 +206,7 @@ export default function HomePage() {
             statistics.
           </Typography>
           <Button
-            onClick={() => handleNavigate("/jackpot-prizes-main/land-mint-history")}
+            onClick={() => handleNavigate("/jackpot-prizes/land-mint-history")}
             variant="contained"
             size="large"
             fullWidth

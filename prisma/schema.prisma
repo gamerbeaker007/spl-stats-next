@@ -136,13 +136,14 @@ model PlayerLeaderboard {
 // Per-account sync cursor. Tracks where the worker left off
 // for each (username, token) combination, enabling resumability.
 model AccountSyncState {
-  id                  String   @id @default(cuid())
-  username            String
-  key                 String // e.g. "DEC", "SPS", "UNCLAIMED_SPS", LEADERBOARD_wild, etc.
-  lastSeasonProcessed Int      @default(0) @map("last_season_processed")
-  status              String   @default("pending") // "pending" | "processing" | "completed" | "failed"
-  errorMessage        String?  @db.Text @map("error_message")
-  updatedAt           DateTime @updatedAt @map("updated_at")
+  id                   String    @id @default(cuid())
+  username             String
+  key                  String    // e.g. "DEC", "SPS", "UNCLAIMED", LEADERBOARD_wild, etc.
+  lastSeasonProcessed  Int       @default(0) @map("last_season_processed") // used by leaderboard sync
+  lastSyncedCreatedDate DateTime? @map("last_synced_created_date")          // cursor for balance/unclaimed sync
+  status               String    @default("pending") // "pending" | "processing" | "completed" | "failed"
+  errorMessage         String?   @db.Text @map("error_message")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
 
   @@unique([username, key])
   @@index([status])
