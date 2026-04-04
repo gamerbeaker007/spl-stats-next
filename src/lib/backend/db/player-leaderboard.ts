@@ -58,3 +58,31 @@ export async function upsertPlayerLeaderboard(entry: PlayerLeaderboardEntry) {
 export async function deletePlayerLeaderboardByUsername(username: string) {
   return prisma.playerLeaderboard.deleteMany({ where: { username } });
 }
+
+/**
+ * All leaderboard rows for an account, ordered by season ascending.
+ * Optionally filtered to a single format.
+ */
+export async function getPlayerLeaderboardHistory(
+  username: string,
+  format?: string
+): Promise<PlayerLeaderboardEntry[]> {
+  const rows = await prisma.playerLeaderboard.findMany({
+    where: { username, ...(format ? { format } : {}) },
+    orderBy: { seasonId: "asc" },
+  });
+  return rows.map((r) => ({
+    username: r.username,
+    seasonId: r.seasonId,
+    format: r.format,
+    rating: r.rating,
+    rank: r.rank,
+    battles: r.battles,
+    wins: r.wins,
+    longestStreak: r.longestStreak,
+    maxRating: r.maxRating,
+    league: r.league,
+    maxLeague: r.maxLeague,
+    rshares: r.rshares,
+  }));
+}

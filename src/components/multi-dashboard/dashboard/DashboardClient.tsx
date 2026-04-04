@@ -63,7 +63,7 @@ function DashboardContent() {
     if (newUsers.length === 0) return;
     // Update URL with comma-separated users
     const newParam = newUsers.join(",");
-    router.push(`/multi-dashboard?users=${encodeURIComponent(newParam)}`);
+    router.push(`/multi-dashboard/collection?users=${encodeURIComponent(newParam)}`);
   };
 
   // Redirect to home if no users

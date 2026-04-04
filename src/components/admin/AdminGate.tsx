@@ -1,6 +1,8 @@
 import AdminLogsSkeleton from "@/components/admin/AdminLogsSkeleton";
 import BattleImport from "@/components/admin/BattleImport";
 import BattleImportSkeleton from "@/components/admin/BattleImportSkeleton";
+import DbSizeContent from "@/components/admin/DbSizeContent";
+import DbSizeSkeleton from "@/components/admin/DbSizeSkeleton";
 import LogsContent from "@/components/admin/LogsContent";
 import PortfolioImport from "@/components/admin/PortfolioImport";
 import PortfolioImportSkeleton from "@/components/admin/PortfolioImportSkeleton";
@@ -29,6 +31,11 @@ export default async function AdminGate() {
       <PageErrorBoundary>
         <Suspense fallback={<WorkerStatusSkeleton />}>
           <WorkerStatusContent />
+        </Suspense>
+      </PageErrorBoundary>
+      <PageErrorBoundary>
+        <Suspense fallback={<DbSizeSkeleton />}>
+          <DbSizeContent />
         </Suspense>
       </PageErrorBoundary>
       <PageErrorBoundary>
