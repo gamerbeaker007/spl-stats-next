@@ -150,6 +150,84 @@ model AccountSyncState {
   @@map("account_sync_states")
 }
 
+// Player's own cards used in each battle.
+// One row per card. Battle-level metadata is denormalised for simple analytics queries.
+model PlayerBattleCard {
+  id          String   @id @default(cuid())
+  battleId    String   @map("battle_id")   // battle_queue_id_1
+  account     String                        // tracked SPL username
+  position    Int                           // 0-based card index in the team (summoner last)
+
+  // Battle-level metadata (denormalised — avoids joins for analytics)
+  opponent    String
+  createdDate DateTime @map("created_date")
+  matchType   String   @map("match_type")  // Ranked | Brawl | Tournament | Challenge
+  format      String                        // wild | modern | foundation | survival
+  manaCap     Float    @map("mana_cap")
+  ruleset1    String   @map("ruleset1")
+  ruleset2    String   @map("ruleset2")
+  ruleset3    String   @map("ruleset3")
+  inactive    String
+  winner      String
+  result      String                        // "win" | "loss"
+
+  // Card info
+  cardDetailId   Int     @map("card_detail_id")
+  cardName       String  @map("card_name")
+  cardType       String  @map("card_type")  // Monster | Summoner
+  rarity         Int
+  color          String
+  secondaryColor String? @map("secondary_color")
+  xp             Float?
+  gold           Boolean
+  level          Int
+  edition        Int
+
+  @@unique([battleId, account, position])
+  @@index([account])
+  @@index([account, createdDate])
+  @@index([createdDate])
+  @@map("player_battle_cards")
+}
+
+// Opponent cards recorded when the tracked account LOST a battle.
+// Stored under the tracked account so you can analyse "what beats me".
+model OpponentBattleCard {
+  id          String   @id @default(cuid())
+  battleId    String   @map("battle_id")
+  account     String                        // tracked SPL username (account that lost)
+  position    Int                           // 0-based card index in the opponent's team
+
+  // Battle-level metadata (denormalised)
+  opponent    String                        // the actual opponent username
+  createdDate DateTime @map("created_date")
+  matchType   String   @map("match_type")
+  format      String
+  manaCap     Float    @map("mana_cap")
+  ruleset1    String   @map("ruleset1")
+  ruleset2    String   @map("ruleset2")
+  ruleset3    String   @map("ruleset3")
+  inactive    String
+
+  // Card info
+  cardDetailId   Int     @map("card_detail_id")
+  cardName       String  @map("card_name")
+  cardType       String  @map("card_type")
+  rarity         Int
+  color          String
+  secondaryColor String? @map("secondary_color")
+  xp             Float?
+  gold           Boolean
+  level          Int
+  edition        Int
+
+  @@unique([battleId, account, position])
+  @@index([account])
+  @@index([account, createdDate])
+  @@index([createdDate])
+  @@map("opponent_battle_cards")
+}
+
 // Daily portfolio snapshot per account, capturing current market value
 // of all assets: cards, tokens, land deeds, resources, and liquidity pools.
 model PortfolioSnapshot {

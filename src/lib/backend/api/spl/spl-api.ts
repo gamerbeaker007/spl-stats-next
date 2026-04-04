@@ -27,6 +27,7 @@ import {
   UnclaimedTokenType,
 } from "@/types/spl/balance";
 import { SplBalance } from "@/types/spl/balances";
+import { BATTLE_FORMATS, SplBattle, SplBattleHistoryResponse } from "@/types/spl/battle";
 import { SplBrawlDetails } from "@/types/spl/brawl";
 import { SplCardCollection } from "@/types/spl/card";
 import { SplCardDetail } from "@/types/spl/cardDetails";
@@ -395,6 +396,53 @@ export async function fetchCardDetails(): Promise<SplCardDetail[]> {
     );
     throw error;
   }
+}
+
+/**
+ * Fetch battle history for an account across all supported formats
+ * (wild, modern, foundation, survival) and return a deduplicated list.
+ * Authenticated — requires the player's token.
+ * Limit per format: 50 (SPL API cap).
+ */
+export async function fetchBattleHistory(
+  player: string,
+  token: string,
+  limit = 50
+): Promise<SplBattle[]> {
+  const seen = new Set<string>();
+  const battles: SplBattle[] = [];
+
+  for (const format of BATTLE_FORMATS) {
+    try {
+      const params: Record<string, string | number> = {
+        player,
+        username: player,
+        token,
+        limit,
+        // wild uses no format param — the API returns wild when omitted
+        ...(format !== "wild" ? { format } : {}),
+      };
+      const res = await splBaseClient.get<SplBattleHistoryResponse>("/battle/history2", {
+        params,
+      });
+      const list = res.data?.battles;
+      if (!Array.isArray(list)) continue;
+
+      for (const b of list) {
+        if (!seen.has(b.battle_queue_id_1)) {
+          seen.add(b.battle_queue_id_1);
+          battles.push(b);
+        }
+      }
+    } catch (error) {
+      // Log but continue with other formats
+      logger.warn(
+        `fetchBattleHistory: format=${format} player=${player}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  return battles;
 }
 
 // ---------------------------------------------------------------------------

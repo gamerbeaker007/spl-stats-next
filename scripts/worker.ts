@@ -4,11 +4,14 @@ import { getAllSeasons } from "@/lib/backend/db/seasons";
 import { getDistinctAccountsWithCredentials } from "@/lib/backend/db/spl-accounts";
 import { completeWorkerRun, createWorkerRun } from "@/lib/backend/db/worker-runs";
 import logger from "@/lib/backend/log/logger.server";
+import { syncSeasonBalances } from "./lib/balance-sync";
+import { syncBattleHistory } from "./lib/battle-history-sync";
 import {
   interruptibleSleep,
   registerShutdownHandlers,
   shouldShutdown,
 } from "./lib/graceful-shutdown";
+import { syncLeaderboard } from "./lib/leaderboard-sync";
 import { syncPortfolio } from "./lib/portfolio-sync";
 import { syncSeasonsEndDates } from "./lib/season-end-dates-sync";
 import { WORKER_INTERVAL_MS } from "./lib/worker-config";
@@ -61,14 +64,14 @@ async function runCycle(): Promise<void> {
       }
 
       logger.info(`Worker: syncing account ${account.username}`);
-      let seasonSuccess = false;
+      let anySuccess = false;
+
       try {
-        // await syncSeasonBalances(account, allSeasons);
-        seasonSuccess = true;
+        await syncSeasonBalances(account, allSeasons);
+        anySuccess = true;
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         logger.error(`Worker: failed to sync balances ${account.username}: ${msg}`);
-        // Continue with next account — don't let one failure stop the cycle
       }
 
       if (shouldShutdown()) {
@@ -76,18 +79,12 @@ async function runCycle(): Promise<void> {
         break;
       }
 
-      let leaderboardSuccess = false;
       try {
-        // await syncLeaderboard(account.username, allSeasons, currentSeasonId);
-        leaderboardSuccess = true;
+        await syncLeaderboard(account.username, allSeasons, currentSeasonId);
+        anySuccess = true;
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         logger.error(`Worker: failed to sync leaderboard ${account.username}: ${msg}`);
-        // Continue with next account — don't let one failure stop the cycle
-      }
-
-      if (seasonSuccess && leaderboardSuccess) {
-        accountsProcessed++;
       }
 
       if (shouldShutdown()) {
@@ -97,9 +94,32 @@ async function runCycle(): Promise<void> {
 
       try {
         await syncPortfolio(account.username);
+        anySuccess = true;
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
         logger.error(`Worker: failed to sync portfolio ${account.username}: ${msg}`);
+      }
+
+      if (shouldShutdown()) {
+        logger.info("Worker: shutdown requested, stopping gracefully");
+        break;
+      }
+
+      try {
+        await syncBattleHistory(account);
+        anySuccess = true;
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        logger.error(`Worker: failed to sync battle history ${account.username}: ${msg}`);
+      }
+
+      if (anySuccess) {
+        accountsProcessed++;
+        logger.info(
+          `Worker: finished account ${account.username} (${accountsProcessed}/${accounts.length})`
+        );
+      } else {
+        logger.warn(`Worker: all syncs failed for ${account.username}, not counting as processed`);
       }
     }
 

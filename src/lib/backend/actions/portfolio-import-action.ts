@@ -192,6 +192,14 @@ function rowToPortfolioData(header: string[], cells: string[]): PortfolioData | 
   }
   data.collectionDetails = collectionDetails;
 
+  // If top-level collection values were not present in the CSV, derive them from edition details.
+  if (data.collectionMarketValue === 0 && collectionDetails.length > 0) {
+    data.collectionMarketValue = collectionDetails.reduce((sum, d) => sum + d.marketValue, 0);
+  }
+  if (data.collectionListValue === 0 && collectionDetails.length > 0) {
+    data.collectionListValue = collectionDetails.reduce((sum, d) => sum + d.listValue, 0);
+  }
+
   return data;
 }
 

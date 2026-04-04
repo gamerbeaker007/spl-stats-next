@@ -4,6 +4,12 @@ const nextConfig: NextConfig = {
   output: "standalone",
   cacheComponents: true,
 
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "200mb",
+    },
+  },
+
   images: {
     remotePatterns: [
       {

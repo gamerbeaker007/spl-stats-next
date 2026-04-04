@@ -112,6 +112,66 @@ CREATE TABLE "account_sync_states" (
 );
 
 -- CreateTable
+CREATE TABLE "player_battle_cards" (
+    "id" TEXT NOT NULL,
+    "battle_id" TEXT NOT NULL,
+    "account" TEXT NOT NULL,
+    "position" INTEGER NOT NULL,
+    "opponent" TEXT NOT NULL,
+    "created_date" TIMESTAMP(3) NOT NULL,
+    "match_type" TEXT NOT NULL,
+    "format" TEXT NOT NULL,
+    "mana_cap" DOUBLE PRECISION NOT NULL,
+    "ruleset1" TEXT NOT NULL,
+    "ruleset2" TEXT NOT NULL,
+    "ruleset3" TEXT NOT NULL,
+    "inactive" TEXT NOT NULL,
+    "winner" TEXT NOT NULL,
+    "result" TEXT NOT NULL,
+    "card_detail_id" INTEGER NOT NULL,
+    "card_name" TEXT NOT NULL,
+    "card_type" TEXT NOT NULL,
+    "rarity" INTEGER NOT NULL,
+    "color" TEXT NOT NULL,
+    "secondary_color" TEXT,
+    "xp" DOUBLE PRECISION,
+    "gold" BOOLEAN NOT NULL,
+    "level" INTEGER NOT NULL,
+    "edition" INTEGER NOT NULL,
+
+    CONSTRAINT "player_battle_cards_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "opponent_battle_cards" (
+    "id" TEXT NOT NULL,
+    "battle_id" TEXT NOT NULL,
+    "account" TEXT NOT NULL,
+    "position" INTEGER NOT NULL,
+    "opponent" TEXT NOT NULL,
+    "created_date" TIMESTAMP(3) NOT NULL,
+    "match_type" TEXT NOT NULL,
+    "format" TEXT NOT NULL,
+    "mana_cap" DOUBLE PRECISION NOT NULL,
+    "ruleset1" TEXT NOT NULL,
+    "ruleset2" TEXT NOT NULL,
+    "ruleset3" TEXT NOT NULL,
+    "inactive" TEXT NOT NULL,
+    "card_detail_id" INTEGER NOT NULL,
+    "card_name" TEXT NOT NULL,
+    "card_type" TEXT NOT NULL,
+    "rarity" INTEGER NOT NULL,
+    "color" TEXT NOT NULL,
+    "secondary_color" TEXT,
+    "xp" DOUBLE PRECISION,
+    "gold" BOOLEAN NOT NULL,
+    "level" INTEGER NOT NULL,
+    "edition" INTEGER NOT NULL,
+
+    CONSTRAINT "opponent_battle_cards_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "portfolio_snapshots" (
     "id" TEXT NOT NULL,
     "date" DATE NOT NULL,
@@ -203,6 +263,30 @@ CREATE INDEX "account_sync_states_status_idx" ON "account_sync_states"("status")
 
 -- CreateIndex
 CREATE UNIQUE INDEX "account_sync_states_username_key_key" ON "account_sync_states"("username", "key");
+
+-- CreateIndex
+CREATE INDEX "player_battle_cards_account_idx" ON "player_battle_cards"("account");
+
+-- CreateIndex
+CREATE INDEX "player_battle_cards_account_created_date_idx" ON "player_battle_cards"("account", "created_date");
+
+-- CreateIndex
+CREATE INDEX "player_battle_cards_created_date_idx" ON "player_battle_cards"("created_date");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "player_battle_cards_battle_id_account_position_key" ON "player_battle_cards"("battle_id", "account", "position");
+
+-- CreateIndex
+CREATE INDEX "opponent_battle_cards_account_idx" ON "opponent_battle_cards"("account");
+
+-- CreateIndex
+CREATE INDEX "opponent_battle_cards_account_created_date_idx" ON "opponent_battle_cards"("account", "created_date");
+
+-- CreateIndex
+CREATE INDEX "opponent_battle_cards_created_date_idx" ON "opponent_battle_cards"("created_date");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "opponent_battle_cards_battle_id_account_position_key" ON "opponent_battle_cards"("battle_id", "account", "position");
 
 -- CreateIndex
 CREATE INDEX "portfolio_snapshots_username_idx" ON "portfolio_snapshots"("username");
