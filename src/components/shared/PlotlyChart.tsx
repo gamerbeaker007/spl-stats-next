@@ -50,16 +50,16 @@ const THEME_TOKENS: Record<AppTheme, ThemeTokens> = {
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor: "rgba(0,0,0,0)",
     font_color: "#e0e0e0",
-    gridcolor: "rgba(255,255,255,0.10)",
-    zerolinecolor: "rgba(255,255,255,0.20)",
+    gridcolor: "rgba(255,255,255,0.06)",
+    zerolinecolor: "rgba(255,255,255,0.15)",
   },
   "high-contrast": {
     plotlyTemplate: "plotly_dark",
     paper_bgcolor: "rgba(0,0,0,0)",
     plot_bgcolor: "rgba(0,0,0,0)",
     font_color: "#ffffff",
-    gridcolor: "rgba(255,255,255,0.20)",
-    zerolinecolor: "rgba(255,255,255,0.35)",
+    gridcolor: "rgba(255,255,255,0.10)",
+    zerolinecolor: "rgba(255,255,255,0.22)",
   },
 };
 
@@ -70,8 +70,8 @@ export function getPlotlyThemeLayout(theme: AppTheme): Partial<Layout> {
     paper_bgcolor: t.paper_bgcolor,
     plot_bgcolor: t.plot_bgcolor,
     font: { color: t.font_color, family: "inherit" },
-    xaxis: { gridcolor: t.gridcolor, zerolinecolor: t.zerolinecolor },
-    yaxis: { gridcolor: t.gridcolor, zerolinecolor: t.zerolinecolor },
+    xaxis: { gridcolor: t.gridcolor, zerolinecolor: t.zerolinecolor, gridwidth: 0.5 },
+    yaxis: { gridcolor: t.gridcolor, zerolinecolor: t.zerolinecolor, gridwidth: 0.5 },
     margin: { l: 50, r: 30, t: 40, b: 50 },
     legend: {
       orientation: "h",
@@ -123,6 +123,8 @@ export default function PlotlyChart({
     ...themeLayout,
     ...layout,
     font: { ...themeLayout.font, ...(layout.font ?? {}) },
+    xaxis: { ...themeLayout.xaxis, ...(layout.xaxis ?? {}) },
+    yaxis: { ...themeLayout.yaxis, ...(layout.yaxis ?? {}) },
     height,
   };
 
@@ -130,6 +132,8 @@ export default function PlotlyChart({
     ...themeLayout,
     ...layout,
     font: { ...themeLayout.font, ...(layout.font ?? {}) },
+    xaxis: { ...themeLayout.xaxis, ...(layout.xaxis ?? {}) },
+    yaxis: { ...themeLayout.yaxis, ...(layout.yaxis ?? {}) },
     autosize: true,
     height: undefined,
   };

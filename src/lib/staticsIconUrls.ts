@@ -15,6 +15,10 @@ export const unbind_ca_e_icon_url = `${WEB_URL}website/icons/unbind_epic.webp`;
 export const unbind_ca_l_icon_url = `${WEB_URL}website/icons/unbind_legendary.webp`;
 export const license_icon_url = `${WEB_URL}website/ui_elements/shop/nodes/power_node_activated.png`;
 export const sps_icon_url = `${WEB_URL}website/land/resources/sps.png`;
+export const cards_icon_url = `${WEB_URL}website/ui_elements/open_packs/packsv2/img_pack_chaos-legion_opt.png`;
+export const land_icon_url = `${WEB_URL}website/ui_elements/popups/land_presale/img_plot.svg`;
+export const coins_icon_url = `${WEB_URL}website/ui_elements/shop/img_credits.png`;
+export const other_icon_url = `${WEB_URL}website/nav/icon_nav_items_active@2x.png`;
 export const energy_icon_url = `${WEB_URL}website/battle/battle_page/Icon_lightning_frontier.svg`;
 export const hammer_icon_url = `${WEB_URL}website/land/deedOverview/hammer.svg`;
 

@@ -3,6 +3,8 @@ import BattleImport from "@/components/admin/BattleImport";
 import BattleImportSkeleton from "@/components/admin/BattleImportSkeleton";
 import DbSizeContent from "@/components/admin/DbSizeContent";
 import DbSizeSkeleton from "@/components/admin/DbSizeSkeleton";
+import InvestmentImport from "@/components/admin/InvestmentImport";
+import InvestmentImportSkeleton from "@/components/admin/InvestmentImportSkeleton";
 import LogsContent from "@/components/admin/LogsContent";
 import PortfolioImport from "@/components/admin/PortfolioImport";
 import PortfolioImportSkeleton from "@/components/admin/PortfolioImportSkeleton";
@@ -46,6 +48,11 @@ export default async function AdminGate() {
       <PageErrorBoundary>
         <Suspense fallback={<PortfolioImportSkeleton />}>
           <PortfolioImport />
+        </Suspense>
+      </PageErrorBoundary>
+      <PageErrorBoundary>
+        <Suspense fallback={<InvestmentImportSkeleton />}>
+          <InvestmentImport />
         </Suspense>
       </PageErrorBoundary>
       <PageErrorBoundary>
