@@ -96,16 +96,6 @@ export default function PortfolioSummaryCards({ snapshot, totalInvested }: Props
 
   const landValue = snapshot.deedsValue + snapshot.landResourceValue;
 
-  const otherValue =
-    snapshot.voucherValue +
-    snapshot.creditsValue +
-    snapshot.decBValue +
-    snapshot.voucherGValue +
-    snapshot.licenseValue +
-    snapshot.liqPoolDecValue +
-    snapshot.liqPoolSpsValue +
-    snapshot.inventoryValue;
-
   const cards: SummaryCardProps[] = [
     {
       title: "Total",

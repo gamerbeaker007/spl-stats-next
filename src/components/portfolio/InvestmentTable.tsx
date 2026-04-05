@@ -37,11 +37,13 @@ export default function InvestmentTable({ investments, totalInvested }: Props) {
   }
 
   // Build running total
-  let running = 0;
-  const rows = investments.map((inv) => {
-    running += inv.amount;
-    return { ...inv, running };
-  });
+  const rows = investments.reduce<Array<(typeof investments)[number] & { running: number }>>(
+    (acc, inv) => {
+      const running = (acc[acc.length - 1]?.running ?? 0) + inv.amount;
+      return [...acc, { ...inv, running }];
+    },
+    []
+  );
 
   return (
     <Box>
