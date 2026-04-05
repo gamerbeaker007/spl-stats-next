@@ -104,6 +104,7 @@ interface RowBase {
   gold: boolean;
   level: number;
   edition: number;
+  tier: number | null;
 }
 
 function rowBase(
@@ -156,6 +157,7 @@ function rowBase(
     gold: bool(col("gold")),
     level: numI(col("level")),
     edition: numI(col("edition")),
+    tier: col("tier") !== undefined && str(col("tier")) !== "" ? numI(col("tier")) : null,
   };
 }
 

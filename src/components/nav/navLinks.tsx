@@ -1,4 +1,4 @@
-import { GiChest } from "react-icons/gi";
+import { GiChest, GiCrossedSwords } from "react-icons/gi";
 import {
   MdAdminPanelSettings,
   MdAccountBalance,
@@ -19,6 +19,7 @@ export const navLinks: NavLink[] = [
   { href: "/jackpot-prizes", label: "Jackpot Prizes", icon: <GiChest size={22} /> },
   { href: "/multi-dashboard", label: "Multi Dashboard", icon: <MdDashboard size={22} /> },
   { href: "/season", label: "Season Overview", icon: <MdBarChart size={22} /> },
+  { href: "/battles", label: "Battles", icon: <GiCrossedSwords size={22} /> },
   { href: "/portfolio", label: "Portfolio", icon: <MdAccountBalance size={22} /> },
   { href: "/users", label: "Users", icon: <MdPeople size={22} /> },
   { href: "/admin", label: "Admin", icon: <MdAdminPanelSettings size={22} /> },

@@ -162,7 +162,7 @@ export async function getDetailedPlayerCardCollection(
       cardDetailId: detail.id,
       name: detail.name,
       edition,
-      tier: detail.tier,
+      tier: detail.tier ?? undefined,
       rarity,
       color,
       secondaryColor,

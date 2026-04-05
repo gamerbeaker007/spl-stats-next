@@ -52,7 +52,7 @@ export interface SplCardDetail {
   stake_type_id: number;
   game_type: string;
   distribution: CardDistribution[];
-  tier: number;
+  tier: number | null;
 }
 
 export interface MintHistoryItem {

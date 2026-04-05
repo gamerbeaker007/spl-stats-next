@@ -233,14 +233,10 @@ function computeDeedValues(owned: VapiDeed[], market: VapiDeed[]): DeedsResult {
   const deedDetails: DeedDetail[] = [];
 
   for (const { deed, count } of countByGroup.values()) {
-    const key = deedGroupKey(deed);
     const minListingUsd = findBestMarketPrice(deed, validMarket);
     const groupValue = count * minListingUsd;
 
     totalValue += groupValue;
-    console.log(
-      `Deed group ${key}: count=${count}, minListingPrice=$${minListingUsd}, groupValue=$${groupValue.toFixed(2)}`
-    );
     deedDetails.push({
       rarity: deed.rarity,
       plotStatus: deed.plot_status,
@@ -337,7 +333,6 @@ export async function computePortfolioData(
     listingPricesRaw,
     pkmPricesRaw
   );
-  console.log(`Computed collection value: $${collectionVal.totalMarketValue.toFixed(2)}`);
 
   const collectionDetails: CollectionEditionDetail[] = Object.entries(collectionVal.editionValues)
     .filter(([, vals]) => vals.numberOfCards > 0)

@@ -201,9 +201,8 @@ export default function PortfolioSummaryCards({ snapshot, totalInvested }: Props
         {
           label: "Inventory",
           value: usd(snapshot.inventoryValue),
-          onInfo: inventoryRows.length > 0
-            ? () => openDialog("Inventory", inventoryRows)
-            : undefined,
+          onInfo:
+            inventoryRows.length > 0 ? () => openDialog("Inventory", inventoryRows) : undefined,
         },
         { label: "Liq. Pool", value: usd(snapshot.liqPoolDecValue + snapshot.liqPoolSpsValue) },
         {
@@ -215,9 +214,7 @@ export default function PortfolioSummaryCards({ snapshot, totalInvested }: Props
               snapshot.voucherGValue +
               snapshot.licenseValue
           ),
-          onInfo: tokenRows.length > 0
-            ? () => openDialog("Tokens", tokenRows)
-            : undefined,
+          onInfo: tokenRows.length > 0 ? () => openDialog("Tokens", tokenRows) : undefined,
         },
       ],
       color: "text.secondary",
@@ -234,12 +231,7 @@ export default function PortfolioSummaryCards({ snapshot, totalInvested }: Props
         ))}
       </Grid>
       {dialog && (
-        <PortfolioDetailDialog
-          open
-          onClose={closeDialog}
-          title={dialog.title}
-          rows={dialog.rows}
-        />
+        <PortfolioDetailDialog open onClose={closeDialog} title={dialog.title} rows={dialog.rows} />
       )}
     </>
   );

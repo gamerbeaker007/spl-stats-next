@@ -182,6 +182,7 @@ model PlayerBattleCard {
   gold           Boolean
   level          Int
   edition        Int
+  tier           Int?
 
   @@unique([battleId, account, position])
   @@index([account])
@@ -220,6 +221,7 @@ model OpponentBattleCard {
   gold           Boolean
   level          Int
   edition        Int
+  tier           Int?
 
   @@unique([battleId, account, position])
   @@index([account])
