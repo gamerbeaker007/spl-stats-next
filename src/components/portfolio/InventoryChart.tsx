@@ -69,26 +69,27 @@ export default function InventoryChart({ history, theme }: Props) {
   sortedNames.forEach((name, idx) => {
     const color = ITEM_COLORS[idx % ITEM_COLORS.length];
 
-    // Value on y1
+    // Value on y1 — shown in legend with the item name
     traces.push({
-      name: "Value",
+      name,
       legendgroup: name,
-      legendgrouptitle: { text: name },
+      showlegend: true,
       x: dates,
       y: history.map((p) => p.inventoryDetails.find((d) => d.name === name)?.value ?? null),
       type: "scatter",
-      mode: "lines",
+      mode: "lines+markers",
       line: { color, width: 1.5 },
     } as Data);
 
-    // Qty on y2 (dotted)
+    // Qty on y2 (dotted) — hidden from legend, toggled via the group
     traces.push({
-      name: "Qty",
+      name: `${name} Qty`,
       legendgroup: name,
+      showlegend: false,
       x: dates,
       y: history.map((p) => p.inventoryDetails.find((d) => d.name === name)?.qty ?? null),
       type: "scatter",
-      mode: "lines",
+      mode: "lines+markers",
       yaxis: "y2",
       line: { color, dash: "dot", width: 1 },
     } as Data);

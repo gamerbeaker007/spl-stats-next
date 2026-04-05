@@ -62,11 +62,11 @@ export default function OtherAssetsChart({ history, theme }: Props) {
 
   const traces: Data[] = [];
   for (const def of activeAssets) {
-    // Value on y1
+    // Value on y1 — shown in legend with the asset name
     traces.push({
-      name: "Value",
+      name: def.name,
       legendgroup: def.name,
-      legendgrouptitle: { text: def.name },
+      showlegend: true,
       x: dates,
       y: history.map((p) => p[def.key] as number),
       type: "scatter",
@@ -74,11 +74,12 @@ export default function OtherAssetsChart({ history, theme }: Props) {
       line: { color: def.color, dash: def.dash ?? "solid", width: 1.5 },
     } as Data);
 
-    // Qty on y2
+    // Qty on y2 — hidden from legend, toggled via the group
     if (def.qtyKey) {
       traces.push({
-        name: "Qty",
+        name: `${def.name} Qty`,
         legendgroup: def.name,
+        showlegend: false,
         x: dates,
         y: history.map((p) => p[def.qtyKey!] as number),
         type: "scatter",

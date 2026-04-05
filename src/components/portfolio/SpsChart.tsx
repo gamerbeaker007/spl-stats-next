@@ -34,9 +34,9 @@ export default function SpsChart({ history, theme }: Props) {
   const traces: Data[] = [
     // ---- SPS group (liquid) ----
     {
-      name: "Value",
+      name: "SPS",
       legendgroup: "SPS",
-      legendgrouptitle: { text: "SPS" },
+      showlegend: true,
       x: dates,
       y: history.map((p) => p.spsValue),
       type: "scatter",
@@ -44,8 +44,9 @@ export default function SpsChart({ history, theme }: Props) {
       line: { color: "#7b1fa2", width: 2 },
     } as Data,
     {
-      name: "Quantity",
+      name: "SPS Qty",
       legendgroup: "SPS",
+      showlegend: false,
       x: dates,
       y: history.map((p) => p.spsQty),
       type: "scatter",
@@ -55,9 +56,9 @@ export default function SpsChart({ history, theme }: Props) {
     } as Data,
     // ---- SPSP group (staked) ----
     {
-      name: "Value",
+      name: "SPSP (Staked)",
       legendgroup: "SPSP (Staked)",
-      legendgrouptitle: { text: "SPSP (Staked)" },
+      showlegend: true,
       x: dates,
       y: history.map((p) => p.spspValue),
       type: "scatter",
@@ -65,8 +66,9 @@ export default function SpsChart({ history, theme }: Props) {
       line: { color: "#ab47bc", width: 2 },
     } as Data,
     {
-      name: "Quantity",
+      name: "SPSP Qty",
       legendgroup: "SPSP (Staked)",
+      showlegend: false,
       x: dates,
       y: history.map((p) => p.spspQty),
       type: "scatter",

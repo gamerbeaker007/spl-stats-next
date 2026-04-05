@@ -54,6 +54,7 @@ export interface CombinedPortfolioSnapshot {
 
   inventoryValue: number;
   inventoryQty: number;
+  inventoryDetails: InventoryItemDetail[];
 }
 
 export interface InvestmentEntry {
@@ -170,6 +171,24 @@ export async function getPortfolioOverviewAction(
 
       inventoryValue: sum("inventoryValue"),
       inventoryQty: sum("inventoryQty"),
+      inventoryDetails: (() => {
+        const invMap = new Map<string, InventoryItemDetail>();
+        for (const snap of validSnapshots) {
+          const details = (snap.inventoryDetail ?? []) as unknown as InventoryItemDetail[];
+          for (const d of details) {
+            const existing = invMap.get(d.name);
+            if (existing) {
+              existing.qty += d.qty;
+              existing.value += d.value;
+            } else {
+              invMap.set(d.name, { ...d });
+            }
+          }
+        }
+        return Array.from(invMap.values())
+          .filter((d) => d.value > 0 || d.qty > 0)
+          .sort((a, b) => b.value - a.value);
+      })(),
     };
   }
 

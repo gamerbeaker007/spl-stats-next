@@ -166,27 +166,58 @@ interface DeedsResult {
   deedDetails: DeedDetail[];
 }
 
-function computeDeedValues(
-  owned: VapiDeed[],
-  market: VapiDeed[],
-  hivePriceUsd: number
-): DeedsResult {
+// Filter attributes applied in order — mirrors Python's progressive fallback.
+const DEED_FILTER_ATTRS = ["rarity", "plot_status", "magic_type", "deed_type"] as const;
+type DeedFilterAttr = (typeof DEED_FILTER_ATTRS)[number];
+
+/**
+ * Find the minimum market listing price for a deed using progressive fallback.
+ *
+ * Mirrors the Python logic: for each attribute in order, narrow the candidate
+ * listings. If narrowing would empty the set, skip that attribute (keep the
+ * broader set) and log a warning. Returns 0 if the market is empty.
+ */
+function findBestMarketPrice(deed: VapiDeed, market: VapiDeed[]): number {
+  if (market.length === 0) return 0;
+
+  let candidates = market;
+  const missingAttrs: DeedFilterAttr[] = [];
+
+  for (const attr of DEED_FILTER_ATTRS) {
+    const deedVal = deed[attr];
+    const narrowed = candidates.filter((m) =>
+      deedVal == null || deedVal === "" ? m[attr] == null || m[attr] === "" : m[attr] === deedVal
+    );
+    if (narrowed.length > 0) {
+      candidates = narrowed;
+    } else {
+      missingAttrs.push(attr);
+    }
+  }
+
+  if (missingAttrs.length > 0) {
+    const attrs = DEED_FILTER_ATTRS.map((a) => `${a}: ${deed[a]}`).join(", ");
+    console.warn(
+      `Deed price: no exact match — relaxed filters [${missingAttrs.join(", ")}] for deed (${attrs})`
+    );
+  }
+
+  const validPrices = candidates
+    .map((m) => m.listing_price)
+    .filter((p): p is number => p != null && p > 0);
+
+  return validPrices.length > 0 ? Math.min(...validPrices) : 0;
+}
+
+function computeDeedValues(owned: VapiDeed[], market: VapiDeed[]): DeedsResult {
   if (owned.length === 0) {
     return { deedsValue: 0, deedsQty: 0, deedDetails: [] };
   }
 
-  // Build a map: groupKey → minimum listing_price in the market
-  const minPriceByGroup = new Map<string, number>();
-  for (const listing of market) {
-    if (listing.listing_price == null || listing.listing_price <= 0) continue;
-    const key = deedGroupKey(listing);
-    const existing = minPriceByGroup.get(key);
-    if (existing === undefined || listing.listing_price < existing) {
-      minPriceByGroup.set(key, listing.listing_price);
-    }
-  }
+  // Pre-filter market to valid listings only (non-null, positive price).
+  const validMarket = market.filter((m) => m.listing_price != null && m.listing_price > 0);
 
-  // Count owned deeds by group, then price each group
+  // Count owned deeds by group key (all 4 attributes).
   const countByGroup = new Map<string, { deed: VapiDeed; count: number }>();
   for (const deed of owned) {
     const key = deedGroupKey(deed);
@@ -203,12 +234,13 @@ function computeDeedValues(
 
   for (const { deed, count } of countByGroup.values()) {
     const key = deedGroupKey(deed);
-    // listing_price is in HIVE — convert to USD
-    const minListingHive = minPriceByGroup.get(key) ?? 0;
-    const minListingUsd = minListingHive * hivePriceUsd;
+    const minListingUsd = findBestMarketPrice(deed, validMarket);
     const groupValue = count * minListingUsd;
 
     totalValue += groupValue;
+    console.log(
+      `Deed group ${key}: count=${count}, minListingPrice=$${minListingUsd}, groupValue=$${groupValue.toFixed(2)}`
+    );
     deedDetails.push({
       rarity: deed.rarity,
       plotStatus: deed.plot_status,
@@ -348,7 +380,7 @@ export async function computePortfolioData(
     fetchMarketDeeds(),
   ]);
   if (shouldStop()) return null;
-  const deedsResult = computeDeedValues(ownedDeeds, marketDeeds, hivePriceUsd);
+  const deedsResult = computeDeedValues(ownedDeeds, marketDeeds);
 
   // ── Step 6: land resources ───────────────────────────────────────────────
   if (shouldStop()) return null;
@@ -364,8 +396,11 @@ export async function computePortfolioData(
   const inventoryDetail: InventoryItemDetail[] = [];
   let inventoryValue = 0;
   let inventoryQty = 0;
+
   for (const asset of marketLandingAssets) {
     if (asset.numOwned <= 0) continue;
+    //Filter out assetName DEEDS when not detailName=Unsurveyed Deed
+    if (asset.assetName === "DEEDS" && asset.detailName !== "Unsurveyed Deed") continue;
     const price = asset.prices[0]?.minPrice ?? 0;
     const value = asset.numOwned * price;
     inventoryValue += value;

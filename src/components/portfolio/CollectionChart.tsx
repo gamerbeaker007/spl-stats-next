@@ -70,11 +70,11 @@ export default function CollectionChart({ history, theme }: Props) {
     colorIdx++;
     const name = editionName(edId);
 
-    // Market value on y1 — visible by default
+    // Market value on y1 — shown in legend with the edition name
     traces.push({
-      name: "Market",
+      name,
       legendgroup: name,
-      legendgrouptitle: { text: name },
+      showlegend: true,
       x: dates,
       y: history.map((p) => p.editionValues.find((e) => e.edition === edId)?.marketValue ?? null),
       type: "scatter",
@@ -82,10 +82,11 @@ export default function CollectionChart({ history, theme }: Props) {
       line: { color, width: 1.5 },
     } as Data);
 
-    // BCX on y2 (dashed) — visible by default
+    // BCX on y2 (dashed) — hidden from legend, toggled via the group
     traces.push({
-      name: "BCX",
+      name: `${name} BCX`,
       legendgroup: name,
+      showlegend: false,
       x: dates,
       y: history.map((p) => p.editionValues.find((e) => e.edition === edId)?.bcx ?? null),
       type: "scatter",
