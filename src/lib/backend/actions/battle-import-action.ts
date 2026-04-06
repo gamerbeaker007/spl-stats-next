@@ -7,6 +7,7 @@ import {
   type OpponentBattleCardInput,
   type PlayerBattleCardInput,
 } from "@/lib/backend/db/battle-cards";
+import { fetchCardDetails } from "@/lib/backend/api/spl/spl-api";
 import { getCurrentUser } from "./auth-actions";
 
 // ---------------------------------------------------------------------------
@@ -110,7 +111,8 @@ interface RowBase {
 function rowBase(
   header: string[],
   cells: string[],
-  positionMap: Map<string, string>
+  positionMap: Map<string, string>,
+  cardTierMap: Map<number, number | null>
 ): RowBase | null {
   const col = (name: string) => {
     const idx = header.indexOf(name);
@@ -157,20 +159,24 @@ function rowBase(
     gold: bool(col("gold")),
     level: numI(col("level")),
     edition: numI(col("edition")),
-    tier: col("tier") !== undefined && str(col("tier")) !== "" ? numI(col("tier")) : null,
+    tier:
+      col("tier") !== undefined && str(col("tier")) !== ""
+        ? numI(col("tier"))
+        : (cardTierMap.get(cardDetailId) ?? null),
   };
 }
 
 function rowToPlayerCard(
   header: string[],
   cells: string[],
-  positionMap: Map<string, string>
+  positionMap: Map<string, string>,
+  cardTierMap: Map<number, number | null>
 ): PlayerBattleCardInput | null {
   const col = (name: string) => {
     const idx = header.indexOf(name);
     return idx >= 0 ? cells[idx] : undefined;
   };
-  const base = rowBase(header, cells, positionMap);
+  const base = rowBase(header, cells, positionMap, cardTierMap);
   if (!base) return null;
   return {
     ...base,
@@ -182,9 +188,10 @@ function rowToPlayerCard(
 function rowToOpponentCard(
   header: string[],
   cells: string[],
-  positionMap: Map<string, string>
+  positionMap: Map<string, string>,
+  cardTierMap: Map<number, number | null>
 ): OpponentBattleCardInput | null {
-  return rowBase(header, cells, positionMap);
+  return rowBase(header, cells, positionMap, cardTierMap);
 }
 
 // ---------------------------------------------------------------------------
@@ -225,6 +232,12 @@ export async function importBattleCsvAction(csvText: string): Promise<ImportBatt
   const normalizedHeader = header.map((h) => h.trim());
   const team = detectTeam(normalizedHeader);
 
+  // Fetch card details once to back-fill tier for older CSVs that lack the column.
+  const cardDetails = await fetchCardDetails();
+  const cardTierMap = new Map<number, number | null>(
+    cardDetails.map((c) => [c.id, c.tier ?? null])
+  );
+
   let imported = 0;
   let skipped = 0;
   const errors: string[] = [];
@@ -237,14 +250,14 @@ export async function importBattleCsvAction(csvText: string): Promise<ImportBatt
       const cells = dataOffset > 0 ? rawCells.slice(dataOffset) : rawCells;
 
       if (team === "player") {
-        const card = rowToPlayerCard(normalizedHeader, cells, positionMap);
+        const card = rowToPlayerCard(normalizedHeader, cells, positionMap, cardTierMap);
         if (!card) {
           skipped++;
           continue;
         }
         await upsertPlayerBattleCards([card]);
       } else {
-        const card = rowToOpponentCard(normalizedHeader, cells, positionMap);
+        const card = rowToOpponentCard(normalizedHeader, cells, positionMap, cardTierMap);
         if (!card) {
           skipped++;
           continue;

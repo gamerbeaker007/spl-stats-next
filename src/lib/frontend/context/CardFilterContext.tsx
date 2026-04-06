@@ -1,6 +1,7 @@
 "use client";
 
-import { CardElement, CardRarity, CardRole, CardSetName, editionMap } from "@/types/card";
+import { CardElement, CardRarity, CardRole, CardSetName } from "@/types/card";
+import { getSetName } from "@/lib/shared/edition-utils";
 import { createContext, ReactNode, useCallback, useContext, useState } from "react";
 
 interface CardFilterContextType {
@@ -65,7 +66,7 @@ export const CardFilterProvider: React.FC<CardFilterProviderProps> = ({ children
       role: CardRole
     ): boolean => {
       if (selectedSets.length > 0) {
-        if (!selectedSets.includes(editionMap[edition]?.setName ?? "")) return false;
+        if (!selectedSets.includes(getSetName(edition) ?? "")) return false;
       }
       if (selectedRarities.length > 0) {
         if (!rarity || !selectedRarities.includes(rarity)) return false;

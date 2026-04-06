@@ -1,6 +1,6 @@
 import type { CombinedPortfolioSnapshot } from "@/lib/backend/actions/portfolio-actions";
 import type { CollectionEditionDetail } from "@/types/portfolio";
-import { editionMap } from "@/types/card";
+import { getEditionLabel } from "@/lib/shared/edition-utils";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
 import Table from "@mui/material/Table";
@@ -24,7 +24,7 @@ function num(value: number): string {
 }
 
 function editionName(edition: number): string {
-  return editionMap[edition]?.displayName ?? `Edition ${edition}`;
+  return getEditionLabel(edition) ?? `Edition ${edition}`;
 }
 
 export default function CollectionDetails({ snapshot }: Props) {

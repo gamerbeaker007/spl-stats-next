@@ -4,7 +4,7 @@ import { largeNumberFormat } from "@/lib/utils";
 import { Box, Stack, Typography } from "@mui/material";
 import Image from "next/image";
 import { EditionValues } from "@/types/playerCardCollection";
-import { editionMap } from "@/types/card";
+import { getEditionIconUrl, getEditionLabel } from "@/lib/shared/edition-utils";
 
 interface Props {
   editionValues: EditionValues;
@@ -22,8 +22,8 @@ export default function CardEditionDetails({ editionValues }: Props) {
           .filter(([, values]) => values.numberOfCards > 0) // Only show editions with cards
           .sort(([a], [b]) => Number(a) - Number(b)) // Sort by edition number
           .map(([editionId, values]) => {
-            const editionName = editionMap[Number(editionId)].displayName || `Edition ${editionId}`;
-            const iconUrl = editionMap[Number(editionId)].setIcon;
+            const editionName = getEditionLabel(Number(editionId)) ?? `Edition ${editionId}`;
+            const iconUrl = getEditionIconUrl(Number(editionId));
 
             return (
               <Box key={editionId} sx={{ display: "flex", alignItems: "center", gap: 1 }}>

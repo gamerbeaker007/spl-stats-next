@@ -27,7 +27,12 @@ import {
   UnclaimedTokenType,
 } from "@/types/spl/balance";
 import { SplBalance } from "@/types/spl/balances";
-import { BATTLE_FORMATS, SplBattle, SplBattleHistoryResponse } from "@/types/spl/battle";
+import {
+  BATTLE_FORMATS,
+  SplBattle,
+  SplBattleHistoryResponse,
+  SplBattleResult,
+} from "@/types/spl/battle";
 import { SplBrawlDetails } from "@/types/spl/brawl";
 import { SplCardCollection } from "@/types/spl/card";
 import { SplCardDetail } from "@/types/spl/cardDetails";
@@ -443,6 +448,21 @@ export async function fetchBattleHistory(
   }
 
   return battles;
+}
+
+// ---------------------------------------------------------------------------
+// Battle result (public, no auth)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch the full result of a single battle by its battle_queue_id_1.
+ * Public API — no auth token required.
+ */
+export async function fetchBattleResult(battleId: string): Promise<SplBattleResult> {
+  const res = await splBaseClient.get<SplBattleResult>("/battle/result", {
+    params: { id: battleId },
+  });
+  return res.data;
 }
 
 // ---------------------------------------------------------------------------

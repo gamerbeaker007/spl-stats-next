@@ -12,28 +12,20 @@ import {
   card_rarity_legendary_icon_url,
   archon_filter_icon_url,
   unit_filter_icon_url,
-  edition_alpha_icon_url,
-  edition_beta_icon_url,
-  edition_promo_icon_url,
-  edition_reward_icon_url,
-  edition_untamed_icon_url,
-  edition_dice_icon_url,
-  edition_gladius_icon_url,
-  edition_chaos_icon_url,
-  edition_rift_icon_url,
-  edition_soulbound_icon_url,
-  edition_rebellion_icon_url,
-  edition_soulbound_rebellion_icon_url,
-  edition_conclave_arcana_icon_url,
-  edition_foundation_icon_url,
-  edition_conclave_extra_icon_url,
-  edition_conclave_rewards_icon_url,
-  edition_eternal_icon_url,
-  edition_escalation_icon_url,
-  WEB_URL,
+  ranked_filter_icon_url,
+  tournament_filter_icon_url,
+  brawl_filter_icon_url,
+  challenge_icon_url,
+  format_wild_icon_url,
+  format_modern_icon_url,
+  format_foundation_icon_url,
+  format_survival_icon_url,
 } from "@/lib/staticsIconUrls";
 
-const SPL_NEXT_URL = "https://next.splinterlands.com/";
+// Edition / set definitions live in edition-utils — re-export so existing consumers
+// importing from "@/types/battles" continue to work without changes.
+export type { EditionOption, EditionSetGroup } from "@/lib/shared/edition-utils";
+export { EDITION_OPTIONS, EDITION_SET_GROUPS } from "@/lib/shared/edition-utils";
 
 // ---------------------------------------------------------------------------
 // Filter state
@@ -209,21 +201,21 @@ export const CARD_TYPE_OPTIONS = [
 ] as const;
 
 export const FORMAT_OPTIONS = [
-  { value: "wild", label: "Wild", iconUrl: `${SPL_NEXT_URL}assets/cards/icon_format_wild_off.svg` },
+  { value: "wild", label: "Wild", iconUrl: format_wild_icon_url },
   {
     value: "modern",
     label: "Modern",
-    iconUrl: `${SPL_NEXT_URL}assets/cards/icon_format_modern_off.svg`,
+    iconUrl: format_modern_icon_url,
   },
   {
     value: "foundation",
     label: "Foundation",
-    iconUrl: `${WEB_URL}website/nav/img_nav_items.png`,
+    iconUrl: format_foundation_icon_url,
   },
   {
     value: "survival",
     label: "Survival",
-    iconUrl: `${WEB_URL}website/nav/img_nav_play.png`,
+    iconUrl: format_survival_icon_url,
   },
 ] as const;
 
@@ -231,22 +223,22 @@ export const MATCH_TYPE_OPTIONS = [
   {
     value: "Ranked",
     label: "Ranked",
-    iconUrl: `${WEB_URL}website/nav/icon_nav_battle_active@2x.png`,
+    iconUrl: ranked_filter_icon_url,
   },
   {
     value: "Brawl",
     label: "Brawl",
-    iconUrl: `${WEB_URL}website/nav/icon_nav_guilds_active@2x.png`,
+    iconUrl: brawl_filter_icon_url,
   },
   {
     value: "Tournament",
     label: "Tournament",
-    iconUrl: `${WEB_URL}website/nav/icon_nav_events_active@2x.png`,
+    iconUrl: tournament_filter_icon_url,
   },
   {
     value: "Challenge",
     label: "Challenge",
-    iconUrl: `${WEB_URL}website/ui_elements/img_challenge-sword.png`,
+    iconUrl: challenge_icon_url,
   },
 ] as const;
 
@@ -264,138 +256,6 @@ export const COLOR_OPTIONS: ColorOption[] = [
   { value: "Green", label: "Earth", iconUrl: earth_element_icon_url },
   { value: "Gold", label: "Dragon", iconUrl: dragon_element_icon_url },
   { value: "Gray", label: "Neutral", iconUrl: neutral_element_icon_url },
-];
-
-export interface EditionOption {
-  value: number;
-  label: string;
-  iconUrl: string;
-}
-
-export const EDITION_OPTIONS: EditionOption[] = [
-  { value: 0, label: "Alpha", iconUrl: edition_alpha_icon_url },
-  { value: 1, label: "Beta", iconUrl: edition_beta_icon_url },
-  { value: 2, label: "Promo", iconUrl: edition_promo_icon_url },
-  { value: 3, label: "Reward", iconUrl: edition_reward_icon_url },
-  { value: 4, label: "Untamed", iconUrl: edition_untamed_icon_url },
-  { value: 5, label: "Dice", iconUrl: edition_dice_icon_url },
-  { value: 6, label: "Gladius", iconUrl: edition_gladius_icon_url },
-  { value: 7, label: "Chaos Legion", iconUrl: edition_chaos_icon_url },
-  { value: 8, label: "Rift Watchers", iconUrl: edition_rift_icon_url },
-  { value: 10, label: "Soulbound", iconUrl: edition_soulbound_icon_url },
-  { value: 12, label: "Rebellion", iconUrl: edition_rebellion_icon_url },
-  { value: 13, label: "Soulbound Reb.", iconUrl: edition_soulbound_rebellion_icon_url },
-  { value: 14, label: "Conclave Arcana", iconUrl: edition_conclave_arcana_icon_url },
-  { value: 15, label: "Foundation", iconUrl: edition_foundation_icon_url },
-  { value: 16, label: "Soulbound Foundation", iconUrl: edition_foundation_icon_url },
-  { value: 17, label: "Conclave Extras", iconUrl: edition_conclave_extra_icon_url },
-  { value: 18, label: "Conclave Rewards", iconUrl: edition_conclave_rewards_icon_url },
-  { value: 19, label: "Eternal", iconUrl: edition_eternal_icon_url },
-  { value: 20, label: "Escalation", iconUrl: edition_escalation_icon_url },
-];
-
-// ---------------------------------------------------------------------------
-// Edition set groupings (for grouped edition filter UI)
-// ---------------------------------------------------------------------------
-
-export interface EditionSetGroup {
-  setName: string;
-  label: string;
-  iconUrl: string;
-  /** Edition IDs (from EDITION_OPTIONS) that belong to this set */
-  editions: number[];
-  /** Era tier to include matching promo (edition=2), reward (edition=3), and extra (edition=17) cards.
-   *  null = no cross-set cards for this group (eternal). */
-  tier: number | null;
-  /** Whether this set has era-promo cards (edition=2 with its eraTier) */
-  hasPromo: boolean;
-  /** Whether this set has era-reward cards (edition=3 with its eraTier) */
-  hasReward: boolean;
-  /** Whether this set has extra cards (edition=17 with its eraTier) */
-  hasExtra: boolean;
-}
-
-export const EDITION_SET_GROUPS: EditionSetGroup[] = [
-  {
-    setName: "alpha",
-    label: "Alpha",
-    iconUrl: edition_alpha_icon_url,
-    editions: [0],
-    tier: 0,
-    hasPromo: true,
-    hasReward: false,
-    hasExtra: false,
-  },
-  {
-    setName: "beta",
-    label: "Beta",
-    iconUrl: edition_beta_icon_url,
-    editions: [1],
-    tier: 1,
-    hasPromo: true,
-    hasReward: true,
-    hasExtra: false,
-  },
-  {
-    setName: "untamed",
-    label: "Untamed",
-    iconUrl: edition_untamed_icon_url,
-    editions: [4, 5],
-    tier: 4,
-    hasPromo: true,
-    hasReward: true,
-    hasExtra: false,
-  },
-  {
-    setName: "chaos",
-    label: "Chaos",
-    iconUrl: edition_chaos_icon_url,
-    editions: [7, 8, 10],
-    tier: 7,
-    hasPromo: true,
-    hasReward: true,
-    hasExtra: false,
-  },
-  {
-    setName: "rebellion",
-    label: "Rebellion",
-    iconUrl: edition_rebellion_icon_url,
-    editions: [12, 13],
-    tier: 12,
-    hasPromo: true,
-    hasReward: true,
-    hasExtra: false,
-  },
-  {
-    setName: "conclave",
-    label: "Conclave",
-    iconUrl: edition_conclave_arcana_icon_url,
-    editions: [14, 18, 20],
-    tier: 14,
-    hasPromo: true,
-    hasReward: true,
-    hasExtra: true,
-  },
-  {
-    setName: "foundation",
-    label: "Foundation",
-    iconUrl: edition_foundation_icon_url,
-    editions: [15, 16],
-    tier: 15,
-    hasPromo: false,
-    hasReward: false,
-    hasExtra: true,
-  },
-  {
-    setName: "eternal",
-    label: "Eternal",
-    iconUrl: edition_eternal_icon_url,
-    editions: [6, 19],
-    tier: null,
-    hasPromo: false,
-    hasReward: false,
-    hasExtra: false,
-  },
 ];
 
 export const SORT_OPTIONS = [

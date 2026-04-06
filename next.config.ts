@@ -27,6 +27,11 @@ const nextConfig: NextConfig = {
         hostname: "peakmonsters.com",
         pathname: "/app/img/**",
       },
+      {
+        protocol: "https",
+        hostname: "next.splinterlands.com",
+        pathname: "/assets/cards/**",
+      },
     ],
   },
 };

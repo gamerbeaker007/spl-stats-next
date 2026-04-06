@@ -296,8 +296,9 @@ function EditionSetFilter({
               </Box>
             </Tooltip>
 
-            {/* Sub-edition icons for multi-edition sets */}
-            {ids.length > 1 &&
+            {/* Sub-edition icons — shown when set has multiple native editions OR has
+                cross-era cards (so the user can select native-only independently) */}
+            {(ids.length > 1 || group.hasPromo || group.hasReward || group.hasExtra) &&
               ids.map((id) => {
                 const opt = EDITION_OPTIONS.find((e) => e.value === id)!;
                 return (

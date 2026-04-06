@@ -44,6 +44,14 @@ export interface SplBattle {
   details: SplBattleDetails;
 }
 
+/**
+ * Response from GET /battle/result — same shape as SplBattle but details
+ * is returned as a raw JSON string instead of a parsed object.
+ */
+export interface SplBattleResult extends Omit<SplBattle, "details"> {
+  details: string;
+}
+
 export interface SplBattleHistoryResponse {
   battles: SplBattle[];
 }

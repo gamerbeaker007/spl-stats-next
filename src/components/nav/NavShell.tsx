@@ -3,7 +3,7 @@
 import NavSidebar from "@/components/side-bar/SideBar";
 import TopBar, { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 
 const SIDEBAR_COLLAPSED_WIDTH = 56;
 const SIDEBAR_EXPANDED_WIDTH = 240;
@@ -30,7 +30,9 @@ export default function NavShell({ children }: Readonly<{ children: React.ReactN
 
   return (
     <>
-      <TopBar onHamburgerClick={handleHamburger} />
+      <Suspense>
+        <TopBar onHamburgerClick={handleHamburger} />
+      </Suspense>
       <NavSidebar
         expanded={expanded}
         mobileOpen={mobileOpen}

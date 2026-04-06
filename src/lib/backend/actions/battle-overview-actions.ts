@@ -4,6 +4,7 @@ import {
   getBestCardStats,
   getCardDetailBattles,
   getBattleTeams,
+  getDistinctCardsByAccount,
   getLosingCardStats,
   getNemesisCards,
   getPairedCards,
@@ -12,6 +13,7 @@ import {
   type BattleQueryFilter,
 } from "@/lib/backend/db/battle-cards";
 import { getMonitoredAccounts } from "./auth-actions";
+import { fetchBattleResult, fetchCardDetails } from "@/lib/backend/api/spl/spl-api";
 import { getCardImg } from "@/lib/collectionUtils";
 import type {
   BestCardStat,
@@ -78,6 +80,17 @@ function sortBestCards(cards: BestCardStat[], sortBy: BattleFilter["sortBy"]): B
 export async function getMonitoredAccountNamesAction(): Promise<string[]> {
   const accounts = await getMonitoredAccounts();
   return accounts.map((a) => a.username);
+}
+
+// ---------------------------------------------------------------------------
+// getCardOptionsAction — distinct cards played by an account (for card select)
+// ---------------------------------------------------------------------------
+
+export async function getCardOptionsAction(
+  account: string
+): Promise<{ cardDetailId: number; cardName: string }[]> {
+  if (!account) return [];
+  return getDistinctCardsByAccount(account);
 }
 
 // ---------------------------------------------------------------------------
@@ -379,4 +392,103 @@ export async function getDistinctRulesetsAction(account: string): Promise<string
 export async function hasBattleDataAction(account: string): Promise<boolean> {
   if (!account) return false;
   return hasBattleData(account);
+}
+
+// ---------------------------------------------------------------------------
+// getBattleEntriesAction — fetch full battle details from SPL API for given
+// battle IDs and build DetailedBattleEntry objects with both teams.
+// Used by the card detail page to show last 5 won/lost battles with live data.
+// ---------------------------------------------------------------------------
+
+export async function getBattleEntriesAction(
+  account: string,
+  battleIds: string[]
+): Promise<DetailedBattleEntry[]> {
+  if (!account || battleIds.length === 0) return [];
+
+  const [results, cardDetailList] = await Promise.all([
+    Promise.allSettled(battleIds.map((id) => fetchBattleResult(id))),
+    fetchCardDetails(),
+  ]);
+  const cardMap = new Map(cardDetailList.map((c) => [c.id, c]));
+
+  const entries: DetailedBattleEntry[] = [];
+
+  for (const outcome of results) {
+    if (outcome.status === "rejected") continue;
+    const battle = outcome.value;
+
+    // /battle/result returns details as a raw JSON string
+    const details = JSON.parse(battle.details) as import("@/types/spl/battle").SplBattleDetails;
+
+    if (!details?.team1 || !details?.team2) continue;
+
+    const myTeam =
+      details.team1.player.toLowerCase() === account.toLowerCase() ? details.team1 : details.team2;
+    const oppTeam =
+      details.team1.player.toLowerCase() === account.toLowerCase() ? details.team2 : details.team1;
+
+    const winner = details.winner ?? battle.winner;
+    const result = winner?.toLowerCase() === account.toLowerCase() ? "win" : "loss";
+
+    const [ruleset1, ruleset2, ruleset3] = (battle.ruleset ?? "").split("|");
+
+    const toTeamCard = (
+      card: { card_detail_id: number; gold: boolean; level: number; edition: number },
+      position: number,
+      name: string,
+      type: string
+    ): BattleTeamCard => ({
+      position,
+      cardDetailId: card.card_detail_id,
+      cardName: name,
+      cardType: type,
+      level: card.level,
+      edition: card.edition,
+      gold: card.gold,
+      imageUrl: cardImageUrl(name, card.edition, card.gold, card.level),
+    });
+
+    // SPL API cards don't include card name/type — look up from card details catalogue
+    const splCard = (
+      c: import("@/types/spl/battle").SplBattleCard,
+      position: number
+    ): BattleTeamCard => {
+      const detail = cardMap.get(c.card_detail_id);
+      const name = detail?.name ?? `Card #${c.card_detail_id}`;
+      const cardType = detail?.type ?? "Monster";
+      return toTeamCard(c, position, name, cardType);
+    };
+
+    const playerTeam = [
+      splCard(myTeam.summoner, 0),
+      ...myTeam.monsters.map((m: import("@/types/spl/battle").SplBattleCard, i: number) =>
+        splCard(m, i + 1)
+      ),
+    ];
+    const opponentTeam = [
+      splCard(oppTeam.summoner, 0),
+      ...oppTeam.monsters.map((m: import("@/types/spl/battle").SplBattleCard, i: number) =>
+        splCard(m, i + 1)
+      ),
+    ];
+
+    entries.push({
+      battleId: battle.battle_queue_id_1,
+      opponent:
+        battle.player_1.toLowerCase() === account.toLowerCase() ? battle.player_2 : battle.player_1,
+      createdDate: battle.created_date,
+      format: battle.format ?? "wild",
+      matchType: battle.match_type,
+      manaCap: battle.mana_cap,
+      ruleset1: ruleset1 ?? "None",
+      ruleset2: ruleset2 ?? "None",
+      ruleset3: ruleset3 ?? "None",
+      result,
+      playerTeam,
+      opponentTeam,
+    });
+  }
+
+  return entries;
 }

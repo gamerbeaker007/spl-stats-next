@@ -29,7 +29,9 @@ function loadFromStorage(): BattleFilter {
 }
 
 export function BattleFilterProvider({ children }: { children: ReactNode }) {
-  // Use lazy initializer — window check ensures SSR gets defaults, client gets localStorage
+  // Lazy initializer: server gets defaults, client gets localStorage.
+  // BattleFilterProvider is only used on battles list pages (client components),
+  // so no SSR/hydration mismatch occurs from reading localStorage here.
   const [filter, setFilterState] = useState<BattleFilter>(() =>
     typeof window !== "undefined" ? loadFromStorage() : { ...DEFAULT_BATTLE_FILTER }
   );

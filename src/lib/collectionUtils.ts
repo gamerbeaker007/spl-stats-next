@@ -1,4 +1,5 @@
-import { CardFoil, cardFoilSuffixMap, editionMap } from "@/types/card";
+import { CardFoil, cardFoilSuffixMap } from "@/types/card";
+import { EDITION_DEFS, getEditionUrlName } from "@/lib/shared/edition-utils";
 import { PeakmonstersMarketPriceEntry } from "@/types/peakmonsters/market";
 import { EditionValues, PlayerCollectionValue } from "@/types/playerCardCollection";
 import { EnrichedCollectionCard, SplCardCollection, SplPlayerCard } from "@/types/spl/card";
@@ -130,8 +131,7 @@ export async function getPlayerCollectionValue(
   if (sellableCards.length > 0) {
     const groupedCards = groupBcx(sellableCards);
 
-    Object.keys(editionMap).forEach((editionKey) => {
-      const edition = parseInt(editionKey);
+    EDITION_DEFS.forEach(({ id: edition }) => {
       const editionCards = groupedCards.filter((card) => card.edition === edition);
       const collectionValue = getCollectionValue(editionCards, listPrices, marketPrices);
 
@@ -165,7 +165,7 @@ export function getCardImg(
   const baseCardUrl = `${WEB_URL}cards_by_level`;
   const safeCardName = encodeURIComponent(cardName.trim());
   const lvl = level && level > 1 ? level : 1;
-  const editionName = editionMap[editionId]?.urlName ?? "unknown_edition";
+  const editionName = getEditionUrlName(editionId) ?? "unknown_edition";
 
   return `${baseCardUrl}/${editionName}/${safeCardName}_lv${lvl}${suffix}.png`;
 }

@@ -159,7 +159,7 @@ function processBattle(account: string, battle: SplBattle, cardMap: CardMap): Pr
     ...cardFields(card, cardMap, i),
   }));
 
-  // Opponent cards — only on losses
+  // Opponent cards — only on losses (wins fetch opponent team live from the API when needed)
   const opponentCards: OpponentBattleCardInput[] =
     result === "loss"
       ? [...opponentTeam.monsters, opponentTeam.summoner].map((card, i) => ({

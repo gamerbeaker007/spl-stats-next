@@ -2,7 +2,7 @@
 
 import PlotlyChart, { getPlotlyThemeLayout, type AppTheme } from "@/components/shared/PlotlyChart";
 import type { PortfolioHistoryPoint } from "@/lib/backend/actions/portfolio-actions";
-import { editionMap } from "@/types/card";
+import { getEditionLabel } from "@/lib/shared/edition-utils";
 import Typography from "@mui/material/Typography";
 import type { Data, Layout } from "plotly.js";
 import { PORTFOLIO_CHART_HEIGHT } from "./chartConstants";
@@ -27,7 +27,7 @@ const EDITION_COLORS = [
 ];
 
 function editionName(edition: number): string {
-  return editionMap[edition]?.displayName ?? `Ed ${edition}`;
+  return getEditionLabel(edition) ?? `Ed ${edition}`;
 }
 
 export default function CollectionChart({ history, theme }: Props) {

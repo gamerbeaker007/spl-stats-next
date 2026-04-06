@@ -13,6 +13,7 @@ import ListItemText from "@mui/material/ListItemText";
 import Tooltip from "@mui/material/Tooltip";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Suspense } from "react";
 
 const COLLAPSED_WIDTH = 56;
 const EXPANDED_WIDTH = 240;
@@ -105,7 +106,9 @@ export default function NavSidebar({ expanded, mobileOpen, onMobileClose }: NavS
         sx={{ zIndex: (t) => t.zIndex.appBar + 1 }}
         PaperProps={{ sx: drawerPaperSx(EXPANDED_WIDTH) }}
       >
-        <NavList expanded={true} onNavigate={onMobileClose} />
+        <Suspense>
+          <NavList expanded={true} onNavigate={onMobileClose} />
+        </Suspense>
       </Drawer>
     );
   }
@@ -128,7 +131,9 @@ export default function NavSidebar({ expanded, mobileOpen, onMobileClose }: NavS
         zIndex: (t) => t.zIndex.drawer,
       }}
     >
-      <NavList expanded={expanded} />
+      <Suspense>
+        <NavList expanded={expanded} />
+      </Suspense>
     </Box>
   );
 }

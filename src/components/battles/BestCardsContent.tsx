@@ -40,17 +40,14 @@ export default function BestCardsContent() {
           minWidth: 0,
         }}
       >
-        {/* Header row — filter toggle on the left */}
-        <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-          {(!filter.filterOpen || !isDesktop) && (
-            <IconButton size="small" onClick={toggleFilterOpen} title="Open filter">
-              <MdFilterList size={20} />
-            </IconButton>
-          )}
-          <Typography variant="h5" fontWeight={600}>
-            Battle Statistics
-          </Typography>
-        </Stack>
+        <Typography variant="h5" fontWeight={600}>
+          Battle Statistics
+        </Typography>
+        {(!filter.filterOpen || !isDesktop) && (
+          <IconButton size="small" onClick={toggleFilterOpen} title="Open filter">
+            <MdFilterList size={20} /> Filter
+          </IconButton>
+        )}
 
         {!filter.account && (
           <Alert severity="info" sx={{ mb: 2 }}>

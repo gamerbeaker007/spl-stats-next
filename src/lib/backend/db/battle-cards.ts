@@ -90,6 +90,18 @@ export async function getLatestPlayerBattleDate(account: string): Promise<Date |
   return row?.createdDate ?? null;
 }
 
+export async function getDistinctCardsByAccount(
+  account: string
+): Promise<{ cardDetailId: number; cardName: string }[]> {
+  const rows = await prisma.playerBattleCard.findMany({
+    where: { account },
+    select: { cardDetailId: true, cardName: true },
+    distinct: ["cardDetailId"],
+    orderBy: { cardName: "asc" },
+  });
+  return rows.map((r) => ({ cardDetailId: r.cardDetailId, cardName: r.cardName }));
+}
+
 export async function deletePlayerBattleCardsByAccount(account: string): Promise<number> {
   const { count } = await prisma.playerBattleCard.deleteMany({ where: { account } });
   return count;
