@@ -1,4 +1,5 @@
 import { getCurrentUser, getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
+import { getSplMaintenanceStatus } from "@/lib/backend/actions/spl-status";
 import { getSyncStatesForUsernames } from "@/lib/backend/db/account-sync-states";
 import { AccountSyncState } from "@prisma/client";
 import { Alert, Box } from "@mui/material";
@@ -27,7 +28,10 @@ export default async function UserManagementServer() {
 
   const accounts = await getMonitoredAccounts();
   const usernames = accounts.map((a) => a.username);
-  const syncStates = await getSyncStatesForUsernames(usernames);
+  const [syncStates, { maintenance: splInMaintenance }] = await Promise.all([
+    getSyncStatesForUsernames(usernames),
+    getSplMaintenanceStatus(),
+  ]);
 
   const syncByUsername = new Map<string, AccountSyncState[]>();
   for (const state of syncStates) {
@@ -39,6 +43,7 @@ export default async function UserManagementServer() {
   return (
     <UserManagementContent
       mainUsername={user.username}
+      splInMaintenance={splInMaintenance}
       initialAccounts={accounts.map((acc) => ({
         id: acc.id,
         username: acc.username,

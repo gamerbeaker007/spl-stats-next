@@ -3,6 +3,7 @@
 import { splLogin, verifySplToken } from "@/lib/backend/api/spl/spl-api";
 import { deleteUserCookie, getUserIdFromCookie, setUserCookie } from "@/lib/backend/auth/cookie";
 import { decryptToken, encryptToken } from "@/lib/backend/auth/encryption";
+import { verifyHiveSignature } from "@/lib/backend/auth/hive-verify";
 import { deleteSyncStatesByUsername } from "@/lib/backend/db/account-sync-states";
 import {
   countMonitoredAccountsBySplAccount,
@@ -49,22 +50,22 @@ export async function loginAction(username: string, timestamp: number, signature
   try {
     logger.info(`loginAction: ${username}`);
 
-    const splResponse = await splLogin(username, timestamp, signature);
-    if (!splResponse.token) {
-      return { success: false, error: "No token received from Splinterlands" };
+    // Reject signatures older than 5 minutes to prevent replay attacks
+    if (Date.now() - timestamp > 5 * 60 * 1000) {
+      return { success: false, error: "Signature expired. Please try again." };
     }
 
-    const { encryptedValue, iv, authTag } = encryptToken(splResponse.token);
+    const message = `${username.toLowerCase()}${timestamp}`;
+    const valid = await verifyHiveSignature(username, message, signature);
+    if (!valid) {
+      logger.warn(`loginAction: invalid Hive signature for ${username}`);
+      return { success: false, error: "Invalid signature. Please try again." };
+    }
 
-    // Upsert the app user (identity only — token NOT stored here)
     const user = await upsertUser(username);
-
-    // Upsert the shared SplAccount (token lives here, shared across users)
-    await upsertSplAccount(username, encryptedValue, iv, authTag);
-
     await setUserCookie(user.id);
 
-    logger.info(`User ${username} logged in successfully`);
+    logger.info(`User ${username} logged in successfully (Hive-only auth)`);
     return { success: true, username: user.username };
   } catch (error) {
     logger.error(`loginAction error: ${error}`);
@@ -117,8 +118,21 @@ export async function addMonitoredAccountWithKeychain(
         error: "Account is already in your monitored list",
       };
 
+    // Reject signatures older than 5 minutes to prevent replay attacks
+    if (Date.now() - timestamp > 5 * 60 * 1000) {
+      return { success: false, error: "Signature expired. Please try again." };
+    }
+
+    // Verify posting-key ownership against Hive blockchain before any DB/SPL writes
+    const message = `${lc}${timestamp}`;
+    const sigValid = await verifyHiveSignature(lc, message, signature);
+    if (!sigValid) {
+      logger.warn(`addMonitoredAccountWithKeychain: invalid Hive signature for ${lc}`);
+      return { success: false, error: "Invalid Hive signature. Please try again." };
+    }
+
     // SplAccount already in DB (linked by another user)?
-    // Keychain proves posting-key possession; token is already stored — just link.
+    // Signature already verified — token is already stored — just link.
     const existingSpl = await findSplAccountByUsername(lc);
     if (existingSpl) {
       const link = await createMonitoredAccount(userId, existingSpl.id, lc);
@@ -126,7 +140,7 @@ export async function addMonitoredAccountWithKeychain(
       return { success: true, accountId: link.id, username: lc };
     }
 
-    // New account — validate via SPL API and store the token.
+    // New account — fetch SPL token and store it.
     const splResponse = await splLogin(lc, timestamp, signature);
     if (!splResponse.token) {
       return { success: false, error: "No token received from Splinterlands" };

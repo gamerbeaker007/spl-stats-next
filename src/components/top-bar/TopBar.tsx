@@ -10,6 +10,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MdMenu } from "react-icons/md";
 import LoginComponent from "./LoginComponent";
+import SplMaintenanceIndicator from "./SplMaintenanceIndicator";
 import ThemeToggle from "./ThemeToggle";
 
 export const APP_BAR_HEIGHT = 64;
@@ -82,8 +83,9 @@ export default function TopBar({ onHamburgerClick }: Readonly<TopBarProps>) {
           ))}
         </Box>
 
-        {/* Right side: theme + user */}
+        {/* Right side: maintenance indicator + theme + user */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <SplMaintenanceIndicator />
           <ThemeToggle />
           <LoginComponent />
         </Box>

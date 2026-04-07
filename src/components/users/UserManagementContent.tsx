@@ -38,6 +38,7 @@ interface MonitoredAccount {
 interface UserManagementContentProps {
   mainUsername: string;
   initialAccounts: MonitoredAccount[];
+  splInMaintenance: boolean;
 }
 
 const TOKEN_STATUS_CHIP: Record<
@@ -62,6 +63,7 @@ const SYNC_STATUS_CHIP: Record<
 export default function UserManagementContent({
   mainUsername,
   initialAccounts,
+  splInMaintenance,
 }: Readonly<UserManagementContentProps>) {
   const {
     accounts,
@@ -111,10 +113,22 @@ export default function UserManagementContent({
       <Stack spacing={3}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Typography variant="h5">Monitored Accounts</Typography>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={openAddDialog}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={openAddDialog}
+            disabled={splInMaintenance}
+          >
             Add Account
           </Button>
         </Box>
+
+        {splInMaintenance && (
+          <Alert severity="warning">
+            Splinterlands is currently in maintenance. Adding new monitored accounts is temporarily
+            unavailable. Your existing data is still accessible.
+          </Alert>
+        )}
 
         <Card>
           <CardContent>
@@ -269,7 +283,7 @@ export default function UserManagementContent({
               onClick={handleAdd}
               variant="contained"
               size="large"
-              disabled={adding || !newUsername.trim()}
+              disabled={adding || !newUsername.trim() || splInMaintenance}
               fullWidth
             >
               {adding ? "Signing…" : "Add via Keychain"}
