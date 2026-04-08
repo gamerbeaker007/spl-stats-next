@@ -2,12 +2,15 @@ import { SplFormat } from "@/types/spl/format";
 import {
   foundation_league_icon_url,
   modern_league_icon_url,
-  WEB_URL,
+  pack_beta_icon_url,
+  pack_chaos_icon_url,
+  pack_foundations_icon_url,
+  pack_rift_icon_url,
   wild_league_icon_url,
 } from "./staticsIconUrls";
 
 export const largeNumberFormat = (balance: string | number) => {
-  const numValue = typeof balance === "string" ? parseFloat(balance) : balance;
+  const numValue = typeof balance === "string" ? Number.parseFloat(balance) : balance;
 
   return new Intl.NumberFormat("en-US", {
     notation: "compact",
@@ -24,7 +27,7 @@ export const calculateEnergy = (ecr: number, lastUpdatedTime: string): number =>
   const lastUpdatedTimeMs = lastUpdatedTimeDate.getTime();
   const regeneratedEnergy =
     ((currentTimeMs - lastUpdatedTimeMs) / msInOneHour) * hourlyRechargeRate;
-  const ecrValue = typeof ecr === "string" ? parseFloat(ecr) : ecr;
+  const ecrValue = typeof ecr === "string" ? Number.parseFloat(ecr) : ecr;
   const energy = Math.floor(regeneratedEnergy + ecrValue);
   return Math.min(energy, 50);
 };
@@ -49,15 +52,14 @@ export const leagueNames = [
 ];
 
 const packIconMap: { [key: string]: string } = {
-  1: "icon_pack_beta.png",
-  7: "img_pack_chaos-legion_200.png",
-  8: "img_pack_riftwatchers_opt.png",
-  15: "img_pack_foundations_250.png",
+  1: pack_beta_icon_url,
+  7: pack_chaos_icon_url,
+  8: pack_rift_icon_url,
+  15: pack_foundations_icon_url,
 };
 
 export const findPackIconUrl = (edition: number): string => {
-  const editionName = packIconMap[edition];
-  return `${WEB_URL}website/icons/${editionName}`;
+  return packIconMap[edition];
 };
 
 export function findLeagueLogoUrl(

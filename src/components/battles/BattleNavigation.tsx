@@ -4,19 +4,23 @@ import Tab from "@mui/material/Tab";
 import Tabs from "@mui/material/Tabs";
 import Box from "@mui/material/Box";
 import { usePathname, useRouter } from "next/navigation";
-import { MdEmojiEvents, MdTrendingDown } from "react-icons/md";
+import { MdEmojiEvents, MdTrendingDown, MdPersonOff } from "react-icons/md";
 
 const TABS = [
   { label: "Best Cards", href: "/battles", icon: <MdEmojiEvents size={18} /> },
   { label: "Losing Cards", href: "/battles/losing", icon: <MdTrendingDown size={18} /> },
+  { label: "Nemesis", href: "/battles/nemesis", icon: <MdPersonOff size={18} /> },
 ] as const;
 
 export default function BattleNavigation() {
   const pathname = usePathname();
   const router = useRouter();
 
-  // Determine active tab: card detail page is not in tabs but highlights "Best Cards"
-  const activeHref = pathname.startsWith("/battles/losing") ? "/battles/losing" : "/battles";
+  const activeHref = pathname.startsWith("/battles/nemesis")
+    ? "/battles/nemesis"
+    : pathname.startsWith("/battles/losing")
+      ? "/battles/losing"
+      : "/battles";
 
   const activeIndex = TABS.findIndex((t) => t.href === activeHref);
 

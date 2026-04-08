@@ -128,8 +128,14 @@ export async function getBestCardsAction(filter: BattleFilter): Promise<BestCard
 export async function getLosingCardsAction(filter: BattleFilter): Promise<LosingCardStat[]> {
   if (!filter.account) return [];
 
-  // For losing page, strip player-only filters (they apply to opponent cards)
-  const aggs = await getLosingCardStats(toQueryFilter(filter));
+  let aggs;
+  try {
+    // For losing page, strip player-only filters (they apply to opponent cards)
+    aggs = await getLosingCardStats(toQueryFilter(filter));
+  } catch (e) {
+    console.error("getLosingCardsAction: DB query failed", e);
+    return [];
+  }
 
   return aggs
     .sort((a, b) => b.battles - a.battles)

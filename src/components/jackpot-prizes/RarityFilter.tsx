@@ -1,5 +1,5 @@
 "use client";
-import { WEB_URL } from "@/lib/utils/staticUrls";
+import { WEB_URL } from "@/lib/staticsIconUrls";
 import { Box, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import Image from "next/image";
 import { memo } from "react";

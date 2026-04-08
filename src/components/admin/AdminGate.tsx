@@ -15,6 +15,8 @@ import { getCurrentUser } from "@/lib/backend/actions/auth-actions";
 import { isAdmin } from "@/lib/backend/auth/admin";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
+import Typography from "@mui/material/Typography";
 import { Suspense } from "react";
 
 export default async function AdminGate() {
@@ -28,8 +30,16 @@ export default async function AdminGate() {
     );
   }
 
+  const appVersion = process.env.APP_VERSION ?? "unknown";
+
   return (
     <>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+        <Typography variant="h6" component="h1">
+          Admin
+        </Typography>
+        <Chip label={`Version: ${appVersion}`} size="small" variant="outlined" />
+      </Box>
       <PageErrorBoundary>
         <Suspense fallback={<WorkerStatusSkeleton />}>
           <WorkerStatusContent />

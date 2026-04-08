@@ -1,6 +1,6 @@
 "use client";
 
-import { getCardImageUrl, getFoilLabel } from "@/lib/utils/imageUtils";
+import { getCardImageUrl, getFoilLabel } from "@/lib/shared/card-image-utils";
 import { RecentWinner, SplCardDetail } from "@/types/jackpot-prizes/shared";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import ArrowForwardIosIcon from "@mui/icons-material/ArrowForwardIos";

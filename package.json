@@ -14,10 +14,12 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "worker": "tsx --env-file=.env --tsconfig scripts/tsconfig.json scripts/worker.ts",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f app",
-    "docker:worker-logs": "docker-compose logs -f worker"
+    "docker:build": "docker build --build-arg APP_VERSION=local -t gamerbeaker007/spl-stats-next:latest .",
+    "docker:run": "docker compose up -d",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f app",
+    "docker:worker-logs": "docker compose logs -f worker"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -41,7 +43,10 @@
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-icons": "^5.6.0",
+    "react-markdown": "^10.1.0",
     "react-plotly.js": "^2.6.0",
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.1",
     "retry-axios": "^4.0.1",
     "tsx": "^4.21.0"
   },

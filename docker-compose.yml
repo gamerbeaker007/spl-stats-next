@@ -26,9 +26,8 @@ services:
       - "8088:80"
 
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # To pin a specific release replace 'latest' with a version tag, e.g. gamerbeaker007/spl-stats-next:v0.1.0
+    image: gamerbeaker007/spl-stats-next:latest
     container_name: spl-stats-app
     depends_on:
       db:
@@ -43,9 +42,8 @@ services:
       - "3000:3000"
 
   worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # To pin a specific release replace 'latest' with a version tag, e.g. gamerbeaker007/spl-stats-next:v0.1.0
+    image: gamerbeaker007/spl-stats-next:latest
     container_name: spl-stats-worker
     depends_on:
       db:
@@ -54,6 +52,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-splstats}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-splstats}?schema=public
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       LOG_DB: ${LOG_DB:-true}
+      BATTLE_SYNC_ACCOUNTS: ${BATTLE_SYNC_ACCOUNTS:-}
     entrypoint: ["./docker-entrypoint-worker.sh"]
     restart: unless-stopped
 

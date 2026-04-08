@@ -17,6 +17,8 @@ function emptyRewardSummary(): RewardSummary {
     totalFrontierEntries: 0,
     totalRankedEntries: 0,
     totalCards: {},
+    totalSkins: {},
+    totalMusic: {},
     totalPotions: {},
     totalPotionsUsed: {},
     totalMerits: 0,
@@ -31,7 +33,6 @@ function emptyRewardSummary(): RewardSummary {
       chests: { minor: 0, major: 0, ultimate: 0 },
       rarityDraws: { common: 0, rare: 0, epic: 0, legendary: 0 },
     },
-    totalRarityDraws: { common: 0, rare: 0, epic: 0, legendary: 0 },
     leagueAdvancements: { foundation: [], wild: [], modern: [] },
     questTypeBreakdown: {},
   };
@@ -85,6 +86,25 @@ function processRewardArray(rewards: RewardItems[], summary: RewardSummary): voi
       case "pack":
         summary.totalPacks[reward.edition || 0] =
           (summary.totalPacks[reward.edition || 0] || 0) + reward.quantity;
+        break;
+      case "skin":
+        if (!summary.totalSkins[reward.skin_detail_id]) {
+          summary.totalSkins[reward.skin_detail_id] = {
+            skin: reward.skin,
+            cardDetailId: reward.card_detail_id,
+            quantity: 0,
+          };
+        }
+        summary.totalSkins[reward.skin_detail_id].quantity += reward.quantity;
+        break;
+      case "music":
+        if (!summary.totalMusic[reward.music_detail_id]) {
+          summary.totalMusic[reward.music_detail_id] = {
+            name: reward.name ?? `Music #${reward.music_detail_id}`,
+            quantity: 0,
+          };
+        }
+        summary.totalMusic[reward.music_detail_id].quantity += reward.quantity;
         break;
     }
   });
@@ -262,6 +282,22 @@ export function mergeRewardSummaries(...summaries: RewardSummary[]): RewardSumma
         merged.totalCards[id].regular += data.regular;
       }
     });
+    Object.entries(summary.totalSkins).forEach(([id, data]) => {
+      const numId = Number(id);
+      if (!merged.totalSkins[numId]) {
+        merged.totalSkins[numId] = { ...data };
+      } else {
+        merged.totalSkins[numId].quantity += data.quantity;
+      }
+    });
+    Object.entries(summary.totalMusic).forEach(([id, data]) => {
+      const numId = Number(id);
+      if (!merged.totalMusic[numId]) {
+        merged.totalMusic[numId] = { ...data };
+      } else {
+        merged.totalMusic[numId].quantity += data.quantity;
+      }
+    });
     Object.entries(summary.totalPotions).forEach(([type, count]) => {
       merged.totalPotions[type] = (merged.totalPotions[type] || 0) + count;
     });
@@ -294,10 +330,6 @@ export function mergeRewardSummaries(...summaries: RewardSummary[]): RewardSumma
     Object.entries(summary.questTypeBreakdown).forEach(([type, count]) => {
       merged.questTypeBreakdown[type] = (merged.questTypeBreakdown[type] || 0) + count;
     });
-    merged.totalRarityDraws.common += summary.totalRarityDraws.common;
-    merged.totalRarityDraws.rare += summary.totalRarityDraws.rare;
-    merged.totalRarityDraws.epic += summary.totalRarityDraws.epic;
-    merged.totalRarityDraws.legendary += summary.totalRarityDraws.legendary;
   });
 
   return merged;

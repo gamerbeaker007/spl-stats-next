@@ -3,7 +3,7 @@
 import { useCardHistory } from "@/hooks/jackpot-prizes/useCardHistory";
 import { useMintData } from "@/hooks/jackpot-prizes/useMintData";
 import { usePeakMonsterPrices } from "@/hooks/jackpot-prizes/usePeakMonsterPrices";
-import { getFoilLabel } from "@/lib/utils/imageUtils";
+import { getFoilLabel } from "@/lib/shared/card-image-utils";
 import { CardHistoryItem } from "@/types/jackpot-prizes/cardHistory";
 import { CardPrizeData, MintHistoryItem, SplCardDetail } from "@/types/jackpot-prizes/shared";
 import { ArrowBack, Close, Info } from "@mui/icons-material";

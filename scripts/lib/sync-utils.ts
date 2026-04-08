@@ -1,6 +1,5 @@
-import { AccountSyncState, Season } from "@prisma/client";
+import { Season } from "@prisma/client";
 import { fetchPlayerDetails } from "@/lib/backend/api/spl/spl-api";
-import { RESCAN_MIN_INTERVAL_MS } from "./worker-config";
 
 
 export async function getPlayerFirstSeasonId(
@@ -9,46 +8,4 @@ export async function getPlayerFirstSeasonId(
 ): Promise<number | undefined> {
   const details = await fetchPlayerDetails(username);
   return allSeasons.find((s) => s.endsAt >= new Date(details.join_date))?.id;
-}
-
-/**
- * Build the ordered list of seasons to process for one sync state.
- * Includes the current season unless it was successfully completed within the throttle window.
- */
-export async function buildSeasonsToProcess(
-  username: string,
-  allSeasons: Season[],
-  currentSeasonId: number,
-  syncState: AccountSyncState,
-  minSeasonId = 1 // only used for UNCLAIMED_MIN_SEASON
-): Promise<Season[] | undefined> {
-
-  // Step 1 determine if a user has data synced already start form there when not determine by first join.
-  const startFromSeason =
-    syncState.lastSeasonProcessed === 0
-      ? await getPlayerFirstSeasonId(username, allSeasons)
-      : syncState.lastSeasonProcessed;
-
-  // Not able to determine the first season, return, break flow.
-  if (!startFromSeason) return;
-
-  // Step 2: filter completed historical seasons (strictly before the current season).
-  // The current season is excluded here so step 3 can apply throttling to it independently.
-  const result = allSeasons.filter(
-    (s) => s.id >= startFromSeason && s.id < currentSeasonId && s.id >= minSeasonId
-  );
-
-  // Step 3: conditionally add the current season.
-  // Skip it if it was already synced within the throttle window (once per day is enough).
-  if (currentSeasonId >= minSeasonId) {
-    const freshEnough =
-      syncState.status === "completed" &&
-      Date.now() - syncState.updatedAt.getTime() < RESCAN_MIN_INTERVAL_MS;
-    if (!freshEnough) {
-      const cur = allSeasons.find((s) => s.id === currentSeasonId);
-      if (cur) result.push(cur);
-    }
-  }
-
-  return result;
 }

@@ -18,6 +18,7 @@ export const license_icon_url = `${WEB_URL}website/ui_elements/shop/nodes/power_
 export const sps_icon_url = `${WEB_URL}website/land/resources/sps.png`;
 export const cards_icon_url = `${WEB_URL}website/ui_elements/open_packs/packsv2/img_pack_chaos-legion_opt.png`;
 export const land_icon_url = `${WEB_URL}website/ui_elements/popups/land_presale/img_plot.svg`;
+
 export const coins_icon_url = `${WEB_URL}website/ui_elements/shop/img_credits.png`;
 export const other_icon_url = `${WEB_URL}website/nav/icon_nav_items_active@2x.png`;
 export const energy_icon_url = `${WEB_URL}website/battle/battle_page/Icon_lightning_frontier.svg`;
@@ -86,3 +87,14 @@ export const format_modern_icon_url = `${SPL_NEXT_URL}assets/cards/icon_format_m
 
 export const format_foundation_icon_url = `${WEB_URL}website/nav/img_nav_items.png`;
 export const format_survival_icon_url = `${WEB_URL}website/nav/img_nav_play.png`;
+
+export const conclave_icon_url = `${WEB_URL}website/icons/icon-edition-conclave-arcana.svg`;
+export const escalation_icon_url = `${WEB_URL}website/icons/icon-edition-mini-set.svg`;
+export const jackpot_icon_url = `${WEB_URL}website/ui_elements/shop/ranked/draws/img_chest-ultimate_250.webp`;
+export const frontier_icon_url = `${WEB_URL}website/icons/icon_fp.svg`;
+export const ranked_icon_url = `${WEB_URL}website/icons/img_fortune-entry_ca.svg`;
+
+export const pack_beta_icon_url = `${WEB_URL}website/icons/icon_pack_beta.png`;
+export const pack_chaos_icon_url = `${WEB_URL}website/icons/img_pack_chaos-legion_200.png`;
+export const pack_rift_icon_url = `${WEB_URL}website/ui_elements/open_packs/packsv2/img_pack_riftwatchers_opt.png`;
+export const pack_foundations_icon_url = `${WEB_URL}website/icons/img_pack_foundations_250.png`;

@@ -6,8 +6,10 @@ import { Chests } from "./Chests";
 import { Consumables } from "./Consumables";
 import { Entries } from "./Entries";
 import { LeagueAdvancements } from "./LeagueAdvancements";
+import { Music } from "./Music";
 import { Packs } from "./Packs";
 import { Shop } from "./Shop";
+import { Skins } from "./Skins";
 
 interface PlayerHistoryButtonProps {
   rewardHistory: ParsedPlayerRewardHistory; // Now expects parsed data
@@ -51,6 +53,8 @@ export function RewardHistorySummary({ rewardHistory }: PlayerHistoryButtonProps
         <Shop totalShopPurchases={rewardHistory.aggregation.totalShopPurchases} />
       </Box>
       <Cards totalCards={rewardHistory.aggregation.totalCards} cardDetails={cardDetails} />
+      <Skins totalSkins={rewardHistory.aggregation.totalSkins} cardDetails={cardDetails} />
+      <Music totalMusic={rewardHistory.aggregation.totalMusic} />
     </Box>
   );
 }

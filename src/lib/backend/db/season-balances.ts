@@ -88,6 +88,12 @@ export async function deleteSeasonBalancesByUsername(username: string) {
   return prisma.seasonBalance.deleteMany({ where: { username } });
 }
 
+export async function hasAnySeasonData(usernames: string[]): Promise<boolean> {
+  if (!usernames.length) return false;
+  const count = await prisma.seasonBalance.count({ where: { username: { in: usernames } } });
+  return count > 0;
+}
+
 /**
  * Return all season balances for an account grouped by (seasonId, token).
  * Each element carries an array of { type, amount } entries.

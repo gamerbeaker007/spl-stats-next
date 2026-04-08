@@ -1045,6 +1045,198 @@ const splPricesClient = axios.create({
   headers: { "User-Agent": "SPL-Data/1.0" },
 });
 
+const splV1Client = axios.create({
+  baseURL: "https://api.splinterlands.com/",
+  timeout: 30000,
+  headers: { "Accept-Encoding": "gzip, deflate, br, zstd", "User-Agent": "SPL-Data/1.0" },
+});
+
+// ---------------------------------------------------------------------------
+// Tournaments
+// ---------------------------------------------------------------------------
+
+export interface SplTournamentPlayer {
+  player: string;
+  finish: number | null;
+  wins: number;
+  losses: number;
+  draws: number;
+  prize: string | null;
+  ext_prize_info: string | null;
+  fee_amount: string | null;
+}
+
+export interface SplTournamentRound {
+  status: number;
+  start_date: string;
+}
+
+export interface SplTournament {
+  name: string;
+  status: number;
+  num_players: number;
+  players: SplTournamentPlayer[];
+  rounds: SplTournamentRound[];
+  data: { rating_level: number };
+}
+
+/** Fetch a single tournament by ID. */
+export async function fetchTournament(id: string): Promise<SplTournament | null> {
+  try {
+    const res = await splBaseClient.get("/tournaments/find", { params: { id } });
+    return res.data as SplTournament;
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch tournament IDs from player's token_transfer history (last 500 entries). */
+export async function fetchPlayerTournamentIds(username: string, token: string): Promise<string[]> {
+  try {
+    const res = await splBaseClient.get("/players/history", {
+      params: { username, token, types: "token_transfer", from_block: -1, limit: 500 },
+    });
+    if (!Array.isArray(res.data)) return [];
+    const ids: string[] = [];
+    for (const entry of res.data as Array<{ data: string }>) {
+      try {
+        const parsed = JSON.parse(entry.data ?? "{}");
+        if (parsed?.tournament_id) ids.push(String(parsed.tournament_id));
+      } catch {
+        // ignore
+      }
+    }
+    return [...new Set(ids)];
+  } catch {
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Market transactions
+// ---------------------------------------------------------------------------
+
+export interface SplMarketCard {
+  uid: string;
+  card_detail_id: number;
+  edition: number;
+  gold: boolean;
+  xp: number;
+  level: number;
+  player: string;
+}
+
+export interface SplMarketStatus {
+  cards: SplMarketCard[];
+  success: boolean;
+}
+
+/** Fetch card details for a market transaction by its SPL ID. */
+export async function fetchMarketStatus(splId: string): Promise<SplMarketStatus | null> {
+  try {
+    const res = await splBaseClient.get("/market/status", { params: { id: splId } });
+    return res.data as SplMarketStatus;
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch current card details by comma-separated card UIDs. */
+export async function fetchCardsByIds(ids: string): Promise<SplMarketCard[]> {
+  try {
+    const res = await splBaseClient.get("/cards/find", { params: { ids } });
+    if (!Array.isArray(res.data)) return [];
+    return res.data as SplMarketCard[];
+  } catch {
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Prices
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Market transaction lookup
+// ---------------------------------------------------------------------------
+
+export interface SplTransactionLookupInfo {
+  id: string;
+  type: string;
+  player: string;
+  data: string;
+  result: string | null;
+}
+
+/** Fetch a transaction by trx_id (v1 API) to resolve card UIDs from a listing. */
+export async function fetchTransactionLookup(
+  trxId: string
+): Promise<SplTransactionLookupInfo | null> {
+  try {
+    const res = await splV1Client.get("/transactions/lookup", { params: { trx_id: trxId } });
+    return (res.data as { trx_info: SplTransactionLookupInfo }).trx_info ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Paginate through market_purchase and marketplace_purchase history within a date range. */
+export async function fetchMarketHistoryByDateRange(
+  player: string,
+  token: string,
+  startDate: Date,
+  endDate: Date
+): Promise<SplHistory[]> {
+  const types = "market_purchase,marketplace_purchase";
+  const allEntries: SplHistory[] = [];
+  let lastBlockNum: number | undefined;
+  let hasMoreData = true;
+  let iterations = 0;
+  const MAX_ITERATIONS = 100;
+
+  while (hasMoreData && iterations < MAX_ITERATIONS) {
+    iterations++;
+    if (iterations > 1) {
+      await new Promise((resolve) => setTimeout(resolve, HISTORY_PAGE_DELAY_MS));
+    }
+
+    const params: Record<string, string | number> = {
+      username: player,
+      types,
+      limit: HISTORY_PAGE_LIMIT,
+      token,
+    };
+    if (lastBlockNum) params.before_block = lastBlockNum;
+
+    let batch: SplHistory[] = [];
+    try {
+      const res = await splBaseClient.get("/players/history", { params });
+      if (Array.isArray(res.data)) batch = res.data as SplHistory[];
+    } catch {
+      break;
+    }
+    if (batch.length === 0) break;
+
+    const filtered = batch.filter((entry) => {
+      const d = new Date(entry.created_date);
+      return d >= startDate && d <= endDate;
+    });
+    allEntries.push(...filtered);
+
+    const oldest = batch[batch.length - 1];
+    if (new Date(oldest.created_date) < startDate) break;
+
+    lastBlockNum = oldest.block_num - 1;
+    if (batch.length < HISTORY_PAGE_LIMIT) hasMoreData = false;
+  }
+
+  return allEntries;
+}
+
+// ---------------------------------------------------------------------------
+// Prices
+// ---------------------------------------------------------------------------
+
 /** Fetch current token prices from prices.splinterlands.com/prices. */
 export async function fetchSplPrices(): Promise<SplPrices> {
   try {

@@ -95,6 +95,17 @@ export interface BestCardStat {
   imageUrl: string;
 }
 
+export interface NemesisOpponentStat {
+  opponent: string;
+  battles: number;
+}
+
+export interface NemesisData {
+  overall: NemesisOpponentStat[];
+  byFormat: Record<string, NemesisOpponentStat[]>;
+  byMatchType: Record<string, NemesisOpponentStat[]>;
+}
+
 export interface LosingCardStat {
   cardDetailId: number;
   cardName: string;

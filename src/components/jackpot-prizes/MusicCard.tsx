@@ -1,6 +1,6 @@
 "use client";
 
-import { WEB_URL } from "@/lib/utils/staticUrls";
+import { WEB_URL } from "@/lib/staticsIconUrls";
 import { MusicDisplayItem } from "@/types/jackpot-prizes/music";
 import MusicNoteIcon from "@mui/icons-material/MusicNote";
 import { Box, Card, CardContent, CardMedia, Chip, Divider, Typography } from "@mui/material";

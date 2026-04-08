@@ -21,6 +21,10 @@ COPY . .
 ARG DATABASE_URL="postgresql://build:build@localhost:5432/build"
 ENV DATABASE_URL=${DATABASE_URL}
 
+# App version — passed from CI as a build arg, baked into the image
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+
 # Generate Prisma client and build app
 RUN npx prisma generate
 RUN npm run build
@@ -31,6 +35,10 @@ FROM base AS runner
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+
+# Propagate version into the runner image so server components can read it
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
 
 
 # Create non-root user

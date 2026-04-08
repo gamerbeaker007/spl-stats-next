@@ -1,4 +1,4 @@
-import { getSkinImageUrl } from "@/lib/utils/imageUtils";
+import { getSkinImageUrl } from "@/lib/shared/card-image-utils";
 import { SplCardDetail } from "@/types/jackpot-prizes/shared";
 import { SplSkin } from "@/types/spl/jackpot";
 import { Avatar, Box, Card, CardContent, Tooltip, Typography } from "@mui/material";

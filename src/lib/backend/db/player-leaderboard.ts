@@ -55,6 +55,33 @@ export async function upsertPlayerLeaderboard(entry: PlayerLeaderboardEntry) {
   });
 }
 
+/**
+ * Leaderboard rows for a specific account + season, ordered by format.
+ */
+export async function getPlayerLeaderboardForSeason(
+  username: string,
+  seasonId: number
+): Promise<PlayerLeaderboardEntry[]> {
+  const rows = await prisma.playerLeaderboard.findMany({
+    where: { username, seasonId },
+    orderBy: { format: "asc" },
+  });
+  return rows.map((r) => ({
+    username: r.username,
+    seasonId: r.seasonId,
+    format: r.format,
+    rating: r.rating,
+    rank: r.rank,
+    battles: r.battles,
+    wins: r.wins,
+    longestStreak: r.longestStreak,
+    maxRating: r.maxRating,
+    league: r.league,
+    maxLeague: r.maxLeague,
+    rshares: r.rshares,
+  }));
+}
+
 export async function deletePlayerLeaderboardByUsername(username: string) {
   return prisma.playerLeaderboard.deleteMany({ where: { username } });
 }

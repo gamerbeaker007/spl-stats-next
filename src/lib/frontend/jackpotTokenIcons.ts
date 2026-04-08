@@ -1,4 +1,4 @@
-import { WEB_URL } from "@/lib/utils/staticUrls";
+import { WEB_URL } from "@/lib/staticsIconUrls";
 
 export const TOKEN_ICON_MAPPING: Record<string, string> = {
   BETA: `${WEB_URL}website/icons/icon_pack_beta.png`,

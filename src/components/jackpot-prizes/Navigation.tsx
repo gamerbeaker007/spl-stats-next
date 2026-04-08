@@ -1,13 +1,5 @@
 "use client";
 
-import {
-  conclave_icon_url,
-  escalation_icon_url,
-  frontier_icon_url,
-  jackpot_icon_url,
-  land_icon_url,
-  ranked_icon_url,
-} from "@/lib/utils/staticUrls";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
@@ -30,6 +22,14 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { MdExpandMore, MdClose, MdMenu } from "react-icons/md";
 import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
+import {
+  conclave_icon_url,
+  escalation_icon_url,
+  frontier_icon_url,
+  jackpot_icon_url,
+  land_icon_url,
+  ranked_icon_url,
+} from "@/lib/staticsIconUrls";
 
 const BASE = "/jackpot-prizes";
 

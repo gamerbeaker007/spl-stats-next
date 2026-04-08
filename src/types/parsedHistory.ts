@@ -156,6 +156,23 @@ export interface RewardItemPack {
   quantity: number;
 }
 
+export interface RewardItemSkin {
+  type: "skin";
+  quantity: number;
+  skin: string;
+  skin_detail_id: number;
+  card_detail_id: number;
+  prize_type?: string;
+}
+
+export interface RewardItemMusic {
+  type: "music";
+  quantity: number;
+  music_detail_id: number;
+  name?: string;
+  prize_type?: string;
+}
+
 export type RewardItems =
   | RewardItemCard
   | RewardItemPotion
@@ -164,7 +181,9 @@ export type RewardItems =
   | RewardRankedEntries
   | RewardItemFrontierEntries
   | RewardItemEnergy
-  | RewardItemPack;
+  | RewardItemPack
+  | RewardItemSkin
+  | RewardItemMusic;
 
 export interface RewardDrawData {
   chest_type:
@@ -287,6 +306,12 @@ export interface RewardSummary {
   totalCards: {
     [cardId: number]: { edition: number; quantity: number; gold: number; regular: number };
   };
+  totalSkins: {
+    [skinDetailId: number]: { skin: string; cardDetailId: number; quantity: number };
+  };
+  totalMusic: {
+    [musicDetailId: number]: { name: string; quantity: number };
+  };
   totalPotions: { [potionType: string]: number };
   totalPotionsUsed: { [potionType: string]: number };
   totalMerits: number;
@@ -301,7 +326,6 @@ export interface RewardSummary {
     rarityDraws: { common: number; rare: number; epic: number; legendary: number };
     chests: { minor: number; major: number; ultimate: number };
   };
-  totalRarityDraws: { common: number; rare: number; epic: number; legendary: number };
   leagueAdvancements: { foundation: number[]; wild: number[]; modern: number[] };
   questTypeBreakdown: { [questType: string]: number };
 }

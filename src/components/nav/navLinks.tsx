@@ -6,6 +6,7 @@ import {
   MdDashboard,
   MdHome,
   MdPeople,
+  MdRssFeed,
 } from "react-icons/md";
 
 export interface NavLink {
@@ -21,6 +22,7 @@ export const navLinks: NavLink[] = [
   { href: "/season", label: "Season Overview", icon: <MdBarChart size={22} /> },
   { href: "/battles", label: "Battles", icon: <GiCrossedSwords size={22} /> },
   { href: "/portfolio", label: "Portfolio", icon: <MdAccountBalance size={22} /> },
+  { href: "/hive-blog", label: "Hive Blog", icon: <MdRssFeed size={22} /> },
   { href: "/users", label: "Users", icon: <MdPeople size={22} /> },
   { href: "/admin", label: "Admin", icon: <MdAdminPanelSettings size={22} /> },
 ];

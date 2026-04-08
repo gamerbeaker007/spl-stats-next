@@ -149,6 +149,32 @@ export async function fetchOwnedResource(player: string, resource: string): Prom
 }
 
 // ---------------------------------------------------------------------------
+// Marketplace listing items
+// ---------------------------------------------------------------------------
+
+export interface VapiListingItemResponse {
+  status: string;
+  data: {
+    listing: { player: string; quantity: number };
+    item: { id: number; detailId: string; itemId: string; quantity: number };
+  };
+}
+
+/** Fetch marketplace listing item details by listingItemId. */
+export async function fetchListingItem(
+  listingItemId: number
+): Promise<VapiListingItemResponse | null> {
+  try {
+    const res = await vapiClient.get<VapiListingItemResponse>("/market/debug/listing-item", {
+      params: { listingItemId },
+    });
+    return res.data;
+  } catch {
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Market landing (inventory asset prices)
 // ---------------------------------------------------------------------------
 
@@ -161,6 +187,7 @@ export interface VapiMarketLandingAsset {
   assetName: string;
   detailId: string;
   detailName: string;
+  detailImage?: string;
   numOwned: number;
   numListed: number;
   prices: VapiMarketLandingPrice[];

@@ -4,9 +4,10 @@ import { upsertPlayerLeaderboard } from "@/lib/backend/db/player-leaderboard";
 import logger from "@/lib/backend/log/logger.server";
 import { LEADERBOARD_FORMATS, SplFormats } from "@/types/spl/leaderboard";
 import { shouldShutdown } from "./graceful-shutdown";
-import { buildSeasonsToProcess } from "./sync-utils";
 import { REQUEST_DELAY_MS } from "./worker-config";
-import { Season } from "@prisma/client";
+import { AccountSyncState, Season } from "@prisma/client";
+import { getPlayerFirstSeasonId } from "./sync-utils";
+
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -75,4 +76,34 @@ export async function syncLeaderboard(
       await updateSyncState(syncState.id, { status: "failed", errorMessage: msg });
     }
   }
+}
+
+/**
+ * Build the ordered list of seasons to process for one sync state.
+ * Includes the current season unless it was successfully completed within the throttle window.
+ */
+async function buildSeasonsToProcess(
+  username: string,
+  allSeasons: Season[],
+  currentSeasonId: number,
+  syncState: AccountSyncState,
+): Promise<Season[] | undefined> {
+
+  // Step 1 determine if a user has data synced already start form there when not determine by first join.
+  const startFromSeason =
+    syncState.lastSeasonProcessed === 0
+      ? await getPlayerFirstSeasonId(username, allSeasons)
+      : syncState.lastSeasonProcessed;
+
+  // Not able to determine the first season, return, break flow.
+  if (!startFromSeason) return;
+
+  //Step 2 Check if previous season is already processed
+  if (startFromSeason <= syncState.lastSeasonProcessed - 1) return;
+
+  // Step 3: filter completed historical seasons (strictly before the current season).
+  // The current season is excluded here so step 3 can apply throttling to it independently.
+  return allSeasons.filter(
+    (s) => s.id >= startFromSeason && s.id < currentSeasonId && s.id
+  );
 }

@@ -18,7 +18,7 @@ export function PlayerHistoryButtons({ username, seasonId, joinDate }: PlayerHis
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
   const { cardDetails } = useCardDetails();
-  console.log("PlayerHistoryButtons props:", { username, seasonId, joinDate });
+
   return (
     <Box width="100%" sx={{ mb: 2 }}>
       {seasonId && (

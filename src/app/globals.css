@@ -35,3 +35,18 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+/* Hive markdown preview */
+.hive-md-preview { font-size: 14px; line-height: 1.6; }
+.hive-md-preview h1 { font-size: 1.5rem; font-weight: 700; margin: 1rem 0 0.5rem; }
+.hive-md-preview h2 { font-size: 1.2rem; font-weight: 600; margin: 1rem 0 0.4rem; }
+.hive-md-preview h3 { font-size: 1rem; font-weight: 600; margin: 0.75rem 0 0.3rem; }
+.hive-md-preview p { margin: 0.4rem 0; }
+.hive-md-preview hr { margin: 1rem 0; border: none; border-top: 1px solid currentColor; opacity: 0.2; }
+.hive-md-preview strong { font-weight: 600; }
+.hive-md-preview em { font-style: italic; }
+.hive-md-preview table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 13px; }
+.hive-md-preview th, .hive-md-preview td { border: 1px solid rgba(128,128,128,0.3); padding: 4px 8px; vertical-align: middle; }
+.hive-md-preview th { font-weight: 600; background: rgba(128,128,128,0.1); }
+.hive-md-preview img { max-width: 150px; height: auto; display: inline-block; vertical-align: middle; }
+.hive-md-preview a { text-decoration: underline; }

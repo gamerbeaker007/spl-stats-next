@@ -32,6 +32,11 @@ const nextConfig: NextConfig = {
         hostname: "next.splinterlands.com",
         pathname: "/assets/cards/**",
       },
+      {
+        protocol: "https",
+        hostname: "files.peakd.com",
+        pathname: "/file/peakd-hive/**",
+      },
     ],
   },
 };

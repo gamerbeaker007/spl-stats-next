@@ -734,3 +734,42 @@ export async function getBattleTeams(
     ...opponentCards.map((c) => ({ ...c, owner: "opponent" as const })),
   ];
 }
+
+// ---------------------------------------------------------------------------
+// Nemesis opponent stats — who beats a given account most often
+// ---------------------------------------------------------------------------
+
+export interface NemesisRawRow {
+  opponent: string;
+  format: string;
+  matchType: string;
+}
+
+/**
+ * Returns one entry per distinct loss battle for the account.
+ * Deduplicates by battleId so multiple cards per battle don't inflate counts.
+ */
+export async function getNemesisOpponentStats(
+  account: string,
+  since?: string
+): Promise<NemesisRawRow[]> {
+  const rows = await prisma.playerBattleCard.findMany({
+    where: {
+      account,
+      result: "loss",
+      ...(since ? { createdDate: { gte: new Date(since) } } : {}),
+    },
+    select: {
+      battleId: true,
+      opponent: true,
+      format: true,
+      matchType: true,
+    },
+    distinct: ["battleId"],
+  });
+  return rows.map((r) => ({
+    opponent: r.opponent,
+    format: r.format,
+    matchType: r.matchType,
+  }));
+}

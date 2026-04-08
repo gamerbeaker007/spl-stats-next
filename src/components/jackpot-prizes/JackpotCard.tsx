@@ -3,7 +3,7 @@ import { SplCardDetail } from "@/types/jackpot-prizes/shared";
 import { Box, Card, CardContent, Typography } from "@mui/material";
 import Image from "next/image";
 
-import { getCardImageUrl, getFallbackImageUrl } from "@/lib/utils/imageUtils";
+import { getCardImageUrl, getFallbackImageUrl } from "@/lib/shared/card-image-utils";
 
 interface Props {
   item: JackpotCardDetail;
