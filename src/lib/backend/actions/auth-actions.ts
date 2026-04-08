@@ -14,7 +14,13 @@ import {
   listMonitoredAccounts,
   upsertMonitoredAccount,
 } from "@/lib/backend/db/monitored-accounts";
+import {
+  deleteOpponentBattleCardsByAccount,
+  deletePlayerBattleCardsByAccount,
+} from "@/lib/backend/db/battle-cards";
 import { deletePlayerLeaderboardByUsername } from "@/lib/backend/db/player-leaderboard";
+import { deletePortfolioInvestmentsByUsername } from "@/lib/backend/db/portfolio-investments";
+import { deletePortfolioSnapshotsByUsername } from "@/lib/backend/db/portfolio-snapshots";
 import { deleteSeasonBalancesByUsername } from "@/lib/backend/db/season-balances";
 import {
   deleteSplAccount,
@@ -279,6 +285,10 @@ export async function removeMonitoredAccount(accountId: string) {
         deleteSyncStatesByUsername(record.username),
         deleteSeasonBalancesByUsername(record.username),
         deletePlayerLeaderboardByUsername(record.username),
+        deletePlayerBattleCardsByAccount(record.username),
+        deleteOpponentBattleCardsByAccount(record.username),
+        deletePortfolioSnapshotsByUsername(record.username),
+        deletePortfolioInvestmentsByUsername(record.username),
       ]);
       logger.info(`SplAccount ${record.username} deleted — no remaining links, data purged`);
     }
@@ -288,5 +298,20 @@ export async function removeMonitoredAccount(accountId: string) {
   } catch (error) {
     logger.error(`removeMonitoredAccount error: ${error}`);
     return { success: false, error: errorMessage(error) };
+  }
+}
+
+/** Check whether removing the given monitored account would be the last link to the SplAccount,
+ *  meaning all collected data would be permanently deleted on removal. */
+export async function checkRemoveScopeAction(accountId: string): Promise<{ isLastUser: boolean }> {
+  try {
+    const userId = await getUserIdFromCookie();
+    if (!userId) return { isLastUser: false };
+    const record = await findMonitoredAccountById(accountId, userId);
+    if (!record) return { isLastUser: false };
+    const remaining = await countMonitoredAccountsBySplAccount(record.splAccountId);
+    return { isLastUser: remaining <= 1 };
+  } catch {
+    return { isLastUser: false };
   }
 }

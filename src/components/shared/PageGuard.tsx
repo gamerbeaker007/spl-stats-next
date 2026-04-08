@@ -23,8 +23,11 @@ export default async function PageGuard({ children }: { children: React.ReactNod
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="warning">
-          No monitored accounts found. Go to <Link href="/users">account management</Link> to add
-          accounts.
+          No monitored accounts found. Go to{" "}
+          <Link href="/users" suppressHydrationWarning>
+            account management
+          </Link>{" "}
+          to add accounts.
         </Alert>
       </Box>
     );
@@ -38,7 +41,10 @@ export default async function PageGuard({ children }: { children: React.ReactNod
       <Box sx={{ p: 3 }}>
         <Alert severity="info">
           No data available yet. The background worker may still be syncing your data. Check{" "}
-          <Link href="/users">account management</Link> for sync state.
+          <Link href="/users" suppressHydrationWarning>
+            account management
+          </Link>{" "}
+          for sync state.
         </Alert>
       </Box>
     );

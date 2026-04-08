@@ -1,5 +1,6 @@
 import { fetchSettings } from "@/lib/backend/api/spl/spl-api";
 import { resetStaleSyncStates } from "@/lib/backend/db/account-sync-states";
+import { pruneLogs } from "@/lib/backend/db/logs";
 import { getAllSeasons } from "@/lib/backend/db/seasons";
 import { getDistinctAccountsWithCredentials } from "@/lib/backend/db/spl-accounts";
 import { completeWorkerRun, createWorkerRun } from "@/lib/backend/db/worker-runs";
@@ -14,7 +15,7 @@ import {
 import { syncLeaderboard } from "./lib/leaderboard-sync";
 import { syncPortfolio } from "./lib/portfolio-sync";
 import { syncSeasonsEndDates } from "./lib/season-end-dates-sync";
-import { WORKER_INTERVAL_MS } from "./lib/worker-config";
+import { LOG_RETENTION_DAYS, WORKER_INTERVAL_MS } from "./lib/worker-config";
 
 registerShutdownHandlers();
 
@@ -121,6 +122,16 @@ async function runCycle(): Promise<void> {
       } else {
         logger.warn(`Worker: all syncs failed for ${account.username}, not counting as processed`);
       }
+    }
+
+    // Final step: prune old log entries
+    try {
+      const { count } = await pruneLogs(LOG_RETENTION_DAYS);
+      if (count > 0)
+        logger.info(`Worker: pruned ${count} log entries older than ${LOG_RETENTION_DAYS} days`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.warn(`Worker: log pruning failed: ${msg}`);
     }
 
     await completeWorkerRun(run.id, "completed", accountsProcessed);

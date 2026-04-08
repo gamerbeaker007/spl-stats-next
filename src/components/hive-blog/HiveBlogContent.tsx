@@ -132,24 +132,6 @@ function PostPanel({
 
       {/* RIGHT: preview + post */}
       <Box sx={{ pl: { md: 2 } }}>
-        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-          Preview
-        </Typography>
-
-        <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            {title}
-          </Typography>
-          <Divider sx={{ mb: 1.5 }} />
-          <HiveMarkdownPreview markdown={editedBody} />
-          <Divider sx={{ mt: 2, mb: 1.5 }} />
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-            {allTags.map((t) => (
-              <Chip key={t} label={`#${t}`} size="small" />
-            ))}
-          </Box>
-        </Paper>
-
         {loggedIn ? (
           <Paper variant="outlined" sx={{ p: 2 }}>
             <Typography variant="subtitle2" gutterBottom>
@@ -184,6 +166,24 @@ function PostPanel({
         ) : (
           <Alert severity="info">Log in to post directly to Hive.</Alert>
         )}
+
+        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+          Preview
+        </Typography>
+
+        <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            {title}
+          </Typography>
+          <Divider sx={{ mb: 1.5 }} />
+          <HiveMarkdownPreview markdown={editedBody} />
+          <Divider sx={{ mt: 2, mb: 1.5 }} />
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+            {allTags.map((t) => (
+              <Chip key={t} label={`#${t}`} size="small" />
+            ))}
+          </Box>
+        </Paper>
       </Box>
     </Box>
   );

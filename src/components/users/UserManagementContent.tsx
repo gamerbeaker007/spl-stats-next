@@ -74,6 +74,7 @@ export default function UserManagementContent({
     clearMessages,
     addAccount,
     removeAccount,
+    checkRemoveScope,
     reAuthAccount,
   } = useMonitoredAccounts(initialAccounts);
 
@@ -81,6 +82,8 @@ export default function UserManagementContent({
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newUsername, setNewUsername] = useState("");
   const [confirmRemoveAccount, setConfirmRemoveAccount] = useState<MonitoredAccount | null>(null);
+  const [willDeleteAllData, setWillDeleteAllData] = useState(false);
+  const [scopeChecking, setScopeChecking] = useState(false);
 
   const openAddDialog = () => {
     clearMessages();
@@ -106,6 +109,15 @@ export default function UserManagementContent({
   const handleRemove = async (accountId: string) => {
     setConfirmRemoveAccount(null);
     await removeAccount(accountId);
+  };
+
+  const openConfirmRemove = async (account: MonitoredAccount) => {
+    setWillDeleteAllData(false);
+    setScopeChecking(true);
+    setConfirmRemoveAccount(account);
+    const isLast = await checkRemoveScope(account.id);
+    setWillDeleteAllData(isLast);
+    setScopeChecking(false);
   };
 
   return (
@@ -188,7 +200,7 @@ export default function UserManagementContent({
                                 <IconButton
                                   edge="end"
                                   aria-label="delete"
-                                  onClick={() => setConfirmRemoveAccount(account)}
+                                  onClick={() => openConfirmRemove(account)}
                                 >
                                   <DeleteIcon />
                                 </IconButton>
@@ -300,21 +312,44 @@ export default function UserManagementContent({
             {confirmRemoveAccount?.username === mainUsername ? (
               <>
                 Remove <strong>{confirmRemoveAccount.username}</strong> (your own account) from
-                monitoring? You will remain logged in, but portfolio data collection for this
-                account will stop.
+                monitoring? You will remain logged in, but data collection for this account will
+                stop.
               </>
             ) : (
               <>
                 Remove <strong>{confirmRemoveAccount?.username}</strong> from monitored accounts?
-                Portfolio data collection for this account will stop.
+                Data collection for this account will stop.
               </>
             )}
           </DialogContentText>
+          {scopeChecking && (
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 2 }}>
+              <CircularProgress size={16} />
+              <Typography variant="body2" color="text.secondary">
+                Checking…
+              </Typography>
+            </Box>
+          )}
+          {!scopeChecking && willDeleteAllData && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              <strong>No other user monitors this account.</strong> Removing it will permanently
+              delete all collected data:
+              <ul style={{ margin: "8px 0 0", paddingLeft: 20 }}>
+                <li>Season balances</li>
+                <li>Leaderboard history</li>
+                <li>Battle history (player &amp; opponent cards)</li>
+                <li>Portfolio snapshots</li>
+                <li>Portfolio investments</li>
+                <li>Sync state &amp; encrypted token</li>
+              </ul>
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmRemoveAccount(null)}>Cancel</Button>
           <Button
             color="error"
+            disabled={scopeChecking}
             onClick={() => confirmRemoveAccount && handleRemove(confirmRemoveAccount.id)}
           >
             Remove

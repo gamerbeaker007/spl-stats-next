@@ -58,6 +58,14 @@ export async function deletePortfolioInvestment(id: string): Promise<void> {
   await prisma.portfolioInvestment.delete({ where: { id } });
 }
 
+/** Delete all investment entries for a given username. */
+export async function deletePortfolioInvestmentsByUsername(username: string): Promise<number> {
+  const { count } = await prisma.portfolioInvestment.deleteMany({
+    where: { username: username.toLowerCase() },
+  });
+  return count;
+}
+
 /** Return a single investment entry by ID, or null if not found. */
 export async function getPortfolioInvestmentById(
   id: string

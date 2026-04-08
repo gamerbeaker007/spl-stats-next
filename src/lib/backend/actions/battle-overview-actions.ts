@@ -425,7 +425,13 @@ export async function getBattleEntriesAction(
     const battle = outcome.value;
 
     // /battle/result returns details as a raw JSON string
-    const details = JSON.parse(battle.details) as import("@/types/spl/battle").SplBattleDetails;
+    if (!battle.details || battle.details === "undefined") continue;
+    let details: import("@/types/spl/battle").SplBattleDetails;
+    try {
+      details = JSON.parse(battle.details);
+    } catch {
+      continue;
+    }
 
     if (!details?.team1 || !details?.team2) continue;
 

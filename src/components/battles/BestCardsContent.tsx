@@ -25,7 +25,8 @@ export default function BestCardsContent() {
   const topCards = cards.slice(0, filter.topCount);
 
   const handleCardClick = (cardDetailId: number) => {
-    router.push(`/battles/card/${cardDetailId}`);
+    const params = filter.account ? `?account=${encodeURIComponent(filter.account)}` : "";
+    router.push(`/battles/card/${cardDetailId}${params}`);
   };
 
   return (

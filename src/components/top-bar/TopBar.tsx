@@ -13,7 +13,7 @@ import LoginComponent from "./LoginComponent";
 import SplMaintenanceIndicator from "./SplMaintenanceIndicator";
 import ThemeToggle from "./ThemeToggle";
 
-export const APP_BAR_HEIGHT = 64;
+export const APP_BAR_HEIGHT = 50;
 
 const MOBILE_NAV_COUNT = 3;
 
@@ -31,13 +31,14 @@ export default function TopBar({ onHamburgerClick }: Readonly<TopBarProps>) {
       elevation={1}
       sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}
     >
-      <Toolbar sx={{ gap: 0.5, px: 1, minHeight: APP_BAR_HEIGHT + "px !important" }}>
+      <Toolbar sx={{ gap: 0.5, px: 0, minHeight: APP_BAR_HEIGHT + "px !important" }}>
         {/* Hamburger */}
         <IconButton
           onClick={onHamburgerClick}
           aria-label="Toggle navigation"
           color="inherit"
           size="small"
+          sx={{ ml: { xs: "0px", md: "-18px" } }}
         >
           <MdMenu size={20} />
         </IconButton>
@@ -61,9 +62,9 @@ export default function TopBar({ onHamburgerClick }: Readonly<TopBarProps>) {
         {/* Spacer */}
         <Box sx={{ flex: 1 }} />
 
-        {/* Mobile: first 3 nav icons */}
+        {/* Mobile: first x nav icons */}
         <Box sx={{ display: { xs: "flex", md: "none" }, alignItems: "center", gap: 0.5 }}>
-          {navLinks.slice(0, MOBILE_NAV_COUNT).map(({ href, label, icon }) => (
+          {navLinks.slice(1, MOBILE_NAV_COUNT).map(({ href, label, icon }) => (
             <Link
               key={href}
               suppressHydrationWarning

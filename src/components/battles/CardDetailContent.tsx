@@ -28,7 +28,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { MdArrowBack, MdExpandMore, MdOpenInNew } from "react-icons/md";
 import { useEffect, useMemo, useState } from "react";
 
@@ -36,6 +36,8 @@ const ACCOUNT_STORAGE_KEY = "card-detail-account";
 
 interface CardDetailContentProps {
   cardDetailId: number;
+  /** Pre-validated account from the server — takes priority over localStorage. */
+  initialAccount?: string;
 }
 
 function StatBox({
@@ -284,9 +286,14 @@ function VisualBattleEntry({ battle }: { battle: DetailedBattleEntry }) {
   );
 }
 
-export default function CardDetailContent({ cardDetailId }: CardDetailContentProps) {
+export default function CardDetailContent({
+  cardDetailId,
+  initialAccount = "",
+}: CardDetailContentProps) {
   const router = useRouter();
-  const [account, setAccount] = useState("");
+  const pathname = usePathname();
+  // initialAccount (server-validated) takes priority; fall back to localStorage
+  const [account, setAccount] = useState(initialAccount);
   const { accounts, loading: accountsLoading } = useMonitoredAccountNames();
   const { cards: cardOptions, loading: cardsLoading } = useCardOptions(account);
   const filter = useMemo(() => ({ ...DEFAULT_BATTLE_FILTER, account }), [account]);
@@ -305,11 +312,13 @@ export default function CardDetailContent({ cardDetailId }: CardDetailContentPro
   const liveLosses = useMemo(() => liveBattles.filter((b) => b.result === "loss"), [liveBattles]);
 
   const handleCardClick = (id: number) => {
-    router.push(`/battles/card/${id}`);
+    const params = account ? `?account=${encodeURIComponent(account)}` : "";
+    router.push(`/battles/card/${id}${params}`);
   };
 
-  // Load account from localStorage after mount (avoids hydration mismatch)
+  // Load account from localStorage after mount only when no server-provided account
   useEffect(() => {
+    if (initialAccount) return; // server already gave us a validated account
     try {
       const saved = localStorage.getItem(ACCOUNT_STORAGE_KEY);
       // Reading localStorage on mount is legitimate — suppress overly strict rule.
@@ -318,7 +327,7 @@ export default function CardDetailContent({ cardDetailId }: CardDetailContentPro
     } catch {
       // ignore
     }
-  }, []);
+  }, [initialAccount]);
 
   // Persist account to localStorage whenever it changes
   useEffect(() => {
@@ -354,7 +363,12 @@ export default function CardDetailContent({ cardDetailId }: CardDetailContentPro
             labelId="cd-account-label"
             label="Account"
             value={account}
-            onChange={(e) => setAccount(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value;
+              setAccount(next);
+              const params = next ? `?account=${encodeURIComponent(next)}` : "";
+              router.replace(`${pathname}${params}`);
+            }}
             disabled={accountsLoading}
           >
             {accounts.map((a) => (

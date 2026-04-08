@@ -2,6 +2,7 @@
 
 import {
   addMonitoredAccountWithKeychain,
+  checkRemoveScopeAction,
   reAuthMonitoredAccount,
   removeMonitoredAccount,
   verifyMonitoredAccountToken,
@@ -27,6 +28,7 @@ interface UseMonitoredAccountsReturn {
   clearMessages: () => void;
   addAccount: (username: string) => Promise<boolean>;
   removeAccount: (accountId: string) => Promise<void>;
+  checkRemoveScope: (accountId: string) => Promise<boolean>;
   reAuthAccount: (monitoredAccountId: string, username: string) => Promise<boolean>;
 }
 
@@ -122,6 +124,11 @@ export function useMonitoredAccounts(
     }
   };
 
+  const checkRemoveScope = async (accountId: string): Promise<boolean> => {
+    const { isLastUser } = await checkRemoveScopeAction(accountId);
+    return isLastUser;
+  };
+
   const reAuthAccount = async (monitoredAccountId: string, username: string): Promise<boolean> => {
     clearMessages();
     addBusy(monitoredAccountId);
@@ -158,6 +165,7 @@ export function useMonitoredAccounts(
     clearMessages,
     addAccount,
     removeAccount,
+    checkRemoveScope,
     reAuthAccount,
   };
 }
