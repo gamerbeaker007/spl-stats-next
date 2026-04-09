@@ -1,61 +1,28 @@
-import path from "path";
-import { createLogger, format, transports } from "winston";
-import DailyRotateFile from "winston-daily-rotate-file";
+import { createLog, type LogLevel } from "@/lib/backend/db/logs";
 
-const isDev = process.env.NODE_ENV !== "production";
-
-// Custom format
-const customFormat = format.combine(
-  format.timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
-  format.errors({ stack: true }),
-  format.splat(),
-  format.printf(({ level, message, timestamp, stack }) => {
-    if (stack) {
-      return `${timestamp} [${level.toUpperCase()}]: ${message}\n${stack}`;
-    }
-    return `${timestamp} [${level.toUpperCase()}]: ${message}`;
-  })
-);
-
-// Create logs directory if it doesn't exist
-const logsDir = path.resolve(process.cwd(), "logs");
-
-const logger = createLogger({
-  level: isDev ? "debug" : "info",
-  format: customFormat,
-  transports: [
-    // General log file with rotation
-    new DailyRotateFile({
-      filename: path.join(logsDir, "app-%DATE%.log"),
-      datePattern: "YYYY-MM-DD",
-      maxSize: "20m",
-      maxFiles: "14d",
-      level: "info",
-    }),
-    // Error log file with rotation
-    new DailyRotateFile({
-      filename: path.join(logsDir, "error-%DATE%.log"),
-      datePattern: "YYYY-MM-DD",
-      maxSize: "20m",
-      maxFiles: "14d",
-      level: "error",
-    }),
-  ],
-});
-
-// Console transport for development
-if (isDev) {
-  logger.add(
-    new transports.Console({
-      format: format.combine(
-        format.colorize(),
-        format.timestamp({ format: "HH:mm:ss" }),
-        format.printf(({ level, message, timestamp }) => {
-          return `${timestamp} ${level}: ${message}`;
-        })
-      ),
-    })
-  );
+function consoleLog(level: LogLevel, message: string) {
+  const ts = new Date().toISOString();
+  if (level === "error") {
+    console.error(`${ts} [${level.toUpperCase()}]: ${message}`);
+  } else if (level === "warn") {
+    console.warn(`${ts} [${level.toUpperCase()}]: ${message}`);
+  } else {
+    console.log(`${ts} [${level.toUpperCase()}]: ${message}`);
+  }
 }
+
+function log(level: LogLevel, message: string, meta?: Record<string, unknown>) {
+  consoleLog(level, message);
+  // Fire-and-forget: don't block the caller, and don't crash if DB is unavailable.
+  createLog(level, message, meta).catch((err) => {
+    console.error(`[logger] Failed to write log to DB: ${err}`);
+  });
+}
+
+const logger = {
+  info: (message: string, meta?: Record<string, unknown>) => log("info", message, meta),
+  warn: (message: string, meta?: Record<string, unknown>) => log("warn", message, meta),
+  error: (message: string, meta?: Record<string, unknown>) => log("error", message, meta),
+};
 
 export default logger;

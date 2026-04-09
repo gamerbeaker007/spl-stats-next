@@ -1,0 +1,60 @@
+import { useCardDetails } from "@/hooks/useCardDetails";
+import { ParsedPlayerRewardHistory } from "@/types/parsedHistory";
+import { Alert, Box, CircularProgress } from "@mui/material";
+import { Cards } from "./Cards";
+import { Chests } from "./Chests";
+import { Consumables } from "./Consumables";
+import { Entries } from "./Entries";
+import { LeagueAdvancements } from "./LeagueAdvancements";
+import { Music } from "./Music";
+import { Packs } from "./Packs";
+import { Shop } from "./Shop";
+import { Skins } from "./Skins";
+
+interface PlayerHistoryButtonProps {
+  rewardHistory: ParsedPlayerRewardHistory; // Now expects parsed data
+}
+
+export function RewardHistorySummary({ rewardHistory }: PlayerHistoryButtonProps) {
+  const { cardDetails, loading, error } = useCardDetails({ autoFetch: true });
+
+  if (loading) {
+    return <CircularProgress />;
+  }
+
+  if (error) {
+    return <Alert severity="error">{error}</Alert>;
+  }
+
+  return (
+    <Box display={"flex"} flexDirection="column" gap={2}>
+      <Box display={"flex"} flexDirection="row" gap={2}>
+        <LeagueAdvancements leagueAdvancements={rewardHistory.aggregation.leagueAdvancements} />
+        <Consumables
+          title="Consumables"
+          totalPotions={rewardHistory.aggregation.totalPotions}
+          totalMerits={rewardHistory.aggregation.totalMerits}
+          totalEnergy={rewardHistory.aggregation.totalEnergy}
+          totalScrolls={rewardHistory.aggregation.totalScrolls}
+        />
+        <Packs packs={rewardHistory.aggregation.totalPacks} />
+        <Entries
+          totalFrontierEntries={rewardHistory.aggregation.totalFrontierEntries}
+          totalRankedEntries={rewardHistory.aggregation.totalRankedEntries}
+        />
+      </Box>
+
+      <Box display={"flex"} flexDirection="row" gap={2}>
+        <Chests totalDraws={rewardHistory.aggregation.totalDraws} />
+        <Consumables
+          title="Potions Used"
+          totalPotions={rewardHistory.aggregation.totalPotionsUsed}
+        />
+        <Shop totalShopPurchases={rewardHistory.aggregation.totalShopPurchases} />
+      </Box>
+      <Cards totalCards={rewardHistory.aggregation.totalCards} cardDetails={cardDetails} />
+      <Skins totalSkins={rewardHistory.aggregation.totalSkins} cardDetails={cardDetails} />
+      <Music totalMusic={rewardHistory.aggregation.totalMusic} />
+    </Box>
+  );
+}
