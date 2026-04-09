@@ -26,8 +26,8 @@ services:
   #     - "8088:80"
 
   app:
-    # To pin a specific release replace 'latest' with a version tag, e.g. gamerbeaker007/spl-stats-next:v0.1.0
-    image: gamerbeaker007/spl-stats-next:latest
+    # To pin a specific release replace 'latest' with a version tag, e.g. gamerbeaker/spl-stats-next:v0.1.0
+    image: gamerbeaker/spl-stats-next:latest
     container_name: spl-stats-app
     depends_on:
       db:
@@ -42,8 +42,8 @@ services:
       - "3000:3000"
 
   worker:
-    # To pin a specific release replace 'latest' with a version tag, e.g. gamerbeaker007/spl-stats-next:v0.1.0
-    image: gamerbeaker007/spl-stats-next:latest
+    # To pin a specific release replace 'latest' with a version tag, e.g. gamerbeaker/spl-stats-next:v0.1.0
+    image: gamerbeaker/spl-stats-next:latest
     container_name: spl-stats-worker
     depends_on:
       db:

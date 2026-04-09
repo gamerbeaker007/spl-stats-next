@@ -316,13 +316,18 @@ export default function CardDetailContent({
     router.push(`/battles/card/${id}${params}`);
   };
 
-  // Load account from localStorage after mount only when no server-provided account
+  // Sync account state when the server-provided initialAccount changes (URL navigation)
+  // or fall back to localStorage when there is no server-provided account.
   useEffect(() => {
-    if (initialAccount) return; // server already gave us a validated account
+    if (initialAccount) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setAccount(initialAccount);
+      return;
+    }
     try {
       const saved = localStorage.getItem(ACCOUNT_STORAGE_KEY);
       // Reading localStorage on mount is legitimate — suppress overly strict rule.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+
       if (saved) setAccount(saved);
     } catch {
       // ignore
@@ -371,6 +376,10 @@ export default function CardDetailContent({
             }}
             disabled={accountsLoading}
           >
+            {/* Ensure the prefilled value always has a matching option while accounts load */}
+            {account && !accounts.includes(account) && (
+              <MenuItem value={account}>{account}</MenuItem>
+            )}
             {accounts.map((a) => (
               <MenuItem key={a} value={a}>
                 {a}

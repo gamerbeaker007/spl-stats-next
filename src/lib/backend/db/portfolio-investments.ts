@@ -58,6 +58,23 @@ export async function deletePortfolioInvestment(id: string): Promise<void> {
   await prisma.portfolioInvestment.delete({ where: { id } });
 }
 
+/**
+ * Batch insert investment entries, skipping duplicates.
+ * Returns the number of newly created rows.
+ */
+export async function createPortfolioInvestmentsBatch(
+  items: { date: Date; username: string; amount: number }[]
+): Promise<number> {
+  if (items.length === 0) return 0;
+  const data = items.map(({ date, username, amount }) => ({
+    date: toDateOnly(date),
+    username: username.toLowerCase().trim(),
+    amount,
+  }));
+  const { count } = await prisma.portfolioInvestment.createMany({ data, skipDuplicates: true });
+  return count;
+}
+
 /** Delete all investment entries for a given username. */
 export async function deletePortfolioInvestmentsByUsername(username: string): Promise<number> {
   const { count } = await prisma.portfolioInvestment.deleteMany({

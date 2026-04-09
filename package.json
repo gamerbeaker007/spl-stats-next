@@ -14,7 +14,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "worker": "tsx --env-file=.env --tsconfig scripts/tsconfig.json scripts/worker.ts",
-    "docker:build": "docker build --build-arg APP_VERSION=local -t gamerbeaker007/spl-stats-next:latest .",
+    "docker:build": "docker build --build-arg APP_VERSION=local -t gamerbeaker/spl-stats-next:latest .",
     "docker:run": "docker compose up -d",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
