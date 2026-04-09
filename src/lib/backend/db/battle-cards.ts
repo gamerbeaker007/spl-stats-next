@@ -5,6 +5,9 @@ import prisma from "@/lib/prisma";
 // Shared card fields (no team discriminator needed — separate tables)
 // ---------------------------------------------------------------------------
 
+/** Max upserts per transaction — keeps each chunk well within the 30 s timeout. */
+const UPSERT_CHUNK_SIZE = 500;
+
 interface BattleCardBase {
   battleId: string;
   account: string;
@@ -53,16 +56,21 @@ export async function upsertPlayerBattleCard(card: PlayerBattleCardInput): Promi
 }
 
 export async function upsertPlayerBattleCards(cards: PlayerBattleCardInput[]): Promise<void> {
-  if (cards.length === 0) return;
-  await prisma.$transaction(
-    cards.map(({ battleId, account, position, ...rest }) =>
-      prisma.playerBattleCard.upsert({
-        where: { battleId_account_position: { battleId, account, position } },
-        create: { battleId, account, position, ...rest },
-        update: rest,
-      })
-    )
-  );
+  for (let i = 0; i < cards.length; i += UPSERT_CHUNK_SIZE) {
+    const chunk = cards.slice(i, i + UPSERT_CHUNK_SIZE);
+    await prisma.$transaction(
+      async (tx) => {
+        for (const { battleId, account, position, ...rest } of chunk) {
+          await tx.playerBattleCard.upsert({
+            where: { battleId_account_position: { battleId, account, position } },
+            create: { battleId, account, position, ...rest },
+            update: rest,
+          });
+        }
+      },
+      { timeout: 30000 }
+    );
+  }
 }
 
 export async function upsertOpponentBattleCard(card: OpponentBattleCardInput): Promise<void> {
@@ -75,16 +83,21 @@ export async function upsertOpponentBattleCard(card: OpponentBattleCardInput): P
 }
 
 export async function upsertOpponentBattleCards(cards: OpponentBattleCardInput[]): Promise<void> {
-  if (cards.length === 0) return;
-  await prisma.$transaction(
-    cards.map(({ battleId, account, position, ...rest }) =>
-      prisma.opponentBattleCard.upsert({
-        where: { battleId_account_position: { battleId, account, position } },
-        create: { battleId, account, position, ...rest },
-        update: rest,
-      })
-    )
-  );
+  for (let i = 0; i < cards.length; i += UPSERT_CHUNK_SIZE) {
+    const chunk = cards.slice(i, i + UPSERT_CHUNK_SIZE);
+    await prisma.$transaction(
+      async (tx) => {
+        for (const { battleId, account, position, ...rest } of chunk) {
+          await tx.opponentBattleCard.upsert({
+            where: { battleId_account_position: { battleId, account, position } },
+            create: { battleId, account, position, ...rest },
+            update: rest,
+          });
+        }
+      },
+      { timeout: 30000 }
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
