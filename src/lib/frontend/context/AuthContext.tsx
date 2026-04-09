@@ -1,7 +1,7 @@
 "use client";
 
 import { getAuthStatus, loginAction, logoutAction } from "@/lib/backend/actions/auth-actions";
-import { KeychainKeyTypes, KeychainSDK } from "keychain-sdk";
+import { keychainSignBuffer } from "@/lib/frontend/keychain";
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 
 interface AuthUser {
@@ -13,7 +13,7 @@ interface AuthContextType {
   user: AuthUser | null;
   loading: boolean;
   error: string | null;
-  login: (username: string, timestamp?: number, signature?: string) => Promise<void>;
+  login: (username: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
   isAuthenticated: boolean;
@@ -50,58 +50,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Sign message with Keychain
-  const signWithKeychain = async (username: string, message: string): Promise<string> => {
-    try {
-      interface HiveKeychainWindow extends Window {
-        hive_keychain?: unknown;
-      }
-      const win = window as HiveKeychainWindow;
-      if (!win || !win.hive_keychain) {
-        throw new Error("Keychain extension not found");
-      }
-      const keychain = new KeychainSDK(win);
-      const result = await keychain.signBuffer({
-        username: username.toLowerCase(),
-        message,
-        method: KeychainKeyTypes.posting,
-      });
-
-      if (result?.success) {
-        const signature = typeof result.result === "string" ? result.result : result.message || "";
-
-        if (!signature) {
-          throw new Error("Keychain returned empty signature");
-        }
-
-        return signature;
-      } else {
-        throw new Error("Keychain signature was rejected or failed");
-      }
-    } catch (err) {
-      let errorMessage = "Unknown Keychain error occurred";
-
-      if (err instanceof Error) {
-        errorMessage = `Keychain error: ${err.message}`;
-      } else if (err && typeof err === "object" && "message" in err) {
-        errorMessage = `Keychain error: ${err.message}`;
-      }
-
-      console.error("Keychain signing error:", err);
-      throw new Error(errorMessage);
-    }
-  };
-
   // Login function - throws errors for caller to handle
-  const login = async (username: string, timestamp?: number, signature?: string) => {
+  const login = async (username: string) => {
     try {
       setError(null);
 
-      const finalTimestamp = timestamp || Date.now();
+      const finalTimestamp = Date.now();
       const message = `${username.toLowerCase()}${finalTimestamp}`;
 
       // Get signature if not provided
-      const finalSignature = signature || (await signWithKeychain(username, message));
+      const finalSignature = await keychainSignBuffer(username, message);
 
       // Use server action instead of API route
       const result = await loginAction(username.toLowerCase(), finalTimestamp, finalSignature);

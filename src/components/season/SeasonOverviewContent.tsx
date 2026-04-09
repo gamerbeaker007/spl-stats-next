@@ -1,0 +1,80 @@
+"use client";
+
+/**
+ * SeasonOverviewContent
+ *
+ * Full season overview page with:
+ *  - Account selector (from monitored accounts prop)
+ *  - Tab navigation (Leaderboard | Earnings | Token Detail)
+ *  - Plotly charts per tab
+ */
+
+import Box from "@mui/material/Box";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import MenuItem from "@mui/material/MenuItem";
+import Select from "@mui/material/Select";
+import Tab from "@mui/material/Tab";
+import Tabs from "@mui/material/Tabs";
+import Typography from "@mui/material/Typography";
+import { useState } from "react";
+
+import BalanceEarningsChart from "@/components/season/BalanceEarningsChart";
+import LeaderboardHistoryChart from "@/components/season/LeaderboardHistoryChart";
+import TokenDetailChart from "@/components/season/TokenDetailChart";
+import { useTheme } from "@/lib/frontend/context/ThemeSetup";
+
+interface Props {
+  /** Pre-fetched monitored account usernames for the selector. */
+  accounts: string[];
+}
+
+export default function SeasonOverviewContent({ accounts }: Props) {
+  const { theme } = useTheme();
+  const [account, setAccount] = useState<string>(accounts[0] ?? "");
+  const [tab, setTab] = useState(0);
+
+  const username = account || undefined;
+
+  return (
+    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100 }}>
+      <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
+        Season Overview
+      </Typography>
+
+      {/* Account selector */}
+      {accounts.length === 0 ? (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          No monitored accounts found. Add an account in the Users page.
+        </Typography>
+      ) : (
+        <FormControl size="small" sx={{ mb: 3, minWidth: 200 }}>
+          <InputLabel>Account</InputLabel>
+          <Select value={account} label="Account" onChange={(e) => setAccount(e.target.value)}>
+            {accounts.map((a) => (
+              <MenuItem key={a} value={a}>
+                {a}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
+
+      {/* Tab bar */}
+      <Tabs
+        value={tab}
+        onChange={(_, v) => setTab(v)}
+        sx={{ mb: 3, borderBottom: 1, borderColor: "divider" }}
+      >
+        <Tab label="Leaderboard" />
+        <Tab label="Earnings" />
+        <Tab label="Token Detail" />
+      </Tabs>
+
+      {/* Tab panels */}
+      {tab === 0 && <LeaderboardHistoryChart username={username} theme={theme} />}
+      {tab === 1 && <BalanceEarningsChart username={username} theme={theme} />}
+      {tab === 2 && <TokenDetailChart username={username} theme={theme} />}
+    </Box>
+  );
+}

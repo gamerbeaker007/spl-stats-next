@@ -1,0 +1,123 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/spl-stats-next
+
+jobs:
+  release:
+    name: Build, push & release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # create GitHub release
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Extract version
+        id: version
+        run: echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION="${{ steps.version.outputs.tag }}"
+          NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            NOTES="_No changelog entry found for ${VERSION}. Please update CHANGELOG.md._"
+          fi
+          echo "$NOTES" > /tmp/changelog_section.md
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}
+            ${{ env.IMAGE_NAME }}:latest
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "SPL Stats ${{ steps.version.outputs.tag }}"
+          body: |
+            ## What's New
+
+            $(cat /tmp/changelog_section.md)
+
+            ---
+
+            ## Docker Usage
+
+            ### Quick start with Docker Compose (recommended)
+
+            ```bash
+            # 1. Download the compose file
+            curl -O https://raw.githubusercontent.com/${{ github.repository }}/${{ steps.version.outputs.tag }}/docker-compose.yml
+
+            # 2. Create your .env file
+            cp .env.example .env   # or create it manually — see variables below
+
+            # 3. Start everything (DB + app + worker)
+            docker compose up -d
+            ```
+
+            The app will be available at **http://localhost:3000**.
+
+            > **Pinning to this release:** the compose file uses `latest` by default.
+            > To lock to this version, edit `docker-compose.yml` and replace `:latest` with `:${{ steps.version.outputs.tag }}` for both the `app` and `worker` services.
+
+            ### Run with plain Docker
+
+            ```bash
+            docker run -d \
+              --name spl-stats-app \
+              -p 3000:3000 \
+              -e DATABASE_URL="postgresql://user:pass@your-db:5432/splstats" \
+              -e ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+              -e COOKIE_SECRET="$(openssl rand -hex 32)" \
+              -e ADMIN_USERNAMES="your-hive-username" \
+              -e LOG_DB="true" \
+              ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}
+            ```
+
+            ### Pull a specific version
+
+            ```bash
+            docker pull ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.tag }}
+            # or always latest:
+            docker pull ${{ env.IMAGE_NAME }}:latest
+            ```
+
+            ### Required environment variables
+
+            | Variable | Description |
+            |---|---|
+            | `DATABASE_URL` | PostgreSQL connection string |
+            | `ENCRYPTION_KEY` | 64-char hex — AES-256-GCM key for SPL token storage (`openssl rand -hex 32`) |
+            | `COOKIE_SECRET` | 64-char hex — HMAC key for session cookie signing (`openssl rand -hex 32`) |
+            | `ADMIN_USERNAMES` | Comma-separated Hive usernames with access to `/admin` |
+            | `BATTLE_SYNC_ACCOUNTS` | (Optional) if you want to limit the accounts that are syncs battles |
+            | `LOG_DB` | `true` to persist logs to the database (recommended) |
+          draft: false
+          prerelease: false

@@ -1,46 +1,90 @@
-# Build stage
-FROM node:20-alpine AS builder
+# Base stage
+FROM node:24-alpine AS base
 
 WORKDIR /app
 
-# Copy package files
+# Alpine compatibility libs for native deps if needed
+RUN apk add --no-cache gcompat
+
+# Builder stage
+FROM base AS builder
+
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies
 RUN npm ci
 
-# Copy source code
 COPY . .
 
-# Generate Prisma Client
-RUN npx prisma generate
+# Dummy URL for prisma generate — it only reads the schema, never connects.
+# ARG is scoped to this stage and does NOT leak into the runner image.
+ARG DATABASE_URL="postgresql://build:build@localhost:5432/build"
+ENV DATABASE_URL=${DATABASE_URL}
 
-# Build application
+# App version — passed from CI as a build arg, baked into the image
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+
+# Generate Prisma client and build app
+RUN npx prisma generate
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine AS runner
-
-WORKDIR /app
+FROM base AS runner
 
 ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 
-# Copy necessary files from builder
-COPY --from=builder /app/next.config.ts ./
-COPY --from=builder /app/public ./public
+# Propagate version into the runner image so server components can read it
+ARG APP_VERSION=dev
+ENV APP_VERSION=${APP_VERSION}
+
+
+# Create non-root user
+RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
+
+# Install prisma CLI + dotenv + tsx globally for running migrations and worker.
+# Versions are read from package.json to stay in sync with the app.
+# NODE_PATH lets prisma.config.ts resolve these imports from the global location.
+COPY --from=builder /app/package.json ./package.json
+RUN PRISMA_VER=$(node -p "require('./package.json').dependencies.prisma") \
+    DOTENV_VER=$(node -p "require('./package.json').dependencies.dotenv") \
+    TSX_VER=$(node -p "require('./package.json').dependencies.tsx") && \
+    npm install -g prisma@${PRISMA_VER} dotenv@${DOTENV_VER} tsx@${TSX_VER} && \
+    rm package.json
+ENV NODE_PATH=/usr/local/lib/node_modules
+
+# Production node_modules from builder (needed by worker's tsx runtime).
+# Copy BEFORE standalone — standalone overwrites some modules with its
+# optimised copies, which is fine for the app; the worker only uses
+# modules that standalone does not touch.
+COPY --from=builder /app/node_modules ./node_modules
+
+# Copy standalone runtime (overwrites its subset of node_modules)
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/public ./public
 
-# Create logs directory
-RUN mkdir -p logs
+# Prisma: schema, migrations, and config
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/prisma.config.ts ./
+
+# Worker: scripts, source lib/types (tsx transpiles on the fly), and tsconfig
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/src/lib ./src/lib
+COPY --from=builder /app/src/types ./src/types
+COPY --from=builder /app/tsconfig.json ./
+
+# Entrypoint scripts (app + worker)
+COPY docker-entrypoint.sh ./
+COPY docker-entrypoint-worker.sh ./
+RUN chmod +x docker-entrypoint.sh docker-entrypoint-worker.sh
+
+RUN chown -R nextjs:nodejs /app
+
+USER nextjs
 
 EXPOSE 3000
 
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-
-CMD ["node", "server.js"]
+ENTRYPOINT ["./docker-entrypoint.sh"]

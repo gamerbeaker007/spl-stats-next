@@ -25,11 +25,11 @@ function getEncryptionKey(): Buffer {
  * Encrypts a token using AES-256-GCM with a random IV
  * Returns the encrypted value, IV, and auth tag as separate hex strings
  */
-export async function encryptToken(token: string): Promise<{
+export function encryptToken(token: string): {
   encryptedValue: string;
   iv: string;
   authTag: string;
-}> {
+} {
   try {
     const key = getEncryptionKey();
     const iv = crypto.randomBytes(IV_LENGTH);
@@ -56,11 +56,7 @@ export async function encryptToken(token: string): Promise<{
 /**
  * Decrypts a token using AES-256-GCM
  */
-export async function decryptToken(
-  encryptedValue: string,
-  iv: string,
-  authTag: string
-): Promise<string> {
+export function decryptToken(encryptedValue: string, iv: string, authTag: string): string {
   try {
     const key = getEncryptionKey();
     const ivBuffer = Buffer.from(iv, "hex");

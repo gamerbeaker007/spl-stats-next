@@ -1,0 +1,38 @@
+# Dependencies
+node_modules
+npm-debug.log*
+
+# Next.js
+.next
+out
+*.tsbuildinfo
+
+# Version Control
+.git
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage
+
+# Misc
+.github
+Dockerfile
+docker-compose.yml

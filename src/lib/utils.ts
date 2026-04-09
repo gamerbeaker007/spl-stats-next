@@ -1,0 +1,77 @@
+import { SplFormat } from "@/types/spl/format";
+import {
+  foundation_league_icon_url,
+  modern_league_icon_url,
+  pack_beta_icon_url,
+  pack_chaos_icon_url,
+  pack_foundations_icon_url,
+  pack_rift_icon_url,
+  wild_league_icon_url,
+} from "./staticsIconUrls";
+
+export const largeNumberFormat = (balance: string | number) => {
+  const numValue = typeof balance === "string" ? Number.parseFloat(balance) : balance;
+
+  return new Intl.NumberFormat("en-US", {
+    notation: "compact",
+    compactDisplay: "short",
+    maximumFractionDigits: 3,
+  }).format(numValue);
+};
+
+export const calculateEnergy = (ecr: number, lastUpdatedTime: string): number => {
+  const lastUpdatedTimeDate = new Date(lastUpdatedTime);
+  const msInOneHour = 60 * 60 * 1000;
+  const hourlyRechargeRate = 1;
+  const currentTimeMs = Date.now();
+  const lastUpdatedTimeMs = lastUpdatedTimeDate.getTime();
+  const regeneratedEnergy =
+    ((currentTimeMs - lastUpdatedTimeMs) / msInOneHour) * hourlyRechargeRate;
+  const ecrValue = typeof ecr === "string" ? Number.parseFloat(ecr) : ecr;
+  const energy = Math.floor(regeneratedEnergy + ecrValue);
+  return Math.min(energy, 50);
+};
+
+export const leagueNames = [
+  "Novice",
+  "Bronze III",
+  "Bronze II",
+  "Bronze I",
+  "Silver III",
+  "Silver II",
+  "Silver I",
+  "Gold III",
+  "Gold II",
+  "Gold I",
+  "Diamond III",
+  "Diamond II",
+  "Diamond I",
+  "Champion III",
+  "Champion II",
+  "Champion I",
+];
+
+const packIconMap: { [key: string]: string } = {
+  1: pack_beta_icon_url,
+  7: pack_chaos_icon_url,
+  8: pack_rift_icon_url,
+  15: pack_foundations_icon_url,
+};
+
+export const findPackIconUrl = (edition: number): string => {
+  return packIconMap[edition];
+};
+
+export function findLeagueLogoUrl(
+  format: SplFormat | null,
+  league: number | undefined
+): string | null {
+  if (!format || !league) return null;
+  const formatIconUrlMap: Record<SplFormat, string> = {
+    foundation: foundation_league_icon_url,
+    wild: wild_league_icon_url,
+    modern: modern_league_icon_url,
+  };
+  const leagueIconUrl = formatIconUrlMap[format] ?? wild_league_icon_url;
+  return leagueIconUrl.replace("0.png", `${league}.png`);
+}
