@@ -55,6 +55,7 @@ import {
   reward_draw_rare_icon_url,
   reward_draw_ultimate_icon_url,
   spl_logo_icon_url,
+  splinterlands_statistics_icon_url,
   sps_icon_url,
   unbind_ca_c_icon_url,
   unbind_ca_e_icon_url,
@@ -720,6 +721,8 @@ function capitalize(s: string): string {
 
 function buildIntroLines(seasonId: number): string[] {
   return [
+    `![](${splinterlands_statistics_icon_url})`,
+    "",
     `${SUB_HEADER} 📖 Introduction ${CLOSE_HEADER}`,
     "",
     `Here is my Season ${seasonId} report covering battle performance, earnings, rewards, tournaments and market activity.`,

@@ -102,3 +102,5 @@ export const pack_rift_icon_url = `${WEB_URL}website/ui_elements/open_packs/pack
 export const pack_foundations_icon_url = `${WEB_URL}website/icons/img_pack_foundations_250.png`;
 
 export const spl_logo_icon_url = `${WEB_URL}website/splinterlands_logo.png`;
+export const splinterlands_statistics_icon_url =
+  "https://files.peakd.com/file/peakd-hive/beaker007/23tSKnFQVREdG5gFbEZFWqAYNMB6cREM9oMiy4asHybefQfoYw927KUivHGhGp3ycuiKD.png";
