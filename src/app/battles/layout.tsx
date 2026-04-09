@@ -1,3 +1,4 @@
+import BattleAccessGuard from "@/components/battles/BattleAccessGuard";
 import BattleNavigation from "@/components/battles/BattleNavigation";
 import PageGuard from "@/components/shared/PageGuard";
 import { BattleFilterProvider } from "@/lib/frontend/context/BattleFilterContext";
@@ -15,7 +16,9 @@ export default function BattlesLayout({ children }: { children: React.ReactNode 
                 <BattleNavigation />
               </Suspense>
             </Box>
-            {children}
+            <Suspense>
+              <BattleAccessGuard>{children}</BattleAccessGuard>
+            </Suspense>
           </Box>
         </BattleFilterProvider>
       </PageGuard>

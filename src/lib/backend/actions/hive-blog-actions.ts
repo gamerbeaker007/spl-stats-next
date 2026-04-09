@@ -54,6 +54,7 @@ import {
   reward_draw_minor_icon_url,
   reward_draw_rare_icon_url,
   reward_draw_ultimate_icon_url,
+  spl_logo_icon_url,
   sps_icon_url,
   unbind_ca_c_icon_url,
   unbind_ca_e_icon_url,
@@ -71,6 +72,7 @@ const CLOSE_HEADER = "</div>";
 // ---------------------------------------------------------------------------
 
 const PROXY20 = "https://images.hive.blog/20x0/";
+const PROXY50 = "https://images.hive.blog/50x0/";
 const PROXY150 = "https://images.hive.blog/150x0/";
 
 function img(url: string, size: number = 20): string {
@@ -712,336 +714,406 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+// ---------------------------------------------------------------------------
+// Introduction section
+// ---------------------------------------------------------------------------
+
+function buildIntroLines(seasonId: number): string[] {
+  return [
+    `${SUB_HEADER} 📖 Introduction ${CLOSE_HEADER}`,
+    "",
+    `Here is my Season ${seasonId} report covering battle performance, earnings, rewards, tournaments and market activity.`,
+    "",
+    "Feel free to leave a comment, upvote, or share if you find this useful!",
+    "",
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Battle Results section
+// ---------------------------------------------------------------------------
+
+function buildBattleSectionLines(acc: HiveBlogAccountData): string[] {
+  const lines: string[] = [];
+  lines.push(`${SUB_HEADER} ⚔️ Battle Results — @${acc.username}${CLOSE_HEADER}`, "");
+
+  if (acc.leaderboard.length > 0) {
+    lines.push(
+      "| Format | League | Battles | Wins | Win% | Rating | Rank |",
+      "|--------|--------|--------:|-----:|-----:|-------:|-----:|",
+      ...acc.leaderboard.map((r) => {
+        const leagueCell =
+          r.leagueNum != null ? `${leagueIconMd(r.format, r.leagueNum)} ${r.league}` : r.league;
+        return `| ${capitalize(r.format)} | ${leagueCell} | ${r.battles} | ${r.wins} | ${r.winPct}% | ${r.rating} | ${r.rank != null ? `#${r.rank}` : "—"} |`;
+      }),
+      ""
+    );
+  } else {
+    lines.push("*No battle data found for this season.*", "");
+  }
+  return lines;
+}
+
+// ---------------------------------------------------------------------------
+// Tournaments section
+// ---------------------------------------------------------------------------
+
+function buildTournamentSectionLines(acc: HiveBlogAccountData): string[] {
+  if (acc.tournaments.length === 0) return [];
+  const lines: string[] = [];
+  lines.push(`${SUB_HEADER} 🏆 Tournaments — @${acc.username}${CLOSE_HEADER}`, "");
+  lines.push(
+    "| Tournament | League | Place | Players | W/L/D | Fee | Prize |",
+    "|-----------|--------|------:|-------:|-------|-----|-------|",
+    ...acc.tournaments.map(
+      (t) =>
+        `| ${t.name} | ${t.league} | ${t.finish != null ? `#${t.finish}` : "—"} | ${t.numPlayers} | ${t.wins}/${t.losses}/${t.draws} | ${t.entryFee} | ${t.prizeQty}${t.prizeType ? ` ${t.prizeType}` : ""} |`
+    ),
+    ""
+  );
+  return lines;
+}
+
+// ---------------------------------------------------------------------------
+// Season Rewards section
+// ---------------------------------------------------------------------------
+
+function buildRewardsSectionLines(acc: HiveBlogAccountData): string[] {
+  if (!acc.rewards) return [];
+  const r = acc.rewards;
+  const lines: string[] = [];
+  lines.push(`${SUB_HEADER} 🎁 Season Rewards — @${acc.username}${CLOSE_HEADER}`, "");
+
+  // Chests opened
+  const hasChests = r.minor + r.major + r.ultimate > 0;
+  if (hasChests) {
+    const minorImg = `![](${PROXY150}${reward_draw_minor_icon_url})`;
+    const majorImg = `![](${PROXY150}${reward_draw_major_icon_url})`;
+    const ultimateImg = `![](${PROXY150}${reward_draw_ultimate_icon_url})`;
+    lines.push(
+      `| ${minorImg} | ${majorImg} | ${ultimateImg} |`,
+      "|-|-|-|",
+      `| Minor: ${r.minor}x | Major: ${r.major}x | Ultimate: ${r.ultimate}x | `,
+      ""
+    );
+  }
+
+  // Shop Purchases
+  const hasShopOthers =
+    r.shopPotions.gold + r.shopPotions.legendary + r.shopMerits + r.shopRankedEntries > 0;
+  const hasShopScrolls =
+    r.shopScrolls.common + r.shopScrolls.rare + r.shopScrolls.epic + r.shopScrolls.legendary > 0;
+  lines.push(`${SUB_HEADER}**Shop Purchases**${CLOSE_HEADER}`, "");
+  lines.push("*Chests*", "");
+  const cells1 = [
+    ` ![](${PROXY150}${reward_draw_minor_icon_url}) <br> minor <br> ${r.shopChestMinor}x `,
+    ` ![](${PROXY150}${reward_draw_major_icon_url}) <br> major <br> ${r.shopChestMajor}x `,
+    ` ![](${PROXY150}${reward_draw_ultimate_icon_url}) <br> ultimate <br> ${r.shopChestUltimate}x `,
+  ];
+  lines.push(`|${cells1.join("|")}|`, "|-|-|-|", "");
+
+  lines.push("*Rarity Draws*", "");
+  const cells2 = [
+    ` ![](${PROXY150}${reward_draw_common_icon_url}) <br> common <br> ${r.shopRarityDraws.common}x `,
+    ` ![](${PROXY150}${reward_draw_rare_icon_url}) <br> rare <br> ${r.shopRarityDraws.rare}x `,
+    ` ![](${PROXY150}${reward_draw_epic_icon_url}) <br> epic <br> ${r.shopRarityDraws.epic}x `,
+    ` ![](${PROXY150}${reward_draw_legendary_icon_url}) <br> legendary <br> ${r.shopRarityDraws.legendary}x `,
+  ];
+  lines.push(`|${cells2.join("|")}|`, "|-|-|-|-|", "");
+
+  if (hasShopScrolls) {
+    lines.push("*Scrolls*", "");
+    const scrollCells = (["common", "rare", "epic", "legendary"] as const)
+      .filter((t) => r.shopScrolls[t] > 0)
+      .map((t) => {
+        const iconMap: Record<string, string> = {
+          common: `${unbind_ca_c_icon_url}`,
+          rare: `${unbind_ca_r_icon_url}`,
+          epic: `${unbind_ca_e_icon_url}`,
+          legendary: `${unbind_ca_l_icon_url}`,
+        };
+        return ` ![](${PROXY150}${iconMap[t]}) <br> ${t} <br> ${r.shopScrolls[t]}x `;
+      });
+    lines.push(`|${scrollCells.join("|")}|`, `|${scrollCells.map(() => "-").join("|")}|`, "");
+  }
+  if (hasShopOthers) {
+    lines.push("*Others*", "", "| Item | Count |", "|-|-|");
+    if (r.shopPotions.gold > 0)
+      lines.push(`| ![](${PROXY20}${gold_icon_url}) Alchemy | ${r.shopPotions.gold}x |`);
+    if (r.shopPotions.legendary > 0)
+      lines.push(
+        `| ![](${PROXY20}${legendary_icon_url}) Legendary | ${r.shopPotions.legendary}x |`
+      );
+    if (r.shopMerits > 0)
+      lines.push(`| ![](${PROXY20}${merits_icon_url}) Merits (from chests) | ${r.shopMerits}x |`);
+    if (r.shopRankedEntries > 0)
+      lines.push(
+        `| ![](${PROXY20}${ranked_entries_icon_url}) Ranked Entries | ${r.shopRankedEntries}x |`
+      );
+    lines.push("");
+  }
+
+  // Potions Used
+  const potionsUsedEntries = Object.entries(r.potionsUsed).filter(([, v]) => v > 0);
+  if (potionsUsedEntries.length > 0) {
+    const potionIconMap: Record<string, string> = {
+      gold: `![](${PROXY20}${gold_icon_url})`,
+      legendary: `![](${PROXY20}${legendary_icon_url})`,
+    };
+    lines.push("**Potions Used**", "", "| Item | Count |", "|-|-|");
+    for (const [type, count] of potionsUsedEntries) {
+      const icon = potionIconMap[type] ?? "";
+      const label = type === "gold" ? "Alchemy" : type === "legendary" ? "Legendary" : type;
+      lines.push(`| ${icon} ${label} | ${count} |`);
+    }
+    lines.push("");
+  }
+
+  // Consumables Earned (potions, scrolls, merits, energy)
+  const potionEntries = Object.entries(r.potions).filter(([, v]) => v > 0);
+  const scrollEntries = Object.entries(r.scrolls).filter(([, v]) => v > 0);
+  const hasConsumables =
+    potionEntries.length > 0 || scrollEntries.length > 0 || r.merits > 0 || r.energy > 0;
+  if (hasConsumables) {
+    lines.push("**Consumables Earned**", "");
+    const potionIconMap: Record<string, string> = {
+      gold: `![](${PROXY20}${gold_icon_url})`,
+      legendary: `![](${PROXY20}${legendary_icon_url})`,
+    };
+    const scrollIconMap: Record<string, string> = {
+      common_scroll: `![](${PROXY20}${unbind_ca_c_icon_url})`,
+      rare_scroll: `![](${PROXY20}${unbind_ca_r_icon_url})`,
+      epic_scroll: `![](${PROXY20}${unbind_ca_e_icon_url})`,
+      legendary_scroll: `![](${PROXY20}${unbind_ca_l_icon_url})`,
+    };
+    lines.push("| Item | Count |", "|-|-|");
+    for (const [type, count] of potionEntries) {
+      const icon = potionIconMap[type] ?? `![](${PROXY20}${gold_icon_url})`;
+      const label =
+        type === "gold"
+          ? "Alchemy Potion"
+          : type === "legendary"
+            ? "Legendary Potion"
+            : `${type} Potion`;
+      lines.push(`| ${icon} ${label} | ${count} |`);
+    }
+    for (const [type, count] of scrollEntries) {
+      const icon = scrollIconMap[type] ?? "";
+      const label = type.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      lines.push(`| ${icon} ${label} | ${count} |`);
+    }
+    if (r.merits > 0)
+      lines.push(`| ![](${PROXY20}${merits_icon_url}) Merits | ${fmtNum(r.merits)} |`);
+    if (r.energy > 0)
+      // No proxy because of the svg format and the fact that energy icon is very small already
+      lines.push(`| ![](${energy_icon_url}) Energy | ${fmtNum(r.energy)} |`);
+    lines.push("");
+  }
+
+  // Packs
+  const packEntries = Object.entries(r.packs).filter(([, v]) => v > 0);
+  if (packEntries.length > 0) {
+    const packIconMapLocal: Record<string, string> = {
+      1: `${pack_beta_icon_url}`,
+      7: `${pack_chaos_icon_url}`,
+      8: `${pack_rift_icon_url}`,
+      15: `${pack_foundations_icon_url}`,
+    };
+    const packNameMap: Record<string, string> = {
+      1: "Beta",
+      7: "Chaos Legion",
+      8: "Riftwatchers",
+      15: "Foundations",
+    };
+    lines.push("**Packs Earned**", "");
+    const packCells = packEntries.map(([edition, count]) => {
+      const iconUrl = packIconMapLocal[edition] ?? `${pack_chaos_icon_url}`;
+      const name = packNameMap[edition] ?? `Edition ${edition}`;
+      return ` ![](${PROXY150}${iconUrl}) <br> ${name}: ${count}x `;
+    });
+    lines.push(`|${packCells.join("|")}|`, `|${packCells.map(() => "-").join("|")}|`, "");
+  }
+
+  // Fortune Draw Entries
+  const hasEntries = r.frontierEntries > 0 || r.rankedEntries > 0;
+  if (hasEntries) {
+    lines.push("**Fortune Draw Entries**", "");
+    const entryCells: string[] = [];
+    if (r.frontierEntries > 0)
+      entryCells.push(
+        ` ![](${PROXY50}${foundation_entries_icon_url}) Frontier <br> ${r.frontierEntries}x `
+      );
+    if (r.rankedEntries > 0)
+      entryCells.push(
+        ` ![](${PROXY50}${ranked_entries_icon_url}) Ranked  <br> ${r.rankedEntries}x `
+      );
+    lines.push(`|${entryCells.join("|")}|`, `|${entryCells.map(() => "-").join("|")}|`, "");
+  }
+
+  // Earned Cards (from chests)
+  if (r.earnedCards.length > 0) {
+    lines.push("**Chests — Earned Cards**", "");
+    const goldCards = r.earnedCards
+      .filter((c) => (c.foilCounts["gold"] ?? 0) > 0)
+      .map((c) => ({ ...c, foilCounts: { gold: c.foilCounts["gold"] } }));
+    const regularCards = r.earnedCards
+      .filter((c) => (c.foilCounts["regular"] ?? 0) > 0)
+      .map((c) => ({ ...c, foilCounts: { regular: c.foilCounts["regular"] } }));
+    if (goldCards.length > 0) {
+      lines.push("*Gold Rewards*", "", cardGrid(goldCards), "");
+    }
+    if (regularCards.length > 0) {
+      lines.push("*Regular Rewards*", "", cardGrid(regularCards), "");
+    }
+  }
+
+  // Earned Skins
+  if (r.earnedSkins.length > 0) {
+    lines.push("**Chests — Earned Skins**", "");
+    const skinCells = r.earnedSkins.map(
+      (s) =>
+        ` ${s.imageUrl ? `![](${PROXY150}${s.imageUrl})` : "🎨"} <br> ${s.skinName} <br> ${s.cardName} <br> ×${s.quantity} `
+    );
+    for (let i = 0; i < skinCells.length; i += 4) {
+      const row = skinCells.slice(i, i + 4);
+      lines.push(`|${row.join("|")}|`, `|${row.map(() => "-").join("|")}|`);
+    }
+    lines.push("");
+  }
+
+  // Earned Music
+  if (r.earnedMusic.length > 0) {
+    lines.push("**Chests — Earned Music**", "");
+    const musicCells = r.earnedMusic.map(
+      (m) =>
+        ` ${m.imageUrl ? `![](${PROXY150}${m.imageUrl})` : "🎵"} <br> ${m.name} <br> ×${m.quantity} `
+    );
+    for (let i = 0; i < musicCells.length; i += 4) {
+      const row = musicCells.slice(i, i + 4);
+      lines.push(`|${row.join("|")}|`, `|${row.map(() => "-").join("|")}|`);
+    }
+    lines.push("");
+  }
+
+  return lines;
+}
+
+// ---------------------------------------------------------------------------
+// Earnings section
+// ---------------------------------------------------------------------------
+
+function buildEarningsSectionLines(acc: HiveBlogAccountData): string[] {
+  const lines: string[] = [];
+  lines.push(`## 💰 Earnings — @${acc.username}`, "");
+
+  if (acc.earned.length > 0) {
+    lines.push(
+      "| Earnings | # |",
+      "| - | - |",
+      ...acc.earned.map((e) => `| ${e.label} | ${e.icon} ${fmtNum(e.amount)} |`),
+      ""
+    );
+  } else {
+    lines.push("*No earnings data found for this season.*", "");
+  }
+
+  if (acc.costs.length > 0) {
+    lines.push(
+      "| Costs | # |",
+      "| - | - |",
+      ...acc.costs.map((e) => `| ${e.label} | ${e.icon} ${fmtNum(e.amount)} |`),
+      ""
+    );
+  }
+
+  return lines;
+}
+
+// ---------------------------------------------------------------------------
+// Market section
+// ---------------------------------------------------------------------------
+
+function buildMarketSectionLines(acc: HiveBlogAccountData): string[] {
+  const hasMarket =
+    acc.boughtCards.length > 0 ||
+    acc.soldCards.length > 0 ||
+    acc.boughtItems.length > 0 ||
+    acc.soldItems.length > 0;
+  if (!hasMarket) return [];
+
+  const lines: string[] = [];
+  lines.push(`## 💳 Market — @${acc.username}`, "");
+
+  if (acc.boughtCards.length > 0) {
+    lines.push("### Cards Bought", "", cardGrid(acc.boughtCards), "");
+  }
+  if (acc.soldCards.length > 0) {
+    lines.push("### Cards Sold", "", cardGrid(acc.soldCards), "");
+  }
+  if (acc.boughtItems.length > 0) {
+    lines.push("### Items Bought", "", "| Item | Qty |", "|-|-|");
+    for (const item of acc.boughtItems) {
+      lines.push(`| ${item.detailId} | ${item.quantity} |`);
+    }
+    lines.push("");
+  }
+  if (acc.soldItems.length > 0) {
+    lines.push("### Items Sold", "", "| Item | Qty |", "|-|-|");
+    for (const item of acc.soldItems) {
+      lines.push(`| ${item.detailId} | ${item.quantity} |`);
+    }
+    lines.push("");
+  }
+
+  return lines;
+}
+
+// ---------------------------------------------------------------------------
+// Closing section
+// ---------------------------------------------------------------------------
+
+function buildClosingLines(): string[] {
+  return [
+    `${HEADER} Closing notes ${CLOSE_HEADER}`,
+    "This report is generated with the splinterlands statistics tool from @beaker007  [SPL Stats](http://spl-stats.com/) ([git-repo](https://github.com/gamerbeaker007/spl-stats-next)).",
+    `${SUB_HEADER}🙌 Support the Project ${CLOSE_HEADER}`,
+    "✅ Upvote this post – it really helps!",
+    "👉 [Vote for My SPS Validator Node](https://monstermarket.io/validators?validator=beaker007)",
+    "💬 Drop a comment or idea – weird edge cases welcome.",
+    "*10% of post rewards go to @beaker007*",
+    "------",
+    `![](${spl_logo_icon_url})`,
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Markdown builder
+// ---------------------------------------------------------------------------
+
 function buildMarkdown(seasonId: number, accounts: HiveBlogAccountData[]): string {
   const accountMentions = accounts.map((a) => `@${a.username}`).join(", ");
   const lines: string[] = [];
 
   lines.push(
-    `Tracking Splinterlands Season **${seasonId}** for: ${accountMentions}`,
-    "",
-    "---",
-    "",
-    `${HEADER} Season ${seasonId} Splinterlands Report ${CLOSE_HEADER}`,
+    `${HEADER} Season ${seasonId} Splinterlands Report for ${accountMentions} ${CLOSE_HEADER}`,
     ""
   );
 
+  lines.push(...buildIntroLines(seasonId));
+
   for (const acc of accounts) {
-    // ── Battle Results ──
-    lines.push(`${SUB_HEADER} ⚔️ Battle Results — @${acc.username}${CLOSE_HEADER}`, "");
-
-    if (acc.leaderboard.length > 0) {
-      lines.push(
-        "| Format | League | Battles | Wins | Win% | Rating | Rank |",
-        "|--------|--------|--------:|-----:|-----:|-------:|-----:|",
-        ...acc.leaderboard.map((r) => {
-          const leagueCell =
-            r.leagueNum != null ? `${leagueIconMd(r.format, r.leagueNum)} ${r.league}` : r.league;
-          return `| ${capitalize(r.format)} | ${leagueCell} | ${r.battles} | ${r.wins} | ${r.winPct}% | ${r.rating} | ${r.rank != null ? `#${r.rank}` : "—"} |`;
-        }),
-        ""
-      );
-    } else {
-      lines.push("*No battle data found for this season.*", "");
-    }
-
-    // ── Tournaments ──
-    if (acc.tournaments.length > 0) {
-      lines.push(`${SUB_HEADER} 🏆 Tournaments — @${acc.username}${CLOSE_HEADER}`, "");
-      lines.push(
-        "| Tournament | League | Place | Players | W/L/D | Fee | Prize |",
-        "|-----------|--------|------:|-------:|-------|-----|-------|",
-        ...acc.tournaments.map(
-          (t) =>
-            `| ${t.name} | ${t.league} | ${t.finish != null ? `#${t.finish}` : "—"} | ${t.numPlayers} | ${t.wins}/${t.losses}/${t.draws} | ${t.entryFee} | ${t.prizeQty}${t.prizeType ? ` ${t.prizeType}` : ""} |`
-        ),
-        ""
-      );
-    }
-
-    // ── Season Rewards ──
-    if (acc.rewards) {
-      const r = acc.rewards;
-      lines.push(`${SUB_HEADER} 🎁 Season Rewards — @${acc.username}${CLOSE_HEADER}`, "");
-
-      // Chests opened
-      const hasChests = r.minor + r.major + r.ultimate > 0;
-      if (hasChests) {
-        const minorImg = `![](${PROXY150}${reward_draw_minor_icon_url})`;
-        const majorImg = `![](${PROXY150}${reward_draw_major_icon_url})`;
-        const ultimateImg = `![](${PROXY150}${reward_draw_ultimate_icon_url})`;
-        lines.push(
-          `| ${minorImg} | ${majorImg} | ${ultimateImg} |`,
-          "|-|-|-|",
-          `| Minor: ${r.minor}x | Major: ${r.major}x | Ultimate: ${r.ultimate}x | `,
-          ""
-        );
-      }
-
-      // Shop Purchases
-      const hasShopOthers =
-        r.shopPotions.gold + r.shopPotions.legendary + r.shopMerits + r.shopRankedEntries > 0;
-      const hasShopScrolls =
-        r.shopScrolls.common + r.shopScrolls.rare + r.shopScrolls.epic + r.shopScrolls.legendary >
-        0;
-      lines.push(`${SUB_HEADER}**Shop Purchases**${CLOSE_HEADER}`, "");
-      lines.push("*Chests*", "");
-      const cells1 = [
-        ` ![](${PROXY150}${reward_draw_minor_icon_url}) <br> minor <br> ${r.shopChestMinor}x `,
-        ` ![](${PROXY150}${reward_draw_major_icon_url}) <br> major <br> ${r.shopChestMajor}x `,
-        ` ![](${PROXY150}${reward_draw_ultimate_icon_url}) <br> ultimate <br> ${r.shopChestUltimate}x `,
-      ];
-      lines.push(`|${cells1.join("|")}|`, "|-|-|-|", "");
-
-      lines.push("*Rarity Draws*", "");
-      const cells2 = [
-        ` ![](${PROXY150}${reward_draw_common_icon_url}) <br> common <br> ${r.shopRarityDraws.common}x `,
-        ` ![](${PROXY150}${reward_draw_rare_icon_url}) <br> rare <br> ${r.shopRarityDraws.rare}x `,
-        ` ![](${PROXY150}${reward_draw_epic_icon_url}) <br> epic <br> ${r.shopRarityDraws.epic}x `,
-        ` ![](${PROXY150}${reward_draw_legendary_icon_url}) <br> legendary <br> ${r.shopRarityDraws.legendary}x `,
-      ];
-      lines.push(`|${cells2.join("|")}|`, "|-|-|-|-|", "");
-
-      if (hasShopScrolls) {
-        lines.push("*Scrolls*", "");
-        const scrollCells = (["common", "rare", "epic", "legendary"] as const)
-          .filter((t) => r.shopScrolls[t] > 0)
-          .map((t) => {
-            const iconMap: Record<string, string> = {
-              common: `${unbind_ca_c_icon_url}`,
-              rare: `${unbind_ca_r_icon_url}`,
-              epic: `${unbind_ca_e_icon_url}`,
-              legendary: `${unbind_ca_l_icon_url}`,
-            };
-            return ` ![](${PROXY150}${iconMap[t]}) <br> ${t} <br> ${r.shopScrolls[t]}x `;
-          });
-        lines.push(`|${scrollCells.join("|")}|`, `|${scrollCells.map(() => "-").join("|")}|`, "");
-      }
-      if (hasShopOthers) {
-        lines.push("*Others*", "", "| Item | Count |", "|-|-|");
-        if (r.shopPotions.gold > 0)
-          lines.push(`| ![](${PROXY20}${gold_icon_url}) Alchemy | ${r.shopPotions.gold}x |`);
-        if (r.shopPotions.legendary > 0)
-          lines.push(
-            `| ![](${PROXY20}${legendary_icon_url}) Legendary | ${r.shopPotions.legendary}x |`
-          );
-        if (r.shopMerits > 0)
-          lines.push(
-            `| ![](${PROXY20}${merits_icon_url}) Merits (from chests) | ${r.shopMerits}x |`
-          );
-        if (r.shopRankedEntries > 0)
-          lines.push(
-            `| ![](${PROXY20}${ranked_entries_icon_url}) Ranked Entries | ${r.shopRankedEntries}x |`
-          );
-        lines.push("");
-      }
-
-      // Potions Used
-      const potionsUsedEntries = Object.entries(r.potionsUsed).filter(([, v]) => v > 0);
-      if (potionsUsedEntries.length > 0) {
-        const potionIconMap: Record<string, string> = {
-          gold: `![](${PROXY20}${gold_icon_url})`,
-          legendary: `![](${PROXY20}${legendary_icon_url})`,
-        };
-        lines.push("**Potions Used**", "", "| Item | Count |", "|-|-|");
-        for (const [type, count] of potionsUsedEntries) {
-          const icon = potionIconMap[type] ?? "";
-          const label = type === "gold" ? "Alchemy" : type === "legendary" ? "Legendary" : type;
-          lines.push(`| ${icon} ${label} | ${count} |`);
-        }
-        lines.push("");
-      }
-
-      // Consumables (potions, scrolls, merits, energy)
-      const potionEntries = Object.entries(r.potions).filter(([, v]) => v > 0);
-      const scrollEntries = Object.entries(r.scrolls).filter(([, v]) => v > 0);
-      const hasConsumables =
-        potionEntries.length > 0 || scrollEntries.length > 0 || r.merits > 0 || r.energy > 0;
-      if (hasConsumables) {
-        lines.push("**Consumables Earned**", "");
-        const potionIconMap: Record<string, string> = {
-          gold: `![](${PROXY20}${gold_icon_url})`,
-          legendary: `![](${PROXY20}${legendary_icon_url})`,
-        };
-        const scrollIconMap: Record<string, string> = {
-          common_scroll: `![](${PROXY20}${unbind_ca_c_icon_url})`,
-          rare_scroll: `![](${PROXY20}${unbind_ca_r_icon_url})`,
-          epic_scroll: `![](${PROXY20}${unbind_ca_e_icon_url})`,
-          legendary_scroll: `![](${PROXY20}${unbind_ca_l_icon_url})`,
-        };
-        lines.push("| Item | Count |", "|-|-|");
-        for (const [type, count] of potionEntries) {
-          const icon = potionIconMap[type] ?? `![](${PROXY20}${gold_icon_url})`;
-          const label =
-            type === "gold"
-              ? "Alchemy Potion"
-              : type === "legendary"
-                ? "Legendary Potion"
-                : `${type} Potion`;
-          lines.push(`| ${icon} ${label} | ${count} |`);
-        }
-        for (const [type, count] of scrollEntries) {
-          const icon = scrollIconMap[type] ?? "";
-          const label = type.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
-          lines.push(`| ${icon} ${label} | ${count} |`);
-        }
-        if (r.merits > 0)
-          lines.push(`| ![](${PROXY20}${merits_icon_url}) Merits | ${fmtNum(r.merits)} |`);
-        if (r.energy > 0)
-          //No proxy becayse of the svg format and the fact that energy icon is very small already
-          lines.push(`| ![](${energy_icon_url}) Energy | ${fmtNum(r.energy)} |`);
-        lines.push("");
-      }
-
-      // Packs
-      const packEntries = Object.entries(r.packs).filter(([, v]) => v > 0);
-      if (packEntries.length > 0) {
-        const packIconMapLocal: Record<string, string> = {
-          1: `${pack_beta_icon_url}`,
-          7: `${pack_chaos_icon_url}`,
-          8: `${pack_rift_icon_url}`,
-          15: `${pack_foundations_icon_url}`,
-        };
-        const packNameMap: Record<string, string> = {
-          1: "Beta",
-          7: "Chaos Legion",
-          8: "Riftwatchers",
-          15: "Foundations",
-        };
-
-        lines.push("**Packs Earned**", "");
-        const packCells = packEntries.map(([edition, count]) => {
-          const iconUrl = packIconMapLocal[edition] ?? `${pack_chaos_icon_url}`;
-          const name = packNameMap[edition] ?? `Edition ${edition}`;
-          return ` ![](${PROXY150}${iconUrl}) <br> ${name}: ${count}x `;
-        });
-        lines.push(`|${packCells.join("|")}|`, `|${packCells.map(() => "-").join("|")}|`, "");
-      }
-
-      // Fortune Draw Entries
-      const hasEntries = r.frontierEntries > 0 || r.rankedEntries > 0;
-      if (hasEntries) {
-        lines.push("**Fortune Draw Entries**", "");
-        const entryCells: string[] = [];
-        if (r.frontierEntries > 0)
-          entryCells.push(
-            ` ![](${PROXY150}${foundation_entries_icon_url}) Frontier <br> ${r.frontierEntries}x `
-          );
-        if (r.rankedEntries > 0)
-          entryCells.push(
-            ` ![](${PROXY150}${ranked_entries_icon_url}) Ranked  <br> ${r.rankedEntries}x `
-          );
-        lines.push(`|${entryCells.join("|")}|`, `|${entryCells.map(() => "-").join("|")}|`, "");
-      }
-
-      // Earned Cards (from chests)
-      if (r.earnedCards.length > 0) {
-        lines.push("**Chests — Earned Cards**", "");
-        const goldCards = r.earnedCards
-          .filter((c) => (c.foilCounts["gold"] ?? 0) > 0)
-          .map((c) => ({ ...c, foilCounts: { gold: c.foilCounts["gold"] } }));
-        const regularCards = r.earnedCards
-          .filter((c) => (c.foilCounts["regular"] ?? 0) > 0)
-          .map((c) => ({ ...c, foilCounts: { regular: c.foilCounts["regular"] } }));
-        if (goldCards.length > 0) {
-          lines.push("*Gold Rewards*", "", cardGrid(goldCards), "");
-        }
-        if (regularCards.length > 0) {
-          lines.push("*Regular Rewards*", "", cardGrid(regularCards), "");
-        }
-      }
-
-      // Earned Skins
-      if (r.earnedSkins.length > 0) {
-        lines.push("**Chests — Earned Skins**", "");
-        const skinCells = r.earnedSkins.map(
-          (s) =>
-            ` ${s.imageUrl ? `![](${PROXY150}${s.imageUrl})` : "🎨"} <br> ${s.skinName} <br> ${s.cardName} <br> ×${s.quantity} `
-        );
-        // 4 skins per row
-        for (let i = 0; i < skinCells.length; i += 4) {
-          const row = skinCells.slice(i, i + 4);
-          lines.push(`|${row.join("|")}|`, `|${row.map(() => "-").join("|")}|`);
-        }
-        lines.push("");
-      }
-
-      // Earned Music
-      if (r.earnedMusic.length > 0) {
-        lines.push("**Chests — Earned Music**", "");
-        const musicCells = r.earnedMusic.map(
-          (m) =>
-            ` ${m.imageUrl ? `![](${PROXY150}${m.imageUrl})` : "🎵"} <br> ${m.name} <br> ×${m.quantity} `
-        );
-        for (let i = 0; i < musicCells.length; i += 4) {
-          const row = musicCells.slice(i, i + 4);
-          lines.push(`|${row.join("|")}|`, `|${row.map(() => "-").join("|")}|`);
-        }
-        lines.push("");
-      }
-    }
-
-    // ── Earnings ──
-    lines.push(`## 💰 Earnings — @${acc.username}`, "");
-
-    if (acc.earned.length > 0) {
-      lines.push(
-        "| Earnings | # |",
-        "| - | - |",
-        ...acc.earned.map((e) => `| ${e.label} | ${e.icon} ${fmtNum(e.amount)} |`),
-        ""
-      );
-    } else {
-      lines.push("*No earnings data found for this season.*", "");
-    }
-
-    if (acc.costs.length > 0) {
-      lines.push(
-        "| Costs | # |",
-        "| - | - |",
-        ...acc.costs.map((e) => `| ${e.label} | ${e.icon} ${fmtNum(e.amount)} |`),
-        ""
-      );
-    }
-
-    // ── Market ──
-    const hasMarket =
-      acc.boughtCards.length > 0 ||
-      acc.soldCards.length > 0 ||
-      acc.boughtItems.length > 0 ||
-      acc.soldItems.length > 0;
-    if (hasMarket) {
-      lines.push(`## 💳 Market — @${acc.username}`, "");
-
-      if (acc.boughtCards.length > 0) {
-        lines.push("### Cards Bought", "", cardGrid(acc.boughtCards), "");
-      }
-      if (acc.soldCards.length > 0) {
-        lines.push("### Cards Sold", "", cardGrid(acc.soldCards), "");
-      }
-      if (acc.boughtItems.length > 0) {
-        lines.push("### Items Bought", "", "| Item | Qty |", "|-|-|");
-        for (const item of acc.boughtItems) {
-          lines.push(`| ${item.detailId} | ${item.quantity} |`);
-        }
-        lines.push("");
-      }
-      if (acc.soldItems.length > 0) {
-        lines.push("### Items Sold", "", "| Item | Qty |", "|-|-|");
-        for (const item of acc.soldItems) {
-          lines.push(`| ${item.detailId} | ${item.quantity} |`);
-        }
-        lines.push("");
-      }
-    }
-
-    lines.push("---", "");
+    lines.push(
+      ...buildBattleSectionLines(acc),
+      ...buildTournamentSectionLines(acc),
+      ...buildRewardsSectionLines(acc),
+      ...buildEarningsSectionLines(acc),
+      ...buildMarketSectionLines(acc),
+      "---",
+      ""
+    );
   }
 
-  lines.push(
-    "*10% of post rewards go to @beaker007*",
-    "",
-    "*Generated by [SPL Stats](https://github.com/gamerbeaker007/spl-stats-next)*"
-  );
+  lines.push(...buildClosingLines());
 
   return lines.join("\n");
 }

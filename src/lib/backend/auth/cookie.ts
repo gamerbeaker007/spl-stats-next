@@ -21,6 +21,8 @@ function unsign(signed: string): string | null {
   const value = signed.slice(0, idx);
   const mac = signed.slice(idx + 1);
   const expected = crypto.createHmac("sha256", getSecret()).update(value).digest("hex");
+  // timingSafeEqual throws if buffer lengths differ — guard against malformed cookie MACs
+  if (mac.length !== expected.length) return null;
   return crypto.timingSafeEqual(Buffer.from(mac), Buffer.from(expected)) ? value : null;
 }
 

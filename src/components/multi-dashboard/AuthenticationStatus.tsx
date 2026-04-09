@@ -1,7 +1,7 @@
 "use client";
 
-import { getAccountTokenStatus, reAuthMonitoredAccount } from "@/lib/backend/actions/auth-actions";
-import { keychainSignBuffer } from "@/lib/frontend/keychain";
+import { getAccountTokenStatus } from "@/lib/backend/actions/auth-actions";
+import { useReAuth } from "@/hooks/useReAuth";
 import LockIcon from "@mui/icons-material/Lock";
 import LockOpenIcon from "@mui/icons-material/LockOpen";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -16,32 +16,20 @@ type TokenStatus = "valid" | "invalid" | "unknown" | "not_found";
 
 export const AuthenticationStatus = ({ username }: Props) => {
   const [tokenStatus, setTokenStatus] = useState<TokenStatus>("unknown");
-  const [loggingIn, setLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
+  const { reAuth, loading: loggingIn } = useReAuth();
 
   useEffect(() => {
     getAccountTokenStatus(username).then(setTokenStatus);
   }, [username]);
 
   const handleReAuth = async () => {
-    try {
-      setLoggingIn(true);
-      setLoginError(null);
-
-      const timestamp = Date.now();
-      const message = `${username.toLowerCase()}${timestamp}`;
-      const signature = await keychainSignBuffer(username, message);
-
-      const result = await reAuthMonitoredAccount(username, timestamp, signature);
-      if (result.success) {
-        setTokenStatus("valid");
-      } else {
-        setLoginError(result.error ?? "Re-authentication failed");
-      }
-    } catch (error) {
-      setLoginError(error instanceof Error ? error.message : "Re-authentication failed");
-    } finally {
-      setLoggingIn(false);
+    setLoginError(null);
+    const result = await reAuth(username);
+    if (result.success) {
+      setTokenStatus("valid");
+    } else {
+      setLoginError(result.error);
     }
   };
 

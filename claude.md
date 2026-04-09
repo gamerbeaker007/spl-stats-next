@@ -16,9 +16,16 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
 
 ### Security
 
-- `ENCRYPTION_KEY` (AES-256-GCM for SPL tokens) and `COOKIE_SECRET` (HMAC signing for session cookie) are **separate** env variables.
-- Encryption key derived via SHA-256 hash if not already 32-byte hex.
-- Session cookie (`spl_user_id`) is HMAC-signed with `COOKIE_SECRET` to prevent forgery.
+- `ENCRYPTION_KEY` (AES-256-GCM for SPL tokens) and `COOKIE_SECRET` (HMAC signing for session cookie) are **separate** env variables. Both are **mandatory** — no default fallback; the app throws on startup if either is missing.
+- Encryption key: if 64-char hex use directly as 32-byte key; otherwise SHA-256 hash is used. Any string works (SHA-256 produces a valid 32-byte key), but the recommended form is `openssl rand -hex 32` (64-char hex) to use the direct path.
+- Session cookie (`spl_user_id`) is HMAC-signed with `COOKIE_SECRET` to prevent forgery. `timingSafeEqual` with length guard to avoid throwing on malformed MACs.
+- HTTP security headers set in `next.config.ts`: `CSP`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'`.
+- Server Action body limit: 50 MB (avoid memory-exhaustion DoS from oversized uploads).
+- All privileged Server Actions verify auth independently: `getCurrentUser()` + ownership check per action — not just at page level.
+- `reAuthMonitoredAccount` is guarded by: timestamp expiry (5 min), Hive signature verify, monitored-account ownership assert.
+- Portfolio actions (`getPortfolioOverviewAction`, `getPortfolioHistoryAction`) filter usernames to the caller's monitored set — prevents IDOR.
+- Token-using actions (`getPlayerBrawl`, `getPlayersDailyProgress`) guarded by `assertMonitorsAccount(username)`.
+- `getLogsAction` defaults to `limit=50`, capped at 500. Admin-only.
 
 ### Architecture
 
@@ -52,10 +59,11 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
 - Loop every ~30 min. If cycle exceeds 30 min, next starts immediately.
 - **Interruptible and resumable** via `AccountSyncState` (progress committed per season/token).
 - Graceful shutdown on SIGTERM/SIGINT: finishes current season, then exits.
-- Current flows: season balance collection + leaderboard sync (foundation/wild/modern).
+- Current flows: season balance collection + leaderboard sync (foundation/wild/modern) + battle history sync.
 - `SeasonBalance`: pre-aggregated per `(username, seasonId, token, type)`. Positive = earned, negative = spent.
 - Spillover transactions attributed to previous season.
 - Unclaimed SPS/VOUCHER stored as `UNCLAIMED_SPS`, `UNCLAIMED_VOUCHER`.
+- `BATTLE_SYNC_ACCOUNTS` (env, optional, comma-separated): when **not set** → all monitored accounts get battle history synced and the UI shows all accounts in the filter. When **set** → only the listed accounts are synced by the worker AND the battles page filter is restricted to those accounts. If none of the user's monitored accounts appear in the list, a friendly "not on the list" alert is shown instead of the battles UI.
 
 ### Layout / Navigation
 
@@ -66,13 +74,13 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
 
 ## Naming Conventions
 
-| Thing | Convention | Example |
-|---|---|---|
-| Folders | kebab-case | `multi-dashboard/`, `reward-history/` |
-| React component files | PascalCase | `TopBar.tsx`, `NavShell.tsx` |
-| Hook files | camelCase, `use` prefix | `useMediaQuery.ts` |
-| Lib / util files | kebab-case | `spl-api.ts`, `auth-actions.ts` |
-| Special markers | dot-separated suffix | `logger.server.ts` |
+| Thing                 | Convention              | Example                               |
+| --------------------- | ----------------------- | ------------------------------------- |
+| Folders               | kebab-case              | `multi-dashboard/`, `reward-history/` |
+| React component files | PascalCase              | `TopBar.tsx`, `NavShell.tsx`          |
+| Hook files            | camelCase, `use` prefix | `useMediaQuery.ts`                    |
+| Lib / util files      | kebab-case              | `spl-api.ts`, `auth-actions.ts`       |
+| Special markers       | dot-separated suffix    | `logger.server.ts`                    |
 
 ### Known deviations (do not replicate, fix when touched)
 
@@ -183,11 +191,13 @@ scripts/
 
 ## TODO / Future Work
 
+### Cleanup (fix when touched, not production-blockers)
+
 - Fix `lib/actions/` root-level actions → move to `lib/backend/actions/`.
 - Fix `lib/staticsIconUrls.ts`, `collectionUtils.ts`, `rewardAggregator.ts` → move to correct location.
 - Deduplicate `hooks/useCardDetails.ts` and `hooks/usePlayerHistory.ts` (scoped versions exist).
 - Rename `CAGoldRerwardCardDetail.tsx` → `CAGoldRewardCardDetail.tsx`.
-- Add portfolio data tables + cascade delete in `removeMonitoredAccount`.
-- Prune old `Log` rows (cron, `pruneLogs(days)` in `db/logs.ts`, keep 30 days).
-- Add match history + portfolio data worker flows.
-- Add admin UI for worker run history and sync state.
+- Cascade delete portfolio data in `removeMonitoredAccount` (currently only removes the monitored account row; old portfolio snapshots/investments stay in DB orphaned).
+- Next release remove csv import only the first version should support this sewcurity risk with the 200mb
+
+### Future features

@@ -42,7 +42,7 @@ export default function BestCardsContent() {
         }}
       >
         <Typography variant="h5" fontWeight={600}>
-          Battle Statistics
+          Battle Statistics of {filter.account || "Your Account"}
         </Typography>
         {(!filter.filterOpen || !isDesktop) && (
           <IconButton size="small" onClick={toggleFilterOpen} title="Open filter">

@@ -15,8 +15,8 @@ Users sign in with their Hive account via the Hive Keychain browser extension:
 
 1. User enters their Hive username
 2. Keychain signs `username + timestamp` with the posting key
-3. Server validates the signature with the Splinterlands API (`/players/v2/login`)
-4. SPL token is encrypted (AES-256-GCM, random IV per token) and stored in the database
+3. Server validates the signature against the Hive blockchain (posting key lookup via `@hiveio/dhive`)
+4. SPL token is fetched, encrypted (AES-256-GCM, random IV per token) and stored in the database
 5. A signed session cookie (`spl_user_id`) is set — HMAC-signed with `COOKIE_SECRET` to prevent forgery
 
 Only the posting key is used — no active key actions are possible through this app.
@@ -24,6 +24,16 @@ Only the posting key is used — no active key actions are possible through this
 ### Admin Access
 
 `/admin` is restricted to usernames listed in `ADMIN_USERNAMES`. No separate login — admin users authenticate the same way as regular users. Access is checked server-side on every request.
+
+### Monitored Accounts
+
+After login a user must explicitly add monitored accounts via account management. Each monitored account has a stored SPL token that grants privileged API access:
+
+- **One `SplAccount` row per Splinterlands username** — if multiple users monitor the same account, the token is stored once and shared. The first user to add the account provides the token; others link for free.
+- **Dedicated ownership table** — `MonitoredAccount` records `(userId, splAccountId)`, so each user only sees their own set.
+- **IDOR prevention** — all Server Actions that use tokens or return data for a given username first verify the caller has a `MonitoredAccount` row for that username. Passing someone else's username returns null / empty.
+- **Re-authentication** — tokens can expire. Users can refresh via Keychain (`reAuthMonitoredAccount`), which requires: a fresh Hive signature (5-min replay window), the account to already be in the caller's monitored set, and verified posting-key ownership against the Hive blockchain.
+- **Token removal** — removing a monitored account deletes the `SplAccount` token row only when no other user still monitors that username.
 
 ## Architecture
 
@@ -60,34 +70,63 @@ src/
 - **Hooks** — all Server Action calls wrapped in hooks in `src/hooks/`
 - **Suspense pattern** — `<Suspense fallback={<Skeleton />}><AsyncServerComponent /></Suspense>` paired with error boundaries
 
-## Token Security
+## Security
 
-SPL tokens grant full Splinterlands API access. They are encrypted at rest:
-
-- **Algorithm**: AES-256-GCM (authenticated encryption — detects tampering)
-- **IV**: Random 16 bytes per token (prevents pattern analysis)
-- **Storage**: `encryptedToken`, `iv`, `authTag` stored separately in `SplAccount` table
-- **Decryption**: Server-side only, on-demand for API calls — never sent to the client
-
-A single `SplAccount` row is shared across all users monitoring that username, so the token is stored once even if multiple users monitor the same account.
+- **AES-256-GCM** — authenticated encryption with random IV per token; auth tag stored separately; tampering is detected on decryption
+- **HMAC-signed session cookie** — `COOKIE_SECRET`-keyed SHA-256 MAC; `timingSafeEqual` with length guard prevents timing attacks and malformed-cookie crashes
+- **HTTP security headers** — CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'` set via `next.config.ts`
+- **Per-action auth** — every privileged Server Action re-checks `getCurrentUser()` + ownership independently; page-level guards alone are not relied upon
+- **IDOR prevention** — portfolio and player-token actions filter requested usernames to the caller's monitored set before any DB query
+- **Replay prevention** — 5-minute timestamp window on all Hive signature checks
+- **Body size limit** — Server Actions capped at 200 MB to prevent memory-exhaustion DoS (temporary first release only)
+- **No secrets on the client** — `ENCRYPTION_KEY`, `COOKIE_SECRET`, `ADMIN_USERNAMES`, `DATABASE_URL` are accessed only in server-only files; no `NEXT_PUBLIC_` secrets exist
 
 ## Environment Variables
 
-```bash
-# Database
-DATABASE_URL="postgresql://user:pass@localhost:5432/splstats"
+### Local development (`.env`)
 
-# Encryption Key for AES-256-GCM token storage (generate: openssl rand -hex 32)
+```bash
+# Database — direct connection string
+DATABASE_URL="postgresql://user:pass@localhost:5432/splstats?schema=public"
+
+# Encryption Key for AES-256-GCM token storage
+# Recommended: openssl rand -hex 32  (produces 64-char hex, used directly as 32-byte key)
+# Any other string also works — it will be SHA-256 hashed to 32 bytes
 ENCRYPTION_KEY="64-char-hex-string"
 
-# Cookie Secret for HMAC-signing the session cookie (generate: openssl rand -hex 32)
+# Cookie secret for HMAC-signing the session cookie
+# Generate: openssl rand -hex 32
 COOKIE_SECRET="64-char-hex-string"
 
 # Admin — comma-separated Hive usernames with access to /admin
 ADMIN_USERNAMES="yourusername"
 
+# Battle Sync Accounts (optional)
+# When not set: all monitored accounts have battle data synced and shown in the UI
+# When set: only the listed accounts are synced by the worker; battles UI is restricted to them
+# Accounts not in this list see a friendly "contact the admin" message instead of the battles UI
+BATTLE_SYNC_ACCOUNTS=""
+
 # Logging
-LOG_DB="true"       # persist logs to DB (recommended in production)
+LOG_DB="true"        # persist logs to DB (default when unset)
+LOG_PRISMA="false"   # enable Prisma query log in dev only
+```
+
+### Docker deployment (`.env` fed into docker-compose)
+
+Docker-compose constructs `DATABASE_URL` from the Postgres service variables:
+
+```bash
+POSTGRES_USER=splstats
+POSTGRES_PASSWORD=change-me
+POSTGRES_DB=splstats
+# DATABASE_URL is assembled automatically — do not set it separately
+
+ENCRYPTION_KEY=...   # mandatory — no default, container refuses to start without it
+COOKIE_SECRET=...    # mandatory — no default, container refuses to start without it
+ADMIN_USERNAMES=yourusername
+BATTLE_SYNC_ACCOUNTS=   # leave empty for all accounts, or set comma-separated list
+LOG_DB=true
 ```
 
 ## Setup
@@ -130,11 +169,11 @@ npm run format:all  # Prettier + ESLint + type-check
 
 - [ ] Generate strong `ENCRYPTION_KEY` (`openssl rand -hex 32`)
 - [ ] Generate strong `COOKIE_SECRET` (`openssl rand -hex 32`)
-- [ ] Set `LOG_DB=true`
+- [ ] Set `LOG_DB=true` (default when unset, but make it explicit)
 - [ ] Set `ADMIN_USERNAMES` to your Hive username(s)
 - [ ] Enable HTTPS (cookies use `secure: true` in production automatically)
 - [ ] Set up database backups
-- [ ] Configure rate limiting on auth endpoints
+- [ ] Configure rate limiting on auth endpoints if exposing to the public
 
 ## License
 

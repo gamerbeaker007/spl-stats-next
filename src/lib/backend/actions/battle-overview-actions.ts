@@ -77,9 +77,40 @@ function sortBestCards(cards: BestCardStat[], sortBy: BattleFilter["sortBy"]): B
 // getMonitoredAccountNamesAction
 // ---------------------------------------------------------------------------
 
+function parseBattleSyncAccounts(): string[] | null {
+  const raw = (process.env.BATTLE_SYNC_ACCOUNTS ?? "").trim();
+  if (!raw) return null;
+  return raw
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 export async function getMonitoredAccountNamesAction(): Promise<string[]> {
   const accounts = await getMonitoredAccounts();
-  return accounts.map((a) => a.username);
+  const all = accounts.map((a) => a.username);
+  const allowed = parseBattleSyncAccounts();
+  if (!allowed) return all;
+  return all.filter((u) => allowed.includes(u.toLowerCase()));
+}
+
+// ---------------------------------------------------------------------------
+// getBattleAccessStatusAction
+// ---------------------------------------------------------------------------
+
+export async function getBattleAccessStatusAction(): Promise<{
+  isRestricted: boolean;
+  isPartial: boolean;
+}> {
+  const accounts = await getMonitoredAccounts();
+  const all = accounts.map((a) => a.username);
+  const allowed = parseBattleSyncAccounts();
+  if (!allowed) return { isRestricted: false, isPartial: false };
+  const available = all.filter((u) => allowed.includes(u.toLowerCase()));
+  return {
+    isRestricted: available.length === 0,
+    isPartial: available.length > 0 && available.length < all.length,
+  };
 }
 
 // ---------------------------------------------------------------------------

@@ -29,8 +29,10 @@ export const modern_league_icon_url = `${WEB_URL}website/icons/leagues/modern_15
 export const avatar_icon_url = `${WEB_URL}website/icons/avatars/avatar_0.png`;
 export const foundation_league_icon_url = `${WEB_URL}website/icons/leagues/wild_150/league_0.png`;
 
-export const foundation_entries_icon_url = `${WEB_URL}website/icons/icon_fp.svg`;
-export const ranked_entries_icon_url = `${WEB_URL}website/icons/img_fortune-entry_ca.svg`;
+export const foundation_entries_icon_url =
+  "https://files.peakd.com/file/peakd-hive/beaker007/AK7xJPdJL7S4Ysbrx81zzezt1RXkPTPfYXW7gNRk81Hi8awDWRqBzUT7mNHkxH2.png";
+export const ranked_entries_icon_url =
+  "https://files.peakd.com/file/peakd-hive/beaker007/23wC7kgNZrcrZ1XoE3H3or89eBsQMiwGAXDyyxh6hzFnmuQAvKT6iPwjTSnXt9CTQwPo3.png";
 
 export const reward_draw_minor_icon_url = `${WEB_URL}website/ui_elements/shop/ranked/draws/img_chest-minor_250.webp`;
 export const reward_draw_major_icon_url = `${WEB_URL}website/ui_elements/shop/ranked/draws/img_chest-major_250.webp`;
@@ -98,3 +100,5 @@ export const pack_beta_icon_url = `${WEB_URL}website/icons/icon_pack_beta.png`;
 export const pack_chaos_icon_url = `${WEB_URL}website/icons/img_pack_chaos-legion_200.png`;
 export const pack_rift_icon_url = `${WEB_URL}website/ui_elements/open_packs/packsv2/img_pack_riftwatchers_opt.png`;
 export const pack_foundations_icon_url = `${WEB_URL}website/icons/img_pack_foundations_250.png`;
+
+export const spl_logo_icon_url = `${WEB_URL}website/splinterlands_logo.png`;

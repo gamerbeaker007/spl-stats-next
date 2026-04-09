@@ -38,6 +38,7 @@ import { ParsedHistory, ParsedPlayerRewardHistory, PurchaseResult } from "@/type
 import { PlayerCardCollectionData } from "@/types/playerCardCollection";
 import { DailyProgressData } from "@/types/playerDailyProgress";
 import { SeasonBalanceHistory, TokenBalanceSummary } from "@/types/spl/balanceHistory";
+import { getCurrentUser, getMonitoredAccounts } from "./auth-actions";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -89,12 +90,21 @@ export async function getPeakmonstersMarketPrices() {
 // Actions that use the player's stored token when available
 // ---------------------------------------------------------------------------
 
+async function assertMonitorsAccount(username: string): Promise<boolean> {
+  const user = await getCurrentUser();
+  if (!user) return false;
+  const accounts = await getMonitoredAccounts();
+  return accounts.some((a) => a.username === username.toLowerCase());
+}
+
 export async function getPlayerBrawl(username: string, guildId: string, tournamentId: string) {
+  if (!(await assertMonitorsAccount(username))) return null;
   const token = await getDecryptedToken(username);
   return fetchBrawlDetails(guildId, tournamentId, username, token);
 }
 
 export async function getPlayersDailyProgress(username: string): Promise<DailyProgressData | null> {
+  if (!(await assertMonitorsAccount(username))) return null;
   const token = await getDecryptedToken(username);
   if (!token) return null;
 

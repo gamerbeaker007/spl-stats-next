@@ -206,18 +206,38 @@ export async function reAuthMonitoredAccount(
     const userId = await getUserIdFromCookie();
     if (!userId) return { success: false, error: "Not logged in" };
 
-    logger.info(`reAuthMonitoredAccount: ${username} for user ${userId}`);
+    const lc = username.toLowerCase();
+    logger.info(`reAuthMonitoredAccount: ${lc} for user ${userId}`);
 
-    const splResponse = await splLogin(username, timestamp, signature);
+    // Reject signatures older than 5 minutes to prevent replay attacks
+    if (Date.now() - timestamp > 5 * 60 * 1000) {
+      return { success: false, error: "Signature expired. Please try again." };
+    }
+
+    // Verify posting-key ownership against Hive blockchain
+    const message = `${lc}${timestamp}`;
+    const sigValid = await verifyHiveSignature(lc, message, signature);
+    if (!sigValid) {
+      logger.warn(`reAuthMonitoredAccount: invalid Hive signature for ${lc}`);
+      return { success: false, error: "Invalid Hive signature. Please try again." };
+    }
+
+    // Verify the caller actually monitors this account
+    const monitored = await findMonitoredAccount(userId, lc);
+    if (!monitored) {
+      return { success: false, error: "Account not in your monitored list" };
+    }
+
+    const splResponse = await splLogin(lc, timestamp, signature);
     if (!splResponse.token) {
       return { success: false, error: "No token received from Splinterlands" };
     }
 
     const { encryptedValue, iv, authTag } = encryptToken(splResponse.token);
-    await upsertSplAccount(username, encryptedValue, iv, authTag);
+    await upsertSplAccount(lc, encryptedValue, iv, authTag);
 
-    logger.info(`Token refreshed for '${username}'`);
-    return { success: true, username };
+    logger.info(`Token refreshed for '${lc}'`);
+    return { success: true, username: lc };
   } catch (error) {
     logger.error(`reAuthMonitoredAccount error: ${error}`);
     return { success: false, error: errorMessage(error) };

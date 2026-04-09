@@ -3,11 +3,11 @@
 import {
   addMonitoredAccountWithKeychain,
   checkRemoveScopeAction,
-  reAuthMonitoredAccount,
   removeMonitoredAccount,
   verifyMonitoredAccountToken,
 } from "@/lib/backend/actions/auth-actions";
 import { keychainSignBuffer } from "@/lib/frontend/keychain";
+import { useReAuth } from "@/hooks/useReAuth";
 import { useEffect, useState } from "react";
 
 interface MonitoredAccount {
@@ -40,6 +40,7 @@ export function useMonitoredAccounts(
   const [busyIds, setBusyIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const { reAuth } = useReAuth();
 
   const clearMessages = () => {
     setError(null);
@@ -132,25 +133,16 @@ export function useMonitoredAccounts(
   const reAuthAccount = async (monitoredAccountId: string, username: string): Promise<boolean> => {
     clearMessages();
     addBusy(monitoredAccountId);
-
     try {
-      const timestamp = Date.now();
-      const signature = await keychainSignBuffer(username, `${username}${timestamp}`);
-
-      const response = await reAuthMonitoredAccount(username, timestamp, signature);
-
-      if (!response.success) {
-        setError(response.error ?? "Re-authentication failed");
+      const result = await reAuth(username);
+      if (!result.success) {
+        setError(result.error);
         return false;
       }
-
       setAccounts((prev) =>
         prev.map((acc) => (acc.id === monitoredAccountId ? { ...acc, tokenStatus: "valid" } : acc))
       );
       return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Re-authentication failed");
-      return false;
     } finally {
       removeBusy(monitoredAccountId);
     }

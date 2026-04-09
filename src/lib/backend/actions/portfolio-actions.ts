@@ -99,9 +99,17 @@ export async function getPortfolioOverviewAction(
   const user = await getCurrentUser();
   if (!user) return { snapshot: null, investments: [], totalInvested: 0 };
 
+  // Restrict to accounts the caller actually monitors — prevents IDOR
+  const monitoredAccounts = await getMonitoredAccounts();
+  const monitoredSet = new Set(monitoredAccounts.map((a) => a.username));
+  const safeUsernames = usernames.filter((u) => monitoredSet.has(u));
+  if (safeUsernames.length === 0) {
+    return { snapshot: null, investments: [], totalInvested: 0 };
+  }
+
   // Fetch latest snapshot for each username
   const snapshotsByAccount = await Promise.all(
-    usernames.map(async (username) => {
+    safeUsernames.map(async (username) => {
       const all = await getPortfolioSnapshots(username);
       return all.length > 0 ? all[all.length - 1] : null;
     })
@@ -193,7 +201,7 @@ export async function getPortfolioOverviewAction(
   }
 
   // Investments
-  const rawInvestments = await getPortfolioInvestments(usernames);
+  const rawInvestments = await getPortfolioInvestments(safeUsernames);
   const investments: InvestmentEntry[] = rawInvestments.map((inv) => ({
     id: inv.id,
     date: inv.date.toISOString().slice(0, 10),
@@ -280,7 +288,17 @@ export async function getPortfolioHistoryAction(
   const user = await getCurrentUser();
   if (!user) return { history: [], cumulativeInvestments: [] };
 
-  const allSnapshots = (await Promise.all(usernames.map((u) => getPortfolioSnapshots(u)))).flat();
+  // Restrict to accounts the caller actually monitors — prevents IDOR
+  const monitoredAccounts = await getMonitoredAccounts();
+  const monitoredSet = new Set(monitoredAccounts.map((a) => a.username));
+  const safeUsernames = usernames.filter((u) => monitoredSet.has(u));
+  if (safeUsernames.length === 0) {
+    return { history: [], cumulativeInvestments: [] };
+  }
+
+  const allSnapshots = (
+    await Promise.all(safeUsernames.map((u) => getPortfolioSnapshots(u)))
+  ).flat();
 
   // Group snapshots by date string
   const byDate = new Map<string, typeof allSnapshots>();
@@ -407,7 +425,7 @@ export async function getPortfolioHistoryAction(
   }
 
   // Cumulative investments by date
-  const rawInvestments = await getPortfolioInvestments(usernames);
+  const rawInvestments = await getPortfolioInvestments(safeUsernames);
   let running = 0;
   const cumulativeInvestments: CumulativeInvestmentPoint[] = rawInvestments.map((inv) => {
     running += inv.amount;

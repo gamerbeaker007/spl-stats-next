@@ -84,7 +84,8 @@ export function usePlayerStatus(username: string): UsePlayerStatusReturn {
       if (detailsResult.status === "fulfilled" && detailsResult.value.guild?.id) {
         const guild = detailsResult.value.guild;
         try {
-          const brawlDetails = await getPlayerBrawl(username, guild.id, guild.tournament_id);
+          const brawlDetails =
+            (await getPlayerBrawl(username, guild.id, guild.tournament_id)) ?? undefined;
           if (isMountedRef.current) {
             setData((prev) => (prev ? { ...prev, brawlDetails } : prev));
           }
