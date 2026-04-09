@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 
+const isDev = process.env.NODE_ENV === "development";
+
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "SAMEORIGIN" },
@@ -10,7 +12,8 @@ const securityHeaders = [
     value: [
       "default-src 'self'",
       // 'unsafe-inline' required: FOUC inline script + MUI emotion inline styles
-      "script-src 'self' 'unsafe-inline'",
+      // 'unsafe-eval' required in dev: React uses eval() for call stack reconstruction
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://images.hive.blog https://d36mxiodymuqjm.cloudfront.net https://peakmonsters.com https://next.splinterlands.com https://files.peakd.com",
       "connect-src 'self' https://api.hive.blog https://api.deathwing.me https://api.openhive.network",
@@ -32,7 +35,7 @@ const nextConfig: NextConfig = {
 
   experimental: {
     serverActions: {
-      bodySizeLimit: "200mb",
+      bodySizeLimit: "5mb",
     },
   },
 

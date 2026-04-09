@@ -199,5 +199,6 @@ scripts/
 - Rename `CAGoldRerwardCardDetail.tsx` → `CAGoldRewardCardDetail.tsx`.
 - Cascade delete portfolio data in `removeMonitoredAccount` (currently only removes the monitored account row; old portfolio snapshots/investments stay in DB orphaned).
 - Next release remove csv import only the first version should support this sewcurity risk with the 200mb
+- update nginx to remove large body as well!!
 
 ### Future features

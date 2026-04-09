@@ -208,7 +208,10 @@ export type ImportBattleResult =
  * or the "losing" CSV (opponent team, no winner/result).
  * Auto-detects the variant from headers.
  */
-export async function importBattleCsvAction(csvText: string): Promise<ImportBattleResult> {
+export async function importBattleCsvAction(
+  csvText: string,
+  rowOffset = 0
+): Promise<ImportBattleResult> {
   const user = await getCurrentUser();
   if (!user || !isAdmin(user.username)) {
     return { success: false, error: "Unauthorized" };
@@ -238,13 +241,14 @@ export async function importBattleCsvAction(csvText: string): Promise<ImportBatt
     cardDetails.map((c) => [c.id, c.tier ?? null])
   );
 
-  let imported = 0;
   let skipped = 0;
   const errors: string[] = [];
-  const positionMap = new Map<string, string>(); // reused as number map via cast
+  const positionMap = new Map<string, string>();
+  const playerCards: PlayerBattleCardInput[] = [];
+  const opponentCards: OpponentBattleCardInput[] = [];
 
   for (let i = 0; i < dataRows.length; i++) {
-    const rowNum = i + 2;
+    const rowNum = rowOffset + i + 2;
     try {
       const rawCells = dataRows[i];
       const cells = dataOffset > 0 ? rawCells.slice(dataOffset) : rawCells;
@@ -255,17 +259,15 @@ export async function importBattleCsvAction(csvText: string): Promise<ImportBatt
           skipped++;
           continue;
         }
-        await upsertPlayerBattleCards([card]);
+        playerCards.push(card);
       } else {
         const card = rowToOpponentCard(normalizedHeader, cells, positionMap, cardTierMap);
         if (!card) {
           skipped++;
           continue;
         }
-        await upsertOpponentBattleCards([card]);
+        opponentCards.push(card);
       }
-
-      imported++;
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       errors.push(`Row ${rowNum}: ${msg}`);
@@ -276,5 +278,10 @@ export async function importBattleCsvAction(csvText: string): Promise<ImportBatt
     }
   }
 
+  // Batch upsert in a single transaction
+  if (playerCards.length > 0) await upsertPlayerBattleCards(playerCards);
+  if (opponentCards.length > 0) await upsertOpponentBattleCards(opponentCards);
+
+  const imported = playerCards.length + opponentCards.length;
   return { success: true, imported, skipped, errors };
 }

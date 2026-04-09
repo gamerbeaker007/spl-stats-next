@@ -3,8 +3,8 @@
 import { isAdmin } from "@/lib/backend/auth/admin";
 import {
   addPortfolioInvestment,
+  createPortfolioInvestmentsBatch,
   deletePortfolioInvestment,
-  upsertPortfolioInvestment,
 } from "@/lib/backend/db/portfolio-investments";
 import { getCurrentUser } from "./auth-actions";
 
@@ -27,7 +27,10 @@ export type AddInvestmentResult = { success: true } | { success: false; error: s
  * Accepts CSV text with columns: [index,] date, account_name, amount
  * Inserts each row as a PortfolioInvestment; skips exact duplicates.
  */
-export async function importInvestmentCsvAction(csvText: string): Promise<ImportInvestmentResult> {
+export async function importInvestmentCsvAction(
+  csvText: string,
+  rowOffset = 0
+): Promise<ImportInvestmentResult> {
   const user = await getCurrentUser();
   if (!user || !isAdmin(user.username)) {
     return { success: false, error: "Unauthorized" };
@@ -62,12 +65,12 @@ export async function importInvestmentCsvAction(csvText: string): Promise<Import
     };
   }
 
-  let imported = 0;
   let skipped = 0;
   const errors: string[] = [];
+  const batch: { date: Date; username: string; amount: number }[] = [];
 
   for (let i = 1; i < lines.length; i++) {
-    const rowNum = i + 1;
+    const rowNum = rowOffset + i + 1;
     try {
       const cells = lines[i].split(",").map((c) => c.trim());
       const dateStr = cells[dateIdx]?.trim();
@@ -96,9 +99,7 @@ export async function importInvestmentCsvAction(csvText: string): Promise<Import
         continue;
       }
 
-      const result = await upsertPortfolioInvestment(date, username, amount);
-      if (result === "created") imported++;
-      else skipped++;
+      batch.push({ date, username, amount });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`Row ${rowNum}: ${msg}`);
@@ -108,6 +109,9 @@ export async function importInvestmentCsvAction(csvText: string): Promise<Import
       }
     }
   }
+
+  const imported = await createPortfolioInvestmentsBatch(batch);
+  skipped += batch.length - imported; // count duplicates as skipped
 
   return { success: true, imported, skipped, errors };
 }

@@ -1,7 +1,7 @@
 "use server";
 
 import { isAdmin } from "@/lib/backend/auth/admin";
-import { upsertPortfolioSnapshot } from "@/lib/backend/db/portfolio-snapshots";
+import { upsertPortfolioSnapshotBatch } from "@/lib/backend/db/portfolio-snapshots";
 import type { CollectionEditionDetail, PortfolioData } from "@/types/portfolio";
 import { getCurrentUser } from "./auth-actions";
 
@@ -224,7 +224,10 @@ export type ImportPortfolioResult =
  * Accepts CSV text in the old Python portfolio format.
  * Each row is transformed and upserted as a PortfolioSnapshot.
  */
-export async function importPortfolioCsvAction(csvText: string): Promise<ImportPortfolioResult> {
+export async function importPortfolioCsvAction(
+  csvText: string,
+  rowOffset = 0
+): Promise<ImportPortfolioResult> {
   const user = await getCurrentUser();
   if (!user || !isAdmin(user.username)) {
     return { success: false, error: "Unauthorized" };
@@ -241,20 +244,19 @@ export async function importPortfolioCsvAction(csvText: string): Promise<ImportP
 
   const [header, ...dataRows] = rows;
 
-  let imported = 0;
   let skipped = 0;
   const errors: string[] = [];
+  const batch: PortfolioData[] = [];
 
   for (let i = 0; i < dataRows.length; i++) {
-    const rowNum = i + 2; // 1-based, accounting for header
+    const rowNum = rowOffset + i + 2;
     try {
       const data = rowToPortfolioData(header, dataRows[i]);
       if (!data) {
         skipped++;
         continue;
       }
-      await upsertPortfolioSnapshot(data);
-      imported++;
+      batch.push(data);
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       errors.push(`Row ${rowNum}: ${msg}`);
@@ -265,5 +267,7 @@ export async function importPortfolioCsvAction(csvText: string): Promise<ImportP
     }
   }
 
-  return { success: true, imported, skipped, errors };
+  await upsertPortfolioSnapshotBatch(batch);
+
+  return { success: true, imported: batch.length, skipped, errors };
 }

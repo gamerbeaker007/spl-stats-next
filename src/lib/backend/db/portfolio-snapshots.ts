@@ -8,11 +8,8 @@ function toDateOnly(d: Date): Date {
   return out;
 }
 
-/** Insert or overwrite a portfolio snapshot for a given (username, date). */
-export async function upsertPortfolioSnapshot(data: PortfolioData): Promise<void> {
-  const date = toDateOnly(data.date);
-
-  const fields = {
+function buildSnapshotFields(data: PortfolioData) {
+  return {
     collectionMarketValue: data.collectionMarketValue,
     collectionListValue: data.collectionListValue,
     collectionDetails: data.collectionDetails as unknown as Prisma.InputJsonValue,
@@ -51,12 +48,33 @@ export async function upsertPortfolioSnapshot(data: PortfolioData): Promise<void
     hivePriceUsd: data.hivePriceUsd,
     spsPriceUsd: data.spsPriceUsd,
   };
+}
 
+/** Insert or overwrite a portfolio snapshot for a given (username, date). */
+export async function upsertPortfolioSnapshot(data: PortfolioData): Promise<void> {
+  const date = toDateOnly(data.date);
+  const fields = buildSnapshotFields(data);
   await prisma.portfolioSnapshot.upsert({
     where: { username_date: { username: data.username, date } },
     create: { date, username: data.username, ...fields },
     update: fields,
   });
+}
+
+/** Batch upsert portfolio snapshots in a single transaction. */
+export async function upsertPortfolioSnapshotBatch(items: PortfolioData[]): Promise<void> {
+  if (items.length === 0) return;
+  await prisma.$transaction(
+    items.map((data) => {
+      const date = toDateOnly(data.date);
+      const fields = buildSnapshotFields(data);
+      return prisma.portfolioSnapshot.upsert({
+        where: { username_date: { username: data.username, date } },
+        create: { date, username: data.username, ...fields },
+        update: fields,
+      });
+    })
+  );
 }
 
 /** Return all portfolio snapshots for a given username, ordered by date asc. */

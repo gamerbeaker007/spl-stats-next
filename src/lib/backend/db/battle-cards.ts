@@ -53,9 +53,16 @@ export async function upsertPlayerBattleCard(card: PlayerBattleCardInput): Promi
 }
 
 export async function upsertPlayerBattleCards(cards: PlayerBattleCardInput[]): Promise<void> {
-  for (const card of cards) {
-    await upsertPlayerBattleCard(card);
-  }
+  if (cards.length === 0) return;
+  await prisma.$transaction(
+    cards.map(({ battleId, account, position, ...rest }) =>
+      prisma.playerBattleCard.upsert({
+        where: { battleId_account_position: { battleId, account, position } },
+        create: { battleId, account, position, ...rest },
+        update: rest,
+      })
+    )
+  );
 }
 
 export async function upsertOpponentBattleCard(card: OpponentBattleCardInput): Promise<void> {
@@ -68,9 +75,16 @@ export async function upsertOpponentBattleCard(card: OpponentBattleCardInput): P
 }
 
 export async function upsertOpponentBattleCards(cards: OpponentBattleCardInput[]): Promise<void> {
-  for (const card of cards) {
-    await upsertOpponentBattleCard(card);
-  }
+  if (cards.length === 0) return;
+  await prisma.$transaction(
+    cards.map(({ battleId, account, position, ...rest }) =>
+      prisma.opponentBattleCard.upsert({
+        where: { battleId_account_position: { battleId, account, position } },
+        create: { battleId, account, position, ...rest },
+        update: rest,
+      })
+    )
+  );
 }
 
 // ---------------------------------------------------------------------------
