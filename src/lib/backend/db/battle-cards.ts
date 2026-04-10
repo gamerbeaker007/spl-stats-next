@@ -158,6 +158,7 @@ export interface BattleQueryFilter {
   maxManaCap: number;
   rulesets: string[];
   groupLevels: boolean;
+  cardName?: string; // optional case-insensitive substring match
   minBattleCount: number;
   sortBy: string;
   since?: string; // ISO date string — only include battles on or after this date
@@ -165,6 +166,7 @@ export interface BattleQueryFilter {
 
 function buildPlayerWhere(filter: BattleQueryFilter): Prisma.PlayerBattleCardWhereInput {
   const AND: Prisma.PlayerBattleCardWhereInput[] = [{ account: filter.account }];
+  if (filter.cardName) AND.push({ cardName: { contains: filter.cardName, mode: "insensitive" } });
   if (filter.formats.length > 0) AND.push({ format: { in: filter.formats } });
   if (filter.cardTypes.length > 0) AND.push({ cardType: { in: filter.cardTypes } });
   if (filter.matchTypes.length > 0) AND.push({ matchType: { in: filter.matchTypes } });
@@ -198,6 +200,7 @@ function buildPlayerWhere(filter: BattleQueryFilter): Prisma.PlayerBattleCardWhe
 
 function buildOpponentWhere(filter: BattleQueryFilter): Prisma.OpponentBattleCardWhereInput {
   const AND: Prisma.OpponentBattleCardWhereInput[] = [{ account: filter.account }];
+  if (filter.cardName) AND.push({ cardName: { contains: filter.cardName, mode: "insensitive" } });
   if (filter.formats.length > 0) AND.push({ format: { in: filter.formats } });
   if (filter.matchTypes.length > 0) AND.push({ matchType: { in: filter.matchTypes } });
   if (filter.cardTypes.length > 0) AND.push({ cardType: { in: filter.cardTypes } });

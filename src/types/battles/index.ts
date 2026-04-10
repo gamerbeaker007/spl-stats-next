@@ -46,6 +46,8 @@ export interface BattleFilter {
   maxManaCap: number; // 0 = no limit
   rulesets: string[]; // [] = all
   groupLevels: boolean; // true = aggregate all levels of same card
+  cardName: string; // "" = all; case-insensitive substring match on card name
+  selectedCardDetailId: number; // 0 = none; the card chosen via the autocomplete
   minBattleCount: number; // minimum battles to show a card
   sinceDays: number; // 0 = all time, else last N days
   sortBy: "battles" | "win_percentage" | "wins" | "losses";
@@ -68,6 +70,8 @@ export const DEFAULT_BATTLE_FILTER: BattleFilter = {
   maxManaCap: 0,
   rulesets: [],
   groupLevels: true,
+  cardName: "",
+  selectedCardDetailId: 0,
   minBattleCount: 1,
   sinceDays: 0,
   sortBy: "battles",

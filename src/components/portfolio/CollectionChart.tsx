@@ -1,6 +1,6 @@
 "use client";
 
-import PlotlyChart, { getPlotlyThemeLayout, type AppTheme } from "@/components/shared/PlotlyChart";
+import PlotlyChart, { type AppTheme } from "@/components/shared/PlotlyChart";
 import type { PortfolioHistoryPoint } from "@/lib/backend/actions/portfolio-actions";
 import { getEditionLabel } from "@/lib/shared/edition-utils";
 import Typography from "@mui/material/Typography";
@@ -96,7 +96,6 @@ export default function CollectionChart({ history, theme }: Props) {
     } as Data);
   }
 
-  const themeLayout = getPlotlyThemeLayout(theme);
   const layout = {
     title: { text: "Card Collection Value" },
     xaxis: {
@@ -108,7 +107,6 @@ export default function CollectionChart({ history, theme }: Props) {
       title: { text: "Value (USD)" },
       tickprefix: "$",
       tickformat: ",.0f",
-      gridcolor: themeLayout.xaxis?.gridcolor,
       showgrid: false,
     },
     yaxis2: {

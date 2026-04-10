@@ -168,24 +168,8 @@ function DrawerAndContent({ selectedUsers }: Readonly<{ selectedUsers: string[] 
 
   return (
     <Box display="flex" flex={1}>
-      {/* Card Filter Drawer - Loaded immediately, persists across user switches */}
-      <CardFilterDrawer
-        open={drawerOpen}
-        onToggle={toggleDrawer}
-        selectedSets={selectedSets}
-        selectedRarities={selectedRarities}
-        selectedElements={selectedElements}
-        selectedRoles={selectedRoles}
-        hideMissingCards={hideMissingCards}
-        onSetChange={setSelectedSets}
-        onRarityChange={setSelectedRarities}
-        onElementChange={setSelectedElements}
-        onRoleChange={setSelectedRoles}
-        onHideMissingCardsChange={setHideMissingCards}
-      />
-
       {/* Main Content - Multiple players side by side */}
-      <Box flex={1} ml={drawerOpen ? 2 : 0} display="flex" gap={2} flexWrap="wrap">
+      <Box flex={1} display="flex" gap={2} flexWrap="wrap">
         {selectedUsers.map((username) => (
           <Box
             key={username}
@@ -204,6 +188,22 @@ function DrawerAndContent({ selectedUsers }: Readonly<{ selectedUsers: string[] 
           </Box>
         ))}
       </Box>
+
+      {/* Card Filter Drawer - after content so it sits on the right in flex */}
+      <CardFilterDrawer
+        open={drawerOpen}
+        onToggle={toggleDrawer}
+        selectedSets={selectedSets}
+        selectedRarities={selectedRarities}
+        selectedElements={selectedElements}
+        selectedRoles={selectedRoles}
+        hideMissingCards={hideMissingCards}
+        onSetChange={setSelectedSets}
+        onRarityChange={setSelectedRarities}
+        onElementChange={setSelectedElements}
+        onRoleChange={setSelectedRoles}
+        onHideMissingCardsChange={setHideMissingCards}
+      />
     </Box>
   );
 }

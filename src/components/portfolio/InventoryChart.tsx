@@ -1,6 +1,6 @@
 "use client";
 
-import PlotlyChart, { getPlotlyThemeLayout, type AppTheme } from "@/components/shared/PlotlyChart";
+import PlotlyChart, { type AppTheme } from "@/components/shared/PlotlyChart";
 import type { PortfolioHistoryPoint } from "@/lib/backend/actions/portfolio-actions";
 import Typography from "@mui/material/Typography";
 import type { Data, Layout } from "plotly.js";
@@ -95,7 +95,6 @@ export default function InventoryChart({ history, theme }: Props) {
     } as Data);
   });
 
-  const themeLayout = getPlotlyThemeLayout(theme);
   const layout = {
     title: { text: "Inventory" },
     xaxis: {
@@ -107,7 +106,6 @@ export default function InventoryChart({ history, theme }: Props) {
       title: { text: "Value (USD)" },
       tickprefix: "$",
       tickformat: ",.0f",
-      gridcolor: themeLayout.xaxis?.gridcolor,
       showgrid: false,
     },
     yaxis2: {

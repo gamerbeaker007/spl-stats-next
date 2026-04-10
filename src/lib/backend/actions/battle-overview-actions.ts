@@ -47,6 +47,7 @@ function toQueryFilter(filter: BattleFilter): BattleQueryFilter {
     maxManaCap: filter.maxManaCap,
     rulesets: filter.rulesets,
     groupLevels: filter.groupLevels,
+    cardName: filter.cardName || undefined,
     minBattleCount: filter.minBattleCount,
     sortBy: filter.sortBy,
     since:

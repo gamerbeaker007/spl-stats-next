@@ -1,6 +1,6 @@
 "use client";
 
-import PlotlyChart, { getPlotlyThemeLayout, type AppTheme } from "@/components/shared/PlotlyChart";
+import PlotlyChart, { type AppTheme } from "@/components/shared/PlotlyChart";
 import type { PortfolioHistoryPoint } from "@/lib/backend/actions/portfolio-actions";
 import Typography from "@mui/material/Typography";
 import type { Data, Layout } from "plotly.js";
@@ -78,7 +78,6 @@ export default function SpsChart({ history, theme }: Props) {
     } as Data,
   ];
 
-  const themeLayout = getPlotlyThemeLayout(theme);
   const layout = {
     title: { text: "SPS & Staked SPS" },
     xaxis: { title: { text: "Date" }, type: "date" },
@@ -86,8 +85,6 @@ export default function SpsChart({ history, theme }: Props) {
       title: { text: "Value (USD)" },
       tickprefix: "$",
       tickformat: ",.2f",
-      gridcolor: themeLayout.xaxis?.gridcolor,
-      gridwidth: 0.5,
       showgrid: false,
     },
     yaxis2: {

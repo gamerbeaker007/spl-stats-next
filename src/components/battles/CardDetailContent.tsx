@@ -38,6 +38,8 @@ interface CardDetailContentProps {
   cardDetailId: number;
   /** Pre-validated account from the server — takes priority over localStorage. */
   initialAccount?: string;
+  /** When true: rendered as a tab — hides Back button and Account selector, uses /battles/card?card= URLs. */
+  tabMode?: boolean;
 }
 
 function StatBox({
@@ -289,13 +291,15 @@ function VisualBattleEntry({ battle }: { battle: DetailedBattleEntry }) {
 export default function CardDetailContent({
   cardDetailId,
   initialAccount = "",
+  tabMode = false,
 }: CardDetailContentProps) {
   const router = useRouter();
   const pathname = usePathname();
   // initialAccount (server-validated) takes priority; fall back to localStorage
   const [account, setAccount] = useState(initialAccount);
   const { accounts, loading: accountsLoading } = useMonitoredAccountNames();
-  const { cards: cardOptions, loading: cardsLoading } = useCardOptions(account);
+  // In tab mode the card is selected via the filter drawer — skip loading card options
+  const { cards: cardOptions, loading: cardsLoading } = useCardOptions(tabMode ? "" : account);
   const filter = useMemo(() => ({ ...DEFAULT_BATTLE_FILTER, account }), [account]);
   const { detail, loading, error } = useCardDetail(cardDetailId, filter);
 
@@ -312,103 +316,123 @@ export default function CardDetailContent({
   const liveLosses = useMemo(() => liveBattles.filter((b) => b.result === "loss"), [liveBattles]);
 
   const handleCardClick = (id: number) => {
-    const params = account ? `?account=${encodeURIComponent(account)}` : "";
-    router.push(`/battles/card/${id}${params}`);
+    if (tabMode) {
+      router.push(`/battles/card?card=${id}`);
+    } else {
+      const params = account ? `?account=${encodeURIComponent(account)}` : "";
+      router.push(`/battles/card/${id}${params}`);
+    }
   };
 
-  // Sync account state when the server-provided initialAccount changes (URL navigation)
-  // or fall back to localStorage when there is no server-provided account.
+  // Sync account state when initialAccount changes (URL navigation or filter context change).
+  // In tab mode the account always comes from the shared filter — skip localStorage.
   useEffect(() => {
     if (initialAccount) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setAccount(initialAccount);
       return;
     }
+    if (tabMode) return;
     try {
       const saved = localStorage.getItem(ACCOUNT_STORAGE_KEY);
-      // Reading localStorage on mount is legitimate — suppress overly strict rule.
-
       if (saved) setAccount(saved);
     } catch {
       // ignore
     }
-  }, [initialAccount]);
+  }, [initialAccount, tabMode]);
 
-  // Persist account to localStorage whenever it changes
+  // Persist account to localStorage in non-tab mode only
   useEffect(() => {
-    if (!account) return;
+    if (tabMode || !account) return;
     try {
       localStorage.setItem(ACCOUNT_STORAGE_KEY, account);
     } catch {
       // ignore
     }
-  }, [account]);
+  }, [account, tabMode]);
 
   return (
     <Box sx={{ p: 2 }}>
       {/* Header row with selects */}
       <Stack direction="row" alignItems="center" sx={{ mb: 2, flexWrap: "wrap", gap: 1 }}>
-        <Button
-          size="small"
-          variant="text"
-          startIcon={<MdArrowBack />}
-          onClick={() => router.push("/battles")}
-        >
-          Back
-        </Button>
-        <Typography variant="h5" fontWeight={600}>
-          Card Detail
-        </Typography>
+        {!tabMode && (
+          <Button
+            size="small"
+            variant="text"
+            startIcon={<MdArrowBack />}
+            onClick={() => router.push("/battles")}
+          >
+            Back
+          </Button>
+        )}
+        {!tabMode && (
+          <Typography variant="h5" fontWeight={600}>
+            Card Detail
+          </Typography>
+        )}
         <Box sx={{ flexGrow: 1 }} />
 
-        {/* Account selector */}
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          <InputLabel id="cd-account-label">Account</InputLabel>
-          <Select
-            labelId="cd-account-label"
-            label="Account"
-            value={account}
-            onChange={(e) => {
-              const next = e.target.value;
-              setAccount(next);
-              const params = next ? `?account=${encodeURIComponent(next)}` : "";
-              router.replace(`${pathname}${params}`);
-            }}
-            disabled={accountsLoading}
-          >
-            {/* Ensure the prefilled value always has a matching option while accounts load */}
-            {account && !accounts.includes(account) && (
-              <MenuItem value={account}>{account}</MenuItem>
-            )}
-            {accounts.map((a) => (
-              <MenuItem key={a} value={a}>
-                {a}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        {/* Account selector — only shown outside tab mode; in tab mode it lives in the filter drawer */}
+        {!tabMode && (
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <InputLabel id="cd-account-label">Account</InputLabel>
+            <Select
+              labelId="cd-account-label"
+              label="Account"
+              value={account}
+              onChange={(e) => {
+                const next = e.target.value;
+                setAccount(next);
+                const params = next ? `?account=${encodeURIComponent(next)}` : "";
+                router.replace(`${pathname}${params}`);
+              }}
+              disabled={accountsLoading}
+            >
+              {account && !accounts.includes(account) && (
+                <MenuItem value={account}>{account}</MenuItem>
+              )}
+              {accounts.map((a) => (
+                <MenuItem key={a} value={a}>
+                  {a}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
 
-        {/* Card selector */}
-        <FormControl size="small" sx={{ minWidth: 220 }}>
-          <InputLabel id="cd-card-label">Card</InputLabel>
-          <Select
-            labelId="cd-card-label"
-            label="Card"
-            value={cardOptions.some((c) => c.cardDetailId === cardDetailId) ? cardDetailId : ""}
-            onChange={(e) => handleCardClick(Number(e.target.value))}
-            disabled={!account || cardsLoading}
-            MenuProps={{ PaperProps: { sx: { maxHeight: 300 } } }}
-          >
-            {cardOptions.map((c) => (
-              <MenuItem key={c.cardDetailId} value={c.cardDetailId}>
-                {c.cardName}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        {/* Card selector — only in non-tab mode; in tab mode use the filter drawer */}
+        {!tabMode && (
+          <FormControl size="small" sx={{ minWidth: 220 }}>
+            <InputLabel id="cd-card-label">Card</InputLabel>
+            <Select
+              labelId="cd-card-label"
+              label="Card"
+              value={cardOptions.some((c) => c.cardDetailId === cardDetailId) ? cardDetailId : ""}
+              onChange={(e) => handleCardClick(Number(e.target.value))}
+              disabled={!account || cardsLoading}
+              MenuProps={{ PaperProps: { sx: { maxHeight: 300 } } }}
+            >
+              {cardOptions.map((c) => (
+                <MenuItem key={c.cardDetailId} value={c.cardDetailId}>
+                  {c.cardName}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        )}
       </Stack>
 
-      {!account && <Alert severity="info">Select an account above to view card statistics.</Alert>}
+      {!account && (
+        <Alert severity="info">
+          {tabMode
+            ? "Select an account in the filter panel to view card statistics."
+            : "Select an account above to view card statistics."}
+        </Alert>
+      )}
+
+      {account && !cardDetailId && !loading && (
+        <Alert severity="info">Select a card from the dropdown above to view its statistics.</Alert>
+      )}
 
       {loading && (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>

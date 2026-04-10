@@ -16,7 +16,7 @@ import Typography from "@mui/material/Typography";
 import { type Data, type Layout } from "plotly.js";
 import { useMemo } from "react";
 
-import PlotlyChart, { getPlotlyThemeLayout, type AppTheme } from "@/components/shared/PlotlyChart";
+import PlotlyChart, { type AppTheme } from "@/components/shared/PlotlyChart";
 import { useLeaderboardHistory } from "@/hooks/season/useLeaderboardHistory";
 import type { LeaderboardSeasonPoint } from "@/lib/backend/actions/season-overview-actions";
 
@@ -90,8 +90,6 @@ function RatingChart({ rows, theme }: { rows: LeaderboardSeasonPoint[]; theme: A
   const seasons = rows.map((r) => r.seasonId);
   const ratings = rows.map((r) => r.rating);
   const maxRatings = rows.map((r) => r.maxRating);
-  const themeLayout = getPlotlyThemeLayout(theme);
-
   const data: Data[] = [
     {
       type: "scatter",
@@ -114,10 +112,9 @@ function RatingChart({ rows, theme }: { rows: LeaderboardSeasonPoint[]; theme: A
   ];
 
   const layout: Partial<Layout> = {
-    ...themeLayout,
     title: { text: "Rating", font: { size: 13 } },
-    xaxis: { ...themeLayout.xaxis, tickmode: "linear", dtick: 5 },
-    yaxis: { ...themeLayout.yaxis, title: { text: "Rating" } },
+    xaxis: { tickmode: "linear", dtick: 5 },
+    yaxis: { title: { text: "Rating" } },
     height: 240,
     margin: { l: 55, r: 20, t: 35, b: 35 },
     legend: { orientation: "h", x: 0, y: 1.15, font: { size: 11 } },
@@ -138,8 +135,6 @@ function BattlesChart({ rows, theme }: { rows: LeaderboardSeasonPoint[]; theme: 
     const w = r.wins ?? 0;
     return b > 0 ? Math.round((w / b) * 1000) / 10 : null;
   });
-  const themeLayout = getPlotlyThemeLayout(theme);
-
   const data: Data[] = [
     {
       type: "bar",
@@ -162,10 +157,9 @@ function BattlesChart({ rows, theme }: { rows: LeaderboardSeasonPoint[]; theme: 
   ];
 
   const layout: Partial<Layout> = {
-    ...themeLayout,
     title: { text: "Battles & Win Rate", font: { size: 13 } },
-    xaxis: { ...themeLayout.xaxis, tickmode: "linear", dtick: 5 },
-    yaxis: { ...themeLayout.yaxis, title: { text: "Battles" } },
+    xaxis: { tickmode: "linear", dtick: 5 },
+    yaxis: { title: { text: "Battles" } },
     yaxis2: {
       title: { text: "Win %" },
       overlaying: "y",

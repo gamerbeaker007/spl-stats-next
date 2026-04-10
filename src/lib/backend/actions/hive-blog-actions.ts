@@ -1078,11 +1078,17 @@ function buildMarketSectionLines(acc: HiveBlogAccountData): string[] {
 function buildClosingLines(): string[] {
   return [
     `${HEADER} Closing notes ${CLOSE_HEADER}`,
+    "",
     "This report is generated with the splinterlands statistics tool from @beaker007  [SPL Stats](http://spl-stats.com/) ([git-repo](https://github.com/gamerbeaker007/spl-stats-next)).",
+    "",
     `${SUB_HEADER}🙌 Support the Project ${CLOSE_HEADER}`,
+    "",
     "✅ Upvote this post – it really helps!",
+    "",
     "👉 [Vote for My SPS Validator Node](https://monstermarket.io/validators?validator=beaker007)",
+    "",
     "💬 Drop a comment or idea – weird edge cases welcome.",
+    "",
     "*10% of post rewards go to @beaker007*",
     "------",
     `![](${spl_logo_icon_url})`,

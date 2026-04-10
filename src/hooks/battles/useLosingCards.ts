@@ -54,7 +54,9 @@ export function useLosingCards(filter: BattleFilter): UseLosingCardsReturn {
     filter.maxManaCap,
     filter.rulesets,
     filter.groupLevels,
+    filter.cardName,
     filter.minBattleCount,
+    filter.sinceDays,
     fetchCards,
   ]);
 
