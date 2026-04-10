@@ -33,6 +33,7 @@ services:
       db:
         condition: service_healthy
     environment:
+      NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-splstats}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-splstats}?schema=public
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       COOKIE_SECRET: ${COOKIE_SECRET}
@@ -49,6 +50,7 @@ services:
       db:
         condition: service_healthy
     environment:
+      NODE_ENV: production
       DATABASE_URL: postgresql://${POSTGRES_USER:-splstats}:${POSTGRES_PASSWORD:-password}@db:5432/${POSTGRES_DB:-splstats}?schema=public
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       LOG_DB: ${LOG_DB:-true}

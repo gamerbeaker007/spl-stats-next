@@ -1,7 +1,7 @@
 "use server";
 
 import { splLogin, verifySplToken } from "@/lib/backend/api/spl/spl-api";
-import { deleteUserCookie, getUserIdFromCookie, setUserCookie } from "@/lib/backend/auth/cookie";
+import { deleteUserCookie, getSessionIdFromCookie, setUserCookie } from "@/lib/backend/auth/cookie";
 import { decryptToken, encryptToken } from "@/lib/backend/auth/encryption";
 import { verifyHiveSignature } from "@/lib/backend/auth/hive-verify";
 import { deleteSyncStatesByUsername } from "@/lib/backend/db/account-sync-states";
@@ -31,10 +31,28 @@ import {
   upsertSplAccount,
 } from "@/lib/backend/db/spl-accounts";
 import { getUserById, upsertUser } from "@/lib/backend/db/users";
+import {
+  createSession,
+  deleteSession,
+  getValidSession,
+  pruneExpiredSessions,
+} from "@/lib/backend/db/sessions";
 import logger from "@/lib/backend/log/logger.server";
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : "Unknown error";
+}
+
+/**
+ * Reads the session cookie, verifies the HMAC, then checks the Session table.
+ * Returns the userId only if the session exists and has not expired.
+ */
+async function getValidatedUserId(): Promise<string | null> {
+  const sessionId = await getSessionIdFromCookie();
+  if (!sessionId) return null;
+  const session = await getValidSession(sessionId);
+  if (!session) return null;
+  return session.userId;
 }
 
 // ─── Auth status ─────────────────────────────────────────────────────────────
@@ -69,7 +87,9 @@ export async function loginAction(username: string, timestamp: number, signature
     }
 
     const user = await upsertUser(username);
-    await setUserCookie(user.id);
+    await pruneExpiredSessions();
+    const session = await createSession(user.id);
+    await setUserCookie(session.id);
 
     logger.info(`User ${username} logged in successfully (Hive-only auth)`);
     return { success: true, username: user.username };
@@ -83,6 +103,8 @@ export async function loginAction(username: string, timestamp: number, signature
 
 export async function logoutAction() {
   try {
+    const sessionId = await getSessionIdFromCookie();
+    if (sessionId) await deleteSession(sessionId);
     await deleteUserCookie();
     return { success: true };
   } catch (error) {
@@ -109,7 +131,7 @@ export async function addMonitoredAccountWithKeychain(
   signature: string
 ) {
   try {
-    const userId = await getUserIdFromCookie();
+    const userId = await getValidatedUserId();
     if (!userId) return { success: false, error: "Not logged in" };
 
     const lc = username.toLowerCase();
@@ -171,7 +193,7 @@ export async function addMonitoredAccountWithKeychain(
 
 export async function getCurrentUser() {
   try {
-    const userId = await getUserIdFromCookie();
+    const userId = await getValidatedUserId();
     if (!userId) return null;
 
     return await getUserById(userId);
@@ -187,7 +209,7 @@ export async function getCurrentUser() {
 
 export async function getMonitoredAccounts() {
   try {
-    const userId = await getUserIdFromCookie();
+    const userId = await getValidatedUserId();
     if (!userId) return [];
 
     return await listMonitoredAccounts(userId);
@@ -203,7 +225,7 @@ export async function reAuthMonitoredAccount(
   signature: string
 ) {
   try {
-    const userId = await getUserIdFromCookie();
+    const userId = await getValidatedUserId();
     if (!userId) return { success: false, error: "Not logged in" };
 
     const lc = username.toLowerCase();
@@ -246,7 +268,7 @@ export async function reAuthMonitoredAccount(
 
 export async function verifyMonitoredAccountToken(monitoredAccountId: string) {
   try {
-    const userId = await getUserIdFromCookie();
+    const userId = await getValidatedUserId();
     if (!userId) return { success: false, error: "Not logged in" };
 
     const record = await findMonitoredAccountById(monitoredAccountId, userId);
@@ -288,7 +310,7 @@ export async function getAccountTokenStatus(
 
 export async function removeMonitoredAccount(accountId: string) {
   try {
-    const userId = await getUserIdFromCookie();
+    const userId = await getValidatedUserId();
     if (!userId) return { success: false, error: "Not logged in" };
 
     // Fetch before delete to get splAccountId for orphan check
@@ -325,7 +347,7 @@ export async function removeMonitoredAccount(accountId: string) {
  *  meaning all collected data would be permanently deleted on removal. */
 export async function checkRemoveScopeAction(accountId: string): Promise<{ isLastUser: boolean }> {
   try {
-    const userId = await getUserIdFromCookie();
+    const userId = await getValidatedUserId();
     if (!userId) return { isLastUser: false };
     const record = await findMonitoredAccountById(accountId, userId);
     if (!record) return { isLastUser: false };

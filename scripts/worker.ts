@@ -1,6 +1,7 @@
 import { fetchSettings } from "@/lib/backend/api/spl/spl-api";
 import { resetStaleSyncStates } from "@/lib/backend/db/account-sync-states";
 import { pruneLogs } from "@/lib/backend/db/logs";
+import { pruneExpiredSessions } from "@/lib/backend/db/sessions";
 import { getAllSeasons } from "@/lib/backend/db/seasons";
 import { getDistinctAccountsWithCredentials } from "@/lib/backend/db/spl-accounts";
 import { completeWorkerRun, createWorkerRun } from "@/lib/backend/db/worker-runs";
@@ -124,7 +125,7 @@ async function runCycle(): Promise<void> {
       }
     }
 
-    // Final step: prune old log entries
+    // Final step: prune old log entries and expired sessions
     try {
       const { count } = await pruneLogs(LOG_RETENTION_DAYS);
       if (count > 0)
@@ -132,6 +133,12 @@ async function runCycle(): Promise<void> {
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       logger.warn(`Worker: log pruning failed: ${msg}`);
+    }
+    try {
+      await pruneExpiredSessions();
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.warn(`Worker: session pruning failed: ${msg}`);
     }
 
     await completeWorkerRun(run.id, "completed", accountsProcessed);

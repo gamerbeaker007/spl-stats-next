@@ -198,7 +198,6 @@ scripts/
 - Deduplicate `hooks/useCardDetails.ts` and `hooks/usePlayerHistory.ts` (scoped versions exist).
 - Rename `CAGoldRerwardCardDetail.tsx` → `CAGoldRewardCardDetail.tsx`.
 - Cascade delete portfolio data in `removeMonitoredAccount` (currently only removes the monitored account row; old portfolio snapshots/investments stay in DB orphaned).
-- Next release remove csv import only the first version should support this sewcurity risk with the 200mb
-- update nginx to remove large body as well!!
+- Next release remove CSV import (security risk). Once removed, drop `bodySizeLimit` in `next.config.ts` `serverActions` from `"5mb"` to `"256kb"`. Also update nginx `client_max_body_size` to match.
 
 ### Future features
