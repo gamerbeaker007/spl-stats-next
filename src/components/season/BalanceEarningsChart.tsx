@@ -17,7 +17,7 @@ import type { Data, Layout } from "plotly.js";
 import { useMemo } from "react";
 import { MdInfoOutline } from "react-icons/md";
 
-import PlotlyChart, { getPlotlyThemeLayout, type AppTheme } from "@/components/shared/PlotlyChart";
+import PlotlyChart, { type AppTheme } from "@/components/shared/PlotlyChart";
 import { useSeasonEarnings } from "@/hooks/season/useSeasonEarnings";
 import { useLatestSeasonId } from "@/hooks/useLatestSeasonId";
 import type { EarningsSummaryPoint } from "@/lib/backend/actions/season-overview-actions";
@@ -127,7 +127,6 @@ function TokenLineChart({
   maxSeason: number;
   theme: AppTheme;
 }) {
-  const themeLayout = getPlotlyThemeLayout(theme);
   const { seasons, totals } = fillSeasons(rows, minSeason, maxSeason);
 
   const includedTypes = TOKEN_TYPE_FILTERS[token];
@@ -150,16 +149,13 @@ function TokenLineChart({
   ];
 
   const layout: Partial<Layout> = {
-    ...themeLayout,
     xaxis: {
-      ...themeLayout.xaxis,
       title: { text: "Season" },
       tickmode: "linear",
       dtick: 5,
       range: [minSeason - 0.5, maxSeason + 0.5],
     },
     yaxis: {
-      ...themeLayout.yaxis,
       title: { text: token },
       rangemode: "tozero",
     },

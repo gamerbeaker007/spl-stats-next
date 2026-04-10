@@ -3,13 +3,12 @@
 import { useBattleFilter } from "@/lib/frontend/context/BattleFilterContext";
 import { useLosingCards } from "@/hooks/battles/useLosingCards";
 import CardStatsCard from "./CardStatsCard";
-import BattleFilterDrawer, { DRAWER_WIDTH } from "./BattleFilterDrawer";
+import BattleFilterDrawer from "./BattleFilterDrawer";
 import type { LosingCardStat } from "@/types/battles";
 import { RARITY_LABELS } from "@/types/battles";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
-import IconButton from "@mui/material/IconButton";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Table from "@mui/material/Table";
@@ -23,8 +22,6 @@ import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Image from "next/image";
 import { useState } from "react";
-import { MdFilterList } from "react-icons/md";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 type SortKey = "cardName" | "level" | "battles";
 
@@ -138,9 +135,8 @@ function LosingTable({ cards }: { cards: LosingCardStat[] }) {
 }
 
 export default function LosingContent() {
-  const { filter, toggleFilterOpen } = useBattleFilter();
+  const { filter } = useBattleFilter();
   const { cards, loading, error } = useLosingCards(filter);
-  const isDesktop = useMediaQuery("(min-width:900px)");
 
   const topCards = cards.slice(0, filter.topCount);
 
@@ -150,17 +146,10 @@ export default function LosingContent() {
         sx={{
           flex: 1,
           p: 2,
-          mr: isDesktop && filter.filterOpen ? `${DRAWER_WIDTH}px` : 0,
-          transition: "margin 0.2s",
           minWidth: 0,
         }}
       >
         <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-          {(!filter.filterOpen || !isDesktop) && (
-            <IconButton size="small" onClick={toggleFilterOpen} title="Open filter">
-              <MdFilterList size={20} />
-            </IconButton>
-          )}
           <Box>
             <Typography variant="h5" fontWeight={600}>
               Losing Analysis

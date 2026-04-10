@@ -1,32 +1,63 @@
 "use client";
 
+import FilterSection from "@/components/shared/filter/FilterSection";
+import IconFilterGroup from "@/components/shared/filter/IconFilterGroup";
+import { SET_DEFS } from "@/lib/shared/edition-utils";
 import {
-  CardElement,
   cardElementIconMap,
   cardElementOptions,
   cardIconMap,
-  CardRarity,
   cardRarityOptions,
-  CardRole,
   cardRoleIconMap,
   cardRoleOptions,
   cardSetIconMap,
-  CardSetName,
   cardSetOptions,
+  type CardElement,
+  type CardRarity,
+  type CardRole,
+  type CardSetName,
 } from "@/types/card";
-import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import {
-  Box,
-  Button,
-  Drawer,
-  IconButton,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-} from "@mui/material";
-import { useState } from "react";
-import { FilterOption } from "./FilterOption";
+import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
+import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
+import Divider from "@mui/material/Divider";
+import Drawer from "@mui/material/Drawer";
+import FormControlLabel from "@mui/material/FormControlLabel";
+import IconButton from "@mui/material/IconButton";
+import Stack from "@mui/material/Stack";
+import Switch from "@mui/material/Switch";
+import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import { MdClose, MdFilterList, MdRestartAlt } from "react-icons/md";
+
+export const DRAWER_WIDTH = 280;
+
+const MODERN_SETS: CardSetName[] = ["rebellion", "conclave", "foundation"];
+
+// Build icon options from shared edition-utils so labels & icons stay in sync.
+const setFilterOptions = cardSetOptions.map((name) => ({
+  value: name as CardSetName,
+  label: SET_DEFS.find((s) => s.setName === name)?.label ?? name,
+  iconUrl: cardSetIconMap[name] ?? "",
+}));
+
+const rarityFilterOptions = cardRarityOptions.map((r) => ({
+  value: r as CardRarity,
+  label: r.charAt(0).toUpperCase() + r.slice(1),
+  iconUrl: cardIconMap[r as CardRarity],
+}));
+
+const elementFilterOptions = cardElementOptions.map((e) => ({
+  value: e as CardElement,
+  label: e.charAt(0).toUpperCase() + e.slice(1),
+  iconUrl: cardElementIconMap[e] ?? "",
+}));
+
+const roleFilterOptions = cardRoleOptions.map((r) => ({
+  value: r as CardRole,
+  label: r.charAt(0).toUpperCase() + r.slice(1),
+  iconUrl: cardRoleIconMap[r as CardRole],
+}));
 
 interface CardFilterDrawerProps {
   open: boolean;
@@ -48,7 +79,7 @@ export function CardFilterDrawer({
   onToggle,
   selectedSets,
   selectedRarities,
-  selectedElements,
+  selectedElements = [],
   selectedRoles,
   hideMissingCards,
   onSetChange,
@@ -57,47 +88,6 @@ export function CardFilterDrawer({
   onRoleChange,
   onHideMissingCardsChange,
 }: CardFilterDrawerProps) {
-  const modernSets: CardSetName[] = ["rebellion", "conclave", "foundation"];
-  const [mode, setMode] = useState<"modern" | "wild">("modern");
-
-  const handleModeChange = (
-    event: React.MouseEvent<HTMLElement>,
-    newMode: "modern" | "wild" | null
-  ) => {
-    if (newMode !== null) {
-      setMode(newMode);
-      if (newMode === "modern") {
-        onSetChange(modernSets);
-      } else {
-        onSetChange([]);
-      }
-    }
-  };
-
-  const handleSetToggle = (set: CardSetName) => {
-    if (selectedSets.includes(set)) {
-      onSetChange(selectedSets.filter((s) => s !== set));
-    } else {
-      onSetChange([...selectedSets, set]);
-    }
-  };
-
-  const handleRarityToggle = (rarity: CardRarity) => {
-    if (selectedRarities.includes(rarity)) {
-      onRarityChange(selectedRarities.filter((r) => r !== rarity));
-    } else {
-      onRarityChange([...selectedRarities, rarity]);
-    }
-  };
-
-  const handleElementToggle = (element: CardElement) => {
-    if (selectedElements?.includes(element)) {
-      onElementChange?.(selectedElements.filter((e) => e !== element));
-    } else {
-      onElementChange?.([...(selectedElements || []), element]);
-    }
-  };
-
   const handleReset = () => {
     onSetChange([]);
     onRarityChange([]);
@@ -105,173 +95,161 @@ export function CardFilterDrawer({
     onRoleChange?.([]);
   };
 
-  const isSetSelected = (set: CardSetName) => {
-    return selectedSets.includes(set);
-  };
+  const drawerContent = (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      {/* Header */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          px: 1.5,
+          py: 1,
+          borderBottom: 1,
+          borderColor: "divider",
+        }}
+      >
+        <Typography variant="subtitle2" fontWeight={600}>
+          Filters
+        </Typography>
+        <Stack direction="row" spacing={0.5}>
+          <Tooltip title="Reset filter">
+            <IconButton size="small" onClick={handleReset}>
+              <MdRestartAlt size={18} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Close filter">
+            <IconButton size="small" onClick={onToggle}>
+              <MdClose size={18} />
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      </Box>
 
-  const isRaritySelected = (rarity: CardRarity) => {
-    return selectedRarities.includes(rarity);
-  };
+      {/* Filter content */}
+      <Box sx={{ p: 1.5, flex: 1, overflowY: "auto" }}>
+        {/* Card Set — with Modern / Wild quick-select */}
+        <FilterSection title="Card Set">
+          <Stack direction="row" spacing={0.75} sx={{ mb: 1 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => onSetChange(MODERN_SETS)}
+              sx={{ flex: 1, textTransform: "none", fontSize: 12, py: 0.25 }}
+            >
+              Modern
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              color="inherit"
+              onClick={() => onSetChange([])}
+              sx={{ flex: 1, textTransform: "none", fontSize: 12, py: 0.25 }}
+            >
+              Wild (all)
+            </Button>
+          </Stack>
+          <IconFilterGroup<CardSetName>
+            options={setFilterOptions}
+            selected={selectedSets}
+            onChange={onSetChange}
+          />
+        </FilterSection>
 
-  const isElementSelected = (element: CardElement) => {
-    return selectedElements?.includes(element) ?? false;
-  };
+        <Divider sx={{ my: 1 }} />
 
-  const handleRoleToggle = (role: CardRole) => {
-    if (selectedRoles.includes(role)) {
-      onRoleChange?.(selectedRoles.filter((r) => r !== role));
-    } else {
-      onRoleChange?.([...selectedRoles, role]);
-    }
-  };
+        {/* Rarity */}
+        <FilterSection title="Rarity">
+          <IconFilterGroup<CardRarity>
+            options={rarityFilterOptions}
+            selected={selectedRarities}
+            onChange={onRarityChange}
+          />
+        </FilterSection>
 
-  const isRoleSelected = (role: CardRole) => {
-    return selectedRoles.includes(role);
-  };
+        {/* Element */}
+        <FilterSection title="Element">
+          <IconFilterGroup<CardElement>
+            options={elementFilterOptions}
+            selected={selectedElements}
+            onChange={(v) => onElementChange?.(v)}
+          />
+        </FilterSection>
+
+        {/* Role */}
+        <FilterSection title="Role">
+          <IconFilterGroup<CardRole>
+            options={roleFilterOptions}
+            selected={selectedRoles}
+            onChange={(v) => onRoleChange?.(v)}
+          />
+        </FilterSection>
+
+        <Divider sx={{ my: 1 }} />
+
+        {/* Display Options */}
+        <FilterSection title="Display Options">
+          <FormControlLabel
+            control={
+              <Switch
+                checked={hideMissingCards ?? false}
+                onChange={(e) => onHideMissingCardsChange?.(e.target.checked)}
+                size="small"
+              />
+            }
+            label={<Typography variant="body2">Hide missing cards</Typography>}
+          />
+        </FilterSection>
+      </Box>
+    </Box>
+  );
 
   return (
     <>
       <Drawer
         variant="persistent"
-        anchor="left"
+        anchor="right"
         open={open}
         sx={{
-          width: open ? 240 : 0,
+          width: open ? DRAWER_WIDTH : 0,
           flexShrink: 0,
           "& .MuiDrawer-paper": {
-            width: 240,
+            width: DRAWER_WIDTH,
             boxSizing: "border-box",
-            position: "relative",
-            height: "auto",
-            bgcolor: "background.paper",
-            borderRight: 1,
+            top: APP_BAR_HEIGHT,
+            height: `calc(100% - ${APP_BAR_HEIGHT}px)`,
+            border: "none",
+            borderLeft: 1,
             borderColor: "divider",
           },
         }}
+        ModalProps={{ keepMounted: true }}
       >
-        <Box sx={{ p: 2 }}>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h6">Filters</Typography>
-            <Box display="flex" gap={1}>
-              <Button
-                size="small"
-                onClick={handleReset}
-                disabled={selectedSets.length === 0 && selectedRarities.length === 0}
-              >
-                Reset
-              </Button>
-              <IconButton onClick={onToggle} size="small">
-                <ChevronLeftIcon />
-              </IconButton>
-            </Box>
-          </Box>
-
-          <Box mb={3}>
-            <Typography variant="subtitle1" gutterBottom>
-              Format
-            </Typography>
-            <ToggleButtonGroup
-              value={mode}
-              exclusive
-              onChange={handleModeChange}
-              fullWidth
-              size="small"
-            >
-              <ToggleButton value="modern">Modern</ToggleButton>
-              <ToggleButton value="wild">Wild</ToggleButton>
-            </ToggleButtonGroup>
-          </Box>
-
-          <FilterOption
-            title="Card Set"
-            options={cardSetOptions}
-            iconMap={cardSetIconMap}
-            handleToggle={handleSetToggle}
-            isSelected={isSetSelected}
-          />
-
-          <FilterOption
-            title="Card Rarity"
-            options={cardRarityOptions}
-            iconMap={cardIconMap}
-            handleToggle={handleRarityToggle}
-            isSelected={isRaritySelected}
-          />
-
-          <FilterOption
-            title="Card Element"
-            options={cardElementOptions}
-            iconMap={cardElementIconMap}
-            handleToggle={handleElementToggle}
-            isSelected={isElementSelected}
-          />
-
-          <FilterOption
-            title="Role"
-            options={cardRoleOptions}
-            iconMap={cardRoleIconMap}
-            handleToggle={handleRoleToggle}
-            isSelected={isRoleSelected}
-          />
-
-          <Box mt={3}>
-            <Typography variant="subtitle1" gutterBottom>
-              Display Options
-            </Typography>
-            <Box display="flex" alignItems="center" justifyContent="space-between">
-              <Box
-                onClick={() => onHideMissingCardsChange?.(!hideMissingCards)}
-                sx={{
-                  width: 44,
-                  height: 24,
-                  borderRadius: 12,
-                  bgcolor: hideMissingCards ? "primary.main" : "action.disabled",
-                  position: "relative",
-                  cursor: "pointer",
-                  transition: "background-color 0.2s",
-                  "&:hover": {
-                    opacity: 0.8,
-                  },
-                }}
-              >
-                <Box
-                  sx={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: "50%",
-                    bgcolor: "background.paper",
-                    position: "absolute",
-                    top: 2,
-                    left: hideMissingCards ? 22 : 2,
-                    transition: "left 0.2s",
-                    boxShadow: 1,
-                  }}
-                />
-              </Box>
-              <Typography variant="body2">Hide Missing Cards</Typography>
-            </Box>
-          </Box>
-        </Box>
+        {drawerContent}
       </Drawer>
 
       {!open && (
-        <IconButton
-          onClick={onToggle}
-          sx={{
-            position: "fixed",
-            left: 0,
-            top: "50%",
-            transform: "translateY(-50%)",
-            bgcolor: "background.paper",
-            borderRadius: "0 4px 4px 0",
-            zIndex: 1200,
-            "&:hover": {
-              bgcolor: "action.hover",
-            },
-          }}
-        >
-          <ChevronRightIcon />
-        </IconButton>
+        <Tooltip title="Open filter" placement="left">
+          <IconButton
+            onClick={onToggle}
+            sx={{
+              position: "fixed",
+              right: 0,
+              top: "50%",
+              transform: "translateY(-50%)",
+              bgcolor: "error.main",
+              color: "#fff",
+              borderRadius: "4px 0 0 4px",
+              zIndex: 1200,
+              border: 1,
+              borderRight: 0,
+              borderColor: "error.dark",
+              "&:hover": { bgcolor: "error.dark" },
+            }}
+          >
+            <MdFilterList size={24} />
+          </IconButton>
+        </Tooltip>
       )}
     </>
   );

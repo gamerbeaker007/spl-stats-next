@@ -4,29 +4,26 @@ import { useBattleFilter } from "@/lib/frontend/context/BattleFilterContext";
 import { useBattleOverview } from "@/hooks/battles/useBattleOverview";
 import CardStatsCard from "./CardStatsCard";
 import BestCardsTable from "./BestCardsTable";
-import BattleFilterDrawer, { DRAWER_WIDTH } from "./BattleFilterDrawer";
+import BattleFilterDrawer from "./BattleFilterDrawer";
 
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
-import IconButton from "@mui/material/IconButton";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { MdFilterList } from "react-icons/md";
 import { useRouter } from "next/navigation";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 export default function BestCardsContent() {
-  const { filter, toggleFilterOpen } = useBattleFilter();
+  const { filter, setFilter } = useBattleFilter();
   const { cards, loading, error } = useBattleOverview(filter);
   const router = useRouter();
-  const isDesktop = useMediaQuery("(min-width:900px)");
 
   const topCards = cards.slice(0, filter.topCount);
 
   const handleCardClick = (cardDetailId: number) => {
-    const params = filter.account ? `?account=${encodeURIComponent(filter.account)}` : "";
-    router.push(`/battles/card/${cardDetailId}${params}`);
+    const card = cards.find((c) => c.cardDetailId === cardDetailId);
+    setFilter({ selectedCardDetailId: cardDetailId, cardName: card?.cardName ?? "" });
+    router.push("/battles/card");
   };
 
   return (
@@ -36,19 +33,12 @@ export default function BestCardsContent() {
         sx={{
           flex: 1,
           p: 2,
-          mr: isDesktop && filter.filterOpen ? `${DRAWER_WIDTH}px` : 0,
-          transition: "margin 0.2s",
           minWidth: 0,
         }}
       >
         <Typography variant="h5" fontWeight={600}>
           Battle Statistics of {filter.account || "Your Account"}
         </Typography>
-        {(!filter.filterOpen || !isDesktop) && (
-          <IconButton size="small" onClick={toggleFilterOpen} title="Open filter">
-            <MdFilterList size={20} /> Filter
-          </IconButton>
-        )}
 
         {!filter.account && (
           <Alert severity="info" sx={{ mb: 2 }}>

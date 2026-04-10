@@ -18,7 +18,7 @@ import Typography from "@mui/material/Typography";
 import type { Data, Layout } from "plotly.js";
 import { useMemo, useState } from "react";
 
-import PlotlyChart, { getPlotlyThemeLayout, type AppTheme } from "@/components/shared/PlotlyChart";
+import PlotlyChart, { type AppTheme } from "@/components/shared/PlotlyChart";
 import { useDistinctTokens, useTokenDetail } from "@/hooks/season/useTokenDetail";
 import type { TokenBalanceRow } from "@/lib/backend/actions/season-overview-actions";
 
@@ -104,8 +104,6 @@ function TokenLines({
   rows: TokenBalanceRow[];
   theme: AppTheme;
 }) {
-  const themeLayout = getPlotlyThemeLayout(theme);
-
   // Group rows by type, build per-type series keyed by seasonId
   const series: Data[] = useMemo(() => {
     const byType = new Map<string, Map<number, number>>();
@@ -137,16 +135,13 @@ function TokenLines({
   }
 
   const layout: Partial<Layout> = {
-    ...themeLayout,
     title: { text: `${token} — Balance by Type`, font: { size: 14 } },
     xaxis: {
-      ...themeLayout.xaxis,
       title: { text: "Season" },
       tickmode: "linear",
       dtick: 5,
     },
     yaxis: {
-      ...themeLayout.yaxis,
       title: { text: token },
     },
     height: 420,

@@ -9,13 +9,12 @@
  *  - Plotly charts per tab
  */
 
+import PageNavTabs from "@/components/ui/PageNavTabs";
 import Box from "@mui/material/Box";
 import FormControl from "@mui/material/FormControl";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
-import Tab from "@mui/material/Tab";
-import Tabs from "@mui/material/Tabs";
 import Typography from "@mui/material/Typography";
 import { useState } from "react";
 
@@ -37,7 +36,7 @@ export default function SeasonOverviewContent({ accounts }: Props) {
   const username = account || undefined;
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1100 }}>
+    <Box sx={{ p: { xs: 2, md: 3 } }}>
       <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
         Season Overview
       </Typography>
@@ -61,15 +60,13 @@ export default function SeasonOverviewContent({ accounts }: Props) {
       )}
 
       {/* Tab bar */}
-      <Tabs
-        value={tab}
-        onChange={(_, v) => setTab(v)}
-        sx={{ mb: 3, borderBottom: 1, borderColor: "divider" }}
-      >
-        <Tab label="Leaderboard" />
-        <Tab label="Earnings" />
-        <Tab label="Token Detail" />
-      </Tabs>
+      <Box sx={{ mb: 3 }}>
+        <PageNavTabs
+          tabs={[{ label: "Leaderboard" }, { label: "Earnings" }, { label: "Token Detail" }]}
+          value={tab}
+          onChange={setTab}
+        />
+      </Box>
 
       {/* Tab panels */}
       {tab === 0 && <LeaderboardHistoryChart username={username} theme={theme} />}
