@@ -9,6 +9,16 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v0.2.0] - 2026-04-10
+
+### What's New
+
+#### Fixed
+
+- GitHub release workflow: changelog section was rendered as literal
+
+---
+
 ## [v0.1.0] - 2026-04-09
 
 ### What's New

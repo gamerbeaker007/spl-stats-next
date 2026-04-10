@@ -13,7 +13,7 @@ jobs:
     name: Build, push & release
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # create GitHub release
+      contents: write # create GitHub release
 
     steps:
       - name: Checkout
@@ -31,7 +31,11 @@ jobs:
           if [ -z "$NOTES" ]; then
             NOTES="_No changelog entry found for ${VERSION}. Please update CHANGELOG.md._"
           fi
-          echo "$NOTES" > /tmp/changelog_section.md
+          {
+            echo "notes<<EOF"
+            echo "$NOTES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -63,7 +67,7 @@ jobs:
           body: |
             ## What's New
 
-            $(cat /tmp/changelog_section.md)
+            ${{ steps.changelog.outputs.notes }}
 
             ---
 
