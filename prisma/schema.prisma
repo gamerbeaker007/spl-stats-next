@@ -15,8 +15,24 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
 
   monitoredAccounts MonitoredAccount[]
+  sessions          Session[]
 
   @@map("users")
+}
+
+// Per-device login session. Created on every login, deleted on logout.
+// Multiple rows per user = independent sessions on different devices.
+model Session {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
 }
 
 // Junction: which users monitor which SPL accounts.

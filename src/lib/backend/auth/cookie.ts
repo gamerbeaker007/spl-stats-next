@@ -26,18 +26,18 @@ function unsign(signed: string): string | null {
   return crypto.timingSafeEqual(Buffer.from(mac), Buffer.from(expected)) ? value : null;
 }
 
-export async function setUserCookie(userId: string) {
+export async function setUserCookie(sessionId: string) {
   const { cookies } = await import("next/headers");
   const cookieStore = await cookies();
-  cookieStore.set(USER_COOKIE, sign(userId), {
+  cookieStore.set(USER_COOKIE, sign(sessionId), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 30, // 30 days
+    maxAge: 60 * 60 * 24 * 7, // 7 days
   });
 }
 
-export async function getUserIdFromCookie(): Promise<string | null> {
+export async function getSessionIdFromCookie(): Promise<string | null> {
   const { cookies } = await import("next/headers");
   const cookieStore = await cookies();
   const raw = cookieStore.get(USER_COOKIE)?.value;
