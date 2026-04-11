@@ -1,5 +1,6 @@
 import { getAllSyncStates } from "@/lib/backend/db/account-sync-states";
 import { getValidMonitoredAccountUsernames } from "@/lib/backend/db/monitored-accounts";
+import { getAllMonitoredAccountTokenStatuses } from "@/lib/backend/db/spl-accounts";
 import { getLatestSeason } from "@/lib/backend/db/seasons";
 import { getLatestWorkerRun } from "@/lib/backend/db/worker-runs";
 import { AccountSyncState } from "@prisma/client";
@@ -65,12 +66,16 @@ function formatRelativeTime(date: Date): string {
 }
 
 export default async function WorkerStatusContent() {
-  const [latestRun, allStates, latestSeason, validUsernames] = await Promise.all([
+  const [latestRun, allStates, latestSeason, validUsernames, tokenStatuses] = await Promise.all([
     getLatestWorkerRun(),
     getAllSyncStates(),
     getLatestSeason(),
     getValidMonitoredAccountUsernames(),
+    getAllMonitoredAccountTokenStatuses(),
   ]);
+
+  // Build token status lookup map username → { tokenStatus, tokenVerifiedAt }
+  const tokenStatusMap = new Map(tokenStatuses.map((t) => [t.username, t]));
 
   const currentSeasonId = latestSeason?.id ?? 0;
 
@@ -90,19 +95,24 @@ export default async function WorkerStatusContent() {
   }
 
   const accounts = [...byUsername.entries()]
-    .map(([username, states]) => ({
-      username,
-      syncStatus: aggregateSyncStatus(states),
-      completedSyncKeys: states.filter((s) => s.status === "completed").length,
-      totalSyncKeys: states.length,
-      minSeasonProcessed:
-        states.length > 0 ? Math.min(...states.map((s) => s.lastSeasonProcessed)) : 0,
-      lastUpdated:
-        states.length > 0 ? new Date(Math.max(...states.map((s) => s.updatedAt.getTime()))) : null,
-      lastSyncedKey:
-        states.length > 0 ? states.reduce((a, b) => (a.updatedAt > b.updatedAt ? a : b)).key : null,
-      error: states.find((s) => s.errorMessage)?.errorMessage ?? null,
-    }))
+    .map(([username, states]) => {
+      const ts = tokenStatusMap.get(username);
+      return {
+        username,
+        syncStatus: aggregateSyncStatus(states),
+        completedSyncKeys: states.filter((s) => s.status === "completed").length,
+        totalSyncKeys: states.length,
+        minSeasonProcessed:
+          states.length > 0 ? Math.min(...states.map((s) => s.lastSeasonProcessed)) : 0,
+        lastUpdated:
+          states.length > 0 ? new Date(Math.max(...states.map((s) => s.updatedAt.getTime()))) : null,
+        lastSyncedKey:
+          states.length > 0 ? states.reduce((a, b) => (a.updatedAt > b.updatedAt ? a : b)).key : null,
+        error: states.find((s) => s.errorMessage)?.errorMessage ?? null,
+        tokenStatus: ts?.tokenStatus ?? "unknown",
+        tokenVerifiedAt: ts?.tokenVerifiedAt ?? null,
+      };
+    })
     .sort((a, b) => {
       const diff = STATUS_ORDER[a.syncStatus] - STATUS_ORDER[b.syncStatus];
       return diff !== 0 ? diff : a.username.localeCompare(b.username);
@@ -153,6 +163,7 @@ export default async function WorkerStatusContent() {
               <TableHead>
                 <TableRow>
                   <TableCell>Account</TableCell>
+                  <TableCell>Token</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Sync Key</TableCell>
                   <TableCell>Last Synced Key</TableCell>
@@ -165,6 +176,25 @@ export default async function WorkerStatusContent() {
                   <TableRow key={acc.username} hover>
                     <TableCell sx={{ fontFamily: "monospace", fontSize: "0.85rem" }}>
                       {acc.username}
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={acc.tokenStatus}
+                        size="small"
+                        color={
+                          acc.tokenStatus === "valid"
+                            ? "success"
+                            : acc.tokenStatus === "invalid"
+                              ? "error"
+                              : "default"
+                        }
+                        variant="outlined"
+                        title={
+                          acc.tokenVerifiedAt
+                            ? `Verified ${formatRelativeTime(acc.tokenVerifiedAt)}`
+                            : undefined
+                        }
+                      />
                     </TableCell>
                     <TableCell>
                       <Stack spacing={0.5} alignItems="flex-start">

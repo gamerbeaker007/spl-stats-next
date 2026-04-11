@@ -17,6 +17,8 @@ const PAGE_DESCRIPTIONS: Record<string, string> = {
   "/battles": "Browse and analyze battle history, nemeses, and card performance.",
   "/portfolio": "Track the value of your Splinterlands portfolio over time.",
   "/hive-blog": "Generate and publish Splinterlands season reports to the Hive blockchain.",
+  "/spl-metrics":
+    "Game-wide metrics: battles, market volume, daily active users, sign-ups, and more.",
   "/users": "Manage the accounts you are monitoring and check sync status.",
   "/admin": "Admin tools: log viewer and worker run history.",
 };

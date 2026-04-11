@@ -1,9 +1,12 @@
-import { fetchSettings } from "@/lib/backend/api/spl/spl-api";
+import { fetchSettings, verifySplToken } from "@/lib/backend/api/spl/spl-api";
 import { resetStaleSyncStates } from "@/lib/backend/db/account-sync-states";
 import { pruneLogs } from "@/lib/backend/db/logs";
 import { pruneExpiredSessions } from "@/lib/backend/db/sessions";
 import { getAllSeasons } from "@/lib/backend/db/seasons";
-import { getDistinctAccountsWithCredentials } from "@/lib/backend/db/spl-accounts";
+import {
+  getDistinctAccountsWithCredentials,
+  updateSplAccountStatusByUsername,
+} from "@/lib/backend/db/spl-accounts";
 import { completeWorkerRun, createWorkerRun } from "@/lib/backend/db/worker-runs";
 import logger from "@/lib/backend/log/logger.server";
 import { syncSeasonBalances } from "./lib/balance-sync";
@@ -17,6 +20,7 @@ import { syncLeaderboard } from "./lib/leaderboard-sync";
 import { syncPortfolio } from "./lib/portfolio-sync";
 import { syncSeasonsEndDates } from "./lib/season-end-dates-sync";
 import { LOG_RETENTION_DAYS, WORKER_INTERVAL_MS } from "./lib/worker-config";
+import { decryptToken } from "@/lib/backend/auth/encryption";
 
 registerShutdownHandlers();
 
@@ -68,17 +72,46 @@ async function runCycle(): Promise<void> {
       logger.info(`Worker: syncing account ${account.username}`);
       let anySuccess = false;
 
+      // Verify the SPL token before running token-dependent syncs.
+      // A 401 from the API means the token has been invalidated; mark it so the DB
+      // reflects the real state and the account is excluded from future cycles.
+      // Transient errors (network, 5xx) skip token syncs without touching the DB status.
+      let tokenDecrypted: string | null = null;
+      let tokenOk = false;
       try {
-        await syncSeasonBalances(account, allSeasons);
-        anySuccess = true;
+        tokenDecrypted = decryptToken(account.encryptedToken, account.iv, account.authTag);
+        const verifyResult = await verifySplToken(account.username, tokenDecrypted);
+        if (verifyResult === "invalid") {
+          logger.warn(
+            `Worker: token invalid for ${account.username} — marking as invalid, skipping token syncs`
+          );
+          await updateSplAccountStatusByUsername(account.username, "invalid");
+        } else if (verifyResult === "error") {
+          logger.warn(
+            `Worker: token verification failed (transient) for ${account.username} — skipping token syncs`
+          );
+        } else {
+          tokenOk = true;
+        }
       } catch (error) {
+        await updateSplAccountStatusByUsername(account.username, "invalid");
         const msg = error instanceof Error ? error.message : String(error);
-        logger.error(`Worker: failed to sync balances ${account.username}: ${msg}`);
+        logger.error(`Worker: token check failed for ${account.username}: ${msg}`);
       }
 
-      if (shouldShutdown()) {
-        logger.info("Worker: shutdown requested, stopping gracefully");
-        break;
+      if (tokenOk && tokenDecrypted) {
+        try {
+          await syncSeasonBalances(account, allSeasons, tokenDecrypted);
+          anySuccess = true;
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          logger.error(`Worker: failed to sync balances ${account.username}: ${msg}`);
+        }
+
+        if (shouldShutdown()) {
+          logger.info("Worker: shutdown requested, stopping gracefully");
+          break;
+        }
       }
 
       try {
@@ -107,12 +140,14 @@ async function runCycle(): Promise<void> {
         break;
       }
 
-      try {
-        await syncBattleHistory(account);
-        anySuccess = true;
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        logger.error(`Worker: failed to sync battle history ${account.username}: ${msg}`);
+      if (tokenOk) {
+        try {
+          await syncBattleHistory(account);
+          anySuccess = true;
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          logger.error(`Worker: failed to sync battle history ${account.username}: ${msg}`);
+        }
       }
 
       if (anySuccess) {

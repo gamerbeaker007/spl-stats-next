@@ -187,17 +187,17 @@ async function syncUnclaimedBalances(
  */
 export async function syncSeasonBalances(
   account: AccountCredentials,
-  allSeasons: Season[]
+  allSeasons: Season[],
+  tokenDecrypted: string
 ): Promise<void> {
   const { username } = account;
-  const decrypted = decryptToken(account.encryptedToken, account.iv, account.authTag);
 
   for (const tokenType of BALANCE_HISTORY_TOKEN_TYPES) {
     if (shouldShutdown()) return;
-    await syncBalancesForToken(username, decrypted, tokenType, allSeasons);
+    await syncBalancesForToken(username, tokenDecrypted, tokenType, allSeasons);
   }
 
   if (!shouldShutdown()) {
-    await syncUnclaimedBalances(username, decrypted, allSeasons);
+    await syncUnclaimedBalances(username, tokenDecrypted, allSeasons);
   }
 }

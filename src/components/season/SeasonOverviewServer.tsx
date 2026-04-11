@@ -1,7 +1,12 @@
 import { Alert, Box } from "@mui/material";
+import Link from "next/link";
 
 import SeasonOverviewContent from "@/components/season/SeasonOverviewContent";
-import { getCurrentUser, getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
+import {
+  getCurrentUser,
+  getInvalidTokenAccounts,
+  getMonitoredAccounts,
+} from "@/lib/backend/actions/auth-actions";
 
 /**
  * Server component — fetches the current user and their monitored accounts,
@@ -20,6 +25,25 @@ export default async function SeasonOverviewServer() {
 
   const accounts = await getMonitoredAccounts();
   const usernames = accounts.map((a) => a.username);
+  const invalidAccounts = await getInvalidTokenAccounts();
 
-  return <SeasonOverviewContent accounts={usernames} />;
+  return (
+    <>
+      {invalidAccounts.length > 0 && (
+        <Box sx={{ px: 3, pt: 2 }}>
+          <Alert severity="warning">
+            {invalidAccounts.length === 1 ? `Account ` : `Accounts `}
+            <strong>{invalidAccounts.join(", ")}</strong>
+            {invalidAccounts.length === 1 ? ` has` : ` have`} an expired SPL token — season balance
+            data will not update until you{" "}
+            <Link suppressHydrationWarning href="/users">
+              re-authenticate on the Users page
+            </Link>
+            .
+          </Alert>
+        </Box>
+      )}
+      <SeasonOverviewContent accounts={usernames} />
+    </>
+  );
 }

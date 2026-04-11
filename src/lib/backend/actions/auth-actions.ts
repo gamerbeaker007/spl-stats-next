@@ -285,8 +285,12 @@ export async function verifyMonitoredAccountToken(monitoredAccountId: string) {
       return { success: true, status: "invalid" as const };
     }
 
-    const valid = await verifySplToken(record.username, token);
-    const status = valid ? ("valid" as const) : ("invalid" as const);
+    const verifyResult = await verifySplToken(record.username, token);
+    if (verifyResult === "error") {
+      // Transient failure — keep existing status, report unknown
+      return { success: true, status: "unknown" as const };
+    }
+    const status = verifyResult === "valid" ? ("valid" as const) : ("invalid" as const);
     await updateSplAccountStatus(record.splAccountId, status);
 
     return { success: true, status };
@@ -355,5 +359,22 @@ export async function checkRemoveScopeAction(accountId: string): Promise<{ isLas
     return { isLastUser: remaining <= 1 };
   } catch {
     return { isLastUser: false };
+  }
+}
+
+/**
+ * Returns the usernames of the caller's monitored accounts that have an invalid SPL token.
+ * Safe to call from a client component — returns [] when not logged in.
+ */
+export async function getInvalidTokenAccounts(): Promise<string[]> {
+  try {
+    const userId = await getValidatedUserId();
+    if (!userId) return [];
+
+    const accounts = await listMonitoredAccounts(userId);
+    return accounts.filter((a) => a.splAccount.tokenStatus === "invalid").map((a) => a.username);
+  } catch (error) {
+    logger.error(`getInvalidTokenAccounts error: ${error}`);
+    return [];
   }
 }

@@ -1,4 +1,5 @@
 import logger from "@/lib/backend/log/logger.server";
+import type { SplMetricEntry } from "@/types/spl/metrics";
 import { SplCAGoldReward } from "@/types/jackpot-prizes/cardCollection";
 import { CardHistoryResponse } from "@/types/jackpot-prizes/cardHistory";
 import { PackJackpotCard } from "@/types/jackpot-prizes/packJackpot";
@@ -76,15 +77,31 @@ splBaseClient.defaults.raxConfig = {
   ],
   onRetryAttempt: async (err) => {
     const cfg = rax.getConfig(err);
-    logger.warn(`Retry attempt #${cfg?.currentRetryAttempt}`);
+    const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+    const msg = axios.isAxiosError(err)
+      ? ((err.response?.data as Record<string, unknown>)?.error ??
+        err.response?.statusText ??
+        err.message)
+      : String(err);
+    logger.warn(
+      `Retry attempt #${cfg?.currentRetryAttempt}${status ? ` (HTTP ${status})` : ""}: ${msg}`
+    );
   },
 };
 
 /**
- * Verifies a SPL token by attempting to fetch balance history.
- * Returns true if the token is valid, false otherwise.
+ * Result of a SPL token verification attempt.
+ * - "valid"   — token is accepted by the SPL API
+ * - "invalid" — SPL API rejected the token (HTTP 401 or explicit error in body)
+ * - "error"   — transient failure (network error, 5xx, timeout) — do not mark as invalid
  */
-export async function verifySplToken(username: string, token: string): Promise<boolean> {
+export type TokenVerifyResult = "valid" | "invalid" | "error";
+
+/**
+ * Verifies a SPL token by attempting to fetch balance history.
+ * Distinguishes auth failures (401 / API error body) from transient network errors.
+ */
+export async function verifySplToken(username: string, token: string): Promise<TokenVerifyResult> {
   try {
     const url = "/players/balance_history";
     const params = { limit: 1, offset: 0, username, token_type: "SPS", token };
@@ -93,11 +110,14 @@ export async function verifySplToken(username: string, token: string): Promise<b
       params,
     });
     const data = response.data;
-    if (Array.isArray(data)) return true;
-    if (data && typeof data === "object" && "error" in data) return false;
-    return false;
-  } catch {
-    return false;
+    if (Array.isArray(data)) return "valid";
+    if (data && typeof data === "object" && "error" in data) return "invalid";
+    return "invalid";
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.status === 401) {
+      return "invalid";
+    }
+    return "error";
   }
 }
 
@@ -170,6 +190,29 @@ export async function fetchSeason(seasonId: number): Promise<SplSeasonInfo> {
   } catch (error) {
     logger.error(
       `Failed to fetch season ${seasonId}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Metrics (public — no token required)
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch all available game-wide metrics from /transactions/metrics.
+ * Returns a flat array of { metric, values[] } entries, cached for 1 day.
+ */
+export async function fetchSplMetrics(): Promise<SplMetricEntry[]> {
+  try {
+    const res = await splBaseClient.get("/transactions/metrics");
+    if (!res.data || !Array.isArray(res.data)) {
+      throw new Error("Invalid response from Splinterlands API: expected array");
+    }
+    return res.data as SplMetricEntry[];
+  } catch (error) {
+    logger.error(
+      `Failed to fetch SPL metrics: ${error instanceof Error ? error.message : "Unknown error"}`
     );
     throw error;
   }

@@ -8,7 +8,6 @@ import { REQUEST_DELAY_MS } from "./worker-config";
 import { AccountSyncState, Season } from "@prisma/client";
 import { getPlayerFirstSeasonId } from "./sync-utils";
 
-
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function syncKeyForFormat(format: SplFormats): string {
@@ -80,30 +79,31 @@ export async function syncLeaderboard(
 
 /**
  * Build the ordered list of seasons to process for one sync state.
- * Includes the current season unless it was successfully completed within the throttle window.
+ * Only processes historical seasons (strictly before currentSeasonId).
+ * Skips seasons already recorded in lastSeasonProcessed.
  */
 async function buildSeasonsToProcess(
   username: string,
   allSeasons: Season[],
   currentSeasonId: number,
-  syncState: AccountSyncState,
+  syncState: AccountSyncState
 ): Promise<Season[] | undefined> {
+  const lastProcessed = syncState.lastSeasonProcessed;
 
-  // Step 1 determine if a user has data synced already start form there when not determine by first join.
-  const startFromSeason =
-    syncState.lastSeasonProcessed === 0
-      ? await getPlayerFirstSeasonId(username, allSeasons)
-      : syncState.lastSeasonProcessed;
+  if (lastProcessed === 0) {
+    // First run: determine join season and process from there
+    const firstSeasonId = await getPlayerFirstSeasonId(username, allSeasons);
+    if (!firstSeasonId) return undefined;
 
-  // Not able to determine the first season, return, break flow.
-  if (!startFromSeason) return;
+    return allSeasons
+      .filter((s) => s.id >= firstSeasonId && s.id < currentSeasonId)
+      .sort((a, b) => a.id - b.id);
+  }
 
-  //Step 2 Check if previous season is already processed
-  if (startFromSeason <= syncState.lastSeasonProcessed - 1) return;
+  // Subsequent runs: only seasons after the last processed one (strictly greater)
+  const pending = allSeasons
+    .filter((s) => s.id > lastProcessed && s.id < currentSeasonId)
+    .sort((a, b) => a.id - b.id);
 
-  // Step 3: filter completed historical seasons (strictly before the current season).
-  // The current season is excluded here so step 3 can apply throttling to it independently.
-  return allSeasons.filter(
-    (s) => s.id >= startFromSeason && s.id < currentSeasonId && s.id
-  );
+  return pending.length > 0 ? pending : undefined;
 }
