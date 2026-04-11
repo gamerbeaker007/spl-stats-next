@@ -10,6 +10,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MdMenu } from "react-icons/md";
 import LoginComponent from "./LoginComponent";
+import InvalidTokenAlert from "./InvalidTokenAlert";
 import SplMaintenanceIndicator from "./SplMaintenanceIndicator";
 import ThemeToggle from "./ThemeToggle";
 
@@ -84,9 +85,10 @@ export default function TopBar({ onHamburgerClick }: Readonly<TopBarProps>) {
           ))}
         </Box>
 
-        {/* Right side: maintenance indicator + theme + user */}
+        {/* Right side: maintenance indicator + invalid token alert + theme + user */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
           <SplMaintenanceIndicator />
+          <InvalidTokenAlert />
           <ThemeToggle />
           <LoginComponent />
         </Box>

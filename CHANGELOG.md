@@ -13,6 +13,10 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ### What's New
 
+- Improve Retry logging
+- Improve worker sync (validate spl token before starting)
+- **SPL Metrics page** — game-wide metrics dashboard with four chart tabs: Battle Metrics, Card Market, User Metrics, and Transactions. Includes a period selector (7 days → All time) and a join-date overlay: enable "Show join dates" to see your monitored accounts' join dates as vertical lines on every chart. Additional accounts can be added as chips and removed at any time.
+
 #### Fixed
 
 - GitHub release workflow: changelog section was rendered as literal

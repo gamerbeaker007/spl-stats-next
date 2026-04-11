@@ -21,6 +21,16 @@ export async function updateSplAccountStatus(id: string, status: "valid" | "inva
   });
 }
 
+export async function updateSplAccountStatusByUsername(
+  username: string,
+  status: "valid" | "invalid" | "unknown"
+) {
+  return prisma.splAccount.update({
+    where: { username },
+    data: { tokenStatus: status, tokenVerifiedAt: new Date() },
+  });
+}
+
 export async function findSplAccountByUsername(username: string) {
   return prisma.splAccount.findUnique({ where: { username } });
 }
@@ -54,10 +64,27 @@ export async function getDistinctAccountsWithCredentials() {
       monitoredBy: { some: {} },
     },
     select: {
+      id: true,
       username: true,
       encryptedToken: true,
       iv: true,
       authTag: true,
     },
+  });
+}
+
+/**
+ * Returns token status for all SPL accounts monitored by at least one user.
+ * Used by the admin page for a quick overview.
+ */
+export async function getAllMonitoredAccountTokenStatuses() {
+  return prisma.splAccount.findMany({
+    where: { monitoredBy: { some: {} } },
+    select: {
+      username: true,
+      tokenStatus: true,
+      tokenVerifiedAt: true,
+    },
+    orderBy: { username: "asc" },
   });
 }
