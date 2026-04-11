@@ -2,15 +2,18 @@ import { decryptToken } from "@/lib/backend/auth/encryption";
 import { getOrCreateSyncState, updateSyncState } from "@/lib/backend/db/account-sync-states";
 import { incrementSeasonBalanceBatch } from "@/lib/backend/db/season-balances";
 import logger from "@/lib/backend/log/logger.server";
+import { fetchPlayerHistory } from "@/lib/backend/api/spl/spl-api";
 import { fetchBalanceHistoryDelta, IncrementalResult } from "./service/balance-history";
 import {
   fetchIncrementalUnclaimedHistory,
   UNCLAIMED_MIN_SEASON,
 } from "./service/unclaimed-balance-history";
 import { BALANCE_HISTORY_TOKEN_TYPES } from "@/types/spl/balance";
+import { ClaimSeasonLeagueRewardData } from "@/types/parsedHistory";
 import { Season } from "@prisma/client";
 import { shouldShutdown } from "./graceful-shutdown";
 import { getPlayerFirstSeasonId } from "./sync-utils";
+import { RESCAN_MIN_INTERVAL_MS } from "./worker-config";
 
 export interface AccountCredentials {
   username: string;
@@ -179,8 +182,43 @@ async function syncUnclaimedBalances(
 }
 
 /**
+ * Returns true if the player claimed their league_season reward for the given season
+ * after lastSyncDate. Only inspects the most recent page of history — if the claim
+ * is older than the endpoint window (~a few seasons), returns false and the next
+ * daily scan will pick up any resulting spillover tokens.
+ */
+async function wasSeasonRewardClaimed(
+  username: string,
+  token: string,
+  seasonId: number,
+  lastSyncDate: Date
+): Promise<boolean> {
+  try {
+    const history = await fetchPlayerHistory(username, token, "claim_reward");
+    return history.some(
+      (entry) =>
+        (entry.data as ClaimSeasonLeagueRewardData).type === "league_season" &&
+        (entry.data as ClaimSeasonLeagueRewardData).season === seasonId &&
+        new Date(entry.created_date) > lastSyncDate
+    );
+  } catch {
+    // On error don't trigger an extra sync — the daily scan covers it.
+    return false;
+  }
+}
+
+/**
  * Sync all balance data for a single account.
  *
+ * Skip logic — runs at most once per 24 h unless a trigger fires:
+ *  - First sync:       always runs.
+ *  - Season rollover:  latest completed season > BALANCE_META.lastSeasonProcessed.
+ *  - Daily refresh:    last sync was > RESCAN_MIN_INTERVAL_MS (24 h) ago.
+ *  - Claim trigger:    a league_season claim appeared after the last sync,
+ *                      catching GLINT/token spillover from reward claims.
+ *                      Falls back to the daily scan for claims outside the history window.
+ *
+ * Progress is tracked via a "BALANCE_META" AccountSyncState key per account.
  * Balance history is processed season-by-season with a shutdown checkpoint after each
  * season, allowing long initial syncs to be safely interrupted and resumed.
  * Unclaimed history is a single pass (API limitation).
@@ -191,6 +229,48 @@ export async function syncSeasonBalances(
   tokenDecrypted: string
 ): Promise<void> {
   const { username } = account;
+  const now = new Date();
+
+  const latestCompletedSeason = [...allSeasons]
+    .filter((s) => s.endsAt <= now)
+    .sort((a, b) => b.id - a.id)[0];
+
+  // BALANCE_META tracks the last full sync timestamp and last completed season covered.
+  const metaState = await getOrCreateSyncState(username, "BALANCE_META");
+
+  const isFirstSync = !metaState.lastSyncedCreatedDate;
+  const newSeasonDetected =
+    !!latestCompletedSeason && latestCompletedSeason.id > metaState.lastSeasonProcessed;
+  const dailyCheckDue =
+    !!metaState.lastSyncedCreatedDate &&
+    now.getTime() - metaState.lastSyncedCreatedDate.getTime() > RESCAN_MIN_INTERVAL_MS;
+
+  // Claim trigger: only API-check when no cheaper trigger already fired.
+  let claimDetected = false;
+  if (!isFirstSync && !newSeasonDetected && !dailyCheckDue && latestCompletedSeason) {
+    claimDetected = await wasSeasonRewardClaimed(
+      username,
+      tokenDecrypted,
+      latestCompletedSeason.id,
+      metaState.lastSyncedCreatedDate!
+    );
+  }
+
+  if (!isFirstSync && !newSeasonDetected && !dailyCheckDue && !claimDetected) {
+    logger.info(
+      `syncBalances ${username}: skipping (last run ${metaState.lastSyncedCreatedDate?.toISOString()})`
+    );
+    return;
+  }
+
+  const trigger = isFirstSync
+    ? "first-sync"
+    : newSeasonDetected
+      ? `new-season-${latestCompletedSeason!.id}`
+      : dailyCheckDue
+        ? "daily-refresh"
+        : "claim-detected";
+  logger.info(`syncBalances ${username}: running (trigger=${trigger})`);
 
   for (const tokenType of BALANCE_HISTORY_TOKEN_TYPES) {
     if (shouldShutdown()) return;
@@ -199,5 +279,14 @@ export async function syncSeasonBalances(
 
   if (!shouldShutdown()) {
     await syncUnclaimedBalances(username, tokenDecrypted, allSeasons);
+  }
+
+  // Record the completed sync — only when not interrupted by shutdown.
+  if (!shouldShutdown()) {
+    await updateSyncState(metaState.id, {
+      lastSyncedCreatedDate: now,
+      lastSeasonProcessed: latestCompletedSeason?.id ?? metaState.lastSeasonProcessed,
+      status: "completed",
+    });
   }
 }
