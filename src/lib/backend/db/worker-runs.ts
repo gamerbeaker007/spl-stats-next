@@ -20,6 +20,10 @@ export async function completeWorkerRun(
   });
 }
 
+export async function updateWorkerRunProgress(id: string, accountsProcessed: number) {
+  return prisma.workerRun.update({ where: { id }, data: { accountsProcessed } });
+}
+
 export async function getLatestWorkerRun() {
   return prisma.workerRun.findFirst({ orderBy: { startedAt: "desc" } });
 }

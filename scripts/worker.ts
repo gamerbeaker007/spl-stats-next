@@ -1,5 +1,8 @@
 import { fetchSettings, verifySplToken } from "@/lib/backend/api/spl/spl-api";
-import { resetStaleSyncStates } from "@/lib/backend/db/account-sync-states";
+import {
+  markAllSyncStatesFailedByUsername,
+  resetStaleSyncStates,
+} from "@/lib/backend/db/account-sync-states";
 import { pruneLogs } from "@/lib/backend/db/logs";
 import { pruneExpiredSessions } from "@/lib/backend/db/sessions";
 import { getAllSeasons } from "@/lib/backend/db/seasons";
@@ -7,7 +10,11 @@ import {
   getDistinctAccountsWithCredentials,
   updateSplAccountStatusByUsername,
 } from "@/lib/backend/db/spl-accounts";
-import { completeWorkerRun, createWorkerRun } from "@/lib/backend/db/worker-runs";
+import {
+  completeWorkerRun,
+  createWorkerRun,
+  updateWorkerRunProgress,
+} from "@/lib/backend/db/worker-runs";
 import logger from "@/lib/backend/log/logger.server";
 import { syncSeasonBalances } from "./lib/balance-sync";
 import { syncBattleHistory } from "./lib/battle-history-sync";
@@ -76,19 +83,20 @@ async function runCycle(): Promise<void> {
       // A 401 from the API means the token has been invalidated; mark it so the DB
       // reflects the real state and the account is excluded from future cycles.
       // Transient errors (network, 5xx) skip token syncs without touching the DB status.
-      let tokenDecrypted: string | null = null;
+      let tokenDecrypted = "";
       let tokenOk = false;
       try {
         tokenDecrypted = decryptToken(account.encryptedToken, account.iv, account.authTag);
         const verifyResult = await verifySplToken(account.username, tokenDecrypted);
         if (verifyResult === "invalid") {
           logger.warn(
-            `Worker: token invalid for ${account.username} — marking as invalid, skipping token syncs`
+            `Worker: token invalid for ${account.username} — marking invalid, skipping token-dependent syncs`
           );
           await updateSplAccountStatusByUsername(account.username, "invalid");
+          await markAllSyncStatesFailedByUsername(account.username, "Token invalidated");
         } else if (verifyResult === "error") {
           logger.warn(
-            `Worker: token verification failed (transient) for ${account.username} — skipping token syncs`
+            `Worker: token verification failed (transient) for ${account.username} — skipping token-dependent syncs this cycle`
           );
         } else {
           tokenOk = true;
@@ -96,10 +104,11 @@ async function runCycle(): Promise<void> {
       } catch (error) {
         await updateSplAccountStatusByUsername(account.username, "invalid");
         const msg = error instanceof Error ? error.message : String(error);
-        logger.error(`Worker: token check failed for ${account.username}: ${msg}`);
+        logger.error(`Worker: token decrypt/check failed for ${account.username}: ${msg}`);
+        await markAllSyncStatesFailedByUsername(account.username, `Token check error: ${msg}`);
       }
 
-      if (tokenOk && tokenDecrypted) {
+      if (tokenOk) {
         try {
           await syncSeasonBalances(account, allSeasons, tokenDecrypted);
           anySuccess = true;
@@ -142,7 +151,7 @@ async function runCycle(): Promise<void> {
 
       if (tokenOk) {
         try {
-          await syncBattleHistory(account);
+          await syncBattleHistory(account, tokenDecrypted);
           anySuccess = true;
         } catch (error) {
           const msg = error instanceof Error ? error.message : String(error);
@@ -155,6 +164,7 @@ async function runCycle(): Promise<void> {
         logger.info(
           `Worker: finished account ${account.username} (${accountsProcessed}/${accounts.length})`
         );
+        await updateWorkerRunProgress(run.id, accountsProcessed);
       } else {
         logger.warn(`Worker: all syncs failed for ${account.username}, not counting as processed`);
       }

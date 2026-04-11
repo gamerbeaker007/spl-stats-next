@@ -180,7 +180,10 @@ function processBattle(account: string, battle: SplBattle, cardMap: CardMap): Pr
  * Only processes battles newer than the latest stored battle for that account.
  * The env var BATTLE_SYNC_ACCOUNTS (comma-separated) restricts which accounts are synced.
  */
-export async function syncBattleHistory(account: AccountCredentials): Promise<void> {
+export async function syncBattleHistory(
+  account: AccountCredentials,
+  tokenDecrypted: string
+): Promise<void> {
   const filter = getBattleSyncAccountFilter();
   if (filter && !filter.has(account.username.toLowerCase())) {
     logger.info(`battleHistorySync: skipping ${account.username} (not in BATTLE_SYNC_ACCOUNTS)`);
@@ -189,10 +192,9 @@ export async function syncBattleHistory(account: AccountCredentials): Promise<vo
 
   logger.info(`battleHistorySync: starting for ${account.username}`);
 
-  const token = decryptToken(account.encryptedToken, account.iv, account.authTag);
   const cardMap = await getCardMap();
 
-  const battles = await fetchBattleHistory(account.username, token, 50);
+  const battles = await fetchBattleHistory(account.username, tokenDecrypted, 50);
 
   if (battles.length === 0) {
     logger.info(`battleHistorySync: no battles returned for ${account.username}`);

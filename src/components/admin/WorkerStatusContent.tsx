@@ -105,9 +105,13 @@ export default async function WorkerStatusContent() {
         minSeasonProcessed:
           states.length > 0 ? Math.min(...states.map((s) => s.lastSeasonProcessed)) : 0,
         lastUpdated:
-          states.length > 0 ? new Date(Math.max(...states.map((s) => s.updatedAt.getTime()))) : null,
+          states.length > 0
+            ? new Date(Math.max(...states.map((s) => s.updatedAt.getTime())))
+            : null,
         lastSyncedKey:
-          states.length > 0 ? states.reduce((a, b) => (a.updatedAt > b.updatedAt ? a : b)).key : null,
+          states.length > 0
+            ? states.reduce((a, b) => (a.updatedAt > b.updatedAt ? a : b)).key
+            : null,
         error: states.find((s) => s.errorMessage)?.errorMessage ?? null,
         tokenStatus: ts?.tokenStatus ?? "unknown",
         tokenVerifiedAt: ts?.tokenVerifiedAt ?? null,

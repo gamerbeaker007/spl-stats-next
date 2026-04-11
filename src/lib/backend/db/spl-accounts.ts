@@ -70,6 +70,7 @@ export async function getDistinctAccountsWithCredentials() {
       iv: true,
       authTag: true,
     },
+    orderBy: { createdAt: "asc" },
   });
 }
 

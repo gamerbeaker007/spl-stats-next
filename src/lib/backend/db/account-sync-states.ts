@@ -44,6 +44,14 @@ export async function getSyncStatesForUsernames(usernames: string[]) {
   });
 }
 
+/** Mark all sync states for an account as failed (e.g. token invalidated). */
+export async function markAllSyncStatesFailedByUsername(username: string, errorMessage: string) {
+  return prisma.accountSyncState.updateMany({
+    where: { username },
+    data: { status: "failed", errorMessage },
+  });
+}
+
 export async function deleteSyncStatesByUsername(username: string) {
   return prisma.accountSyncState.deleteMany({ where: { username } });
 }
