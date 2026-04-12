@@ -9,6 +9,20 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v0.2.1] - 2026-04-12
+
+### What's New
+
+- **Admin log search** — added a debounced search bar to the Application Logs section.
+
+### Fixed
+
+- **Worker sync state stuck on "pending"** — after `resetStaleSyncStates()` resets an interrupted sync back to "pending", subsequent runs that had nothing new to do would leave it there indefinitely. Two cases fixed:
+  - **Leaderboard**: when `buildSeasonsToProcess` returns nothing (all seasons already processed), the sync state is now explicitly marked "completed" instead of being skipped.
+  - **Portfolio**: when the daily check finds the portfolio was already synced today, the sync state is now explicitly marked "completed" instead of just returning early.
+
+---
+
 ## [v0.2.0] - 2026-04-10
 
 ### What's New
