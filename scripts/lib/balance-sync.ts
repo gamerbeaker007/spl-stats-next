@@ -277,16 +277,23 @@ export async function syncSeasonBalances(
     await syncBalancesForToken(username, tokenDecrypted, tokenType, allSeasons);
   }
 
-  if (!shouldShutdown()) {
-    await syncUnclaimedBalances(username, tokenDecrypted, allSeasons);
-  }
-
-  // Record the completed sync — only when not interrupted by shutdown.
+  // Checkpoint lastSeasonProcessed as soon as the token syncs are done.
+  // This prevents "lastSeasonProcessed = 0" persisting across restarts when
+  // the worker is interrupted before or during syncUnclaimedBalances, which
+  // would cause newSeasonDetected to be permanently true on every cycle.
   if (!shouldShutdown()) {
     await updateSyncState(metaState.id, {
       lastSyncedCreatedDate: now,
       lastSeasonProcessed: latestCompletedSeason?.id ?? metaState.lastSeasonProcessed,
-      status: "completed",
     });
+  }
+
+  if (!shouldShutdown()) {
+    await syncUnclaimedBalances(username, tokenDecrypted, allSeasons);
+  }
+
+  // Mark the full sync complete — only when not interrupted by shutdown.
+  if (!shouldShutdown()) {
+    await updateSyncState(metaState.id, { status: "completed" });
   }
 }
