@@ -2,7 +2,7 @@
 
 import { useLogs } from "@/hooks/useLogs";
 import type { LogLevel } from "@/lib/backend/db/logs";
-import { Refresh as RefreshIcon } from "@mui/icons-material";
+import { Clear as ClearIcon, Refresh as RefreshIcon, Search as SearchIcon } from "@mui/icons-material";
 import {
   Alert,
   Box,
@@ -10,6 +10,7 @@ import {
   CircularProgress,
   Collapse,
   IconButton,
+  InputAdornment,
   Pagination,
   Paper,
   Stack,
@@ -19,6 +20,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -70,7 +72,7 @@ function MetaCell({ meta }: { meta: unknown }) {
 }
 
 export default function LogsContent() {
-  const { logs, total, pages, loading, error, page, setPage, level, changeLevel, refresh } =
+  const { logs, total, pages, loading, error, page, setPage, level, changeLevel, search, changeSearch, refresh } =
     useLogs();
 
   return (
@@ -86,6 +88,31 @@ export default function LogsContent() {
             </span>
           </Tooltip>
         </Box>
+
+        {/* Search bar */}
+        <TextField
+          size="small"
+          placeholder="Search messages…"
+          value={search}
+          onChange={(e) => changeSearch(e.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+              endAdornment: search ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => changeSearch("")}>
+                    <ClearIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+            },
+          }}
+          sx={{ maxWidth: 400 }}
+        />
 
         {/* Level filter */}
         <Stack direction="row" spacing={1} alignItems="center">

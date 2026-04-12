@@ -15,7 +15,8 @@ export type LogRow = {
 export async function getLogsAction(
   page = 1,
   level?: LogLevel,
-  limit = 50
+  limit = 50,
+  search?: string
 ): Promise<
   | { success: true; logs: LogRow[]; total: number; pages: number }
   | { success: false; error: string }
@@ -26,7 +27,8 @@ export async function getLogsAction(
   }
 
   const safeLimit = Math.min(Math.max(1, limit), 1000);
-  const { logs, total } = await listLogs({ page, limit: safeLimit, level });
+  const safeSearch = search?.trim().slice(0, 200) || undefined;
+  const { logs, total } = await listLogs({ page, limit: safeLimit, level, search: safeSearch });
 
   return {
     success: true,

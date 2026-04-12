@@ -36,7 +36,14 @@ export async function syncLeaderboard(
       syncState
     );
 
-    if (!seasonToProcess || seasonToProcess.length === 0) continue;
+    if (!seasonToProcess || seasonToProcess.length === 0) {
+      // Nothing new to process — ensure state is marked completed so a pending
+      // state left by resetStaleSyncStates() doesn't linger.
+      if (syncState.status !== "completed") {
+        await updateSyncState(syncState.id, { status: "completed" });
+      }
+      continue;
+    }
 
     await updateSyncState(syncState.id, { status: "processing" });
 

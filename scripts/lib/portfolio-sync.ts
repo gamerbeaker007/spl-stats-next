@@ -27,9 +27,13 @@ function isTodayUtc(date: Date | null): boolean {
 export async function syncPortfolio(username: string): Promise<void> {
   const syncState = await getOrCreateSyncState(username, PORTFOLIO_SYNC_KEY);
 
-  // Skip if already completed today
+  // Skip if already completed today — but ensure state is "completed" so a pending
+  // state left by resetStaleSyncStates() doesn't linger.
   if (isTodayUtc(syncState.lastSyncedCreatedDate)) {
     logger.info(`portfolioSync ${username}: already synced today, skipping`);
+    if (syncState.status !== "completed") {
+      await updateSyncState(syncState.id, { status: "completed" });
+    }
     return;
   }
 

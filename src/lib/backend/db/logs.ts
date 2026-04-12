@@ -17,9 +17,12 @@ export async function createLog(level: LogLevel, message: string, meta?: Record<
   });
 }
 
-export async function listLogs(opts: { page: number; limit: number; level?: LogLevel }) {
-  const { page, limit, level } = opts;
-  const where = level ? { level } : {};
+export async function listLogs(opts: { page: number; limit: number; level?: LogLevel; search?: string }) {
+  const { page, limit, level, search } = opts;
+  const where: Prisma.LogWhereInput = {
+    ...(level ? { level } : {}),
+    ...(search ? { message: { contains: search, mode: "insensitive" } } : {}),
+  };
   const [logs, total] = await Promise.all([
     prisma.log.findMany({
       where,
