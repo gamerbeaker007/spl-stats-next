@@ -62,7 +62,7 @@ const splBaseClient = axios.create({
   timeout: 60000,
   headers: {
     "Accept-Encoding": "gzip, deflate, br, zstd",
-    "User-Agent": "SPL-Data/1.0",
+    "User-Agent": "spl-stats.com/1.0 (Splinterlands analytics tool; +https://spl-stats.com)",
   },
 });
 

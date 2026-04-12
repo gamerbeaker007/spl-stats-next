@@ -2,7 +2,11 @@
 
 import { useLogs } from "@/hooks/useLogs";
 import type { LogLevel } from "@/lib/backend/db/logs";
-import { Clear as ClearIcon, Refresh as RefreshIcon, Search as SearchIcon } from "@mui/icons-material";
+import {
+  Clear as ClearIcon,
+  Refresh as RefreshIcon,
+  Search as SearchIcon,
+} from "@mui/icons-material";
 import {
   Alert,
   Box,
@@ -72,8 +76,20 @@ function MetaCell({ meta }: { meta: unknown }) {
 }
 
 export default function LogsContent() {
-  const { logs, total, pages, loading, error, page, setPage, level, changeLevel, search, changeSearch, refresh } =
-    useLogs();
+  const {
+    logs,
+    total,
+    pages,
+    loading,
+    error,
+    page,
+    setPage,
+    level,
+    changeLevel,
+    search,
+    changeSearch,
+    refresh,
+  } = useLogs();
 
   return (
     <Box sx={{ p: 3 }}>

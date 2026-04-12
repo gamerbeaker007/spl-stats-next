@@ -61,5 +61,18 @@ export function useLogs() {
     // page reset happens inside the debounce effect
   };
 
-  return { logs, total, pages, loading, error, page, setPage, level, changeLevel, search, changeSearch, refresh };
+  return {
+    logs,
+    total,
+    pages,
+    loading,
+    error,
+    page,
+    setPage,
+    level,
+    changeLevel,
+    search,
+    changeSearch,
+    refresh,
+  };
 }
