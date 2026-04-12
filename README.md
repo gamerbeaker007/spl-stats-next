@@ -127,6 +127,9 @@ COOKIE_SECRET=...    # mandatory — no default, container refuses to start with
 ADMIN_USERNAMES=yourusername
 BATTLE_SYNC_ACCOUNTS=   # leave empty for all accounts, or set comma-separated list
 LOG_DB=true
+# User-Agent sent to the Splinterlands API (optional — set this when self-hosting
+# so your traffic is not identified as coming from spl-stats.com)
+SPL_USER_AGENT="my-instance/1.0 (+https://my-site.example.com)"
 ```
 
 ## Setup

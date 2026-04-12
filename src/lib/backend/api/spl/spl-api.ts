@@ -57,12 +57,16 @@ import * as rax from "retry-axios";
 
 const SPL_BASE_URL = "https://api2.splinterlands.com/";
 
+// Allow self-hosters to set their own User-Agent via SPL_USER_AGENT.
+// The fallback is intentionally generic so forgotten configs don't masquerade as spl-stats.com.
+const SPL_USER_AGENT = process.env.SPL_USER_AGENT ?? "spl-stats-instance/1.0";
+
 const splBaseClient = axios.create({
   baseURL: SPL_BASE_URL,
   timeout: 60000,
   headers: {
     "Accept-Encoding": "gzip, deflate, br, zstd",
-    "User-Agent": "spl-stats.com/1.0 (Splinterlands analytics tool; +https://spl-stats.com)",
+    "User-Agent": SPL_USER_AGENT,
   },
 });
 
@@ -1098,13 +1102,13 @@ export interface SplPrices {
 const splPricesClient = axios.create({
   baseURL: "https://prices.splinterlands.com",
   timeout: 15000,
-  headers: { "User-Agent": "SPL-Data/1.0" },
+  headers: { "User-Agent": SPL_USER_AGENT },
 });
 
 const splV1Client = axios.create({
   baseURL: "https://api.splinterlands.com/",
   timeout: 30000,
-  headers: { "Accept-Encoding": "gzip, deflate, br, zstd", "User-Agent": "SPL-Data/1.0" },
+  headers: { "Accept-Encoding": "gzip, deflate, br, zstd", "User-Agent": SPL_USER_AGENT },
 });
 
 // ---------------------------------------------------------------------------
