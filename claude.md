@@ -63,6 +63,18 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
 - `SeasonBalance`: pre-aggregated per `(username, seasonId, token, type)`. Positive = earned, negative = spent.
 - Spillover transactions attributed to previous season.
 - Unclaimed SPS/VOUCHER stored as `UNCLAIMED_SPS`, `UNCLAIMED_VOUCHER`.
+
+#### `AccountSyncState` field semantics
+
+| `key` | `lastSyncedCreatedDate` | `lastSeasonProcessed` |
+| --- | --- | --- |
+| `BALANCE_META` | Timestamp of last full balance run — used as the skip-gate (daily / claim-trigger logic) | Last completed season ID — used to detect a new season rollover trigger |
+| `SPS`, `DEC`, `GLINT`, … (per token) | Date cursor — "fetch transactions from this point forward" | Not used (always `0`) |
+| `UNCLAIMED` | Cursor for unclaimed balance history | Not used (always `0`) |
+| `LEADERBOARD_WILD/MODERN/FOUNDATION` | Not used | Last season whose leaderboard was fetched — skip seasons ≤ this |
+| `PORTFOLIO` | Date of the last successful portfolio snapshot — used to enforce once-per-UTC-day | Not used (always `0`) |
+
+> `lastSeasonProcessed = 0` on per-token rows is expected and harmless — those rows only use the date cursor. Only `BALANCE_META` and `LEADERBOARD_*` rows ever write a non-zero value here.
 - `BATTLE_SYNC_ACCOUNTS` (env, optional, comma-separated): when **not set** → all monitored accounts get battle history synced and the UI shows all accounts in the filter. When **set** → only the listed accounts are synced by the worker AND the battles page filter is restricted to those accounts. If none of the user's monitored accounts appear in the list, a friendly "not on the list" alert is shown instead of the battles UI.
 
 ### Layout / Navigation
