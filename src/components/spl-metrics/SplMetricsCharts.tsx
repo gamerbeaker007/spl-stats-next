@@ -12,8 +12,6 @@
  * Vertical join-date lines are overlaid when entries are provided.
  */
 
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
 import type { Data, Layout } from "plotly.js";
 import { useMemo } from "react";
 
@@ -63,10 +61,6 @@ const JOIN_DATE_COLORS = [
 // Helpers
 // ---------------------------------------------------------------------------
 
-function byMetric(rows: SplMetricRow[], metric: string) {
-  return rows.filter((r) => r.metric === metric);
-}
-
 function metricLabel(m: string) {
   return METRIC_LABELS[m] ?? m.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -94,6 +88,8 @@ function joinDateTraces(entries: JoinDateEntry[], yMax: number, yaxisId: string 
 // Battle chart
 // ---------------------------------------------------------------------------
 
+const BATTLE_METRIC_KEYS = ["battles", "battles-modern", "battles-wild", "battles-survival"];
+
 function BattleChart({
   rows,
   joinEntries,
@@ -103,24 +99,22 @@ function BattleChart({
   joinEntries: JoinDateEntry[];
   theme: AppTheme;
 }) {
-  const battleMetrics = ["battles", "battles-modern", "battles-wild", "battles-survival"];
-  const filtered = rows.filter((r) => battleMetrics.includes(r.metric));
-
   const data: Data[] = useMemo(() => {
+    const filtered = rows.filter((r) => BATTLE_METRIC_KEYS.includes(r.metric));
     const yMax = Math.max(...filtered.map((r) => r.value), 0) * 1.1;
-    const series: Data[] = battleMetrics
-      .filter((m) => filtered.some((r) => r.metric === m))
-      .map((m) => ({
-        type: "scatter" as const,
-        x: filtered.filter((r) => r.metric === m).map((r) => r.date),
-        y: filtered.filter((r) => r.metric === m).map((r) => r.value),
-        mode: "lines+markers" as const,
-        marker: { size: 4, color: BATTLE_COLORS[m] },
-        line: { color: BATTLE_COLORS[m] },
-        name: metricLabel(m),
-      }));
+    const series: Data[] = BATTLE_METRIC_KEYS.filter((m) =>
+      filtered.some((r) => r.metric === m)
+    ).map((m) => ({
+      type: "scatter" as const,
+      x: filtered.filter((r) => r.metric === m).map((r) => r.date),
+      y: filtered.filter((r) => r.metric === m).map((r) => r.value),
+      mode: "lines+markers" as const,
+      marker: { size: 4, color: BATTLE_COLORS[m] },
+      line: { color: BATTLE_COLORS[m] },
+      name: metricLabel(m),
+    }));
     return [...series, ...joinDateTraces(joinEntries, yMax)];
-  }, [filtered, joinEntries]);
+  }, [rows, joinEntries]);
 
   const layout: Partial<Layout> = {
     xaxis: { title: { text: "Date" }, tickformat: "%Y-%m-%d" },
@@ -134,6 +128,13 @@ function BattleChart({
 // Market chart
 // ---------------------------------------------------------------------------
 
+const MARKET_METRIC_KEYS = ["mkt_cap_usd", "market_vol_usd", "market_vol"];
+const MARKET_COLORS: Record<string, string> = {
+  mkt_cap_usd: "#e65100",
+  market_vol_usd: "#6a1b9a",
+  market_vol: "#1565c0",
+};
+
 function MarketChart({
   rows,
   joinEntries,
@@ -143,25 +144,17 @@ function MarketChart({
   joinEntries: JoinDateEntry[];
   theme: AppTheme;
 }) {
-  const metrics = ["mkt_cap_usd", "market_vol_usd", "market_vol"];
-  const colors: Record<string, string> = {
-    mkt_cap_usd: "#e65100",
-    market_vol_usd: "#6a1b9a",
-    market_vol: "#1565c0",
-  };
-
   const data: Data[] = useMemo(() => {
     const yMaxCap =
       Math.max(...rows.filter((r) => r.metric === "mkt_cap_usd").map((r) => r.value), 0) * 1.1;
-    const series: Data[] = metrics
-      .filter((m) => rows.some((r) => r.metric === m))
-      .map((m) => ({
+    const series: Data[] = MARKET_METRIC_KEYS.filter((m) => rows.some((r) => r.metric === m)).map(
+      (m) => ({
         type: "scatter" as const,
         x: rows.filter((r) => r.metric === m).map((r) => r.date),
         y: rows.filter((r) => r.metric === m).map((r) => r.value),
         mode: "lines+markers" as const,
-        marker: { size: 4, color: colors[m] },
-        line: { color: colors[m] },
+        marker: { size: 4, color: MARKET_COLORS[m] },
+        line: { color: MARKET_COLORS[m] },
         name: metricLabel(m),
         yaxis:
           m === "market_vol"
@@ -169,26 +162,27 @@ function MarketChart({
             : m === "market_vol_usd"
               ? ("y2" as const)
               : ("y" as const),
-      }));
+      })
+    );
     return [...series, ...joinDateTraces(joinEntries, yMaxCap)];
   }, [rows, joinEntries]);
 
   const layout: Partial<Layout> = {
     xaxis: { title: { text: "Date" }, tickformat: "%Y-%m-%d" },
     yaxis: {
-      title: { text: metricLabel("mkt_cap_usd"), font: { color: colors.mkt_cap_usd } },
-      tickfont: { color: colors.mkt_cap_usd },
+      title: { text: metricLabel("mkt_cap_usd"), font: { color: MARKET_COLORS.mkt_cap_usd } },
+      tickfont: { color: MARKET_COLORS.mkt_cap_usd },
     },
     yaxis2: {
-      title: { text: metricLabel("market_vol_usd"), font: { color: colors.market_vol_usd } },
-      tickfont: { color: colors.market_vol_usd },
+      title: { text: metricLabel("market_vol_usd"), font: { color: MARKET_COLORS.market_vol_usd } },
+      tickfont: { color: MARKET_COLORS.market_vol_usd },
       overlaying: "y",
       side: "right",
       showgrid: false,
     },
     yaxis3: {
-      title: { text: metricLabel("market_vol"), font: { color: colors.market_vol } },
-      tickfont: { color: colors.market_vol },
+      title: { text: metricLabel("market_vol"), font: { color: MARKET_COLORS.market_vol } },
+      tickfont: { color: MARKET_COLORS.market_vol },
       overlaying: "y",
       side: "right",
       showgrid: false,
@@ -202,6 +196,13 @@ function MarketChart({
 // User chart
 // ---------------------------------------------------------------------------
 
+const USER_METRIC_KEYS = ["dau", "sign_ups", "spellbooks"];
+const USER_COLORS: Record<string, string> = {
+  dau: "#1565c0",
+  sign_ups: "#6a1b9a",
+  spellbooks: "#e65100",
+};
+
 function UserChart({
   rows,
   joinEntries,
@@ -211,32 +212,25 @@ function UserChart({
   joinEntries: JoinDateEntry[];
   theme: AppTheme;
 }) {
-  const metrics = ["dau", "sign_ups", "spellbooks"];
-  const colors: Record<string, string> = {
-    dau: "#1565c0",
-    sign_ups: "#6a1b9a",
-    spellbooks: "#e65100",
-  };
-
   const data: Data[] = useMemo(() => {
     const yMaxSignups =
       Math.max(
         ...rows.filter((r) => ["sign_ups", "spellbooks"].includes(r.metric)).map((r) => r.value),
         0
       ) * 1.1;
-    const series: Data[] = metrics
-      .filter((m) => rows.some((r) => r.metric === m))
-      .map((m) => ({
+    const series: Data[] = USER_METRIC_KEYS.filter((m) => rows.some((r) => r.metric === m)).map(
+      (m) => ({
         type: "scatter" as const,
         x: rows.filter((r) => r.metric === m).map((r) => r.date),
         y: rows.filter((r) => r.metric === m).map((r) => r.value),
         mode: "lines+markers" as const,
-        marker: { size: 4, color: colors[m] },
-        line: { color: colors[m] },
+        marker: { size: 4, color: USER_COLORS[m] },
+        line: { color: USER_COLORS[m] },
         connectgaps: m !== "spellbooks",
         name: metricLabel(m),
         yaxis: m === "dau" ? ("y2" as const) : ("y" as const),
-      }));
+      })
+    );
     return [...series, ...joinDateTraces(joinEntries, yMaxSignups)];
   }, [rows, joinEntries]);
 
@@ -244,8 +238,8 @@ function UserChart({
     xaxis: { title: { text: "Date" }, tickformat: "%Y-%m-%d" },
     yaxis: { title: { text: "Sign-ups & Spellbooks" } },
     yaxis2: {
-      title: { text: "Daily Active Users", font: { color: colors.dau } },
-      tickfont: { color: colors.dau },
+      title: { text: "Daily Active Users", font: { color: USER_COLORS.dau } },
+      tickfont: { color: USER_COLORS.dau },
       overlaying: "y",
       side: "right",
       showgrid: false,

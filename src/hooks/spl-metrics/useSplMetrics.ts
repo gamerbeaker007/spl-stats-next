@@ -8,11 +8,15 @@ export function useSplMetrics() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoading(true);
     getSplMetricsAction()
-      .then(setRows)
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load metrics"))
-      .finally(() => setLoading(false));
+      .then((data) => {
+        setRows(data);
+        setLoading(false);
+      })
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : "Failed to load metrics");
+        setLoading(false);
+      });
   }, []);
 
   return { rows, loading, error };

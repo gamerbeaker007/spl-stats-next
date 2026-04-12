@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import logger from "@/lib/backend/log/logger.server";
 
 export async function upsertSplAccount(
   username: string,
@@ -6,6 +7,11 @@ export async function upsertSplAccount(
   iv: string,
   authTag: string
 ) {
+  // Log a fingerprint of what is being written so we can forensically trace
+  // cases where the wrong token ends up in a row.
+  // encryptedToken is hex — log its length and last 8 chars (not sensitive).
+  const tokenFingerprint = `len=${encryptedToken.length} tail=${encryptedToken.slice(-8)}`;
+  logger.info(`upsertSplAccount: writing token for '${username}' [${tokenFingerprint}]`);
   const now = new Date();
   return prisma.splAccount.upsert({
     where: { username },
