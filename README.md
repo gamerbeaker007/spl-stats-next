@@ -164,13 +164,13 @@ npx prisma generate        # Regenerate client after schema changes
 
 The worker uses `AccountSyncState` rows (one per `username + key`) to track progress across restarts. Field semantics:
 
-| `key` | `lastSyncedCreatedDate` | `lastSeasonProcessed` |
-| --- | --- | --- |
-| `BALANCE_META` | Timestamp of last full balance run (skip-gate for daily / claim-trigger logic) | Latest completed season ID (detects new-season rollover) |
-| `SPS`, `DEC`, `GLINT`, … | Date cursor — fetch transactions from this point forward | Not used — always `0` |
-| `UNCLAIMED` | Cursor for unclaimed balance history | Not used — always `0` |
-| `LEADERBOARD_WILD/MODERN/FOUNDATION` | Not used | Last season fetched — skips seasons ≤ this value |
-| `PORTFOLIO` | Date of last successful snapshot — enforces once-per-UTC-day | Not used — always `0` |
+| `key`                                | `lastSyncedCreatedDate`                                                        | `lastSeasonProcessed`                                    |
+| ------------------------------------ | ------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| `BALANCE_META`                       | Timestamp of last full balance run (skip-gate for daily / claim-trigger logic) | Latest completed season ID (detects new-season rollover) |
+| `SPS`, `DEC`, `GLINT`, …             | Date cursor — fetch transactions from this point forward                       | Not used — always `0`                                    |
+| `UNCLAIMED`                          | Cursor for unclaimed balance history                                           | Not used — always `0`                                    |
+| `LEADERBOARD_WILD/MODERN/FOUNDATION` | Not used                                                                       | Last season fetched — skips seasons ≤ this value         |
+| `PORTFOLIO`                          | Date of last successful snapshot — enforces once-per-UTC-day                   | Not used — always `0`                                    |
 
 `lastSeasonProcessed = 0` on per-token rows is expected — those rows only use the date cursor.
 
