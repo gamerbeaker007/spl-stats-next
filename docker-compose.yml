@@ -39,6 +39,7 @@ services:
       COOKIE_SECRET: ${COOKIE_SECRET}
       ADMIN_USERNAMES: ${ADMIN_USERNAMES:-}
       LOG_DB: ${LOG_DB:-true}
+      SPL_USER_AGENT: ${SPL_USER_AGENT:-}
     ports:
       - "3000:3000"
 
@@ -55,6 +56,7 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       LOG_DB: ${LOG_DB:-true}
       BATTLE_SYNC_ACCOUNTS: ${BATTLE_SYNC_ACCOUNTS:-}
+      SPL_USER_AGENT: ${SPL_USER_AGENT:-}
     entrypoint: ["./docker-entrypoint-worker.sh"]
     restart: unless-stopped
 
