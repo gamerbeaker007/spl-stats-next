@@ -149,7 +149,20 @@ export async function splLogin(
       if (response.data.error) {
         throw new Error(response.data.error);
       }
-      return response.data as SplLoginResponse;
+      const result = response.data as SplLoginResponse;
+      // Always log what SPL actually returned vs what was requested.
+      // SPL resolves identity from the signing key — the returned name may differ
+      // from the requested name when accounts share a Hive posting key.
+      if (result.name?.toLowerCase() !== username.toLowerCase()) {
+        logger.warn(
+          `splLogin: requested '${username}' but SPL returned name='${result.name}' — token belongs to '${result.name}'`
+        );
+      } else {
+        logger.info(
+          `splLogin: SPL confirmed identity '${result.name}' for requested '${username}'`
+        );
+      }
+      return result;
     } else {
       throw new Error("Login request failed");
     }

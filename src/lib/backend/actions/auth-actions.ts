@@ -174,6 +174,19 @@ export async function addMonitoredAccountWithKeychain(
       return { success: false, error: "No token received from Splinterlands" };
     }
 
+    // Guard: SPL API resolves identity from the signing key, not the `name` param.
+    // If the response name doesn't match lc, the Keychain signature belongs to a
+    // different account (e.g. shared posting key across multiple accounts).
+    if (splResponse.name.toLowerCase() !== lc) {
+      logger.warn(
+        `addMonitoredAccount: SPL identity mismatch — requested '${lc}' but token belongs to '${splResponse.name}'`
+      );
+      return {
+        success: false,
+        error: `Keychain signed as '${splResponse.name}', not '${lc}'. Please sign with the correct account's key.`,
+      };
+    }
+
     const { encryptedValue, iv, authTag } = encryptToken(splResponse.token);
 
     // Upsert SplAccount in case another user raced in since the check above.
@@ -255,6 +268,17 @@ export async function reAuthMonitoredAccount(
       return { success: false, error: "No token received from Splinterlands" };
     }
 
+    // Guard: SPL API resolves identity from the signing key, not the `name` param.
+    if (splResponse.name.toLowerCase() !== lc) {
+      logger.warn(
+        `reAuthMonitoredAccount: SPL identity mismatch — requested '${lc}' but token belongs to '${splResponse.name}'`
+      );
+      return {
+        success: false,
+        error: `Keychain signed as '${splResponse.name}', not '${lc}'. Please sign with the correct account's key.`,
+      };
+    }
+
     const { encryptedValue, iv, authTag } = encryptToken(splResponse.token);
     await upsertSplAccount(lc, encryptedValue, iv, authTag);
 
@@ -304,6 +328,13 @@ export async function getAccountTokenStatus(
   username: string
 ): Promise<"valid" | "invalid" | "unknown" | "not_found"> {
   try {
+    const userId = await getValidatedUserId();
+    if (!userId) return "not_found";
+
+    // Caller must monitor this account — prevents probing arbitrary usernames.
+    const link = await findMonitoredAccount(userId, username.toLowerCase());
+    if (!link) return "not_found";
+
     const account = await getSplAccountTokenStatus(username.toLowerCase());
     if (!account) return "not_found";
     return account.tokenStatus as "valid" | "invalid" | "unknown";
