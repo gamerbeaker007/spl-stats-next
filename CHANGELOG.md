@@ -9,6 +9,19 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v0.2.2] - 2026-04-13
+
+### Updates
+
+- Updated docker base image version + CI action versions.
+- Updated versions prisma to 7.7.0
+
+### Fixed
+
+- **Top bar alert clears after re-auth** — the invalid-token warning icon in the top bar now disappears immediately when a monitored account is successfully re-authenticated on the Users page. Previously it only refreshed on the next page load. Fixed by adding a `reAuthVersion` counter to `AuthContext` that `useReAuth` bumps on success; `InvalidTokenAlert` re-fetches whenever the counter changes.
+
+---
+
 ## [v0.2.1] - 2026-04-12
 
 ### What's New
