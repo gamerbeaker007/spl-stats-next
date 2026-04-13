@@ -122,6 +122,7 @@ jobs:
             | `COOKIE_SECRET` | 64-char hex — HMAC key for session cookie signing (`openssl rand -hex 32`) |
             | `ADMIN_USERNAMES` | Comma-separated Hive usernames with access to `/admin` |
             | `BATTLE_SYNC_ACCOUNTS` | (Optional) if you want to limit the accounts that are syncs battles |
+            | `SPL_USER_AGENT` | (Optional) if you want to set your own defined User-Agent sent to the Splinterlands API |
             | `LOG_DB` | `true` to persist logs to the database (recommended) |
           draft: false
           prerelease: false

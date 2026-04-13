@@ -281,9 +281,15 @@ export async function syncSeasonBalances(
   // This prevents "lastSeasonProcessed = 0" persisting across restarts when
   // the worker is interrupted before or during syncUnclaimedBalances, which
   // would cause newSeasonDetected to be permanently true on every cycle.
+  //
+  // NOTE: lastSyncedCreatedDate is intentionally NOT written here. It is the
+  // skip-gate for the daily/claim-trigger logic. Writing it before unclaimed
+  // completes would cause the next cycle to skip the entire balance sync for
+  // up to 24 h if syncUnclaimedBalances fails mid-run (e.g. on a 401). By
+  // deferring it to after unclaimed succeeds, a failed unclaimed pass keeps
+  // the old timestamp in place, so the next cycle retries sooner.
   if (!shouldShutdown()) {
     await updateSyncState(metaState.id, {
-      lastSyncedCreatedDate: now,
       lastSeasonProcessed: latestCompletedSeason?.id ?? metaState.lastSeasonProcessed,
     });
   }
@@ -292,8 +298,14 @@ export async function syncSeasonBalances(
     await syncUnclaimedBalances(username, tokenDecrypted, allSeasons);
   }
 
-  // Mark the full sync complete — only when not interrupted by shutdown.
+  // Advance the skip-gate timestamp and mark the full cycle complete — only
+  // after unclaimed succeeds and we have not been asked to shut down.
+  // If unclaimed failed, lastSyncedCreatedDate stays at the previous successful
+  // run time, so the daily gate will reopen sooner and trigger a retry.
   if (!shouldShutdown()) {
-    await updateSyncState(metaState.id, { status: "completed" });
+    await updateSyncState(metaState.id, {
+      lastSyncedCreatedDate: now,
+      status: "completed",
+    });
   }
 }

@@ -1,5 +1,5 @@
 # Base stage
-FROM node:24-alpine AS base
+FROM node:24.11.1-alpine AS base
 
 WORKDIR /app
 
@@ -48,11 +48,12 @@ RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
 # Versions are read from package.json to stay in sync with the app.
 # NODE_PATH lets prisma.config.ts resolve these imports from the global location.
 COPY --from=builder /app/package.json ./package.json
-RUN PRISMA_VER=$(node -p "require('./package.json').dependencies.prisma") \
-    DOTENV_VER=$(node -p "require('./package.json').dependencies.dotenv") \
+RUN PRISMA_VER=$(node -p "require('./package.json').devDependencies.prisma") && \
+    DOTENV_VER=$(node -p "require('./package.json').dependencies.dotenv") && \
     TSX_VER=$(node -p "require('./package.json').dependencies.tsx") && \
-    npm install -g prisma@${PRISMA_VER} dotenv@${DOTENV_VER} tsx@${TSX_VER} && \
+    npm install -g "prisma@${PRISMA_VER}" "dotenv@${DOTENV_VER}" "tsx@${TSX_VER}" && \
     rm package.json
+
 ENV NODE_PATH=/usr/local/lib/node_modules
 
 # Production node_modules from builder (needed by worker's tsx runtime).

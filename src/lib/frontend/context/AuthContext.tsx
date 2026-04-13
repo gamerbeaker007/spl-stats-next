@@ -18,14 +18,19 @@ interface AuthContextType {
   clearError: () => void;
   isAuthenticated: boolean;
   refreshAuth: () => Promise<void>;
+  /** Incremented each time a monitored-account re-auth succeeds. Consumers
+   *  can include this in useEffect deps to react to token status changes. */
+  reAuthVersion: number;
+  notifyReAuth: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reAuthVersion, setReAuthVersion] = useState(0);
 
   // Check if user is logged in (from server)
   const checkAuthStatus = async () => {
@@ -116,6 +121,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearError,
     isAuthenticated: !!user,
     refreshAuth: checkAuthStatus,
+    reAuthVersion,
+    notifyReAuth: () => setReAuthVersion((v) => v + 1),
   };
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;
