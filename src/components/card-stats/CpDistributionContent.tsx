@@ -18,11 +18,19 @@ const RARITY_COLORS: Record<string, string> = {
   Legendary: "#FF9800",
 };
 const FOIL_COLORS: Record<string, string> = {
-  regular: "#607d8b",
+  regular: "#757575",
   gold: "#ffc107",
-  black: "#455a64",
+  "gold-arcane": "#ff8f00",
+  black: "#212121",
+  "black-arcane": "#455a64",
 };
-const FOIL_LABELS: Record<string, string> = { regular: "Regular", gold: "Gold", black: "Black" };
+const FOIL_LABELS: Record<string, string> = {
+  regular: "Regular",
+  gold: "Gold",
+  "gold-arcane": "Gold Arcane (GV)",
+  black: "Black",
+  "black-arcane": "Black Arcane (BV)",
+};
 
 function buildTotalCpByEdition(rows: CardDistributionRow[]): Data[] {
   const map = new Map<string, number>();
@@ -78,7 +86,7 @@ function buildCpByEditionAndFoil(rows: CardDistributionRow[]): Data[] {
       (grouped[row.editionLabel][row.foilCategory] ?? 0) + row.cp;
   }
   const editions = [...new Set(order)];
-  return (["regular", "gold", "black"] as const).map((cat) => ({
+  return (["regular", "gold", "gold-arcane", "black", "black-arcane"] as const).map((cat) => ({
     type: "bar",
     name: FOIL_LABELS[cat],
     x: editions,

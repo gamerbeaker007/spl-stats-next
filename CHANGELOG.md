@@ -13,13 +13,19 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ### What's New
 
-- **Card Stats page** — new section at `/card-stats` with four tabs:
-  - **Distribution** — grouped bar charts showing minted, unbound, and burned card counts by edition and rarity.
-  - **Detailed** — filterable table with per-card distribution breakdown including foil variants.
-  - **Burned BCX** — burned card analysis per edition and rarity with pivot table view.
-  - **CP Analysis** — Collection Power breakdown by edition, rarity, and foil (regular / gold / black).
-  - All tabs share a filter drawer: edition set, rarity, foil, and a card name search.
+- **Card Stats page** — new section at `/card-stats` with three tabs:
+  - **Distribution** — two charts: _Cards by Edition & Rarity_ and _Burned by Edition & Rarity_. Use the foil filter to show specific foil variants.
+  - **Burned BCX** — detailed burned BCX analysis per edition and rarity with pivot table view.
+  - **CP Analysis** — Collection Power breakdown by edition, rarity, and all five foil variants.
+  - All tabs share a filter drawer: edition set, rarity, element, card type, and foil.
+- **Foil filter redesigned** — the foil filter now covers all five foil variants with styled icon chips: Regular (gray card icon), Gold (gold card icon), GV / Gold Arcane (gold), Black (black card icon), BV / Black Arcane (black). Previously gold arcane was grouped with gold and black arcane with black; they are now separate filter options.
+- **Foil filter added to Battles** — the battle filter drawer now includes a foil section (Regular / Gold) to filter card battle statistics by foil.
+- **CP Analysis foil data** — all five foil variants (Regular, Gold, Gold Arcane GV, Black, Black Arcane BV) now appear individually in the _CP by Edition & Foil_ chart. Previously Gold Arcane was grouped under Gold and Black Arcane under Black; the underlying CP values were always correct.
 - **Hive Blog — unclaimed season reward warning** — after generating a post, accounts that have no GLINT `season_rewards` entry in the database for the previous season now show a warning: _"Cannot find season rewards (Glint) for season X"_. This covers both the case where rewards haven't been claimed in Splinterlands yet and the case where the background worker hasn't picked them up yet.
+
+### Fixed
+
+- **Player Dashboard back button** — the Home button on `/multi-dashboard/collection` now navigates back to `/multi-dashboard` instead of the app root.
 
 ---
 

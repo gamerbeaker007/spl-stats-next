@@ -3,13 +3,12 @@
 import { useCardStatsFilter } from "@/lib/frontend/context/CardStatsFilterContext";
 import EditionSetFilter from "@/components/shared/filter/EditionSetFilter";
 import FilterSection from "@/components/shared/filter/FilterSection";
+import FoilFilterChips, { type FoilOption } from "@/components/shared/filter/FoilFilterChips";
 import IconFilterGroup from "@/components/shared/filter/IconFilterGroup";
 import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { CARD_TYPE_OPTIONS, COLOR_OPTIONS, RARITY_OPTIONS } from "@/types/battles";
-import type { FoilCategory } from "@/types/card-stats";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
 import Drawer from "@mui/material/Drawer";
 import IconButton from "@mui/material/IconButton";
@@ -20,22 +19,19 @@ import { MdClose, MdFilterList, MdRestartAlt } from "react-icons/md";
 
 export const DRAWER_WIDTH = 280;
 
-const FOIL_OPTIONS: { value: FoilCategory; label: string }[] = [
-  { value: "regular", label: "Regular" },
-  { value: "gold", label: "Gold" },
-  { value: "black", label: "Black" },
+export const CARD_STATS_FOIL_OPTIONS: FoilOption[] = [
+  { value: "regular", label: "R", color: "#9e9e9e", textColor: "#fff" },
+  { value: "gold", label: "G", color: "#ffc107", textColor: "#5d4000" },
+  { value: "gold-arcane", label: "GV", color: "#ff8f00", textColor: "#fff" },
+  { value: "black", label: "B", color: "#424242", textColor: "#fff" },
+  { value: "black-arcane", label: "BV", color: "#607d8b", textColor: "#fff" },
 ];
 
 export default function CardStatsFilterDrawer() {
   const { filter, setFilter, resetFilter, toggleFilterOpen } = useCardStatsFilter();
   const isMobile = useMediaQuery("(max-width:900px)");
 
-  const toggleFoil = (cat: FoilCategory) => {
-    const next = filter.foilCategories.includes(cat)
-      ? filter.foilCategories.filter((f) => f !== cat)
-      : [...filter.foilCategories, cat];
-    setFilter({ foilCategories: next });
-  };
+  const toggleFoil = (cats: string[]) => setFilter({ foilCategories: cats as never });
 
   const drawerContent = (
     <Box
@@ -133,30 +129,11 @@ export default function CardStatsFilterDrawer() {
 
         {/* Foil */}
         <FilterSection title="Foil">
-          <Stack direction="row" gap={0.5} sx={{ mt: 0.5 }}>
-            {FOIL_OPTIONS.map(({ value, label }) => {
-              const active = filter.foilCategories.includes(value);
-              return (
-                <Chip
-                  key={value}
-                  label={label}
-                  size="small"
-                  onClick={() => toggleFoil(value)}
-                  variant={active ? "filled" : "outlined"}
-                  color={active && value === "gold" ? "warning" : active ? "primary" : "default"}
-                  sx={{
-                    cursor: "pointer",
-                    ...(value === "black" &&
-                      active && {
-                        bgcolor: "grey.800",
-                        color: "common.white",
-                        borderColor: "grey.600",
-                      }),
-                  }}
-                />
-              );
-            })}
-          </Stack>
+          <FoilFilterChips
+            options={CARD_STATS_FOIL_OPTIONS}
+            selected={filter.foilCategories}
+            onChange={toggleFoil}
+          />
         </FilterSection>
       </Box>
     </Box>

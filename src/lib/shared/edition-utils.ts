@@ -256,7 +256,7 @@ export const SET_DEFS: readonly SetDef[] = [
     tier: 12,
     iconUrl: edition_rebellion_icon_url,
     hasPromo: true,
-    hasReward: true,
+    hasReward: false,
     hasExtra: false,
   },
   {
@@ -265,7 +265,7 @@ export const SET_DEFS: readonly SetDef[] = [
     tier: 14,
     iconUrl: edition_conclave_arcana_icon_url,
     hasPromo: true,
-    hasReward: true,
+    hasReward: false,
     hasExtra: true,
   },
   {

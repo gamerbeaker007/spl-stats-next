@@ -28,8 +28,10 @@ const FOIL_LABELS: Record<number, string> = {
 
 function getFoilCategory(foil: number): FoilCategory {
   if (foil === 0) return "regular";
-  if (foil <= 2) return "gold";
-  return "black";
+  if (foil === 1) return "gold";
+  if (foil === 2) return "gold-arcane";
+  if (foil === 3) return "black";
+  return "black-arcane"; // foil === 4
 }
 
 // ---------------------------------------------------------------------------

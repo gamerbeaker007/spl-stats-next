@@ -1,5 +1,5 @@
-/** Foil bucketed into 3 display categories for filter UI. */
-export type FoilCategory = "regular" | "gold" | "black";
+/** Foil display category used for filter UI. Maps SPL foil numbers 0-4. */
+export type FoilCategory = "regular" | "gold" | "gold-arcane" | "black" | "black-arcane";
 
 /**
  * One flattened row from the cards/get_details distribution array,

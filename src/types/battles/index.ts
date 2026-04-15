@@ -53,6 +53,7 @@ export interface BattleFilter {
   sortBy: "battles" | "win_percentage" | "wins" | "losses";
   topCount: number; // how many cards to show in grid
   filterOpen: boolean; // drawer open state
+  foilCategories: string[]; // [] = all; values: "regular" | "gold"
 }
 
 export const DEFAULT_BATTLE_FILTER: BattleFilter = {
@@ -77,6 +78,7 @@ export const DEFAULT_BATTLE_FILTER: BattleFilter = {
   sortBy: "battles",
   topCount: 5,
   filterOpen: true,
+  foilCategories: [],
 };
 
 // ---------------------------------------------------------------------------

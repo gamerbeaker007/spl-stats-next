@@ -5,6 +5,7 @@ import { useCardOptions, type CardOption } from "@/hooks/battles/useCardOptions"
 import IconFilterGroup from "@/components/shared/filter/IconFilterGroup";
 import FilterSection from "@/components/shared/filter/FilterSection";
 import EditionSetFilter from "@/components/shared/filter/EditionSetFilter";
+import FoilFilterChips, { type FoilOption } from "@/components/shared/filter/FoilFilterChips";
 import {
   CARD_TYPE_OPTIONS,
   COLOR_OPTIONS,
@@ -16,7 +17,6 @@ import {
   TOP_COUNT_OPTIONS,
   type BattleFilter,
 } from "@/types/battles";
-import Button from "@mui/material/Button";
 import { useMonitoredAccountNames } from "@/hooks/battles/useMonitoredAccountNames";
 import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -40,6 +40,11 @@ import { useEffect } from "react";
 import { MdClose, MdFilterList, MdRestartAlt } from "react-icons/md";
 
 export const DRAWER_WIDTH = 280;
+
+const BATTLE_FOIL_OPTIONS: FoilOption[] = [
+  { value: "regular", label: "Regular", color: "#9e9e9e", textColor: "#fff" },
+  { value: "gold", label: "Gold", color: "#ffc107", textColor: "#5d4000" },
+];
 
 // ---------------------------------------------------------------------------
 // Main drawer component
@@ -260,6 +265,15 @@ export default function BattleFilterDrawer({
             onRewardTiersChange={(v) => setFilter({ rewardTiers: v })}
             selectedExtraTiers={filter.extraTiers}
             onExtraTiersChange={(v) => setFilter({ extraTiers: v })}
+          />
+        </FilterSection>
+
+        {/* Foil */}
+        <FilterSection title="Foil">
+          <FoilFilterChips
+            options={BATTLE_FOIL_OPTIONS}
+            selected={filter.foilCategories}
+            onChange={(v) => setFilter({ foilCategories: v })}
           />
         </FilterSection>
 

@@ -54,19 +54,8 @@ export default function CardDistributionContent({ rows }: Props) {
   const { theme } = useTheme();
 
   const filtered = useMemo(() => rows.filter(filterRow), [rows, filterRow]);
-  const regularRows = useMemo(
-    () => filtered.filter((r) => r.foilCategory === "regular"),
-    [filtered]
-  );
-  const goldRows = useMemo(() => filtered.filter((r) => r.foilCategory === "gold"), [filtered]);
-
-  const regularCardData = useMemo(() => buildRarityBarData(regularRows, "numCards"), [regularRows]);
-  const goldCardData = useMemo(() => buildRarityBarData(goldRows, "numCards"), [goldRows]);
-  const regularBurnedData = useMemo(
-    () => buildRarityBarData(regularRows, "numBurned"),
-    [regularRows]
-  );
-  const goldBurnedData = useMemo(() => buildRarityBarData(goldRows, "numBurned"), [goldRows]);
+  const cardData = useMemo(() => buildRarityBarData(filtered, "numCards"), [filtered]);
+  const burnedData = useMemo(() => buildRarityBarData(filtered, "numBurned"), [filtered]);
 
   return (
     <Box sx={{ display: "flex", minHeight: "100%" }}>
@@ -74,10 +63,10 @@ export default function CardDistributionContent({ rows }: Props) {
         <CardStatsStatHeader rows={filtered} />
 
         <Typography variant="h6" sx={{ mb: 1, mt: 2 }}>
-          Regular Foil — Cards by Edition &amp; Rarity
+          Cards by Edition &amp; Rarity
         </Typography>
         <PlotlyChart
-          data={regularCardData}
+          data={cardData}
           layout={{
             barmode: "group",
             xaxis: { title: { text: "Edition" } },
@@ -87,36 +76,10 @@ export default function CardDistributionContent({ rows }: Props) {
         />
 
         <Typography variant="h6" sx={{ mb: 1, mt: 3 }}>
-          Regular Foil — Burned by Edition &amp; Rarity
+          Burned by Edition &amp; Rarity
         </Typography>
         <PlotlyChart
-          data={regularBurnedData}
-          layout={{
-            barmode: "group",
-            xaxis: { title: { text: "Edition" } },
-            yaxis: { title: { text: "Burned Cards" } },
-          }}
-          theme={theme}
-        />
-
-        <Typography variant="h6" sx={{ mb: 1, mt: 3 }}>
-          Gold Foil — Cards by Edition &amp; Rarity
-        </Typography>
-        <PlotlyChart
-          data={goldCardData}
-          layout={{
-            barmode: "group",
-            xaxis: { title: { text: "Edition" } },
-            yaxis: { title: { text: "Cards" } },
-          }}
-          theme={theme}
-        />
-
-        <Typography variant="h6" sx={{ mb: 1, mt: 3 }}>
-          Gold Foil — Burned by Edition &amp; Rarity
-        </Typography>
-        <PlotlyChart
-          data={goldBurnedData}
+          data={burnedData}
           layout={{
             barmode: "group",
             xaxis: { title: { text: "Edition" } },

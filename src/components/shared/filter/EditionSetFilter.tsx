@@ -248,7 +248,7 @@ export default function EditionSetFilter({
             {group.hasPromo && group.tier !== null && (
               <SubIcon
                 iconUrl={promoIconUrl}
-                label={`${group.label} era Promo`}
+                label={`${group.label} (Promo)`}
                 active={selectedPromoTiers.includes(group.tier)}
                 onClick={() => togglePromoTier(group.tier!)}
               />
@@ -257,7 +257,7 @@ export default function EditionSetFilter({
             {group.hasReward && group.tier !== null && (
               <SubIcon
                 iconUrl={rewardIconUrl}
-                label={`${group.label} era Reward`}
+                label={`${group.label} (Reward)`}
                 active={selectedRewardTiers.includes(group.tier)}
                 onClick={() => toggleRewardTier(group.tier!)}
               />

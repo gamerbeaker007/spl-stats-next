@@ -24,7 +24,7 @@ function StatCell({ label, value }: StatCellProps) {
 }
 
 function fmt(n: number): string {
-  return n.toLocaleString();
+  return n.toLocaleString("en-US");
 }
 
 interface Props {

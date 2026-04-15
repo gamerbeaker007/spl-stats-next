@@ -101,9 +101,12 @@ function loadFromStorage(): CardStatsFilter {
 }
 
 export function CardStatsFilterProvider({ children }: { children: ReactNode }) {
-  const [filter, setFilterState] = useState<CardStatsFilter>(() =>
-    typeof window !== "undefined" ? loadFromStorage() : { ...DEFAULT_CARD_STATS_FILTER }
-  );
+  const [filter, setFilterState] = useState<CardStatsFilter>({ ...DEFAULT_CARD_STATS_FILTER });
+
+  // Apply persisted filter after hydration to avoid server/client mismatch
+  useEffect(() => {
+    setFilterState(loadFromStorage());
+  }, []);
 
   useEffect(() => {
     try {
