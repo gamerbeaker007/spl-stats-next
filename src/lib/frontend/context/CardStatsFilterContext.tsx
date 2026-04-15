@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import type { CardDistributionRow, FoilCategory } from "@/types/card-stats";
 
 const STORAGE_KEY = "card-stats-filter";
@@ -103,8 +111,9 @@ function loadFromStorage(): CardStatsFilter {
 export function CardStatsFilterProvider({ children }: { children: ReactNode }) {
   const [filter, setFilterState] = useState<CardStatsFilter>({ ...DEFAULT_CARD_STATS_FILTER });
 
-  // Apply persisted filter after hydration to avoid server/client mismatch
-  useEffect(() => {
+  // Apply persisted filter after hydration to avoid server/client mismatch.
+  useLayoutEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setFilterState(loadFromStorage());
   }, []);
 
