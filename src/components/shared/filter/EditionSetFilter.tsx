@@ -173,8 +173,7 @@ export default function EditionSetFilter({
             (group.hasReward && group.tier !== null && selectedRewardTiers.includes(group.tier)) ||
             (group.hasExtra && group.tier !== null && selectedExtraTiers.includes(group.tier)));
 
-        const hasSubContent =
-          ids.length > 1 || group.hasPromo || group.hasReward || group.hasExtra;
+        const hasSubContent = ids.length > 1 || group.hasPromo || group.hasReward || group.hasExtra;
 
         const toggleSet = () => {
           if (full) {

@@ -138,9 +138,7 @@ export default function DetailedDistributionContent({ rows }: Props) {
             <TableBody>
               {paginated.map((row, idx) => {
                 const pctUnbound =
-                  row.numCards > 0
-                    ? ((row.unboundCards / row.numCards) * 100).toFixed(1)
-                    : "0.0";
+                  row.numCards > 0 ? ((row.unboundCards / row.numCards) * 100).toFixed(1) : "0.0";
                 return (
                   <TableRow key={idx} hover>
                     <TableCell sx={{ p: 0.5 }}>

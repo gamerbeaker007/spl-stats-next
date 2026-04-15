@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import type { CardDistributionRow, FoilCategory } from "@/types/card-stats";
 
 const STORAGE_KEY = "card-stats-filter";
@@ -80,10 +73,7 @@ function matchesEdition(
   extraTiers: number[]
 ): boolean {
   const hasAny =
-    editions.length > 0 ||
-    promoTiers.length > 0 ||
-    rewardTiers.length > 0 ||
-    extraTiers.length > 0;
+    editions.length > 0 || promoTiers.length > 0 || rewardTiers.length > 0 || extraTiers.length > 0;
   if (!hasAny) return true;
 
   const { edition, tier } = row;
@@ -137,7 +127,15 @@ export function CardStatsFilterProvider({ children }: { children: ReactNode }) {
 
   const filterRow = useCallback(
     (row: CardDistributionRow): boolean => {
-      if (!matchesEdition(row, filter.editions, filter.promoTiers, filter.rewardTiers, filter.extraTiers))
+      if (
+        !matchesEdition(
+          row,
+          filter.editions,
+          filter.promoTiers,
+          filter.rewardTiers,
+          filter.extraTiers
+        )
+      )
         return false;
 
       if (filter.rarities.length > 0 && !filter.rarities.includes(row.rarity)) return false;

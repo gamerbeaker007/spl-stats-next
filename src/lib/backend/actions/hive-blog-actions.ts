@@ -459,9 +459,10 @@ export async function generateHiveBlogAction(
 // Earnings
 // ---------------------------------------------------------------------------
 
-function buildDetailedEarnings(
-  rows: Awaited<ReturnType<typeof getSeasonBalances>>
-): { earned: HiveBlogEarningsDetailRow[]; costs: HiveBlogEarningsDetailRow[] } {
+function buildDetailedEarnings(rows: Awaited<ReturnType<typeof getSeasonBalances>>): {
+  earned: HiveBlogEarningsDetailRow[];
+  costs: HiveBlogEarningsDetailRow[];
+} {
   const map = new Map<string, { token: string; type: string; amount: number }>();
   for (const row of rows) {
     const key = `${row.token}:${row.type}`;

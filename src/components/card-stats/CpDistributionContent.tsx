@@ -35,20 +35,33 @@ function buildTotalCpByEdition(rows: CardDistributionRow[]): Data[] {
     map.set(row.editionLabel, (map.get(row.editionLabel) ?? 0) + row.cp);
   }
   const editions = [...new Set(order)];
-  return [{ type: "bar", x: editions, y: editions.map((ed) => map.get(ed) ?? 0), marker: { color: "#42a5f5" } }];
+  return [
+    {
+      type: "bar",
+      x: editions,
+      y: editions.map((ed) => map.get(ed) ?? 0),
+      marker: { color: "#42a5f5" },
+    },
+  ];
 }
 
 function buildCpByEditionAndRarity(rows: CardDistributionRow[]): Data[] {
   const grouped: Record<string, Record<string, number>> = {};
   const order: string[] = [];
   for (const row of rows) {
-    if (!grouped[row.editionLabel]) { grouped[row.editionLabel] = {}; order.push(row.editionLabel); }
-    grouped[row.editionLabel][row.rarityName] = (grouped[row.editionLabel][row.rarityName] ?? 0) + row.cp;
+    if (!grouped[row.editionLabel]) {
+      grouped[row.editionLabel] = {};
+      order.push(row.editionLabel);
+    }
+    grouped[row.editionLabel][row.rarityName] =
+      (grouped[row.editionLabel][row.rarityName] ?? 0) + row.cp;
   }
   const editions = [...new Set(order)];
   return RARITY_ORDER.map((rarity) => ({
-    type: "bar", name: rarity,
-    x: editions, y: editions.map((ed) => grouped[ed]?.[rarity] ?? 0),
+    type: "bar",
+    name: rarity,
+    x: editions,
+    y: editions.map((ed) => grouped[ed]?.[rarity] ?? 0),
     marker: { color: RARITY_COLORS[rarity] },
   }));
 }
@@ -57,13 +70,19 @@ function buildCpByEditionAndFoil(rows: CardDistributionRow[]): Data[] {
   const grouped: Record<string, Record<string, number>> = {};
   const order: string[] = [];
   for (const row of rows) {
-    if (!grouped[row.editionLabel]) { grouped[row.editionLabel] = {}; order.push(row.editionLabel); }
-    grouped[row.editionLabel][row.foilCategory] = (grouped[row.editionLabel][row.foilCategory] ?? 0) + row.cp;
+    if (!grouped[row.editionLabel]) {
+      grouped[row.editionLabel] = {};
+      order.push(row.editionLabel);
+    }
+    grouped[row.editionLabel][row.foilCategory] =
+      (grouped[row.editionLabel][row.foilCategory] ?? 0) + row.cp;
   }
   const editions = [...new Set(order)];
   return (["regular", "gold", "black"] as const).map((cat) => ({
-    type: "bar", name: FOIL_LABELS[cat],
-    x: editions, y: editions.map((ed) => grouped[ed]?.[cat] ?? 0),
+    type: "bar",
+    name: FOIL_LABELS[cat],
+    x: editions,
+    y: editions.map((ed) => grouped[ed]?.[cat] ?? 0),
     marker: { color: FOIL_COLORS[cat] },
   }));
 }
@@ -89,7 +108,11 @@ export default function CpDistributionContent({ rows }: Props) {
         </Typography>
         <PlotlyChart
           data={totalCpByEdition}
-          layout={{ xaxis: { title: { text: "Edition" } }, yaxis: { title: { text: "Total CP" } }, showlegend: false }}
+          layout={{
+            xaxis: { title: { text: "Edition" } },
+            yaxis: { title: { text: "Total CP" } },
+            showlegend: false,
+          }}
           theme={theme}
         />
 
@@ -98,7 +121,11 @@ export default function CpDistributionContent({ rows }: Props) {
         </Typography>
         <PlotlyChart
           data={cpByRarity}
-          layout={{ barmode: "group", xaxis: { title: { text: "Edition" } }, yaxis: { title: { text: "CP" } } }}
+          layout={{
+            barmode: "group",
+            xaxis: { title: { text: "Edition" } },
+            yaxis: { title: { text: "CP" } },
+          }}
           theme={theme}
         />
 
@@ -107,7 +134,11 @@ export default function CpDistributionContent({ rows }: Props) {
         </Typography>
         <PlotlyChart
           data={cpByFoil}
-          layout={{ barmode: "group", xaxis: { title: { text: "Edition" } }, yaxis: { title: { text: "CP" } } }}
+          layout={{
+            barmode: "group",
+            xaxis: { title: { text: "Edition" } },
+            yaxis: { title: { text: "CP" } },
+          }}
           theme={theme}
         />
       </Box>

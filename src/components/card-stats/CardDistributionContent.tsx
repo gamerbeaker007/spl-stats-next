@@ -19,7 +19,10 @@ const RARITY_COLORS: Record<string, string> = {
   Legendary: "#FF9800",
 };
 
-function buildRarityBarData(rows: CardDistributionRow[], valueKey: keyof CardDistributionRow): Data[] {
+function buildRarityBarData(
+  rows: CardDistributionRow[],
+  valueKey: keyof CardDistributionRow
+): Data[] {
   const grouped: Record<string, Record<string, number>> = {};
   const editionOrder: string[] = [];
 
@@ -51,12 +54,18 @@ export default function CardDistributionContent({ rows }: Props) {
   const { theme } = useTheme();
 
   const filtered = useMemo(() => rows.filter(filterRow), [rows, filterRow]);
-  const regularRows = useMemo(() => filtered.filter((r) => r.foilCategory === "regular"), [filtered]);
+  const regularRows = useMemo(
+    () => filtered.filter((r) => r.foilCategory === "regular"),
+    [filtered]
+  );
   const goldRows = useMemo(() => filtered.filter((r) => r.foilCategory === "gold"), [filtered]);
 
   const regularCardData = useMemo(() => buildRarityBarData(regularRows, "numCards"), [regularRows]);
   const goldCardData = useMemo(() => buildRarityBarData(goldRows, "numCards"), [goldRows]);
-  const regularBurnedData = useMemo(() => buildRarityBarData(regularRows, "numBurned"), [regularRows]);
+  const regularBurnedData = useMemo(
+    () => buildRarityBarData(regularRows, "numBurned"),
+    [regularRows]
+  );
   const goldBurnedData = useMemo(() => buildRarityBarData(goldRows, "numBurned"), [goldRows]);
 
   return (
@@ -69,7 +78,11 @@ export default function CardDistributionContent({ rows }: Props) {
         </Typography>
         <PlotlyChart
           data={regularCardData}
-          layout={{ barmode: "group", xaxis: { title: { text: "Edition" } }, yaxis: { title: { text: "Cards" } } }}
+          layout={{
+            barmode: "group",
+            xaxis: { title: { text: "Edition" } },
+            yaxis: { title: { text: "Cards" } },
+          }}
           theme={theme}
         />
 
@@ -78,7 +91,11 @@ export default function CardDistributionContent({ rows }: Props) {
         </Typography>
         <PlotlyChart
           data={regularBurnedData}
-          layout={{ barmode: "group", xaxis: { title: { text: "Edition" } }, yaxis: { title: { text: "Burned Cards" } } }}
+          layout={{
+            barmode: "group",
+            xaxis: { title: { text: "Edition" } },
+            yaxis: { title: { text: "Burned Cards" } },
+          }}
           theme={theme}
         />
 
@@ -87,7 +104,11 @@ export default function CardDistributionContent({ rows }: Props) {
         </Typography>
         <PlotlyChart
           data={goldCardData}
-          layout={{ barmode: "group", xaxis: { title: { text: "Edition" } }, yaxis: { title: { text: "Cards" } } }}
+          layout={{
+            barmode: "group",
+            xaxis: { title: { text: "Edition" } },
+            yaxis: { title: { text: "Cards" } },
+          }}
           theme={theme}
         />
 
@@ -96,7 +117,11 @@ export default function CardDistributionContent({ rows }: Props) {
         </Typography>
         <PlotlyChart
           data={goldBurnedData}
-          layout={{ barmode: "group", xaxis: { title: { text: "Edition" } }, yaxis: { title: { text: "Burned Cards" } } }}
+          layout={{
+            barmode: "group",
+            xaxis: { title: { text: "Edition" } },
+            yaxis: { title: { text: "Burned Cards" } },
+          }}
           theme={theme}
         />
       </Box>
