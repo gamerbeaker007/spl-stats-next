@@ -370,15 +370,23 @@ export async function generateHiveBlogAction(
   }
 
   const missingAccounts: string[] = [];
+  const unclaimedRewardAccounts: string[] = [];
   const accounts: HiveBlogAccountData[] = [];
 
   for (const username of selectedAccounts) {
-    const [leaderboardRows, token] = await Promise.all([
+    const [leaderboardRows, token, seasonRows] = await Promise.all([
       getPlayerLeaderboardForSeason(username, previousSeasonId),
       getToken(username),
+      getSeasonBalances(username, previousSeasonId),
     ]);
 
-    const { earned, costs } = await buildDetailedEarnings(username, previousSeasonId);
+    // Warn if GLINT season_rewards is absent — rewards may be unclaimed or not yet synced
+    const hasGlintSeasonRewards = seasonRows.some(
+      (r) => r.token === "GLINT" && r.type === "season_rewards" && r.amount > 0
+    );
+    if (!hasGlintSeasonRewards) unclaimedRewardAccounts.push(username);
+
+    const { earned, costs } = buildDetailedEarnings(seasonRows);
 
     const emptyMarket = { boughtCards: [], soldCards: [], boughtItems: [], soldItems: [] };
     const [rewards, tournaments, marketData] = await Promise.all([
@@ -435,19 +443,25 @@ export async function generateHiveBlogAction(
     username: acc.username,
   }));
 
-  return { previousSeasonId, accounts, missingAccounts, title, body, posts, mode };
+  return {
+    previousSeasonId,
+    accounts,
+    missingAccounts,
+    unclaimedRewardAccounts,
+    title,
+    body,
+    posts,
+    mode,
+  };
 }
 
 // ---------------------------------------------------------------------------
 // Earnings
 // ---------------------------------------------------------------------------
 
-async function buildDetailedEarnings(
-  username: string,
-  seasonId: number
-): Promise<{ earned: HiveBlogEarningsDetailRow[]; costs: HiveBlogEarningsDetailRow[] }> {
-  const rows = await getSeasonBalances(username, seasonId);
-
+function buildDetailedEarnings(
+  rows: Awaited<ReturnType<typeof getSeasonBalances>>
+): { earned: HiveBlogEarningsDetailRow[]; costs: HiveBlogEarningsDetailRow[] } {
   const map = new Map<string, { token: string; type: string; amount: number }>();
   for (const row of rows) {
     const key = `${row.token}:${row.type}`;

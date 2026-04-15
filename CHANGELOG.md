@@ -9,6 +9,20 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v0.3.0] - 2026-04-15
+
+### What's New
+
+- **Card Stats page** — new section at `/card-stats` with four tabs:
+  - **Distribution** — grouped bar charts showing minted, unbound, and burned card counts by edition and rarity.
+  - **Detailed** — filterable table with per-card distribution breakdown including foil variants.
+  - **Burned BCX** — burned card analysis per edition and rarity with pivot table view.
+  - **CP Analysis** — Collection Power breakdown by edition, rarity, and foil (regular / gold / black).
+  - All tabs share a filter drawer: edition set, rarity, foil, and a card name search.
+- **Hive Blog — unclaimed season reward warning** — after generating a post, accounts that have no GLINT `season_rewards` entry in the database for the previous season now show a warning: *"Cannot find season rewards (Glint) for season X"*. This covers both the case where rewards haven't been claimed in Splinterlands yet and the case where the background worker hasn't picked them up yet.
+
+---
+
 ## [v0.2.2] - 2026-04-13
 
 ### Updates

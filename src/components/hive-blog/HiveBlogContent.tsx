@@ -316,6 +316,15 @@ export default function HiveBlogContent() {
             worker sync for these accounts first.
           </Alert>
         ) : null}
+
+        {result?.unclaimedRewardAccounts.length ? (
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            Cannot find season rewards (Glint) for season {result.previousSeasonId} for:{" "}
+            <strong>{result.unclaimedRewardAccounts.join(", ")}</strong>. This may mean the season
+            rewards have not been claimed in Splinterlands yet, or the background sync has not
+            picked them up yet.
+          </Alert>
+        ) : null}
       </Paper>
 
       {/* Tag editor */}
