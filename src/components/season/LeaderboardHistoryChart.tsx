@@ -18,6 +18,7 @@ import { useMemo } from "react";
 
 import PlotlyChart, { type AppTheme } from "@/components/shared/PlotlyChart";
 import { useLeaderboardHistory } from "@/hooks/season/useLeaderboardHistory";
+import { useLatestSeasonId } from "@/hooks/useLatestSeasonId";
 import type { LeaderboardSeasonPoint } from "@/lib/backend/actions/season-overview-actions";
 
 const FORMATS = ["wild", "modern", "foundation", "survival"] as const;
@@ -26,10 +27,17 @@ type Format = (typeof FORMATS)[number];
 interface Props {
   username?: string;
   theme: AppTheme;
+  hideCurrentSeason?: boolean;
 }
 
-export default function LeaderboardHistoryChart({ username, theme }: Props) {
-  const { data, loading } = useLeaderboardHistory(username);
+export default function LeaderboardHistoryChart({ username, theme, hideCurrentSeason }: Props) {
+  const { data: rawData, loading } = useLeaderboardHistory(username);
+  const currentSeason = useLatestSeasonId();
+
+  const data =
+    hideCurrentSeason && currentSeason
+      ? rawData.filter((d) => d.seasonId !== currentSeason)
+      : rawData;
 
   const byFormat = useMemo(() => {
     const map = new Map<Format, LeaderboardSeasonPoint[]>();

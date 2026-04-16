@@ -52,9 +52,10 @@ function fillSeasons(
 interface Props {
   username?: string;
   theme: AppTheme;
+  hideCurrentSeason?: boolean;
 }
 
-export default function BalanceEarningsChart({ username, theme }: Props) {
+export default function BalanceEarningsChart({ username, theme, hideCurrentSeason }: Props) {
   const { data, loading } = useSeasonEarnings(username);
   const currentSeason = useLatestSeasonId();
 
@@ -88,12 +89,13 @@ export default function BalanceEarningsChart({ username, theme }: Props) {
 
   const allSeasonIds = merged.map((r) => r.seasonId);
   const minSeason = Math.min(...allSeasonIds);
-  const maxSeason = currentSeason ?? Math.max(...allSeasonIds);
+  const latestSeason = currentSeason ?? Math.max(...allSeasonIds);
+  const maxSeason = hideCurrentSeason ? latestSeason - 1 : latestSeason;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       {DISPLAY_TOKENS.map((token) => {
-        const rows = merged.filter((r) => r.token === token);
+        const rows = merged.filter((r) => r.token === token && r.seasonId <= maxSeason);
         if (rows.length === 0) return null;
         return (
           <TokenLineChart
