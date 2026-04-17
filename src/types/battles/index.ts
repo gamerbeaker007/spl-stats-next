@@ -45,7 +45,8 @@ export interface BattleFilter {
   minManaCap: number; // 0 = no limit
   maxManaCap: number; // 0 = no limit
   rulesets: string[]; // [] = all
-  groupLevels: boolean; // true = aggregate all levels of same card
+  groupLevels: boolean;
+  groupFoils: boolean;
   cardName: string; // "" = all; case-insensitive substring match on card name
   selectedCardDetailId: number; // 0 = none; the card chosen via the autocomplete
   minBattleCount: number; // minimum battles to show a card
@@ -71,6 +72,7 @@ export const DEFAULT_BATTLE_FILTER: BattleFilter = {
   maxManaCap: 0,
   rulesets: [],
   groupLevels: true,
+  groupFoils: true,
   cardName: "",
   selectedCardDetailId: 0,
   minBattleCount: 1,
@@ -93,7 +95,7 @@ export interface BestCardStat {
   color: string;
   edition: number;
   level: number;
-  gold: boolean;
+  foil: number;
   battles: number;
   wins: number;
   losses: number;
@@ -120,7 +122,7 @@ export interface LosingCardStat {
   color: string;
   edition: number;
   level: number;
-  gold: boolean;
+  foil: number;
   battles: number;
   imageUrl: string;
 }
@@ -166,7 +168,7 @@ export interface BattleTeamCard {
   cardType: string; // "Summoner" | "Monster"
   level: number;
   edition: number;
-  gold: boolean;
+  foil: number;
   imageUrl: string;
 }
 
@@ -193,7 +195,6 @@ export interface CardDetailResult {
 // Filter option constants
 // ---------------------------------------------------------------------------
 
-export const BATTLE_FORMATS = ["wild", "modern", "foundation", "survival"] as const;
 export const CARD_TYPES = ["Monster", "Summoner"] as const;
 export const MATCH_TYPES = ["Ranked", "Brawl", "Tournament", "Challenge"] as const;
 

@@ -28,15 +28,7 @@ export function useBattleOverview(filter: BattleFilter): UseBattleOverviewReturn
     setError(null);
     try {
       const result = await getBestCardsAction(filterRef.current);
-      // Apply foil filter client-side — battle stats only track gold: boolean
-      const { foilCategories } = filterRef.current;
-      const filtered =
-        foilCategories.length === 0 || foilCategories.length === 2
-          ? result
-          : foilCategories.includes("gold")
-            ? result.filter((c) => c.gold)
-            : result.filter((c) => !c.gold);
-      setCards(filtered);
+      setCards(result);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load battle data");
       setCards([]);
@@ -62,6 +54,7 @@ export function useBattleOverview(filter: BattleFilter): UseBattleOverviewReturn
     filter.maxManaCap,
     filter.rulesets,
     filter.groupLevels,
+    filter.groupFoils,
     filter.cardName,
     filter.minBattleCount,
     filter.sortBy,

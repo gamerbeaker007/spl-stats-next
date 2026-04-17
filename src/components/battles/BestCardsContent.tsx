@@ -36,7 +36,7 @@ export default function BestCardsContent() {
           minWidth: 0,
         }}
       >
-        <Typography variant="h5" fontWeight={600}>
+        <Typography variant="h5" fontWeight={600} suppressHydrationWarning>
           Battle Statistics of {filter.account || "Your Account"}
         </Typography>
 
@@ -74,7 +74,7 @@ export default function BestCardsContent() {
             <Stack direction="row" spacing={0} sx={{ flexWrap: "wrap", gap: 2, mb: 4 }}>
               {topCards.map((card) => (
                 <CardStatsCard
-                  key={`${card.cardDetailId}|${card.edition}`}
+                  key={`${card.cardDetailId}|${card.edition}|${card.foil}|${card.level}`}
                   card={card}
                   showWinRate
                   onClick={() => handleCardClick(card.cardDetailId)}

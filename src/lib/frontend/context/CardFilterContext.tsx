@@ -1,14 +1,15 @@
 "use client";
 
-import { CardElement, CardRarity, CardRole, CardSetName } from "@/types/card";
+import { CardElement, CardFoil, CardRarity, CardRole, CardSetName } from "@/types/card";
 import { getSetName } from "@/lib/shared/edition-utils";
-import { createContext, ReactNode, useCallback, useContext, useState } from "react";
+import React, { createContext, ReactNode, useCallback, useContext, useState } from "react";
 
 interface CardFilterContextType {
   selectedSets: CardSetName[];
   selectedRarities: CardRarity[];
   selectedElements: CardElement[];
   selectedRoles: CardRole[];
+  selectedFoilCategories: CardFoil[];
   drawerOpen: boolean;
   hideMissingCards: boolean;
 
@@ -16,6 +17,7 @@ interface CardFilterContextType {
   setSelectedRarities: (rarities: CardRarity[]) => void;
   setSelectedElements: (elements: CardElement[]) => void;
   setSelectedRoles: (roles: CardRole[]) => void;
+  setSelectedFoilCategories: (foils: CardFoil[]) => void;
   setDrawerOpen: (open: boolean) => void;
   toggleDrawer: () => void;
   setHideMissingCards: (hide: boolean) => void;
@@ -50,6 +52,7 @@ export const CardFilterProvider: React.FC<CardFilterProviderProps> = ({ children
   const [selectedRarities, setSelectedRarities] = useState<CardRarity[]>([]);
   const [selectedElements, setSelectedElements] = useState<CardElement[]>([]);
   const [selectedRoles, setSelectedRoles] = useState<CardRole[]>([]);
+  const [selectedFoilCategories, setSelectedFoilCategories] = useState<CardFoil[]>([]);
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [hideMissingCards, setHideMissingCards] = useState(false);
 
@@ -66,7 +69,8 @@ export const CardFilterProvider: React.FC<CardFilterProviderProps> = ({ children
       role: CardRole
     ): boolean => {
       if (selectedSets.length > 0) {
-        if (!selectedSets.includes(getSetName(edition) ?? "")) return false;
+        const setName = getSetName(edition);
+        if (!setName || !selectedSets.includes(setName)) return false;
       }
       if (selectedRarities.length > 0) {
         if (!rarity || !selectedRarities.includes(rarity)) return false;
@@ -91,12 +95,14 @@ export const CardFilterProvider: React.FC<CardFilterProviderProps> = ({ children
     selectedRarities,
     selectedElements,
     selectedRoles,
+    selectedFoilCategories,
     drawerOpen,
     hideMissingCards,
     setSelectedSets,
     setSelectedRarities,
     setSelectedElements,
     setSelectedRoles,
+    setSelectedFoilCategories,
     setDrawerOpen,
     toggleDrawer,
     setHideMissingCards,

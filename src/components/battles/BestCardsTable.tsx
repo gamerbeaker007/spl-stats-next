@@ -94,7 +94,7 @@ export default function BestCardsTable({ cards, onCardClick }: BestCardsTablePro
 
               return (
                 <TableRow
-                  key={`${c.cardDetailId}|${c.edition}`}
+                  key={`${c.cardDetailId}|${c.edition}|${c.foil}|${c.level}`}
                   hover
                   onClick={() => onCardClick?.(c.cardDetailId)}
                   sx={{ cursor: onCardClick ? "pointer" : "default" }}

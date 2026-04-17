@@ -54,6 +54,8 @@ export interface EditionDef {
   readonly setName: string | undefined;
   /** Filter / display icon URL. */
   readonly iconUrl: string;
+  /** Whether this edition is a soulbound edition. (some can be unlocked) when not defined = false */
+  readonly soulbound?: boolean;
 }
 
 // Ordered by edition ID. Add new editions here only.
@@ -115,6 +117,7 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     label: "Soulbound",
     urlName: "soulbound",
     setName: "chaos",
+    soulbound: true,
     iconUrl: edition_soulbound_icon_url,
   },
   {
@@ -136,6 +139,7 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     label: "Soulbound Reb.",
     urlName: "soulboundrb",
     setName: "rebellion",
+    soulbound: true,
     iconUrl: edition_soulbound_rebellion_icon_url,
   },
   {
@@ -157,6 +161,7 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     label: "Soulbound Foundation",
     urlName: "foundations",
     setName: "foundation",
+    soulbound: true,
     iconUrl: edition_foundation_icon_url,
   },
   {
@@ -171,11 +176,12 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     label: "Conclave Rewards",
     urlName: "reward",
     setName: "conclave",
+    soulbound: true,
     iconUrl: edition_conclave_rewards_icon_url,
   },
   {
     id: 19,
-    label: "Eternal",
+    label: "Land",
     urlName: "land",
     setName: "eternal",
     iconUrl: edition_land_card_icon_url,
@@ -280,7 +286,7 @@ export const SET_DEFS: readonly SetDef[] = [
   {
     setName: "eternal",
     label: "Eternal",
-    tier: null,
+    tier: 19,
     iconUrl: edition_eternal_icon_url,
     hasPromo: false,
     hasReward: false,
@@ -305,7 +311,7 @@ export const SET_NAMES = [
 ] as const;
 
 /** Union of all set name string literals. Replaces `CardSetName` in types/card.ts. */
-export type SetName = (typeof SET_NAMES)[number];
+export type CardSetName = (typeof SET_NAMES)[number];
 
 // ---------------------------------------------------------------------------
 // O(1) lookup maps (internal)
@@ -371,9 +377,9 @@ export const EDITION_SET_GROUPS: EditionSetGroup[] = SET_DEFS.map((s) => ({
  * Set name → icon URL map.
  * Replaces `cardSetIconMap` in src/types/card.ts.
  */
-export const cardSetIconMap: Record<SetName, string> = Object.fromEntries(
+export const cardSetIconMap: Record<CardSetName, string> = Object.fromEntries(
   SET_DEFS.map((s) => [s.setName, s.iconUrl])
-) as Record<SetName, string>;
+) as Record<CardSetName, string>;
 
 // ---------------------------------------------------------------------------
 // Helper functions — prefer these over accessing editionMap/editionDef directly
@@ -399,8 +405,8 @@ export function getEditionIconUrl(editionId: number): string | undefined {
  * Returns `undefined` for cross-era editions (promo=2, reward=3, extras=17) — their set
  * is determined by the `tier` field on the card at runtime.
  */
-export function getSetName(editionId: number): string | undefined {
-  return _editionById.get(editionId)?.setName;
+export function getSetName(editionId: number): CardSetName | undefined {
+  return _editionById.get(editionId)?.setName as CardSetName | undefined;
 }
 
 /**
@@ -441,4 +447,9 @@ export function getSetForEdition(editionId: number): SetDef | undefined {
 /** Icon URL for a set name, e.g. `getSetIconUrl("chaos")` → `"…icon-edition-chaos.svg"`. */
 export function getSetIconUrl(setName: string): string | undefined {
   return _setByName.get(setName)?.iconUrl;
+}
+
+/** Whether an edition is a soulbound edition. */
+export function isSoulbound(editionId: number): boolean {
+  return _editionById.get(editionId)?.soulbound ?? false;
 }

@@ -48,6 +48,7 @@ export function useCardDetail(cardDetailId: number, filter: BattleFilter): UseCa
     filter.maxManaCap,
     filter.rulesets,
     filter.groupLevels,
+    filter.groupFoils,
     filter.sinceDays,
     fetchDetail,
   ]);

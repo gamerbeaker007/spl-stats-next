@@ -103,6 +103,7 @@ interface RowBase {
   secondaryColor: string | null;
   xp: number | null;
   gold: boolean;
+  foil: number;
   level: number;
   edition: number;
   tier: number | null;
@@ -157,6 +158,7 @@ function rowBase(
     secondaryColor: str(col("secondary_color")) || null,
     xp: col("xp") !== undefined && str(col("xp")) !== "" ? numF(col("xp")) : null,
     gold: bool(col("gold")),
+    foil: numI(col("foil")),
     level: numI(col("level")),
     edition: numI(col("edition")),
     tier:

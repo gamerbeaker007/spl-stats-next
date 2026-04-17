@@ -1,12 +1,15 @@
 "use client";
 
 import { useCardStatsFilter } from "@/lib/frontend/context/CardStatsFilterContext";
+import CardSearchAutocomplete from "@/components/shared/filter/CardSearchAutocomplete";
 import EditionSetFilter from "@/components/shared/filter/EditionSetFilter";
 import FilterSection from "@/components/shared/filter/FilterSection";
-import FoilFilterChips, { type FoilOption } from "@/components/shared/filter/FoilFilterChips";
+import FoilFilterChips from "@/components/shared/filter/FoilFilterChips";
 import IconFilterGroup from "@/components/shared/filter/IconFilterGroup";
 import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
+import { useAllCardOptions } from "@/hooks/card-stats/useAllCardOptions";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import type { CardOption } from "@/types/card";
 import { CARD_TYPE_OPTIONS, COLOR_OPTIONS, RARITY_OPTIONS } from "@/types/battles";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
@@ -19,19 +22,19 @@ import { MdClose, MdFilterList, MdRestartAlt } from "react-icons/md";
 
 export const DRAWER_WIDTH = 280;
 
-export const CARD_STATS_FOIL_OPTIONS: FoilOption[] = [
-  { value: "regular", label: "R", color: "#9e9e9e", textColor: "#fff" },
-  { value: "gold", label: "G", color: "#ffc107", textColor: "#5d4000" },
-  { value: "gold-arcane", label: "GV", color: "#ff8f00", textColor: "#fff" },
-  { value: "black", label: "B", color: "#424242", textColor: "#fff" },
-  { value: "black-arcane", label: "BV", color: "#607d8b", textColor: "#fff" },
-];
-
 export default function CardStatsFilterDrawer() {
   const { filter, setFilter, resetFilter, toggleFilterOpen } = useCardStatsFilter();
   const isMobile = useMediaQuery("(max-width:900px)");
+  const { cards: cardOptions, loading: cardOptionsLoading } = useAllCardOptions();
 
   const toggleFoil = (cats: string[]) => setFilter({ foilCategories: cats as never });
+
+  const selectedCard: CardOption | null = filter.selectedCardDetailId
+    ? (cardOptions.find((o) => o.cardDetailId === filter.selectedCardDetailId) ?? {
+        cardDetailId: filter.selectedCardDetailId,
+        cardName: filter.cardName,
+      })
+    : null;
 
   const drawerContent = (
     <Box
@@ -109,6 +112,20 @@ export default function CardStatsFilterDrawer() {
           />
         </FilterSection>
 
+        <FilterSection title="Card">
+          <CardSearchAutocomplete
+            options={cardOptions}
+            loading={cardOptionsLoading}
+            value={selectedCard}
+            onChange={(newValue) =>
+              setFilter({
+                cardName: newValue?.cardName ?? "",
+                selectedCardDetailId: newValue?.cardDetailId ?? 0,
+              })
+            }
+          />
+        </FilterSection>
+
         <Divider sx={{ my: 1 }} />
 
         {/* Edition */}
@@ -129,11 +146,7 @@ export default function CardStatsFilterDrawer() {
 
         {/* Foil */}
         <FilterSection title="Foil">
-          <FoilFilterChips
-            options={CARD_STATS_FOIL_OPTIONS}
-            selected={filter.foilCategories}
-            onChange={toggleFoil}
-          />
+          <FoilFilterChips selected={filter.foilCategories} onChange={toggleFoil} />
         </FilterSection>
       </Box>
     </Box>

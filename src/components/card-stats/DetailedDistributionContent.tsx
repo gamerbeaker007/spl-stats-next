@@ -7,6 +7,7 @@ import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 import type { CardFoil } from "@/types/card";
 import { cardFoilOptions } from "@/types/card";
 import type { CardDistributionRow } from "@/types/card-stats";
+import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
@@ -23,12 +24,12 @@ import { useMemo, useState } from "react";
 // Card image helpers
 // ---------------------------------------------------------------------------
 
-const FOUNDATION_EDITIONS = new Set([15, 16]);
+const FOUNDATION_EDITIONS = new Set([15]);
 const MAX_LEVEL: Record<number, number> = { 1: 10, 2: 8, 3: 6, 4: 4 };
 const MAX_LEVEL_FOUNDATION: Record<number, number> = { 1: 5, 2: 4, 3: 3, 4: 2 };
 
 function getRowImageUrl(row: CardDistributionRow): string {
-  const isFoundation = FOUNDATION_EDITIONS.has(row.edition);
+  const isFoundation = FOUNDATION_EDITIONS.has(row.tier ?? 0); // for foundation tier is always filled else not foundation
   const levelMap = isFoundation ? MAX_LEVEL_FOUNDATION : MAX_LEVEL;
   const level = levelMap[row.rarity] ?? 1;
   const foilStr = (cardFoilOptions[row.foil] ?? "regular") as CardFoil;
@@ -39,19 +40,21 @@ function getRowImageUrl(row: CardDistributionRow): string {
 // Sorting
 // ---------------------------------------------------------------------------
 
-type SortKey = keyof Pick<
-  CardDistributionRow,
-  | "name"
-  | "rarityName"
-  | "editionLabel"
-  | "foilLabel"
-  | "numCards"
-  | "numBurned"
-  | "unboundCards"
-  | "bcx"
-  | "burnedBcx"
-  | "cp"
->;
+type SortKey =
+  | keyof Pick<
+      CardDistributionRow,
+      | "name"
+      | "rarityName"
+      | "editionLabel"
+      | "foilLabel"
+      | "numCards"
+      | "numBurned"
+      | "unboundCards"
+      | "bcx"
+      | "burnedBcx"
+      | "cp"
+    >
+  | "pctUnbound";
 
 interface Column {
   key: SortKey;
@@ -70,6 +73,7 @@ const COLUMNS: Column[] = [
   { key: "bcx", label: "BCX", numeric: true },
   { key: "burnedBcx", label: "Burned BCX", numeric: true },
   { key: "cp", label: "CP", numeric: true },
+  { key: "pctUnbound", label: "% Unbound", numeric: true },
 ];
 
 interface Props {
@@ -83,13 +87,18 @@ export default function DetailedDistributionContent({ rows }: Props) {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
 
-  const filtered = useMemo(() => rows.filter(filterRow), [rows, filterRow]);
+  const filtered = useMemo(() => rows.filter((element) => filterRow(element)), [rows, filterRow]);
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {
+      const dir = sortDir === "asc" ? 1 : -1;
+      if (sortKey === "pctUnbound") {
+        const pa = a.numCards > 0 ? a.unboundCards / a.numCards : 0;
+        const pb = b.numCards > 0 ? b.unboundCards / b.numCards : 0;
+        return dir * (pa - pb);
+      }
       const va = a[sortKey];
       const vb = b[sortKey];
-      const dir = sortDir === "asc" ? 1 : -1;
       if (typeof va === "string" && typeof vb === "string") return dir * va.localeCompare(vb);
       return dir * ((va as number) - (vb as number));
     });
@@ -112,6 +121,14 @@ export default function DetailedDistributionContent({ rows }: Props) {
       <Box sx={{ flex: 1, p: 2, minWidth: 0 }}>
         <CardStatsStatHeader rows={filtered} />
 
+        <Alert severity="info" sx={{ mb: 2 }}>
+          CP values for <strong>regular</strong> and <strong>gold</strong> cards may deviate
+          slightly — it is not possible to determine how many of those cards are at max level. Max
+          level cards receive a +5% CP bonus. For <strong>Gold Arcane</strong>,{" "}
+          <strong>Black</strong>, and <strong>Black Arcane</strong> cards this bonus is already
+          included, as these foil types are always at max level.
+        </Alert>
+
         <TableContainer>
           <Table size="small" sx={{ tableLayout: "auto" }}>
             <TableHead>
@@ -132,7 +149,6 @@ export default function DetailedDistributionContent({ rows }: Props) {
                     </TableSortLabel>
                   </TableCell>
                 ))}
-                <TableCell align="right">% Unbound</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>

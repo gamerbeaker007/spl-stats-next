@@ -15,16 +15,14 @@ import {
 } from "@/lib/staticsIconUrls";
 
 // Edition / set definitions live in edition-utils — re-export for backward compat.
-import { SET_NAMES, type SetName } from "@/lib/shared/edition-utils";
-export type { EditionDef, SetDef, SetName } from "@/lib/shared/edition-utils";
+import { SET_NAMES, type CardSetName } from "@/lib/shared/edition-utils";
+export type { EditionDef, SetDef, CardSetName } from "@/lib/shared/edition-utils";
 export { cardSetIconMap } from "@/lib/shared/edition-utils";
-// CardSetName kept as string for backward compat (original behavior).
-// New code should use SetName from edition-utils for the strict union.
-export type CardSetName = string;
-// Mutable copy so components expecting a mutable array are satisfied.
-export const cardSetOptions: SetName[] = [...SET_NAMES];
 
-export const cardRarityOptions = ["common", "rare", "epic", "legendary"];
+// Mutable copy so components expecting a mutable array are satisfied.
+export const cardSetOptions: CardSetName[] = [...SET_NAMES];
+
+export const cardRarityOptions = ["common", "rare", "epic", "legendary"] as const;
 export type CardRarity = (typeof cardRarityOptions)[number];
 export const cardIconMap: Record<CardRarity, string> = {
   common: card_rarity_common_icon_url,
@@ -33,7 +31,15 @@ export const cardIconMap: Record<CardRarity, string> = {
   legendary: card_rarity_legendary_icon_url,
 };
 
-export const cardElementOptions = ["red", "blue", "white", "black", "green", "gold", "gray"];
+export const cardElementOptions = [
+  "red",
+  "blue",
+  "white",
+  "black",
+  "green",
+  "gold",
+  "gray",
+] as const;
 export type CardElement = (typeof cardElementOptions)[number];
 
 export const cardElementIconMap: Record<string, string> = {
@@ -46,7 +52,7 @@ export const cardElementIconMap: Record<string, string> = {
   gray: neutral_element_icon_url,
 };
 
-export const cardFoilOptions = ["regular", "gold", "gold arcane", "black", "black arcane"];
+export const cardFoilOptions = ["regular", "gold", "gold arcane", "black", "black arcane"] as const;
 export type CardFoil = (typeof cardFoilOptions)[number];
 
 export const cardFoilSuffixMap: Record<CardFoil, string> = {
@@ -57,7 +63,7 @@ export const cardFoilSuffixMap: Record<CardFoil, string> = {
   "black arcane": "_blk",
 };
 
-export const cardRoleOptions = ["archon", "unit"];
+export const cardRoleOptions = ["archon", "unit"] as const;
 export type CardRole = (typeof cardRoleOptions)[number];
 export const cardRoleIconMap: Record<CardRole, string> = {
   archon: archon_filter_icon_url,
@@ -96,3 +102,8 @@ export interface DetailedPlayerCardCollectionItem {
 }
 
 export type DetailedPlayerCardCollection = Record<string, DetailedPlayerCardCollectionItem>;
+
+export interface CardOption {
+  cardDetailId: number;
+  cardName: string;
+}

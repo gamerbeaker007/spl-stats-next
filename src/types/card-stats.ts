@@ -1,5 +1,4 @@
-/** Foil display category used for filter UI. Maps SPL foil numbers 0-4. */
-export type FoilCategory = "regular" | "gold" | "gold-arcane" | "black" | "black-arcane";
+import { CardFoil } from "@/types/card";
 
 /**
  * One flattened row from the cards/get_details distribution array,
@@ -17,7 +16,7 @@ export interface CardDistributionRow {
   /** Numeric foil: 0=Regular, 1=Gold, 2=Gold Arcane, 3=Black, 4=Black Arcane */
   foil: number;
   foilLabel: string;
-  foilCategory: FoilCategory;
+  foilCategory: CardFoil;
   /** Element colour as returned by the API, e.g. "Red", "Blue", "Gold". */
   color: string;
   /** Secondary element colour, or undefined. */

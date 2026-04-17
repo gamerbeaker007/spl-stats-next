@@ -1,11 +1,13 @@
 ﻿"use client";
 
 import { useBattleFilter } from "@/lib/frontend/context/BattleFilterContext";
-import { useCardOptions, type CardOption } from "@/hooks/battles/useCardOptions";
+import { useCardOptions } from "@/hooks/battles/useCardOptions";
+import CardSearchAutocomplete from "@/components/shared/filter/CardSearchAutocomplete";
 import IconFilterGroup from "@/components/shared/filter/IconFilterGroup";
 import FilterSection from "@/components/shared/filter/FilterSection";
 import EditionSetFilter from "@/components/shared/filter/EditionSetFilter";
-import FoilFilterChips, { type FoilOption } from "@/components/shared/filter/FoilFilterChips";
+import FoilFilterChips from "@/components/shared/filter/FoilFilterChips";
+import type { CardOption } from "@/types/card";
 import {
   CARD_TYPE_OPTIONS,
   COLOR_OPTIONS,
@@ -20,9 +22,7 @@ import {
 import { useMonitoredAccountNames } from "@/hooks/battles/useMonitoredAccountNames";
 import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import Autocomplete from "@mui/material/Autocomplete";
 import Box from "@mui/material/Box";
-import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
 import Drawer from "@mui/material/Drawer";
 import FormControl from "@mui/material/FormControl";
@@ -40,11 +40,6 @@ import { useEffect } from "react";
 import { MdClose, MdFilterList, MdRestartAlt } from "react-icons/md";
 
 export const DRAWER_WIDTH = 280;
-
-const BATTLE_FOIL_OPTIONS: FoilOption[] = [
-  { value: "regular", label: "Regular", color: "#9e9e9e", textColor: "#fff" },
-  { value: "gold", label: "Gold", color: "#ffc107", textColor: "#5d4000" },
-];
 
 // ---------------------------------------------------------------------------
 // Main drawer component
@@ -167,41 +162,17 @@ export default function BattleFilterDrawer({
 
         {/* Card Name */}
         <FilterSection title="Card">
-          <Autocomplete<CardOption>
+          <CardSearchAutocomplete
             options={cardOptions}
-            getOptionLabel={(o) => o.cardName}
-            filterOptions={(options, { inputValue }) => {
-              const lower = inputValue.toLowerCase();
-              return options.filter((o) => o.cardName.toLowerCase().includes(lower)).slice(0, 5);
-            }}
-            isOptionEqualToValue={(o, v) => o.cardDetailId === v.cardDetailId}
+            loading={cardOptionsLoading}
             value={selectedCard}
-            onChange={(_, newValue) => {
+            onChange={(newValue) =>
               setFilter({
                 cardName: newValue?.cardName ?? "",
                 selectedCardDetailId: newValue?.cardDetailId ?? 0,
-              });
-            }}
-            loading={cardOptionsLoading}
+              })
+            }
             disabled={!filter.account}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                size="small"
-                label="Search card"
-                slotProps={{
-                  input: {
-                    ...params.InputProps,
-                    endAdornment: (
-                      <>
-                        {cardOptionsLoading && <CircularProgress size={16} />}
-                        {params.InputProps.endAdornment}
-                      </>
-                    ),
-                  },
-                }}
-              />
-            )}
           />
         </FilterSection>
 
@@ -271,7 +242,6 @@ export default function BattleFilterDrawer({
         {/* Foil */}
         <FilterSection title="Foil">
           <FoilFilterChips
-            options={BATTLE_FOIL_OPTIONS}
             selected={filter.foilCategories}
             onChange={(v) => setFilter({ foilCategories: v })}
           />
@@ -288,7 +258,7 @@ export default function BattleFilterDrawer({
               size="small"
               value={filter.minManaCap || ""}
               onChange={(e) =>
-                setFilter({ minManaCap: e.target.value ? parseInt(e.target.value) : 0 })
+                setFilter({ minManaCap: e.target.value ? Number.parseInt(e.target.value) : 0 })
               }
               slotProps={{ htmlInput: { min: 0, max: 99 } }}
               sx={{ width: "50%" }}
@@ -299,7 +269,7 @@ export default function BattleFilterDrawer({
               size="small"
               value={filter.maxManaCap || ""}
               onChange={(e) =>
-                setFilter({ maxManaCap: e.target.value ? parseInt(e.target.value) : 0 })
+                setFilter({ maxManaCap: e.target.value ? Number.parseInt(e.target.value) : 0 })
               }
               slotProps={{ htmlInput: { min: 0, max: 99 } }}
               sx={{ width: "50%" }}
@@ -312,17 +282,30 @@ export default function BattleFilterDrawer({
         {/* Display Options */}
         <FilterSection title="Display Options">
           {showGroupLevels && (
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={filter.groupLevels}
-                  onChange={(e) => setFilter({ groupLevels: e.target.checked })}
-                  size="small"
-                />
-              }
-              label={<Typography variant="body2">Group card levels</Typography>}
-              sx={{ mb: 1 }}
-            />
+            <>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={filter.groupLevels}
+                    onChange={(e) => setFilter({ groupLevels: e.target.checked })}
+                    size="small"
+                  />
+                }
+                label={<Typography variant="body2">Group card levels</Typography>}
+                sx={{ mb: 1 }}
+              />
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={filter.groupFoils}
+                    onChange={(e) => setFilter({ groupFoils: e.target.checked })}
+                    size="small"
+                  />
+                }
+                label={<Typography variant="body2">Group card foils</Typography>}
+                sx={{ mb: 1 }}
+              />
+            </>
           )}
 
           <FormControl fullWidth size="small" sx={{ mb: 1 }}>
@@ -362,7 +345,7 @@ export default function BattleFilterDrawer({
             fullWidth
             value={filter.minBattleCount}
             onChange={(e) =>
-              setFilter({ minBattleCount: Math.max(1, parseInt(e.target.value) || 1) })
+              setFilter({ minBattleCount: Math.max(1, Number.parseInt(e.target.value) || 1) })
             }
             slotProps={{ htmlInput: { min: 1 } }}
           />

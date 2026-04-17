@@ -9,7 +9,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { CardDistributionRow, FoilCategory } from "@/types/card-stats";
+import type { CardDistributionRow } from "@/types/card-stats";
+import { CardFoil } from "@/types/card";
 
 const STORAGE_KEY = "card-stats-filter";
 
@@ -33,7 +34,11 @@ export interface CardStatsFilter {
   /** Card types "Monster" | "Summoner"; [] = all. */
   cardTypes: string[];
   /** Foil categories; [] = all. */
-  foilCategories: FoilCategory[];
+  foilCategories: CardFoil[];
+  /** Selected card detail ID; 0 = all. */
+  selectedCardDetailId: number;
+  /** Card name for display; "" = all. */
+  cardName: string;
   filterOpen: boolean;
 }
 
@@ -46,6 +51,8 @@ export const DEFAULT_CARD_STATS_FILTER: CardStatsFilter = {
   colors: [],
   cardTypes: [],
   foilCategories: [],
+  selectedCardDetailId: 0,
+  cardName: "",
   filterOpen: true,
 };
 
@@ -162,6 +169,9 @@ export function CardStatsFilterProvider({ children }: { children: ReactNode }) {
       if (filter.cardTypes.length > 0 && !filter.cardTypes.includes(row.role)) return false;
 
       if (filter.foilCategories.length > 0 && !filter.foilCategories.includes(row.foilCategory))
+        return false;
+
+      if (filter.selectedCardDetailId > 0 && row.cardDetailId !== filter.selectedCardDetailId)
         return false;
 
       return true;

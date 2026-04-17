@@ -9,7 +9,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
-## [v0.3.0] - 2026-04-15
+## [v0.3.0] - 2026-04-17
 
 ### What's New
 
@@ -28,6 +28,10 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ### Fixed
 
+- **Battle foil filter now works** — selecting a foil in the battle filter drawer now actually filters results. Previously the foil selection was stored in state but never passed to the database query, so all foils were always returned. Filtering now happens at the DB level before grouping.
+- **Battle grouping split into two controls** — the single "Group card levels / foils" switch is replaced by two independent switches: _Group card levels_ and _Group card foils_. Previously ungrouped mode still silently merged foil variants because foil was not part of the grouping key; each flag now independently controls whether levels and foils are consolidated.
+- **Dashboard collection foil filter now works** — selecting a foil on the collection page previously caused all cards to disappear. The `filterCard()` utility was checking foil but was never called with a foil value, so every card failed when a foil filter was active. Foil filtering is now handled separately at the card-group level where the foil information is actually available.
+- **Battle foil tracking** — `PlayerBattleCard` and `OpponentBattleCard` now store a numeric `foil` field (0=Regular, 1=Gold, 2=Gold Arcane, 3=Black, 4=Black Arcane). Previously only a `gold: boolean` flag was recorded, making it impossible to distinguish Gold Arcane, Black, and Black Arcane foil types. A migration backfills existing rows: `gold=false` → `foil=0`, `gold=true` → `foil=1` (arcane/black information for older rows is lost). New imports from CSVs that include a `foil` column will record the precise foil; CSVs without a `foil` column fall back to the `gold` boolean. Battle stat filtering now uses the numeric foil directly.
 - **Player Dashboard back button** — the Home button on `/multi-dashboard/collection` now navigates back to `/multi-dashboard` instead of the app root.
 
 ---

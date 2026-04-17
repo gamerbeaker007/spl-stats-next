@@ -3,9 +3,16 @@
 import { fetchCardDetails, fetchSettings } from "@/lib/backend/api/spl/spl-api";
 import type { SplCardDetail } from "@/types/spl/cardDetails";
 import type { SplSettings } from "@/types/spl/season";
-import type { CardDistributionRow, FoilCategory } from "@/types/card-stats";
-import { getEditionLabel } from "@/lib/shared/edition-utils";
+import type { CardDistributionRow } from "@/types/card-stats";
+import { getEditionId, getEditionLabel, getTier, isSoulbound } from "@/lib/shared/edition-utils";
 import { cacheLife } from "next/cache";
+import {
+  CardFoil,
+  cardFoilOptions,
+  CardRarity,
+  cardRarityOptions,
+  type CardOption,
+} from "@/types/card";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -26,12 +33,12 @@ const FOIL_LABELS: Record<number, string> = {
   4: "Black Foil Arcane",
 };
 
-function getFoilCategory(foil: number): FoilCategory {
+function getFoilCategory(foil: number): CardFoil {
   if (foil === 0) return "regular";
   if (foil === 1) return "gold";
-  if (foil === 2) return "gold-arcane";
+  if (foil === 2) return "gold arcane";
   if (foil === 3) return "black";
-  return "black-arcane"; // foil === 4
+  return "black arcane"; // foil === 4
 }
 
 // ---------------------------------------------------------------------------
@@ -48,20 +55,24 @@ function determineBcx(
   tier: number | null,
   rarity: number,
   isGold: boolean,
-  cardDetailId: number,
   xp: number,
   settings: SplSettings
 ): number {
   if (xp === 0) return 0;
 
   // Untamed (4) and any card from Untamed era onward (tier ≥ 4): BCX = XP directly.
-  if (edition === 4 || (tier !== null && tier >= 4)) {
+  const untamedTierNumber = getTier("untamed")!;
+  //from tier 4 and up (untamed era xp = bcx)
+  if (tier !== null && tier >= untamedTierNumber) {
     return xp;
   }
 
   // Determine which XP threshold to use.
+  const isAlpha = edition === getEditionId("alpha");
+  const isAlphaTier = tier === getTier("alpha")!;
+  const isPromo = edition === getEditionId("promo");
   let xpThresholds: number[];
-  if (edition === 0 || (edition === 2 && cardDetailId < 100)) {
+  if (isAlpha || (isPromo && isAlphaTier)) {
     // Alpha cards or Alpha-era promos.
     xpThresholds = isGold ? (settings.gold_xp ?? []) : (settings.alpha_xp ?? []);
   } else {
@@ -82,16 +93,27 @@ function determineBcx(
 // CP calculation — ported from spl-streamlit/src/util/data_util.py
 // ---------------------------------------------------------------------------
 
-/** CP base value per BCX, indexed by [rarity-1][foilCpIndex]. */
-const CP_PER_BCX = [
-  [5, 125, 625],
-  [20, 500, 2500],
-  [100, 2500, 12500],
-  [500, 12500, 62500],
-] as const;
+/** The three distinct CP tiers — arcane variants map to their base foil. */
+type CpFoilKey = "regular" | "gold" | "black";
+
+const FOIL_TO_CP_KEY: Record<CardFoil, CpFoilKey> = {
+  regular: "regular",
+  gold: "gold",
+  "gold arcane": "gold",
+  black: "black",
+  "black arcane": "black",
+};
+
+/** CP base value per BCX, indexed by card rarity and CP foil tier. */
+const CP_PER_BCX: Record<CardRarity, Record<CpFoilKey, number>> = {
+  common: { regular: 5, gold: 125, black: 625 },
+  rare: { regular: 20, gold: 500, black: 2500 },
+  epic: { regular: 100, gold: 2500, black: 12500 },
+  legendary: { regular: 500, gold: 12500, black: 62500 },
+};
 
 const CP_MULTIPLIERS = {
-  gladius: { regular: 6, gold: 12 },
+  gladius: { regular: 2, gold: 4 },
   untamed: { regular: 2, gold: 4 },
   untamed_promo: { regular: 6, gold: 12 },
   alpha: { regular: 6, gold: 12 },
@@ -99,37 +121,79 @@ const CP_MULTIPLIERS = {
   beta_promo: { regular: 6, gold: 12 },
 } as const;
 
-function getCpMultiplier(
-  edition: number,
-  tier: number | null,
-  cardDetailId: number,
-  isGold: boolean
-): number {
+function getCpMultiplier(edition: number, tier: number | null, foil: number): number {
+  // From chaos legion its default 1
+  const untamedTier = getTier("untamed")!;
+  const chaosEdition = getEditionId("chaos legion")!;
+  if (edition >= chaosEdition || (tier !== null && tier > untamedTier)) return 1;
+
+  // Note special foils will not come here because they are introduced after chaos legion
+  const isGold = foil > 0;
   const key = isGold ? "gold" : "regular";
-  if (edition >= 7 || (tier !== null && tier > 4)) return 1;
-  if (edition === 6) return CP_MULTIPLIERS.gladius[key];
-  if (edition === 4 || tier === 4) return CP_MULTIPLIERS.untamed[key];
+
+  // Gladius
+  const isGladius = edition === getEditionId("gladius");
+  if (isGladius) return CP_MULTIPLIERS.gladius[key];
+
+  // Untamed or untamed rewards
+  const isUntamed = edition === getEditionId("untamed");
+  const isUntamedTier = tier === untamedTier;
+  if (isUntamed || isUntamedTier) return CP_MULTIPLIERS.untamed[key];
+
+  // Special treatment for untamed promos tier 3 should not exist
+  // TODO update after info https://support.splinterlands.com/hc/en-us/requests/81720
+  // maybe introduce special new tier?
   if (tier === 3) return CP_MULTIPLIERS.untamed_promo[key];
-  if (edition === 0 || (edition === 2 && cardDetailId < 100)) return CP_MULTIPLIERS.alpha[key];
-  if (edition === 2 && cardDetailId < 206) return CP_MULTIPLIERS.beta_promo[key];
+
+  // Alpha
+  const isAlpha = edition === getEditionId("alpha");
+  const isAlphaTier = tier === getTier("alpha")!;
+  const isPromo = edition === getEditionId("promo");
+  if (isAlpha || (isPromo && isAlphaTier)) return CP_MULTIPLIERS.alpha[key];
+
+  // Beta Promos
+  const isBetaTier = tier === getTier("beta")!;
+  if (isPromo && isBetaTier) return CP_MULTIPLIERS.beta_promo[key];
+
   return CP_MULTIPLIERS.beta[key];
 }
 
+/**
+ * Calculate CP value for a card.
+ * @param rarity
+ * @param foil
+ * @param bcx
+ * @param edition
+ * @param tier
+ */
 function calculateCp(
   rarity: number,
   foil: number,
   bcx: number,
   edition: number,
-  tier: number | null,
-  cardDetailId: number
+  tier: number | null
 ): number {
-  if (bcx === 0) return 0;
+  const isFoundation =
+    edition === getEditionId("foundation") || edition === getEditionId("soulbound foundation");
+  if (bcx === 0 || isFoundation) return 0;
+  const cardRarity = cardRarityOptions[rarity - 1] as CardRarity;
+  const cardFoil = cardFoilOptions[foil] as CardFoil;
+
+  // in this case it either regular / gold or black foil
+  // gold arcane and black arcane are also gold or black for cp calculation
+  const cpFoilKey = FOIL_TO_CP_KEY[cardFoil];
   // CP foil index: Regular=0, Gold=1, Black=2
-  const cpFoilIndex = foil === 0 ? 0 : foil <= 2 ? 1 : 2;
-  const isGold = foil > 0;
-  const cpBase = CP_PER_BCX[rarity - 1]?.[cpFoilIndex] ?? 0;
-  const multiplier = getCpMultiplier(edition, tier, cardDetailId, isGold);
-  return cpBase * bcx * multiplier;
+  const cpBase = CP_PER_BCX[cardRarity][cpFoilKey] ?? 0;
+
+  const multiplier = getCpMultiplier(edition, tier, foil);
+
+  // if it's a black/black arcane or gold arcanes we know it's a max so we can increase it with 5%
+  let maxBonus = 1;
+  if (cardFoil === "black" || cardFoil === "black arcane" || cardFoil === "gold arcane") {
+    maxBonus = 1.05;
+  }
+
+  return cpBase * bcx * multiplier * maxBonus;
 }
 
 // ---------------------------------------------------------------------------
@@ -141,32 +205,25 @@ function flattenAndCompute(cards: SplCardDetail[], settings: SplSettings): CardD
 
   for (const card of cards) {
     for (const dist of card.distribution) {
-      const numCards = parseInt(dist.num_cards, 10) || 0;
-      const numBurned = parseInt(dist.num_burned, 10) || 0;
-      const unboundCards = parseInt(dist.unbound_cards, 10) || 0;
-      const totalXp = parseInt(dist.total_xp, 10) || 0;
-      const totalBurnedXp = parseInt(dist.total_burned_xp, 10) || 0;
+      const numCards = Number.parseInt(dist.num_cards, 10) || 0;
+      const numBurned = Number.parseInt(dist.num_burned, 10) || 0;
+      const unboundCards = isSoulbound(dist.edition)
+        ? Number.parseInt(dist.unbound_cards, 10) || 0
+        : numCards;
+      const totalXp = Number.parseInt(dist.total_xp, 10) || 0;
+      const totalBurnedXp = Number.parseInt(dist.total_burned_xp, 10) || 0;
       const isGold = dist.gold;
 
-      const bcx = determineBcx(
-        dist.edition,
-        card.tier,
-        card.rarity,
-        isGold,
-        card.id,
-        totalXp,
-        settings
-      );
+      const bcx = determineBcx(dist.edition, card.tier, card.rarity, isGold, totalXp, settings);
       const burnedBcx = determineBcx(
         dist.edition,
         card.tier,
         card.rarity,
         isGold,
-        card.id,
         totalBurnedXp,
         settings
       );
-      const cp = calculateCp(card.rarity, dist.foil, bcx, dist.edition, card.tier, card.id);
+      const cp = calculateCp(card.rarity, dist.foil, bcx, dist.edition, card.tier);
 
       rows.push({
         cardDetailId: card.id,
@@ -206,4 +263,21 @@ export async function getCardStatsRows(): Promise<CardDistributionRow[]> {
 
   const [cards, settings] = await Promise.all([fetchCardDetails(), fetchSettings()]);
   return flattenAndCompute(cards, settings);
+}
+
+/** Fetch all unique card name/id pairs for search autocomplete. Cached for 1 hour. */
+export async function getCardNamesAction(): Promise<CardOption[]> {
+  "use cache";
+  cacheLife("hours");
+
+  const cards = await fetchCardDetails();
+  const seen = new Set<number>();
+  const result: CardOption[] = [];
+  for (const c of cards) {
+    if (!seen.has(c.id)) {
+      seen.add(c.id);
+      result.push({ cardDetailId: c.id, cardName: c.name });
+    }
+  }
+  return result.sort((a, b) => a.cardName.localeCompare(b.cardName));
 }
