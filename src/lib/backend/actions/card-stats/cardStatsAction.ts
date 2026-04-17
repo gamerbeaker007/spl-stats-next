@@ -1,18 +1,13 @@
 "use server";
 
 import { fetchCardDetails, fetchSettings } from "@/lib/backend/api/spl/spl-api";
+import { getEditionId, getEditionLabel, getTier, isSoulbound } from "@/lib/shared/edition-utils";
+import { getRarityById } from "@/lib/shared/rarity-utils";
+import { CardFoil, cardFoilOptions, CardRarity, type CardOption } from "@/types/card";
+import type { CardDistributionRow } from "@/types/card-stats";
 import type { SplCardDetail } from "@/types/spl/cardDetails";
 import type { SplSettings } from "@/types/spl/season";
-import type { CardDistributionRow } from "@/types/card-stats";
-import { getEditionId, getEditionLabel, getTier, isSoulbound } from "@/lib/shared/edition-utils";
 import { cacheLife } from "next/cache";
-import {
-  CardFoil,
-  cardFoilOptions,
-  CardRarity,
-  cardRarityOptions,
-  type CardOption,
-} from "@/types/card";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -127,7 +122,7 @@ function getCpMultiplier(edition: number, tier: number | null, foil: number): nu
   const chaosEdition = getEditionId("chaos legion")!;
   if (edition >= chaosEdition || (tier !== null && tier > untamedTier)) return 1;
 
-  // Note special foils will not come here because they are introduced after chaos legion
+  // Note: special foils will not come here because they are introduced after chaos legion
   const isGold = foil > 0;
   const key = isGold ? "gold" : "regular";
 
@@ -141,8 +136,6 @@ function getCpMultiplier(edition: number, tier: number | null, foil: number): nu
   if (isUntamed || isUntamedTier) return CP_MULTIPLIERS.untamed[key];
 
   // Special treatment for untamed promos tier 3 should not exist
-  // TODO update after info https://support.splinterlands.com/hc/en-us/requests/81720
-  // maybe introduce special new tier?
   if (tier === 3) return CP_MULTIPLIERS.untamed_promo[key];
 
   // Alpha
@@ -176,7 +169,8 @@ function calculateCp(
   const isFoundation =
     edition === getEditionId("foundation") || edition === getEditionId("soulbound foundation");
   if (bcx === 0 || isFoundation) return 0;
-  const cardRarity = cardRarityOptions[rarity - 1] as CardRarity;
+  const cardRarity = getRarityById(rarity)?.name as CardRarity | undefined;
+  if (!cardRarity) return 0;
   const cardFoil = cardFoilOptions[foil] as CardFoil;
 
   // in this case it either regular / gold or black foil

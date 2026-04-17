@@ -1,7 +1,7 @@
 "use client";
 
-import { CardElement, CardFoil, CardRarity, CardRole, CardSetName } from "@/types/card";
-import { getSetName } from "@/lib/shared/edition-utils";
+import { CardSetName, getSetName } from "@/lib/shared/edition-utils";
+import { CardElement, CardFoil, CardRarity, CardRole } from "@/types/card";
 import React, { createContext, ReactNode, useCallback, useContext, useState } from "react";
 
 interface CardFilterContextType {

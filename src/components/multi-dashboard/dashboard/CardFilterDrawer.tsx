@@ -3,7 +3,8 @@
 import FilterSection from "@/components/shared/filter/FilterSection";
 import FoilFilterChips from "@/components/shared/filter/FoilFilterChips";
 import IconFilterGroup from "@/components/shared/filter/IconFilterGroup";
-import { SET_DEFS, CardSetName } from "@/lib/shared/edition-utils";
+import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
+import { CardSetName, SET_DEFS, SET_NAMES } from "@/lib/shared/edition-utils";
 import {
   cardElementIconMap,
   cardElementOptions,
@@ -12,12 +13,10 @@ import {
   cardRoleIconMap,
   cardRoleOptions,
   cardSetIconMap,
-  cardSetOptions,
   type CardElement,
   type CardRarity,
   type CardRole,
 } from "@/types/card";
-import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
@@ -35,7 +34,7 @@ export const DRAWER_WIDTH = 280;
 const MODERN_SETS: CardSetName[] = ["rebellion", "conclave", "foundation"];
 
 // Build icon options from shared edition-utils so labels & icons stay in sync.
-const setFilterOptions = cardSetOptions.map((name) => ({
+const setFilterOptions = SET_NAMES.map((name) => ({
   value: name,
   label: SET_DEFS.find((s) => s.setName === name)?.label ?? name,
   iconUrl: cardSetIconMap[name] ?? "",

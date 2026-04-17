@@ -1,9 +1,10 @@
 "use client";
 
-import PlotlyChart from "@/components/shared/PlotlyChart";
 import CardStatsFilterDrawer from "@/components/card-stats/CardStatsFilterDrawer";
+import PlotlyChart from "@/components/shared/PlotlyChart";
 import { useCardStatsFilter } from "@/lib/frontend/context/CardStatsFilterContext";
 import { useTheme } from "@/lib/frontend/context/ThemeSetup";
+import { RARITY_COLORS, RARITY_ORDER } from "@/lib/shared/rarity-utils";
 import type { CardDistributionRow } from "@/types/card-stats";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
@@ -16,14 +17,6 @@ import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
 import type { Data } from "plotly.js";
 import { useMemo } from "react";
-
-const RARITY_ORDER = ["Common", "Rare", "Epic", "Legendary"];
-const RARITY_COLORS: Record<string, string> = {
-  Common: "#9e9e9e",
-  Rare: "#2196F3",
-  Epic: "#9C27B0",
-  Legendary: "#FF9800",
-};
 
 // ---------------------------------------------------------------------------
 // Pivot helpers

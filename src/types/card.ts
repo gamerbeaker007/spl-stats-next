@@ -1,9 +1,5 @@
 import {
   archon_filter_icon_url,
-  card_rarity_common_icon_url,
-  card_rarity_epic_icon_url,
-  card_rarity_legendary_icon_url,
-  card_rarity_rare_icon_url,
   death_element_icon_url,
   dragon_element_icon_url,
   earth_element_icon_url,
@@ -15,21 +11,17 @@ import {
 } from "@/lib/staticsIconUrls";
 
 // Edition / set definitions live in edition-utils — re-export for backward compat.
-import { SET_NAMES, type CardSetName } from "@/lib/shared/edition-utils";
-export type { EditionDef, SetDef, CardSetName } from "@/lib/shared/edition-utils";
+import { CardSetName } from "@/lib/shared/edition-utils";
+import { CardRarity } from "@/lib/shared/rarity-utils";
 export { cardSetIconMap } from "@/lib/shared/edition-utils";
-
-// Mutable copy so components expecting a mutable array are satisfied.
-export const cardSetOptions: CardSetName[] = [...SET_NAMES];
-
-export const cardRarityOptions = ["common", "rare", "epic", "legendary"] as const;
-export type CardRarity = (typeof cardRarityOptions)[number];
-export const cardIconMap: Record<CardRarity, string> = {
-  common: card_rarity_common_icon_url,
-  rare: card_rarity_rare_icon_url,
-  epic: card_rarity_epic_icon_url,
-  legendary: card_rarity_legendary_icon_url,
-};
+export {
+  cardRarityIconMap as cardIconMap,
+  cardRarityOptions,
+  RARITY_COLORS,
+  RARITY_DEFS,
+  RARITY_ORDER,
+} from "@/lib/shared/rarity-utils";
+export type { CardRarity, RarityDef } from "@/lib/shared/rarity-utils";
 
 export const cardElementOptions = [
   "red",

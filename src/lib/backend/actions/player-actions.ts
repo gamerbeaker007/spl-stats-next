@@ -25,13 +25,13 @@ import {
   aggregateRewards,
   mergeRewardSummaries,
 } from "@/lib/rewardAggregator";
+import { CardSetName } from "@/lib/shared/edition-utils";
 import {
   CardDetail,
   CardElement,
   CardFoil,
   CardRarity,
   CardRole,
-  CardSetName,
   DetailedPlayerCardCollection,
   DetailedPlayerCardCollectionItem,
 } from "@/types/card";

@@ -1,34 +1,34 @@
 "use client";
 
-import PlotlyChart from "@/components/shared/PlotlyChart";
 import CardStatsFilterDrawer from "@/components/card-stats/CardStatsFilterDrawer";
 import CardStatsStatHeader from "@/components/card-stats/CardStatsStatHeader";
+import PlotlyChart from "@/components/shared/PlotlyChart";
 import { useCardStatsFilter } from "@/lib/frontend/context/CardStatsFilterContext";
 import { useTheme } from "@/lib/frontend/context/ThemeSetup";
 import { SET_DEFS, getSetForEdition } from "@/lib/shared/edition-utils";
+import { RARITY_COLORS, RARITY_ORDER } from "@/lib/shared/rarity-utils";
 import type { CardDistributionRow } from "@/types/card-stats";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import type { Data } from "plotly.js";
 import { useMemo } from "react";
 
-const RARITY_ORDER = ["Common", "Rare", "Epic", "Legendary"];
+// Set labels in era order (ordered by SET_DEFS position).
+const TIER_ORDER = SET_DEFS.map((s) => s.label);
 
-// Tier chart — set labels in era order, Eternal last.
-const TIER_ORDER = [...SET_DEFS.filter((s) => s.tier !== null).map((s) => s.label), "Eternal"];
-
-/** Resolve the set/era label for a row, falling back to edition when tier is absent. */
+/**
+ * Resolve the set label for a row.
+ * For regular editions, uses setName directly (so e.g. Gladius → "Eternal").
+ * For cross-era editions (promo=2, reward=3, extra=17), falls back to the card's tier field.
+ */
 function getRowSetLabel(row: CardDistributionRow): string {
-  const tier = row.tier ?? getSetForEdition(row.edition)?.tier ?? null;
-  if (tier === null) return "Unknown Set";
-  return SET_DEFS.find((s) => s.tier === tier)?.label ?? `Tier ${tier}`;
+  // Regular edition: look up by setName
+  const byEdition = getSetForEdition(row.edition);
+  if (byEdition) return byEdition.label;
+  // Cross-era edition: resolve via the card's tier discriminator
+  const tier = row.tier;
+  return SET_DEFS.find((s) => s.tier === tier)?.label ?? "Unknown Set";
 }
-const RARITY_COLORS: Record<string, string> = {
-  Common: "#9e9e9e",
-  Rare: "#2196F3",
-  Epic: "#9C27B0",
-  Legendary: "#FF9800",
-};
 
 function buildTierRarityData(
   rows: CardDistributionRow[],
