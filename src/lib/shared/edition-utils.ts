@@ -2,10 +2,13 @@
  * Single source of truth for all edition/set definitions.
  *
  * Design:
- *   - `EDITION_DEFS`    — one row per edition ID; cross-era editions (promo=2, reward=3, extra=17)
- *     have `setName: undefined` — their set is determined by the card's `tier` at runtime.
- *   - `SET_DEFS`        — one row per playable set (alpha, beta, untamed, …);
- *     each set knows its era tier and whether it has cross-era promo/reward/extra cards.
+ *   - `EDITION_DEFS`    — one row per edition ID.
+ *     Cross-era editions (promo=2, reward=3, extra=17) have `setName: undefined` — their set is
+ *     determined by the card's `tier` field at runtime.
+ *     The canonical edition of each set is marked `primary: true`; its `id` equals the SPL API
+ *     tier discriminator for cross-era cards of that set (e.g. Chaos Legion id=7 → chaos tier=7).
+ *   - `SET_DEFS`        — one row per playable set; `tier` is derived from the primary edition
+ *     in `EDITION_DEFS` so it never needs to be hardcoded here.
  *   - Derived exports   — `EDITION_OPTIONS`, `EDITION_SET_GROUPS`,
  *     `cardSetIconMap` — keep existing consumers working without changes.
  *   - Helper functions  — `getEditionId`, `getTier`, `getSetName`, etc.
@@ -13,24 +16,24 @@
 import {
   edition_alpha_icon_url,
   edition_beta_icon_url,
-  edition_promo_icon_url,
-  edition_reward_icon_url,
-  edition_untamed_icon_url,
-  edition_dice_icon_url,
-  edition_gladius_icon_url,
   edition_chaos_icon_url,
-  edition_rift_icon_url,
-  edition_soulkeep_icon_url,
-  edition_soulbound_icon_url,
-  edition_rebellion_icon_url,
-  edition_soulbound_rebellion_icon_url,
   edition_conclave_arcana_icon_url,
-  edition_foundation_icon_url,
   edition_conclave_extra_icon_url,
   edition_conclave_rewards_icon_url,
-  edition_eternal_icon_url,
-  edition_land_card_icon_url,
+  edition_dice_icon_url,
   edition_escalation_icon_url,
+  edition_eternal_icon_url,
+  edition_foundation_icon_url,
+  edition_gladius_icon_url,
+  edition_land_card_icon_url,
+  edition_promo_icon_url,
+  edition_rebellion_icon_url,
+  edition_reward_icon_url,
+  edition_rift_icon_url,
+  edition_soulbound_icon_url,
+  edition_soulbound_rebellion_icon_url,
+  edition_soulkeep_icon_url,
+  edition_untamed_icon_url,
 } from "@/lib/staticsIconUrls";
 
 // ---------------------------------------------------------------------------
@@ -51,15 +54,38 @@ export interface EditionDef {
    * Cross-era editions appear in `EDITION_OPTIONS` but are excluded from
    * `EditionSetGroup.editions`; the set's `hasPromo`/`hasReward`/`hasExtra` flags handle them.
    */
-  readonly setName: string | undefined;
+  readonly setName: CardSetName | undefined;
   /** Filter / display icon URL. */
   readonly iconUrl: string;
+  /** Whether this edition is a soulbound edition. (some can be unlocked) when not defined = false */
+  readonly soulbound?: boolean;
+  /**
+   * Marks this edition as the canonical/primary edition of its set.
+   * The SPL API uses this edition's `id` as the `tier` discriminator on cross-era cards
+   * (promo=2, reward=3, extra=17) to identify which set they belong to.
+   * `SET_DEFS.tier` is derived from this flag — never hardcoded separately.
+   */
+  readonly primary?: true;
 }
 
 // Ordered by edition ID. Add new editions here only.
 export const EDITION_DEFS: readonly EditionDef[] = [
-  { id: 0, label: "Alpha", urlName: "alpha", setName: "alpha", iconUrl: edition_alpha_icon_url },
-  { id: 1, label: "Beta", urlName: "beta", setName: "beta", iconUrl: edition_beta_icon_url },
+  {
+    id: 0,
+    label: "Alpha",
+    urlName: "alpha",
+    setName: "alpha",
+    iconUrl: edition_alpha_icon_url,
+    primary: true,
+  },
+  {
+    id: 1,
+    label: "Beta",
+    urlName: "beta",
+    setName: "beta",
+    iconUrl: edition_beta_icon_url,
+    primary: true,
+  },
   {
     id: 2,
     label: "Promo",
@@ -80,6 +106,7 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     urlName: "untamed",
     setName: "untamed",
     iconUrl: edition_untamed_icon_url,
+    primary: true,
   },
   { id: 5, label: "Dice", urlName: "dice", setName: "untamed", iconUrl: edition_dice_icon_url },
   {
@@ -95,6 +122,7 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     urlName: "chaos",
     setName: "chaos",
     iconUrl: edition_chaos_icon_url,
+    primary: true,
   },
   {
     id: 8,
@@ -109,17 +137,19 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     urlName: "soulkeep",
     setName: "soulkeep",
     iconUrl: edition_soulkeep_icon_url,
+    primary: true,
   },
   {
     id: 10,
     label: "Soulbound",
     urlName: "soulbound",
     setName: "chaos",
+    soulbound: true,
     iconUrl: edition_soulbound_icon_url,
   },
   {
     id: 11,
-    label: "Soulkeep ?",
+    label: "Soulkeep Promo",
     urlName: "soulkeep",
     setName: "soulkeep",
     iconUrl: edition_soulkeep_icon_url,
@@ -130,12 +160,14 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     urlName: "rebellion",
     setName: "rebellion",
     iconUrl: edition_rebellion_icon_url,
+    primary: true,
   },
   {
     id: 13,
     label: "Soulbound Reb.",
     urlName: "soulboundrb",
     setName: "rebellion",
+    soulbound: true,
     iconUrl: edition_soulbound_rebellion_icon_url,
   },
   {
@@ -144,6 +176,7 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     urlName: "conclave",
     setName: "conclave",
     iconUrl: edition_conclave_arcana_icon_url,
+    primary: true,
   },
   {
     id: 15,
@@ -151,12 +184,14 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     urlName: "foundations",
     setName: "foundation",
     iconUrl: edition_foundation_icon_url,
+    primary: true,
   },
   {
     id: 16,
     label: "Soulbound Foundation",
     urlName: "foundations",
     setName: "foundation",
+    soulbound: true,
     iconUrl: edition_foundation_icon_url,
   },
   {
@@ -171,11 +206,12 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     label: "Conclave Rewards",
     urlName: "reward",
     setName: "conclave",
+    soulbound: true,
     iconUrl: edition_conclave_rewards_icon_url,
   },
   {
     id: 19,
-    label: "Eternal",
+    label: "Land",
     urlName: "land",
     setName: "eternal",
     iconUrl: edition_land_card_icon_url,
@@ -198,8 +234,9 @@ export interface SetDef {
   readonly setName: string;
   readonly label: string;
   /**
-   * Era tier — the numeric value stored on promo (edition=2), reward (edition=3),
-   * and extra (edition=17) cards to identify which set they belong to.
+   * Era tier — the numeric value stored on cross-era cards (promo=2, reward=3, extra=17)
+   * to identify which set they belong to. Equals the `id` of the primary edition
+   * (the one marked `primary: true` in `EDITION_DEFS`).
    * `null` = this set has no cross-era cards.
    */
   readonly tier: number | null;
@@ -212,12 +249,20 @@ export interface SetDef {
   readonly hasExtra: boolean;
 }
 
-// Ordered by era (ascending tier). Add new sets here only.
-export const SET_DEFS: readonly SetDef[] = [
+/**
+ * Source data for sets — only the fields that cannot be derived from `EDITION_DEFS`.
+ * `tier` is intentionally absent here; it is derived by looking up the primary edition
+ * (`primary: true`) for each set, so it never needs to be hardcoded.
+ * `label` and `iconUrl` stay because some sets differ from their primary edition's values
+ * (e.g. "Chaos" vs "Chaos Legion"; "Eternal" has no standalone edition entry).
+ *
+ * Ordered by era (ascending tier). Add new sets here only.
+ */
+type SetDefInput = Omit<SetDef, "tier">;
+const _SET_DEF_INPUTS: readonly SetDefInput[] = [
   {
     setName: "alpha",
     label: "Alpha",
-    tier: 0,
     iconUrl: edition_alpha_icon_url,
     hasPromo: true,
     hasReward: false,
@@ -226,7 +271,6 @@ export const SET_DEFS: readonly SetDef[] = [
   {
     setName: "beta",
     label: "Beta",
-    tier: 1,
     iconUrl: edition_beta_icon_url,
     hasPromo: true,
     hasReward: true,
@@ -235,7 +279,6 @@ export const SET_DEFS: readonly SetDef[] = [
   {
     setName: "untamed",
     label: "Untamed",
-    tier: 4,
     iconUrl: edition_untamed_icon_url,
     hasPromo: true,
     hasReward: true,
@@ -244,34 +287,38 @@ export const SET_DEFS: readonly SetDef[] = [
   {
     setName: "chaos",
     label: "Chaos",
-    tier: 7,
     iconUrl: edition_chaos_icon_url,
     hasPromo: true,
     hasReward: true,
     hasExtra: false,
   },
   {
+    setName: "soulkeep",
+    label: "Soulkeep",
+    iconUrl: edition_soulkeep_icon_url,
+    hasPromo: false,
+    hasReward: false,
+    hasExtra: false,
+  },
+  {
     setName: "rebellion",
     label: "Rebellion",
-    tier: 12,
     iconUrl: edition_rebellion_icon_url,
     hasPromo: true,
-    hasReward: true,
+    hasReward: false,
     hasExtra: false,
   },
   {
     setName: "conclave",
     label: "Conclave",
-    tier: 14,
     iconUrl: edition_conclave_arcana_icon_url,
     hasPromo: true,
-    hasReward: true,
+    hasReward: false,
     hasExtra: true,
   },
   {
     setName: "foundation",
     label: "Foundation",
-    tier: 15,
     iconUrl: edition_foundation_icon_url,
     hasPromo: false,
     hasReward: false,
@@ -280,13 +327,18 @@ export const SET_DEFS: readonly SetDef[] = [
   {
     setName: "eternal",
     label: "Eternal",
-    tier: null,
     iconUrl: edition_eternal_icon_url,
     hasPromo: false,
     hasReward: false,
     hasExtra: false,
   },
 ];
+
+/** Fully resolved set definitions — `tier` is derived from the primary edition in `EDITION_DEFS`. */
+export const SET_DEFS: readonly SetDef[] = _SET_DEF_INPUTS.map((s) => ({
+  ...s,
+  tier: EDITION_DEFS.find((e) => e.setName === s.setName && e.primary)?.id ?? null,
+}));
 
 // ---------------------------------------------------------------------------
 // Canonical set name list and type
@@ -298,6 +350,7 @@ export const SET_NAMES = [
   "beta",
   "untamed",
   "chaos",
+  "soulkeep",
   "rebellion",
   "conclave",
   "foundation",
@@ -305,7 +358,7 @@ export const SET_NAMES = [
 ] as const;
 
 /** Union of all set name string literals. Replaces `CardSetName` in types/card.ts. */
-export type SetName = (typeof SET_NAMES)[number];
+export type CardSetName = (typeof SET_NAMES)[number];
 
 // ---------------------------------------------------------------------------
 // O(1) lookup maps (internal)
@@ -371,9 +424,9 @@ export const EDITION_SET_GROUPS: EditionSetGroup[] = SET_DEFS.map((s) => ({
  * Set name → icon URL map.
  * Replaces `cardSetIconMap` in src/types/card.ts.
  */
-export const cardSetIconMap: Record<SetName, string> = Object.fromEntries(
+export const cardSetIconMap: Record<CardSetName, string> = Object.fromEntries(
   SET_DEFS.map((s) => [s.setName, s.iconUrl])
-) as Record<SetName, string>;
+) as Record<CardSetName, string>;
 
 // ---------------------------------------------------------------------------
 // Helper functions — prefer these over accessing editionMap/editionDef directly
@@ -399,8 +452,8 @@ export function getEditionIconUrl(editionId: number): string | undefined {
  * Returns `undefined` for cross-era editions (promo=2, reward=3, extras=17) — their set
  * is determined by the `tier` field on the card at runtime.
  */
-export function getSetName(editionId: number): string | undefined {
-  return _editionById.get(editionId)?.setName;
+export function getSetName(editionId: number): CardSetName | undefined {
+  return _editionById.get(editionId)?.setName as CardSetName | undefined;
 }
 
 /**
@@ -441,4 +494,9 @@ export function getSetForEdition(editionId: number): SetDef | undefined {
 /** Icon URL for a set name, e.g. `getSetIconUrl("chaos")` → `"…icon-edition-chaos.svg"`. */
 export function getSetIconUrl(setName: string): string | undefined {
   return _setByName.get(setName)?.iconUrl;
+}
+
+/** Whether an edition is a soulbound edition. */
+export function isSoulbound(editionId: number): boolean {
+  return _editionById.get(editionId)?.soulbound ?? false;
 }

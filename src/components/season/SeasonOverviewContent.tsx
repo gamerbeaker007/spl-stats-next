@@ -11,7 +11,9 @@
 
 import PageNavTabs from "@/components/ui/PageNavTabs";
 import Box from "@mui/material/Box";
+import Checkbox from "@mui/material/Checkbox";
 import FormControl from "@mui/material/FormControl";
+import FormControlLabel from "@mui/material/FormControlLabel";
 import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
@@ -32,6 +34,7 @@ export default function SeasonOverviewContent({ accounts }: Props) {
   const { theme } = useTheme();
   const [account, setAccount] = useState<string>(accounts[0] ?? "");
   const [tab, setTab] = useState(0);
+  const [hideCurrentSeason, setHideCurrentSeason] = useState(false);
 
   const username = account || undefined;
 
@@ -41,22 +44,34 @@ export default function SeasonOverviewContent({ accounts }: Props) {
         Season Overview
       </Typography>
 
-      {/* Account selector */}
+      {/* Account selector + hide current season toggle */}
       {accounts.length === 0 ? (
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
           No monitored accounts found. Add an account in the Users page.
         </Typography>
       ) : (
-        <FormControl size="small" sx={{ mb: 3, minWidth: 200 }}>
-          <InputLabel>Account</InputLabel>
-          <Select value={account} label="Account" onChange={(e) => setAccount(e.target.value)}>
-            {accounts.map((a) => (
-              <MenuItem key={a} value={a}>
-                {a}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <Box sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 2, mb: 3 }}>
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel>Account</InputLabel>
+            <Select value={account} label="Account" onChange={(e) => setAccount(e.target.value)}>
+              {accounts.map((a) => (
+                <MenuItem key={a} value={a}>
+                  {a}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={hideCurrentSeason}
+                onChange={(e) => setHideCurrentSeason(e.target.checked)}
+                size="small"
+              />
+            }
+            label={<Typography variant="body2">Hide current season</Typography>}
+          />
+        </Box>
       )}
 
       {/* Tab bar */}
@@ -69,9 +84,23 @@ export default function SeasonOverviewContent({ accounts }: Props) {
       </Box>
 
       {/* Tab panels */}
-      {tab === 0 && <LeaderboardHistoryChart username={username} theme={theme} />}
-      {tab === 1 && <BalanceEarningsChart username={username} theme={theme} />}
-      {tab === 2 && <TokenDetailChart username={username} theme={theme} />}
+      {tab === 0 && (
+        <LeaderboardHistoryChart
+          username={username}
+          theme={theme}
+          hideCurrentSeason={hideCurrentSeason}
+        />
+      )}
+      {tab === 1 && (
+        <BalanceEarningsChart
+          username={username}
+          theme={theme}
+          hideCurrentSeason={hideCurrentSeason}
+        />
+      )}
+      {tab === 2 && (
+        <TokenDetailChart username={username} theme={theme} hideCurrentSeason={hideCurrentSeason} />
+      )}
     </Box>
   );
 }

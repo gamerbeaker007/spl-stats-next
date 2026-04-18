@@ -54,10 +54,12 @@ export function useBattleOverview(filter: BattleFilter): UseBattleOverviewReturn
     filter.maxManaCap,
     filter.rulesets,
     filter.groupLevels,
+    filter.groupFoils,
     filter.cardName,
     filter.minBattleCount,
     filter.sortBy,
     filter.sinceDays,
+    filter.foilCategories,
     fetchCards,
   ]);
 

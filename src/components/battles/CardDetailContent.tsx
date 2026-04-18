@@ -488,7 +488,16 @@ export default function CardDetailContent({
                   variant="outlined"
                 />
                 <Chip label={`Level ${detail.stat.level}`} size="small" variant="outlined" />
-                {detail.stat.gold && <Chip label="Gold" size="small" color="warning" />}
+                {detail.stat.foil > 0 && (
+                  <Chip
+                    label={
+                      ["Gold", "Gold Arcane", "Black", "Black Arcane"][detail.stat.foil - 1] ??
+                      "Gold"
+                    }
+                    size="small"
+                    color="warning"
+                  />
+                )}
               </Stack>
 
               <Stack

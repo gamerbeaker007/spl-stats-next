@@ -11,7 +11,7 @@ interface CardSectionProps {
 }
 
 export const CardSection = ({ username, playerCards }: CardSectionProps) => {
-  const { filterCard, hideMissingCards } = useCardFilter();
+  const { filterCard, hideMissingCards, selectedFoilCategories } = useCardFilter();
 
   return (
     <Box display="flex" flex={1} flexDirection="column">
@@ -68,10 +68,19 @@ export const CardSection = ({ username, playerCards }: CardSectionProps) => {
             >
           );
 
+          // Filter groups by foil if a foil filter is active
+          const filteredGroups = cardsByEditionAndFoil
+            ? selectedFoilCategories.length > 0
+              ? Object.values(cardsByEditionAndFoil).filter((g) =>
+                  selectedFoilCategories.includes(g.foil)
+                )
+              : Object.values(cardsByEditionAndFoil)
+            : [];
+
           // Render cards
-          if (cardsByEditionAndFoil && Object.keys(cardsByEditionAndFoil).length > 0) {
+          if (filteredGroups.length > 0) {
             // Render owned cards grouped by edition and foil
-            return Object.values(cardsByEditionAndFoil).map((cardGroup, groupIndex) => {
+            return filteredGroups.map((cardGroup, groupIndex) => {
               const imageUrl = getCardImg(
                 cardItem.name,
                 cardGroup.edition,
@@ -91,11 +100,8 @@ export const CardSection = ({ username, playerCards }: CardSectionProps) => {
                 />
               );
             });
-          } else {
-            // Skip missing cards if hideMissingCards is enabled
-            if (hideMissingCards) return null;
-
-            // Render missing cards for each edition
+          } else if (!hideMissingCards && selectedFoilCategories.length === 0) {
+            // Render missing card placeholder only when foil filter is not active
             return (
               <Card
                 key={`${cardItem.cardDetailId}-missing-${cardItem.edition}`}
@@ -107,6 +113,8 @@ export const CardSection = ({ username, playerCards }: CardSectionProps) => {
                 priority={cardIndex < 6}
               />
             );
+          } else {
+            return null;
           }
         })}
       </Box>

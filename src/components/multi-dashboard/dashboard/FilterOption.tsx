@@ -1,4 +1,5 @@
-import { CardElement, CardRarity, CardRole, CardSetName } from "@/types/card";
+import { CardSetName } from "@/lib/shared/edition-utils";
+import { CardElement, CardRarity, CardRole } from "@/types/card";
 import { Box, Typography } from "@mui/material";
 import Image from "next/image";
 

@@ -7,6 +7,7 @@ import { REQUIRED_TAGS } from "@/types/hive-blog";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
 import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
@@ -14,6 +15,7 @@ import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
 import InputLabel from "@mui/material/InputLabel";
+import ListItemText from "@mui/material/ListItemText";
 import MenuItem from "@mui/material/MenuItem";
 import OutlinedInput from "@mui/material/OutlinedInput";
 import Paper from "@mui/material/Paper";
@@ -263,7 +265,8 @@ export default function HiveBlogContent() {
               >
                 {accounts.map((a) => (
                   <MenuItem key={a} value={a}>
-                    {a}
+                    <Checkbox checked={selectedAccounts.includes(a)} size="small" />
+                    <ListItemText primary={a} />
                   </MenuItem>
                 ))}
               </Select>
@@ -314,6 +317,15 @@ export default function HiveBlogContent() {
           <Alert severity="warning" sx={{ mt: 2 }}>
             Missing season data for: <strong>{result.missingAccounts.join(", ")}</strong>. Run a
             worker sync for these accounts first.
+          </Alert>
+        ) : null}
+
+        {result?.unclaimedRewardAccounts.length ? (
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            Cannot find season rewards (Glint) for season {result.previousSeasonId} for:{" "}
+            <strong>{result.unclaimedRewardAccounts.join(", ")}</strong>. This may mean the season
+            rewards have not been claimed in Splinterlands yet, or the background sync has not
+            picked them up yet.
           </Alert>
         ) : null}
       </Paper>

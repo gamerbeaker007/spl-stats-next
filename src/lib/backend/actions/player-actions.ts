@@ -25,6 +25,7 @@ import {
   aggregateRewards,
   mergeRewardSummaries,
 } from "@/lib/rewardAggregator";
+import { CardSetName } from "@/lib/shared/edition-utils";
 import {
   CardDetail,
   CardElement,
@@ -196,7 +197,7 @@ export async function getDetailedPlayerCardCollection(
       owner: playerCard.player,
       xp: playerCard.xp,
       edition: playerCard.edition,
-      cardSet: playerCard.card_set,
+      cardSet: playerCard.card_set as CardSetName,
       collectionPower: playerCard.collection_power,
       bcx: playerCard.bcx,
       setId: playerCard.set_id,

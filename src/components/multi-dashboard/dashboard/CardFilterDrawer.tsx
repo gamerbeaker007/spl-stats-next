@@ -1,8 +1,10 @@
 "use client";
 
 import FilterSection from "@/components/shared/filter/FilterSection";
+import FoilFilterChips from "@/components/shared/filter/FoilFilterChips";
 import IconFilterGroup from "@/components/shared/filter/IconFilterGroup";
-import { SET_DEFS } from "@/lib/shared/edition-utils";
+import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
+import { CardSetName, SET_DEFS, SET_NAMES } from "@/lib/shared/edition-utils";
 import {
   cardElementIconMap,
   cardElementOptions,
@@ -11,13 +13,10 @@ import {
   cardRoleIconMap,
   cardRoleOptions,
   cardSetIconMap,
-  cardSetOptions,
   type CardElement,
   type CardRarity,
   type CardRole,
-  type CardSetName,
 } from "@/types/card";
-import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
@@ -35,28 +34,28 @@ export const DRAWER_WIDTH = 280;
 const MODERN_SETS: CardSetName[] = ["rebellion", "conclave", "foundation"];
 
 // Build icon options from shared edition-utils so labels & icons stay in sync.
-const setFilterOptions = cardSetOptions.map((name) => ({
-  value: name as CardSetName,
+const setFilterOptions = SET_NAMES.map((name) => ({
+  value: name,
   label: SET_DEFS.find((s) => s.setName === name)?.label ?? name,
   iconUrl: cardSetIconMap[name] ?? "",
 }));
 
 const rarityFilterOptions = cardRarityOptions.map((r) => ({
-  value: r as CardRarity,
+  value: r,
   label: r.charAt(0).toUpperCase() + r.slice(1),
-  iconUrl: cardIconMap[r as CardRarity],
+  iconUrl: cardIconMap[r],
 }));
 
 const elementFilterOptions = cardElementOptions.map((e) => ({
-  value: e as CardElement,
+  value: e,
   label: e.charAt(0).toUpperCase() + e.slice(1),
   iconUrl: cardElementIconMap[e] ?? "",
 }));
 
 const roleFilterOptions = cardRoleOptions.map((r) => ({
-  value: r as CardRole,
+  value: r,
   label: r.charAt(0).toUpperCase() + r.slice(1),
-  iconUrl: cardRoleIconMap[r as CardRole],
+  iconUrl: cardRoleIconMap[r],
 }));
 
 interface CardFilterDrawerProps {
@@ -66,12 +65,14 @@ interface CardFilterDrawerProps {
   selectedRarities: CardRarity[];
   selectedElements?: CardElement[];
   selectedRoles: CardRole[];
+  selectedFoilCategories?: string[];
   hideMissingCards?: boolean;
   onSetChange: (sets: CardSetName[]) => void;
   onRarityChange: (rarities: CardRarity[]) => void;
   onElementChange?: (elements: CardElement[]) => void;
   onRoleChange?: (roles: CardRole[]) => void;
   onHideMissingCardsChange?: (hide: boolean) => void;
+  onFoilChange?: (foilCategories: string[]) => void;
 }
 
 export function CardFilterDrawer({
@@ -81,13 +82,15 @@ export function CardFilterDrawer({
   selectedRarities,
   selectedElements = [],
   selectedRoles,
+  selectedFoilCategories,
   hideMissingCards,
   onSetChange,
   onRarityChange,
   onElementChange,
   onRoleChange,
   onHideMissingCardsChange,
-}: CardFilterDrawerProps) {
+  onFoilChange,
+}: Readonly<CardFilterDrawerProps>) {
   const handleReset = () => {
     onSetChange([]);
     onRarityChange([]);
@@ -186,6 +189,14 @@ export function CardFilterDrawer({
         </FilterSection>
 
         <Divider sx={{ my: 1 }} />
+
+        {/* Foil */}
+        <FilterSection title="Foil">
+          <FoilFilterChips
+            selected={selectedFoilCategories ?? []}
+            onChange={(v) => onFoilChange?.(v)}
+          />
+        </FilterSection>
 
         {/* Display Options */}
         <FilterSection title="Display Options">

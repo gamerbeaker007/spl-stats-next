@@ -26,6 +26,7 @@ import type {
   MatchTypeStat,
   RulesetCount,
 } from "@/types/battles";
+import { cardFoilOptions } from "@/types/card";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -47,9 +48,13 @@ function toQueryFilter(filter: BattleFilter): BattleQueryFilter {
     maxManaCap: filter.maxManaCap,
     rulesets: filter.rulesets,
     groupLevels: filter.groupLevels,
+    groupFoils: filter.groupFoils,
     cardName: filter.cardName || undefined,
     minBattleCount: filter.minBattleCount,
     sortBy: filter.sortBy,
+    foilCategories: filter.foilCategories
+      .map((f) => cardFoilOptions.indexOf(f as (typeof cardFoilOptions)[number]))
+      .filter((v) => v >= 0),
     since:
       filter.sinceDays > 0
         ? new Date(Date.now() - filter.sinceDays * 24 * 60 * 60 * 1000).toISOString()
@@ -57,8 +62,10 @@ function toQueryFilter(filter: BattleFilter): BattleQueryFilter {
   };
 }
 
-function cardImageUrl(cardName: string, edition: number, gold: boolean, level: number): string {
-  return getCardImg(cardName, edition, gold ? "gold" : "regular", level);
+function cardImageUrl(cardName: string, edition: number, foil: number, level: number): string {
+  const cardFoil = cardFoilOptions[foil];
+  // getCardImg only has regular/gold image variants; map all non-regular foils to "gold".
+  return getCardImg(cardName, edition, cardFoil, level);
 }
 
 function sortBestCards(cards: BestCardStat[], sortBy: BattleFilter["sortBy"]): BestCardStat[] {
@@ -142,12 +149,12 @@ export async function getBestCardsAction(filter: BattleFilter): Promise<BestCard
     color: a.color,
     edition: a.edition,
     level: a.level,
-    gold: a.gold,
+    foil: a.foil,
     battles: a.battles,
     wins: a.wins,
     losses: a.losses,
     winPercentage: a.battles > 0 ? Math.round((a.wins / a.battles) * 1000) / 10 : 0,
-    imageUrl: cardImageUrl(a.cardName, a.edition, a.gold, a.level),
+    imageUrl: cardImageUrl(a.cardName, a.edition, a.foil, a.level),
   }));
 
   return sortBestCards(cards, filter.sortBy);
@@ -179,9 +186,9 @@ export async function getLosingCardsAction(filter: BattleFilter): Promise<Losing
       color: a.color,
       edition: a.edition,
       level: a.level,
-      gold: a.gold,
+      foil: a.foil,
       battles: a.battles,
-      imageUrl: cardImageUrl(a.cardName, a.edition, a.gold, a.level),
+      imageUrl: cardImageUrl(a.cardName, a.edition, a.foil, a.level),
     }));
 }
 
@@ -204,6 +211,7 @@ export async function getCardDetailAction(
     rarities: [],
     colors: [],
     editions: [],
+    foilCategories: [],
   };
 
   const battles = await getCardDetailBattles(cardDetailId, cardFilter);
@@ -215,13 +223,13 @@ export async function getCardDetailAction(
   let wins = 0;
   let losses = 0;
   let maxLevel = 0;
-  let hasGold = false;
+  let highestFoilFound = 0;
   for (const b of battles) {
     if (b.result === "win") wins++;
     else losses++;
     if (b.level > maxLevel) {
       maxLevel = b.level;
-      hasGold = b.gold;
+      highestFoilFound = b.foil;
     }
   }
 
@@ -233,12 +241,12 @@ export async function getCardDetailAction(
     color: first.color,
     edition: first.edition,
     level: maxLevel,
-    gold: hasGold,
+    foil: highestFoilFound,
     battles: battles.length,
     wins,
     losses,
     winPercentage: battles.length > 0 ? Math.round((wins / battles.length) * 1000) / 10 : 0,
-    imageUrl: cardImageUrl(first.cardName, first.edition, hasGold, maxLevel),
+    imageUrl: cardImageUrl(first.cardName, first.edition, highestFoilFound, maxLevel),
   };
 
   // Ruleset breakdown (all rulesets across all battles)
@@ -305,12 +313,12 @@ export async function getCardDetailAction(
     color: p.color,
     edition: p.edition,
     level: p.level,
-    gold: p.gold,
+    foil: p.foil,
     battles: p.battles,
     wins: p.wins,
     losses: p.losses,
     winPercentage: p.battles > 0 ? Math.round((p.wins / p.battles) * 1000) / 10 : 0,
-    imageUrl: cardImageUrl(p.cardName, p.edition, p.gold, p.level),
+    imageUrl: cardImageUrl(p.cardName, p.edition, p.foil, p.level),
   }));
   const pairedSummoners = pairedWithImage.filter((p) => p.cardType === "Summoner").slice(0, 2);
   const pairedMonsters = pairedWithImage.filter((p) => p.cardType === "Monster").slice(0, 5);
@@ -325,9 +333,9 @@ export async function getCardDetailAction(
     color: n.color,
     edition: n.edition,
     level: n.level,
-    gold: n.gold,
+    foil: n.foil,
     battles: n.battles,
-    imageUrl: cardImageUrl(n.cardName, n.edition, n.gold, n.level),
+    imageUrl: cardImageUrl(n.cardName, n.edition, n.foil, n.level),
   }));
   const nemesisSummoners = nemesisWithImage.filter((n) => n.cardType === "Summoner").slice(0, 2);
   const nemesisMonsters = nemesisWithImage.filter((n) => n.cardType === "Monster").slice(0, 5);
@@ -355,8 +363,8 @@ export async function getCardDetailAction(
     cardType: r.cardType,
     level: r.level,
     edition: r.edition,
-    gold: r.gold,
-    imageUrl: cardImageUrl(r.cardName, r.edition, r.gold, r.level),
+    foil: r.foil,
+    imageUrl: cardImageUrl(r.cardName, r.edition, r.foil, r.level),
   });
 
   const toEntry = (b: (typeof battles)[0]): DetailedBattleEntry => ({
@@ -478,20 +486,29 @@ export async function getBattleEntriesAction(
     const [ruleset1, ruleset2, ruleset3] = (battle.ruleset ?? "").split("|");
 
     const toTeamCard = (
-      card: { card_detail_id: number; gold: boolean; level: number; edition: number },
+      card: {
+        card_detail_id: number;
+        gold: boolean;
+        foil?: number;
+        level: number;
+        edition: number;
+      },
       position: number,
       name: string,
       type: string
-    ): BattleTeamCard => ({
-      position,
-      cardDetailId: card.card_detail_id,
-      cardName: name,
-      cardType: type,
-      level: card.level,
-      edition: card.edition,
-      gold: card.gold,
-      imageUrl: cardImageUrl(name, card.edition, card.gold, card.level),
-    });
+    ): BattleTeamCard => {
+      const foil = card.foil ?? (card.gold ? 1 : 0);
+      return {
+        position,
+        cardDetailId: card.card_detail_id,
+        cardName: name,
+        cardType: type,
+        level: card.level,
+        edition: card.edition,
+        foil,
+        imageUrl: cardImageUrl(name, card.edition, foil, card.level),
+      };
+    };
 
     // SPL API cards don't include card name/type — look up from card details catalogue
     const splCard = (

@@ -88,6 +88,17 @@ jobs:
 
             The app will be available at **http://localhost:3000**.
 
+            > **Migrations run automatically** — a short-lived `migrate` init container runs `prisma migrate deploy` before `app` and `worker` start. No manual migration step is needed.
+
+            #### Updating to a new release
+
+            ```bash
+            docker compose pull
+            docker compose up -d
+            ```
+
+            Migrations for the new version are applied automatically during the restart.
+
             > **Pinning to this release:** the compose file uses `latest` by default.
             > To lock to this version, edit `docker-compose.yml` and replace `:latest` with `:${{ steps.version.outputs.tag }}` for both the `app` and `worker` services.
 

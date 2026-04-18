@@ -97,6 +97,8 @@ export interface HiveBlogResult {
   previousSeasonId: number;
   accounts: HiveBlogAccountData[];
   missingAccounts: string[];
+  /** Accounts that still have unclaimed season rewards for the previous season */
+  unclaimedRewardAccounts: string[];
   /** Combined mode: single title + body */
   title: string;
   body: string;

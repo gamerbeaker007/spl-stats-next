@@ -29,6 +29,7 @@ interface BattleCardBase {
   secondaryColor: string | null;
   xp: number | null;
   gold: boolean;
+  foil: number;
   level: number;
   edition: number;
   tier: number | null;
@@ -71,15 +72,6 @@ export async function upsertPlayerBattleCards(cards: PlayerBattleCardInput[]): P
       { timeout: 30000 }
     );
   }
-}
-
-export async function upsertOpponentBattleCard(card: OpponentBattleCardInput): Promise<void> {
-  const { battleId, account, position, ...rest } = card;
-  await prisma.opponentBattleCard.upsert({
-    where: { battleId_account_position: { battleId, account, position } },
-    create: { battleId, account, position, ...rest },
-    update: rest,
-  });
 }
 
 export async function upsertOpponentBattleCards(cards: OpponentBattleCardInput[]): Promise<void> {
@@ -158,10 +150,12 @@ export interface BattleQueryFilter {
   maxManaCap: number;
   rulesets: string[];
   groupLevels: boolean;
+  groupFoils: boolean;
   cardName?: string; // optional case-insensitive substring match
   minBattleCount: number;
   sortBy: string;
   since?: string; // ISO date string — only include battles on or after this date
+  foilCategories: number[]; // [] = all; numeric foil values (0=regular … 4=black arcane)
 }
 
 function buildPlayerWhere(filter: BattleQueryFilter): Prisma.PlayerBattleCardWhereInput {
@@ -186,6 +180,7 @@ function buildPlayerWhere(filter: BattleQueryFilter): Prisma.PlayerBattleCardWhe
   if (filter.minManaCap > 0) AND.push({ manaCap: { gte: filter.minManaCap } });
   if (filter.maxManaCap > 0) AND.push({ manaCap: { lte: filter.maxManaCap } });
   if (filter.since) AND.push({ createdDate: { gte: new Date(filter.since) } });
+  if (filter.foilCategories.length > 0) AND.push({ foil: { in: filter.foilCategories } });
   if (filter.rulesets.length > 0) {
     AND.push({
       OR: [
@@ -220,6 +215,7 @@ function buildOpponentWhere(filter: BattleQueryFilter): Prisma.OpponentBattleCar
   if (filter.minManaCap > 0) AND.push({ manaCap: { gte: filter.minManaCap } });
   if (filter.maxManaCap > 0) AND.push({ manaCap: { lte: filter.maxManaCap } });
   if (filter.since) AND.push({ createdDate: { gte: new Date(filter.since) } });
+  if (filter.foilCategories.length > 0) AND.push({ foil: { in: filter.foilCategories } });
   if (filter.rulesets.length > 0) {
     AND.push({
       OR: [
@@ -244,7 +240,7 @@ export interface CardAgg {
   color: string;
   edition: number;
   level: number; // max level seen
-  gold: boolean; // true if any gold copy was played
+  foil: number; // foil of the max-level copy seen (0=Regular … 4=Black Arcane)
   battles: number;
   wins: number;
   losses: number;
@@ -258,7 +254,7 @@ export interface LosingCardAgg {
   color: string;
   edition: number;
   level: number;
-  gold: boolean;
+  foil: number;
   battles: number;
 }
 
@@ -277,7 +273,7 @@ export async function getBestCardStats(filter: BattleQueryFilter): Promise<CardA
       color: true,
       edition: true,
       level: true,
-      gold: true,
+      foil: true,
       result: true,
     },
   });
@@ -291,8 +287,8 @@ export async function getBestCardStats(filter: BattleQueryFilter): Promise<CardA
       rarity: number;
       color: string;
       edition: number;
-      levelMax: number;
-      hasGold: boolean;
+      highestLevel: number;
+      highestFoil: number;
       battles: number;
       wins: number;
       losses: number;
@@ -300,9 +296,9 @@ export async function getBestCardStats(filter: BattleQueryFilter): Promise<CardA
   >();
 
   for (const r of records) {
-    const key = filter.groupLevels
-      ? `${r.cardDetailId}|${r.edition}`
-      : `${r.cardDetailId}|${r.edition}|${r.level}`;
+    const levelPart = filter.groupLevels ? "" : `|${r.level}`;
+    const foilPart = filter.groupFoils ? "" : `|${r.foil}`;
+    const key = `${r.cardDetailId}|${r.edition}${levelPart}${foilPart}`;
 
     if (!map.has(key)) {
       map.set(key, {
@@ -312,8 +308,8 @@ export async function getBestCardStats(filter: BattleQueryFilter): Promise<CardA
         rarity: r.rarity,
         color: r.color,
         edition: r.edition,
-        levelMax: r.level,
-        hasGold: r.gold,
+        highestLevel: r.level,
+        highestFoil: r.foil,
         battles: 0,
         wins: 0,
         losses: 0,
@@ -322,9 +318,11 @@ export async function getBestCardStats(filter: BattleQueryFilter): Promise<CardA
 
     const entry = map.get(key)!;
     entry.battles++;
-    if (r.level > entry.levelMax) {
-      entry.levelMax = r.level;
-      entry.hasGold = r.gold;
+    if (r.level > entry.highestLevel) {
+      entry.highestLevel = r.level;
+    }
+    if (r.foil > entry.highestFoil) {
+      entry.highestFoil = r.foil;
     }
     if (r.result === "win") entry.wins++;
     else entry.losses++;
@@ -339,8 +337,8 @@ export async function getBestCardStats(filter: BattleQueryFilter): Promise<CardA
       rarity: e.rarity,
       color: e.color,
       edition: e.edition,
-      level: e.levelMax,
-      gold: e.hasGold,
+      level: e.highestLevel,
+      foil: e.highestFoil,
       battles: e.battles,
       wins: e.wins,
       losses: e.losses,
@@ -362,7 +360,7 @@ export async function getLosingCardStats(filter: BattleQueryFilter): Promise<Los
       color: true,
       edition: true,
       level: true,
-      gold: true,
+      foil: true,
     },
   });
 
@@ -375,16 +373,16 @@ export async function getLosingCardStats(filter: BattleQueryFilter): Promise<Los
       rarity: number;
       color: string;
       edition: number;
-      levelMax: number;
-      hasGold: boolean;
+      highestLevel: number;
+      highestFoil: number;
       battles: number;
     }
   >();
 
   for (const r of records) {
-    const key = filter.groupLevels
-      ? `${r.cardDetailId}|${r.edition}`
-      : `${r.cardDetailId}|${r.edition}|${r.level}`;
+    const levelPart = filter.groupLevels ? "" : `|${r.level}`;
+    const foilPart = filter.groupFoils ? "" : `|${r.foil}`;
+    const key = `${r.cardDetailId}|${r.edition}${levelPart}${foilPart}`;
 
     if (!map.has(key)) {
       map.set(key, {
@@ -394,17 +392,17 @@ export async function getLosingCardStats(filter: BattleQueryFilter): Promise<Los
         rarity: r.rarity,
         color: r.color,
         edition: r.edition,
-        levelMax: r.level,
-        hasGold: r.gold,
+        highestLevel: r.level,
+        highestFoil: r.foil,
         battles: 0,
       });
     }
 
     const entry = map.get(key)!;
     entry.battles++;
-    if (r.level > entry.levelMax) {
-      entry.levelMax = r.level;
-      entry.hasGold = r.gold;
+    if (r.level > entry.highestLevel) {
+      entry.highestLevel = r.level;
+      entry.highestFoil = r.foil;
     }
   }
 
@@ -417,8 +415,8 @@ export async function getLosingCardStats(filter: BattleQueryFilter): Promise<Los
       rarity: e.rarity,
       color: e.color,
       edition: e.edition,
-      level: e.levelMax,
-      gold: e.hasGold,
+      level: e.highestLevel,
+      foil: e.highestFoil,
       battles: e.battles,
     }));
 }
@@ -446,7 +444,7 @@ export interface CardBattleRecord {
   color: string;
   edition: number;
   level: number;
-  gold: boolean;
+  foil: number;
 }
 
 export async function getCardDetailBattles(
@@ -480,7 +478,7 @@ export async function getCardDetailBattles(
       color: true,
       edition: true,
       level: true,
-      gold: true,
+      foil: true,
     },
     orderBy: { createdDate: "desc" },
   });
@@ -511,7 +509,7 @@ export async function getPairedCards(
       color: true,
       edition: true,
       level: true,
-      gold: true,
+      foil: true,
       result: true,
     },
   });
@@ -525,8 +523,8 @@ export async function getPairedCards(
       rarity: number;
       color: string;
       edition: number;
-      levelMax: number;
-      hasGold: boolean;
+      highestLevel: number;
+      highestFoil: number;
       battles: number;
       wins: number;
       losses: number;
@@ -543,8 +541,8 @@ export async function getPairedCards(
         rarity: r.rarity,
         color: r.color,
         edition: r.edition,
-        levelMax: r.level,
-        hasGold: r.gold,
+        highestLevel: r.level,
+        highestFoil: r.foil,
         battles: 0,
         wins: 0,
         losses: 0,
@@ -552,9 +550,9 @@ export async function getPairedCards(
     }
     const e = map.get(key)!;
     e.battles++;
-    if (r.level > e.levelMax) {
-      e.levelMax = r.level;
-      e.hasGold = r.gold;
+    if (r.level > e.highestLevel) {
+      e.highestLevel = r.level;
+      e.highestFoil = r.foil;
     }
     if (r.result === "win") e.wins++;
     else e.losses++;
@@ -569,8 +567,8 @@ export async function getPairedCards(
       rarity: e.rarity,
       color: e.color,
       edition: e.edition,
-      level: e.levelMax,
-      gold: e.hasGold,
+      level: e.highestLevel,
+      foil: e.highestFoil,
       battles: e.battles,
       wins: e.wins,
       losses: e.losses,
@@ -600,7 +598,7 @@ export async function getNemesisCards(
       color: true,
       edition: true,
       level: true,
-      gold: true,
+      foil: true,
     },
   });
 
@@ -613,8 +611,8 @@ export async function getNemesisCards(
       rarity: number;
       color: string;
       edition: number;
-      levelMax: number;
-      hasGold: boolean;
+      highestLevel: number;
+      highestFoil: number;
       battles: number;
     }
   >();
@@ -629,16 +627,16 @@ export async function getNemesisCards(
         rarity: r.rarity,
         color: r.color,
         edition: r.edition,
-        levelMax: r.level,
-        hasGold: r.gold,
+        highestLevel: r.level,
+        highestFoil: r.foil,
         battles: 0,
       });
     }
     const e = map.get(key)!;
     e.battles++;
-    if (r.level > e.levelMax) {
-      e.levelMax = r.level;
-      e.hasGold = r.gold;
+    if (r.level > e.highestLevel) {
+      e.highestLevel = r.level;
+      e.highestFoil = r.foil;
     }
   }
 
@@ -651,8 +649,8 @@ export async function getNemesisCards(
       rarity: e.rarity,
       color: e.color,
       edition: e.edition,
-      level: e.levelMax,
-      gold: e.hasGold,
+      level: e.highestLevel,
+      foil: e.highestFoil,
       battles: e.battles,
     }));
 }
@@ -718,7 +716,7 @@ export interface BattleTeamRow {
   cardType: string;
   level: number;
   edition: number;
-  gold: boolean;
+  foil: number;
   owner: "player" | "opponent";
 }
 
@@ -739,7 +737,7 @@ export async function getBattleTeams(
         cardType: true,
         level: true,
         edition: true,
-        gold: true,
+        foil: true,
       },
       orderBy: { position: "asc" },
     }),
@@ -753,7 +751,7 @@ export async function getBattleTeams(
         cardType: true,
         level: true,
         edition: true,
-        gold: true,
+        foil: true,
       },
       orderBy: { position: "asc" },
     }),

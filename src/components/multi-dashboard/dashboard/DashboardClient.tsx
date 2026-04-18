@@ -4,6 +4,7 @@ import { CardFilterDrawer } from "@/components/multi-dashboard/dashboard/CardFil
 import { PlayerDashboardContent } from "@/components/multi-dashboard/dashboard/PlayerDashboardContent";
 import { getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
 import { CardFilterProvider, useCardFilter } from "@/lib/frontend/context/CardFilterContext";
+import type { CardFoil } from "@/types/card";
 import { Box, Skeleton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
@@ -155,12 +156,14 @@ function DrawerAndContent({ selectedUsers }: Readonly<{ selectedUsers: string[] 
     selectedRarities,
     selectedElements,
     selectedRoles,
+    selectedFoilCategories,
     hideMissingCards,
     setSelectedSets,
     setSelectedRarities,
     setSelectedElements,
     setSelectedRoles,
     setHideMissingCards,
+    setSelectedFoilCategories,
     toggleDrawer,
   } = useCardFilter();
 
@@ -197,12 +200,14 @@ function DrawerAndContent({ selectedUsers }: Readonly<{ selectedUsers: string[] 
         selectedRarities={selectedRarities}
         selectedElements={selectedElements}
         selectedRoles={selectedRoles}
+        selectedFoilCategories={selectedFoilCategories}
         hideMissingCards={hideMissingCards}
         onSetChange={setSelectedSets}
         onRarityChange={setSelectedRarities}
         onElementChange={setSelectedElements}
         onRoleChange={setSelectedRoles}
         onHideMissingCardsChange={setHideMissingCards}
+        onFoilChange={(v) => setSelectedFoilCategories(v as CardFoil[])}
       />
     </Box>
   );

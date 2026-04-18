@@ -1,12 +1,10 @@
 "use client";
 
 import { getCardOptionsAction } from "@/lib/backend/actions/battle-overview-actions";
+import type { CardOption } from "@/types/card";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export interface CardOption {
-  cardDetailId: number;
-  cardName: string;
-}
+export type { CardOption };
 
 export function useCardOptions(account: string): { cards: CardOption[]; loading: boolean } {
   const [cards, setCards] = useState<CardOption[]>([]);
