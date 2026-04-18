@@ -158,7 +158,8 @@ function rowBase(
     secondaryColor: str(col("secondary_color")) || null,
     xp: col("xp") !== undefined && str(col("xp")) !== "" ? numF(col("xp")) : null,
     gold: bool(col("gold")),
-    foil: numI(col("foil")),
+    // If the CSV has no "foil" column fall back to gold boolean: false→0, true→1
+    foil: header.includes("foil") ? numI(col("foil")) : bool(col("gold")) ? 1 : 0,
     level: numI(col("level")),
     edition: numI(col("edition")),
     tier:

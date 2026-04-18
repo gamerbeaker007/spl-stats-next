@@ -7,7 +7,7 @@ import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 import type { CardFoil } from "@/types/card";
 import { cardFoilOptions } from "@/types/card";
 import type { CardDistributionRow } from "@/types/card-stats";
-import Alert from "@mui/material/Alert";
+import CardStatsCalcInfo from "@/components/card-stats/CardStatsCalcInfo";
 import Box from "@mui/material/Box";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
@@ -121,13 +121,7 @@ export default function DetailedDistributionContent({ rows }: Props) {
       <Box sx={{ flex: 1, p: 2, minWidth: 0 }}>
         <CardStatsStatHeader rows={filtered} />
 
-        <Alert severity="info" sx={{ mb: 2 }}>
-          CP values for <strong>regular</strong> and <strong>gold</strong> cards may deviate
-          slightly — it is not possible to determine how many of those cards are at max level. Max
-          level cards receive a +5% CP bonus. For <strong>Gold Arcane</strong>,{" "}
-          <strong>Black</strong>, and <strong>Black Arcane</strong> cards this bonus is already
-          included, as these foil types are always at max level.
-        </Alert>
+        <CardStatsCalcInfo />
 
         <TableContainer>
           <Table size="small" sx={{ tableLayout: "auto" }}>

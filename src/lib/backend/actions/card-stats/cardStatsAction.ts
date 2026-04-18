@@ -142,6 +142,7 @@ function getCpMultiplier(edition: number, tier: number | null, foil: number): nu
   const isAlpha = edition === getEditionId("alpha");
   const isAlphaTier = tier === getTier("alpha")!;
   const isPromo = edition === getEditionId("promo");
+
   if (isAlpha || (isPromo && isAlphaTier)) return CP_MULTIPLIERS.alpha[key];
 
   // Beta Promos
