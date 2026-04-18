@@ -21,12 +21,12 @@ import {
   mergeRewardSummaries,
 } from "@/lib/rewardAggregator";
 import { leagueNames } from "@/lib/utils";
+import type { CardFoil } from "@/types/card";
 import { ParsedHistory, PurchaseResult, RewardSummary } from "@/types/parsedHistory";
 import type {
   HiveBlogAccountData,
   HiveBlogEarningsDetailRow,
   HiveBlogMarketCard,
-  HiveBlogMarketItem,
   HiveBlogPost,
   HiveBlogRewardSummary,
   HiveBlogResult,
@@ -211,131 +211,6 @@ export async function getMonitoredAccountsForBlogAction(): Promise<string[]> {
   return accounts.map((a) => a.username);
 }
 
-export async function fetchMarketHistoryTestAction(
-  username: string,
-  days: number = 30
-): Promise<{ entries: unknown[]; error?: string }> {
-  const token = await getToken(username);
-  if (!token) return { entries: [], error: "No SPL token found for this account" };
-  try {
-    const endDate = new Date();
-    const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
-    const { fetchMarketHistoryByDateRange } = await import("@/lib/backend/api/spl/spl-api");
-    const entries = await fetchMarketHistoryByDateRange(username, token, startDate, endDate);
-    return { entries };
-  } catch (e) {
-    return { entries: [], error: e instanceof Error ? e.message : "Fetch failed" };
-  }
-}
-
-export async function fetchRewardSkinsAndMusicTestAction(
-  username: string,
-  days: number = 30
-): Promise<{
-  skins: Array<{
-    skinDetailId: number;
-    skin: string;
-    cardDetailId: number;
-    cardName: string;
-    imageUrl: string;
-    quantity: number;
-  }>;
-  music: Array<{ musicDetailId: number; name: string; imageUrl: string; quantity: number }>;
-  error?: string;
-}> {
-  const empty = { skins: [], music: [] };
-  const token = await getToken(username);
-  if (!token) return { ...empty, error: "No SPL token found for this account" };
-  try {
-    const endDate = new Date();
-    const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
-    const { fetchPlayerHistoryByDateRange } = await import("@/lib/backend/api/spl/spl-api");
-    const allHistory = await fetchPlayerHistoryByDateRange(
-      username,
-      token,
-      "claim_reward,claim_daily,purchase",
-      startDate,
-      endDate
-    );
-    const purchaseEntries = allHistory
-      .filter(
-        (e): e is ParsedHistory & { type: "purchase"; result: PurchaseResult } =>
-          e.type === "purchase" && e.result !== null
-      )
-      .map((e) => e.result as PurchaseResult);
-
-    const agg = mergeRewardSummaries(
-      aggregateRewards(allHistory),
-      aggregatePurchaseRewards(purchaseEntries)
-    );
-
-    let cardDetailsMap: Map<number, string> = new Map();
-    try {
-      const allCards = await fetchCardDetails();
-      cardDetailsMap = new Map(allCards.map((c) => [c.id, c.name]));
-    } catch {
-      // non-fatal
-    }
-
-    const landingAssets = await fetchMarketLanding(username).catch(() => []);
-    const landingByDetailId = new Map(landingAssets.map((a) => [a.detailId, a]));
-
-    const skins = Object.entries(agg.totalSkins).map(([idStr, data]) => {
-      const cardName = cardDetailsMap.get(data.cardDetailId) ?? `Card #${data.cardDetailId}`;
-      const landingAsset = landingByDetailId.get(idStr);
-      const imageUrl = landingAsset?.detailImage ?? getSkinImageUrl(cardName, data.skin);
-      return {
-        skinDetailId: Number(idStr),
-        skin: data.skin,
-        cardDetailId: data.cardDetailId,
-        cardName,
-        imageUrl,
-        quantity: data.quantity,
-      };
-    });
-
-    const music = Object.entries(agg.totalMusic).map(([idStr, data]) => {
-      const landingAsset = landingByDetailId.get(idStr);
-      const imageUrl = landingAsset?.detailImage ?? "";
-      const name = landingAsset?.detailName ?? data.name;
-      return { musicDetailId: Number(idStr), name, imageUrl, quantity: data.quantity };
-    });
-
-    return { skins, music };
-  } catch (e) {
-    return { ...empty, error: e instanceof Error ? e.message : "Fetch failed" };
-  }
-}
-
-export async function fetchResolvedMarketDataTestAction(
-  username: string,
-  days: number = 30
-): Promise<{
-  boughtCards: HiveBlogMarketCard[];
-  soldCards: HiveBlogMarketCard[];
-  boughtItems: HiveBlogMarketItem[];
-  soldItems: HiveBlogMarketItem[];
-  error?: string;
-}> {
-  const empty = { boughtCards: [], soldCards: [], boughtItems: [], soldItems: [] };
-  const token = await getToken(username);
-  if (!token) return { ...empty, error: "No SPL token found for this account" };
-  try {
-    const endDate = new Date();
-    const startDate = new Date(endDate.getTime() - days * 24 * 60 * 60 * 1000);
-    let cardDetailsMap: Map<number, string> = new Map();
-    try {
-      const allCards = await fetchCardDetails();
-      cardDetailsMap = new Map(allCards.map((c) => [c.id, c.name]));
-    } catch {
-      // non-fatal — cards will show as "Card #N"
-    }
-    return await buildMarketData(username, startDate, endDate, cardDetailsMap, token);
-  } catch (e) {
-    return { ...empty, error: e instanceof Error ? e.message : "Fetch failed" };
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Blog generation
 // ---------------------------------------------------------------------------
@@ -370,15 +245,23 @@ export async function generateHiveBlogAction(
   }
 
   const missingAccounts: string[] = [];
+  const unclaimedRewardAccounts: string[] = [];
   const accounts: HiveBlogAccountData[] = [];
 
   for (const username of selectedAccounts) {
-    const [leaderboardRows, token] = await Promise.all([
+    const [leaderboardRows, token, seasonRows] = await Promise.all([
       getPlayerLeaderboardForSeason(username, previousSeasonId),
       getToken(username),
+      getSeasonBalances(username, previousSeasonId),
     ]);
 
-    const { earned, costs } = await buildDetailedEarnings(username, previousSeasonId);
+    // Warn if GLINT season_rewards is absent — rewards may be unclaimed or not yet synced
+    const hasGlintSeasonRewards = seasonRows.some(
+      (r) => r.token === "GLINT" && r.type === "season_rewards" && r.amount > 0
+    );
+    if (!hasGlintSeasonRewards) unclaimedRewardAccounts.push(username);
+
+    const { earned, costs } = buildDetailedEarnings(seasonRows);
 
     const emptyMarket = { boughtCards: [], soldCards: [], boughtItems: [], soldItems: [] };
     const [rewards, tournaments, marketData] = await Promise.all([
@@ -435,19 +318,26 @@ export async function generateHiveBlogAction(
     username: acc.username,
   }));
 
-  return { previousSeasonId, accounts, missingAccounts, title, body, posts, mode };
+  return {
+    previousSeasonId,
+    accounts,
+    missingAccounts,
+    unclaimedRewardAccounts,
+    title,
+    body,
+    posts,
+    mode,
+  };
 }
 
 // ---------------------------------------------------------------------------
 // Earnings
 // ---------------------------------------------------------------------------
 
-async function buildDetailedEarnings(
-  username: string,
-  seasonId: number
-): Promise<{ earned: HiveBlogEarningsDetailRow[]; costs: HiveBlogEarningsDetailRow[] }> {
-  const rows = await getSeasonBalances(username, seasonId);
-
+function buildDetailedEarnings(rows: Awaited<ReturnType<typeof getSeasonBalances>>): {
+  earned: HiveBlogEarningsDetailRow[];
+  costs: HiveBlogEarningsDetailRow[];
+} {
   const map = new Map<string, { token: string; type: string; amount: number }>();
   for (const row of rows) {
     const key = `${row.token}:${row.type}`;
@@ -650,32 +540,24 @@ async function buildTournaments(
 // Card image helpers for markdown
 // ---------------------------------------------------------------------------
 
-function cardImageMd(name: string, edition: number, foilSuffix: string): string {
-  const imageUrl = getCardImageByLevel(name, edition, foilSuffix);
+function cardImageMd(name: string, edition: number, foil: CardFoil): string {
+  const imageUrl = getCardImageByLevel(name, edition, foil);
   return `![](${PROXY150}${imageUrl})`;
 }
-
-const FOIL_SUFFIX: Record<string, string> = {
-  regular: "",
-  gold: "_gold",
-  "gold arcane": "_gold",
-  black: "_blk",
-  "black arcane": "_blk",
-};
 
 /** Build a 5-cards-per-row grid of images with count labels. */
 function cardGrid(cards: HiveBlogMarketCard[]): string {
   if (cards.length === 0) return "*None*";
 
   // Flatten into one entry per (card, foil) combination
-  const entries: Array<{ name: string; edition: number; foilSuffix: string; count: number }> = [];
+  const entries: Array<{ name: string; edition: number; foil: CardFoil; count: number }> = [];
   for (const c of cards) {
     for (const [foil, count] of Object.entries(c.foilCounts)) {
       if (count && count > 0)
         entries.push({
           name: c.name,
           edition: c.edition,
-          foilSuffix: FOIL_SUFFIX[foil] ?? "",
+          foil: (foil as CardFoil) ?? "regular",
           count,
         });
     }
@@ -691,9 +573,7 @@ function cardGrid(cards: HiveBlogMarketCard[]): string {
 
   for (let i = 0; i < entries.length; i += COLS) {
     const chunk = entries.slice(i, i + COLS);
-    const cells = chunk.map(
-      (e) => ` ${cardImageMd(e.name, e.edition, e.foilSuffix)} <br> ${e.count}x `
-    );
+    const cells = chunk.map((e) => ` ${cardImageMd(e.name, e.edition, e.foil)} <br> ${e.count}x `);
     while (cells.length < COLS) cells.push(" ");
     rows.push(`|${cells.join("|")}|`);
   }

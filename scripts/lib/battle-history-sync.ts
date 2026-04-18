@@ -104,6 +104,7 @@ function cardFields(card: SplBattleCard, cardMap: CardMap, position: number) {
     gold: card.gold,
     level: card.level,
     edition: card.edition,
+    foil: card?.foil ?? 0,
     tier: detail?.tier ?? null,
   };
 }

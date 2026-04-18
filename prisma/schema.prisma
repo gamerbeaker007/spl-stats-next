@@ -196,6 +196,7 @@ model PlayerBattleCard {
   secondaryColor String? @map("secondary_color")
   xp             Float?
   gold           Boolean
+  foil           Int      @default(0)
   level          Int
   edition        Int
   tier           Int?
@@ -235,6 +236,7 @@ model OpponentBattleCard {
   secondaryColor String? @map("secondary_color")
   xp             Float?
   gold           Boolean
+  foil           Int      @default(0)
   level          Int
   edition        Int
   tier           Int?

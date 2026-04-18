@@ -1,0 +1,17 @@
+import CardDistributionContent from "@/components/card-stats/CardDistributionContent";
+import PageErrorBoundary from "@/components/shared/error-boundaries/PageErrorBoundary";
+import { getCardStatsRows } from "@/lib/backend/actions/card-stats/cardStatsAction";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Card Distribution",
+};
+
+export default async function CardStatsPage() {
+  const rows = await getCardStatsRows();
+  return (
+    <PageErrorBoundary>
+      <CardDistributionContent rows={rows} />
+    </PageErrorBoundary>
+  );
+}

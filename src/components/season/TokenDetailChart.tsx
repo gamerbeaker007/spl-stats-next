@@ -20,6 +20,7 @@ import { useMemo, useState } from "react";
 
 import PlotlyChart, { type AppTheme } from "@/components/shared/PlotlyChart";
 import { useDistinctTokens, useTokenDetail } from "@/hooks/season/useTokenDetail";
+import { useLatestSeasonId } from "@/hooks/useLatestSeasonId";
 import type { TokenBalanceRow } from "@/lib/backend/actions/season-overview-actions";
 
 // A reasonably distinguishable colour palette for up to ~15 types
@@ -44,16 +45,22 @@ const LINE_COLORS = [
 interface Props {
   username?: string;
   theme: AppTheme;
+  hideCurrentSeason?: boolean;
 }
 
-export default function TokenDetailChart({ username, theme }: Props) {
+export default function TokenDetailChart({ username, theme, hideCurrentSeason }: Props) {
   const { tokens, loading: tokensLoading } = useDistinctTokens(username);
   const [selectedToken, setSelectedToken] = useState<string>("");
+  const currentSeason = useLatestSeasonId();
 
   // Pick first token as default once loaded
   const token = selectedToken || tokens[0] || "";
 
-  const { data, loading: dataLoading } = useTokenDetail(token, username);
+  const { data: rawData, loading: dataLoading } = useTokenDetail(token, username);
+  const data =
+    hideCurrentSeason && currentSeason
+      ? rawData.filter((r) => r.seasonId !== currentSeason)
+      : rawData;
 
   if (tokensLoading) {
     return <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 1 }} />;

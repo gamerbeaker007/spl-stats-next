@@ -9,6 +9,33 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v0.3.0] - 2026-04-18
+
+### What's New
+
+- **Card Stats page** — new section at `/card-stats` with three tabs:
+  - **Distribution** — two charts: _Cards by Edition & Rarity_ and _Burned by Edition & Rarity_. Use the foil filter to show specific foil variants.
+  - **Burned BCX** — detailed burned BCX analysis per edition and rarity with pivot table view.
+  - **CP Analysis** — Collection Power breakdown by edition, rarity, and all five foil variants.
+  - All tabs share a filter drawer: edition set, rarity, element, card type, and foil.
+- **Foil filter redesigned** — the foil filter now covers all five foil variants with styled icon chips: Regular (gray card icon), Gold (gold card icon), GV / Gold Arcane (gold), Black (black card icon), BV / Black Arcane (black). Previously gold arcane was grouped with gold and black arcane with black; they are now separate filter options.
+- **Foil filter added to Battles** — the battle filter drawer now includes a foil section (Regular / Gold) to filter card battle statistics by foil.
+- **CP Analysis foil data** — all five foil variants (Regular, Gold, Gold Arcane GV, Black, Black Arcane BV) now appear individually in the _CP by Edition & Foil_ chart. Previously Gold Arcane was grouped under Gold and Black Arcane under Black; the underlying CP values were always correct.
+- **Hive Blog — unclaimed season reward warning** — after generating a post, accounts that have no GLINT `season_rewards` entry in the database for the previous season now show a warning: _"Cannot find season rewards (Glint) for season X"_. This covers both the case where rewards haven't been claimed in Splinterlands yet and the case where the background worker hasn't picked them up yet.
+- **Hive Blog — checkmark account selector** — the Accounts dropdown on the Hive Blog Generator now shows a checkbox next to each account, matching the style used on the Portfolio page.
+- **Season Overview — hide current season** — a _Hide current season_ checkbox next to the account selector removes the in-progress season from all three tabs (Leaderboard, Earnings, Token Detail), preventing partial data from distorting charts.
+
+### Fixed
+
+- **Battle foil filter now works** — selecting a foil in the battle filter drawer now actually filters results. Previously the foil selection was stored in state but never passed to the database query, so all foils were always returned. Filtering now happens at the DB level before grouping.
+- **Battle grouping split into two controls** — the single "Group card levels / foils" switch is replaced by two independent switches: _Group card levels_ and _Group card foils_. Previously ungrouped mode still silently merged foil variants because foil was not part of the grouping key; each flag now independently controls whether levels and foils are consolidated.
+- **Dashboard collection foil filter now works** — selecting a foil on the collection page previously caused all cards to disappear. The `filterCard()` utility was checking foil but was never called with a foil value, so every card failed when a foil filter was active. Foil filtering is now handled separately at the card-group level where the foil information is actually available.
+- **Battle foil tracking** — `PlayerBattleCard` and `OpponentBattleCard` now store a numeric `foil` field (0=Regular, 1=Gold, 2=Gold Arcane, 3=Black, 4=Black Arcane). Previously only a `gold: boolean` flag was recorded, making it impossible to distinguish Gold Arcane, Black, and Black Arcane foil types. A migration backfills existing rows: `gold=false` → `foil=0`, `gold=true` → `foil=1` (arcane/black information for older rows is lost). New imports from CSVs that include a `foil` column will record the precise foil; CSVs without a `foil` column fall back to the `gold` boolean. Battle stat filtering now uses the numeric foil directly.
+- **Player Dashboard back button** — the Home button on `/multi-dashboard/collection` now navigates back to `/multi-dashboard` instead of the app root.
+- **Database migration race condition** — `app` and `worker` both ran `prisma migrate deploy` simultaneously on startup, racing for PostgreSQL's advisory lock. If the lock wait timed out the `app` container failed without a restart policy, leaving it dead. A dedicated `migrate` init service now runs migrations exactly once before either service starts (`service_completed_successfully` dependency). Both entrypoint scripts no longer run migrations themselves.
+
+---
+
 ## [v0.2.2] - 2026-04-13
 
 ### Updates

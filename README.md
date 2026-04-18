@@ -114,6 +114,15 @@ LOG_PRISMA="false"   # enable Prisma query log in dev only
 
 ### Docker deployment (`.env` fed into docker-compose)
 
+#### Updating
+
+```bash
+docker compose pull        # pull new images
+docker compose up -d       # recreate containers
+```
+
+Migrations run automatically via a short-lived `migrate` init container that starts before `app` and `worker`. No manual migration step is needed.
+
 Docker-compose constructs `DATABASE_URL` from the Postgres service variables:
 
 ```bash

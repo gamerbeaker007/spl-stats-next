@@ -3,6 +3,7 @@
 export interface SplBattleCard {
   card_detail_id: number;
   gold: boolean;
+  foil: number;
   level: number;
   edition: number;
   xp?: number;
