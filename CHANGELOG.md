@@ -9,7 +9,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
-## [v0.3.0] - 2026-04-17
+## [v0.3.0] - 2026-04-18
 
 ### What's New
 
@@ -23,7 +23,6 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 - **CP Analysis foil data** — all five foil variants (Regular, Gold, Gold Arcane GV, Black, Black Arcane BV) now appear individually in the _CP by Edition & Foil_ chart. Previously Gold Arcane was grouped under Gold and Black Arcane under Black; the underlying CP values were always correct.
 - **Hive Blog — unclaimed season reward warning** — after generating a post, accounts that have no GLINT `season_rewards` entry in the database for the previous season now show a warning: _"Cannot find season rewards (Glint) for season X"_. This covers both the case where rewards haven't been claimed in Splinterlands yet and the case where the background worker hasn't picked them up yet.
 - **Hive Blog — checkmark account selector** — the Accounts dropdown on the Hive Blog Generator now shows a checkbox next to each account, matching the style used on the Portfolio page.
-- **Hive Blog — debug tooling** — a _Dry run_ checkbox skips the Keychain broadcast and logs the full payload to the browser console. A _Testnet mode_ checkbox routes the broadcast to `testnet.openhive.network` so posts can be tested without appearing on Hive mainnet.
 - **Season Overview — hide current season** — a _Hide current season_ checkbox next to the account selector removes the in-progress season from all three tabs (Leaderboard, Earnings, Token Detail), preventing partial data from distorting charts.
 
 ### Fixed
