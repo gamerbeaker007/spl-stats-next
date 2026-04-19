@@ -69,6 +69,8 @@ export const GLINT_SPILLOVER_TYPES = [
   "modern_leaderboard_prizes",
   "affiliate_season_rewards_modern",
   "affiliate_season_rewards_wild",
+  "survival_leaderboard_prizes",
+  "survival_bracket_rewards",
 ] as const;
 
 /** Unclaimed transaction types that are season-related spillover. */

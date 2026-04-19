@@ -9,6 +9,12 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v0.3.1] - 2026-04-19
+
+### Fixed
+
+- **survival_leaderboard_prizes** and **survival_bracket_rewards** part of spill over for glint (claimed in new season but are actual part of the previous one).. Manually fixed production DB for it.
+
 ## [v0.3.0] - 2026-04-18
 
 ### What's New
