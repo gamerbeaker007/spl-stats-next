@@ -1,3 +1,5 @@
+import { CardFoil } from "@/types/card";
+
 export interface HiveBlogLeaderboardRow {
   format: string;
   battles: number;
@@ -10,6 +12,7 @@ export interface HiveBlogLeaderboardRow {
 }
 
 export interface HiveBlogEarningsDetailRow {
+  token: string;
   label: string;
   icon: string; // inline markdown image string, e.g. "![dec](...)"
   amount: number;
@@ -66,7 +69,7 @@ export interface HiveBlogMarketCard {
   name: string;
   edition: number;
   /** Count per foil variant (regular, gold, gold arcane, black, black arcane). */
-  foilCounts: Partial<Record<import("@/types/card").CardFoil, number>>;
+  foilCounts: Partial<Record<CardFoil, number>>;
 }
 
 export interface HiveBlogMarketItem {
@@ -79,6 +82,8 @@ export interface HiveBlogAccountData {
   leaderboard: HiveBlogLeaderboardRow[];
   earned: HiveBlogEarningsDetailRow[];
   costs: HiveBlogEarningsDetailRow[];
+  /** Summed earn/cost for (token, type) pairs not in EARNINGS_LABELS, keyed by token */
+  unlabeledByToken: Record<string, { earnTotal: number; costTotal: number }>;
   rewards: HiveBlogRewardSummary | null;
   tournaments: HiveBlogTournamentRow[];
   boughtCards: HiveBlogMarketCard[];

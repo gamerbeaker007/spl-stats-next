@@ -9,6 +9,17 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v0.4.0] -
+
+### What's New
+
+- **Unified card filter** — the three independent filter drawers (Dashboard, Battles, Card Stats) have been replaced by a single shared `UnifiedCardFilterDrawer` component. All pages now render the same filter UI from one source of truth, removing ~2 000 lines of duplicated drawer code.
+- **Generic filter context factory** — a new `createFilterContext` utility generates a typed React context + provider from a set of defaults. All three filter contexts (`CardFilterContext`, `BattleFilterContext`, `CardStatsFilterContext`) are now thin wrappers produced by this factory, and each persists its state to `localStorage` automatically so filter selections survive page navigation.
+- **Shared card-filter utilities** — `lib/shared/card-filter-utils.ts` centralises the Modern-edition preset, client-side `matchesFilter` logic, and a `clearAllFilterStorage` helper (called on logout to wipe all persisted filter state).
+- **Hive Blog — action file split into services** — the single 900-line `hive-blog-actions.ts` file has been broken into focused service modules under `lib/backend/services/`: `hive-blog-earnings.ts`, `hive-blog-rewards.ts`, `hive-blog-tournaments.ts`, `hive-blog-markdown.ts`, and `hive-blog-icons.ts`. The action file now composes these services, making each concern independently readable and testable.
+
+---
+
 ## [v0.3.1] - 2026-04-19
 
 ### Fixed

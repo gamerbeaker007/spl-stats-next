@@ -1,6 +1,7 @@
 "use client";
 import { getCardImg } from "@/lib/collectionUtils";
 import { useCardFilter } from "@/lib/frontend/context/CardFilterContext";
+import { matchesCardFilter } from "@/lib/shared/card-filter-utils";
 import { CardFoil, DetailedPlayerCardCollection } from "@/types/card";
 import { Box, Typography } from "@mui/material";
 import { Card } from "./Card";
@@ -11,7 +12,7 @@ interface CardSectionProps {
 }
 
 export const CardSection = ({ username, playerCards }: CardSectionProps) => {
-  const { filterCard, hideMissingCards, selectedFoilCategories } = useCardFilter();
+  const { filter } = useCardFilter();
 
   return (
     <Box display="flex" flex={1} flexDirection="column">
@@ -21,16 +22,10 @@ export const CardSection = ({ username, playerCards }: CardSectionProps) => {
       <Box display={"flex"} flexDirection={"row"} flexWrap={"wrap"}>
         {Object.values(playerCards).map((cardItem, cardIndex) => {
           // When hide missing and the there are no owned cards, skip rendering
-          if (hideMissingCards && cardItem.allCards?.length === 0) return null;
+          if (filter.hideMissingCards && cardItem.allCards?.length === 0) return null;
 
           // Apply all filters to determine if this card should be shown at all
-          const passesFilter = filterCard(
-            cardItem.edition,
-            cardItem.rarity,
-            cardItem.color,
-            cardItem.secondaryColor,
-            cardItem.role
-          );
+          const passesFilter = matchesCardFilter(cardItem, filter);
           // Skip this card entirely if it doesn't pass filters
           if (!passesFilter) return null;
 
@@ -70,9 +65,9 @@ export const CardSection = ({ username, playerCards }: CardSectionProps) => {
 
           // Filter groups by foil if a foil filter is active
           const filteredGroups = cardsByEditionAndFoil
-            ? selectedFoilCategories.length > 0
+            ? filter.foilCategories.length > 0
               ? Object.values(cardsByEditionAndFoil).filter((g) =>
-                  selectedFoilCategories.includes(g.foil)
+                  filter.foilCategories.includes(g.foil)
                 )
               : Object.values(cardsByEditionAndFoil)
             : [];
@@ -100,7 +95,7 @@ export const CardSection = ({ username, playerCards }: CardSectionProps) => {
                 />
               );
             });
-          } else if (!hideMissingCards && selectedFoilCategories.length === 0) {
+          } else if (!filter.hideMissingCards && filter.foilCategories.length === 0) {
             // Render missing card placeholder only when foil filter is not active
             return (
               <Card

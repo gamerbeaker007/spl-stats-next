@@ -22,67 +22,6 @@ import {
   format_survival_icon_url,
 } from "@/lib/staticsIconUrls";
 
-// Edition / set definitions live in edition-utils — re-export so existing consumers
-// importing from "@/types/battles" continue to work without changes.
-export type { EditionOption, EditionSetGroup } from "@/lib/shared/edition-utils";
-export { EDITION_OPTIONS, EDITION_SET_GROUPS } from "@/lib/shared/edition-utils";
-
-// ---------------------------------------------------------------------------
-// Filter state
-// ---------------------------------------------------------------------------
-
-export interface BattleFilter {
-  account: string;
-  formats: string[]; // [] = all; values: "wild" | "modern" | "foundation" | "survival"
-  cardTypes: string[]; // [] = all; values: "Monster" | "Summoner"
-  matchTypes: string[]; // [] = all; values: "Ranked" | "Brawl" | "Tournament" | "Challenge"
-  rarities: number[]; // [] = all; values: 1 | 2 | 3 | 4
-  colors: string[]; // [] = all; values: "Red" | "Blue" | "White" | "Black" | "Green" | "Gold" | "Gray"
-  editions: number[]; // [] = all; native edition selections
-  promoTiers: number[]; // [] = all; era tiers for promo cards (edition=2 AND tier IN promoTiers)
-  rewardTiers: number[]; // [] = all; era tiers for reward cards (edition=3 AND tier IN rewardTiers)
-  extraTiers: number[]; // [] = all; era tiers for extra cards (edition=17 AND tier IN extraTiers)
-  minManaCap: number; // 0 = no limit
-  maxManaCap: number; // 0 = no limit
-  rulesets: string[]; // [] = all
-  groupLevels: boolean;
-  groupFoils: boolean;
-  cardName: string; // "" = all; case-insensitive substring match on card name
-  selectedCardDetailId: number; // 0 = none; the card chosen via the autocomplete
-  minBattleCount: number; // minimum battles to show a card
-  sinceDays: number; // 0 = all time, else last N days
-  sortBy: "battles" | "win_percentage" | "wins" | "losses";
-  topCount: number; // how many cards to show in grid
-  filterOpen: boolean; // drawer open state
-  foilCategories: string[]; // [] = all; values: "regular" | "gold"
-}
-
-export const DEFAULT_BATTLE_FILTER: BattleFilter = {
-  account: "",
-  formats: [],
-  cardTypes: [],
-  matchTypes: [],
-  rarities: [],
-  colors: [],
-  editions: [],
-  promoTiers: [],
-  rewardTiers: [],
-  extraTiers: [],
-  minManaCap: 0,
-  maxManaCap: 0,
-  rulesets: [],
-  groupLevels: true,
-  groupFoils: true,
-  cardName: "",
-  selectedCardDetailId: 0,
-  minBattleCount: 1,
-  sinceDays: 0,
-  sortBy: "battles",
-  topCount: 5,
-  filterOpen: true,
-  foilCategories: [],
-};
-
 // ---------------------------------------------------------------------------
 // Data result types
 // ---------------------------------------------------------------------------
@@ -194,9 +133,6 @@ export interface CardDetailResult {
 // ---------------------------------------------------------------------------
 // Filter option constants
 // ---------------------------------------------------------------------------
-
-export const CARD_TYPES = ["Monster", "Summoner"] as const;
-export const MATCH_TYPES = ["Ranked", "Brawl", "Tournament", "Challenge"] as const;
 
 export const RARITY_OPTIONS = [
   { value: 1, label: "Common", iconUrl: card_rarity_common_icon_url },

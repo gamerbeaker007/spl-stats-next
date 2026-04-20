@@ -3,8 +3,7 @@
 import { CardFilterDrawer } from "@/components/multi-dashboard/dashboard/CardFilterDrawer";
 import { PlayerDashboardContent } from "@/components/multi-dashboard/dashboard/PlayerDashboardContent";
 import { getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
-import { CardFilterProvider, useCardFilter } from "@/lib/frontend/context/CardFilterContext";
-import type { CardFoil } from "@/types/card";
+import { CardFilterProvider } from "@/lib/frontend/context/CardFilterContext";
 import { Box, Skeleton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
@@ -150,23 +149,6 @@ function DashboardContent() {
 }
 
 function DrawerAndContent({ selectedUsers }: Readonly<{ selectedUsers: string[] }>) {
-  const {
-    drawerOpen,
-    selectedSets,
-    selectedRarities,
-    selectedElements,
-    selectedRoles,
-    selectedFoilCategories,
-    hideMissingCards,
-    setSelectedSets,
-    setSelectedRarities,
-    setSelectedElements,
-    setSelectedRoles,
-    setHideMissingCards,
-    setSelectedFoilCategories,
-    toggleDrawer,
-  } = useCardFilter();
-
   const multipleSelected = selectedUsers.length > 1;
 
   return (
@@ -192,23 +174,8 @@ function DrawerAndContent({ selectedUsers }: Readonly<{ selectedUsers: string[] 
         ))}
       </Box>
 
-      {/* Card Filter Drawer - after content so it sits on the right in flex */}
-      <CardFilterDrawer
-        open={drawerOpen}
-        onToggle={toggleDrawer}
-        selectedSets={selectedSets}
-        selectedRarities={selectedRarities}
-        selectedElements={selectedElements}
-        selectedRoles={selectedRoles}
-        selectedFoilCategories={selectedFoilCategories}
-        hideMissingCards={hideMissingCards}
-        onSetChange={setSelectedSets}
-        onRarityChange={setSelectedRarities}
-        onElementChange={setSelectedElements}
-        onRoleChange={setSelectedRoles}
-        onHideMissingCardsChange={setHideMissingCards}
-        onFoilChange={(v) => setSelectedFoilCategories(v as CardFoil[])}
-      />
+      {/* Card Filter Drawer - uses context directly */}
+      <CardFilterDrawer />
     </Box>
   );
 }

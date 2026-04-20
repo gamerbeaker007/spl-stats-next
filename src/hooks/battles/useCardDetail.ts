@@ -1,8 +1,9 @@
 "use client";
 
 import { getCardDetailAction } from "@/lib/backend/actions/battle-overview-actions";
-import type { BattleFilter, CardDetailResult } from "@/types/battles";
+import type { CardDetailResult } from "@/types/battles";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { UnifiedCardFilter } from "@/types/card-filter";
 
 interface UseCardDetailReturn {
   detail: CardDetailResult | null;
@@ -11,7 +12,10 @@ interface UseCardDetailReturn {
   refetch: () => void;
 }
 
-export function useCardDetail(cardDetailId: number, filter: BattleFilter): UseCardDetailReturn {
+export function useCardDetail(
+  cardDetailId: number,
+  filter: UnifiedCardFilter
+): UseCardDetailReturn {
   const [detail, setDetail] = useState<CardDetailResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
