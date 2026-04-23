@@ -11,7 +11,8 @@ import { BALANCE_HISTORY_PAGE_LIMIT, REQUEST_DELAY_MS } from "../worker-config";
 export interface AggregatedEntry {
   token: string;
   type: string;
-  amount: number;
+  earned: number;
+  cost: number;
   count: number;
 }
 
@@ -110,10 +111,17 @@ function aggregateItems(items: SplBalanceHistoryItem[]): AggregatedEntry[] {
     const amount = Number.parseFloat(item.amount);
     const existing = map.get(key);
     if (existing) {
-      existing.amount += amount;
+      if (amount > 0) existing.earned += amount;
+      else existing.cost += Math.abs(amount);
       existing.count++;
     } else {
-      map.set(key, { token: item.token, type: item.type, amount, count: 1 });
+      map.set(key, {
+        token: item.token,
+        type: item.type,
+        earned: amount > 0 ? amount : 0,
+        cost: amount < 0 ? Math.abs(amount) : 0,
+        count: 1,
+      });
     }
   }
   return Array.from(map.values());

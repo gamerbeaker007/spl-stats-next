@@ -82,8 +82,6 @@ export interface HiveBlogAccountData {
   leaderboard: HiveBlogLeaderboardRow[];
   earned: HiveBlogEarningsDetailRow[];
   costs: HiveBlogEarningsDetailRow[];
-  /** Summed earn/cost for (token, type) pairs not in EARNINGS_LABELS, keyed by token */
-  unlabeledByToken: Record<string, { earnTotal: number; costTotal: number }>;
   rewards: HiveBlogRewardSummary | null;
   tournaments: HiveBlogTournamentRow[];
   boughtCards: HiveBlogMarketCard[];

@@ -51,7 +51,8 @@ export async function getLeaderboardHistoryAction(
 export interface EarningsSummaryPoint {
   seasonId: number;
   token: string;
-  total: number;
+  earned: number;
+  cost: number;
 }
 
 export async function getSeasonEarningsSummaryAction(
@@ -71,7 +72,8 @@ export async function getSeasonEarningsSummaryAction(
 export interface TokenBalanceRow {
   seasonId: number;
   type: string;
-  amount: number;
+  earned: number;
+  cost: number;
 }
 
 export async function getSeasonTokenDetailAction(

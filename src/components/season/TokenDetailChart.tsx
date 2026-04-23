@@ -116,7 +116,7 @@ function TokenLines({
     const byType = new Map<string, Map<number, number>>();
     for (const row of rows) {
       if (!byType.has(row.type)) byType.set(row.type, new Map());
-      byType.get(row.type)!.set(row.seasonId, row.amount);
+      byType.get(row.type)!.set(row.seasonId, row.earned - row.cost);
     }
 
     const allSeasons = Array.from(new Set(rows.map((r) => r.seasonId))).sort((a, b) => a - b);

@@ -9,7 +9,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
-## [v0.4.0] -
+## [v0.4.0] - 2026-04-23
 
 ### What's New
 
@@ -17,6 +17,18 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 - **Generic filter context factory** — a new `createFilterContext` utility generates a typed React context + provider from a set of defaults. All three filter contexts (`CardFilterContext`, `BattleFilterContext`, `CardStatsFilterContext`) are now thin wrappers produced by this factory, and each persists its state to `localStorage` automatically so filter selections survive page navigation.
 - **Shared card-filter utilities** — `lib/shared/card-filter-utils.ts` centralises the Modern-edition preset, client-side `matchesFilter` logic, and a `clearAllFilterStorage` helper (called on logout to wipe all persisted filter state).
 - **Hive Blog — action file split into services** — the single 900-line `hive-blog-actions.ts` file has been broken into focused service modules under `lib/backend/services/`: `hive-blog-earnings.ts`, `hive-blog-rewards.ts`, `hive-blog-tournaments.ts`, `hive-blog-markdown.ts`, and `hive-blog-icons.ts`. The action file now composes these services, making each concern independently readable and testable.
+
+#### SeasonBalance earned/cost split
+
+- **`SeasonBalance` model redesigned** — the single `amount` field (net sum, positive = earned, negative = spent) has been replaced by two separate fields: `earned` (sum of positive transaction amounts) and `cost` (sum of absolute negative transaction amounts). This preserves the breakdown for transaction types that have both positive and negative entries (e.g. `DEC market_purchase`), which was previously lost in the net sum.
+- **Worker aggregation updated** — `aggregateItems()` in both `balance-history.ts` and `unclaimed-balance-history.ts` now splits amounts by sign into `earned`/`cost` instead of summing into a single `amount`. `incrementSeasonBalanceBatch()` increments the two fields independently.
+- **Unclaimed delegation type keys cleaned up** — the `_to_<player>` suffix previously appended to the type key for delegation rows (e.g. `brawl_to_guildname`) has been removed. All delegations now aggregate into `cost` on the base type (`brawl`). The delegation target is no longer tracked.
+- **Hive Blog earnings table fixed** — `buildEarningsSectionLines()` now merges earned and cost by `(token, label)` before rendering, so transaction types with both positive and negative amounts (e.g. `DEC market (buy/sell)`) appear as a single row with both columns filled instead of two separate rows.
+- **DB migration** (`20260421000000_season_balance_earned_cost`) — adds `earned` and `cost` columns, drops `amount`, deletes all existing `season_balances` rows (data was invalid without the split), and resets balance/unclaimed `AccountSyncState` cursors to force a full worker re-sync. Runs automatically on `docker compose up` via `prisma migrate deploy`.
+
+### Fixed
+
+- Fix link to jackpot-prized-chests
 
 ---
 

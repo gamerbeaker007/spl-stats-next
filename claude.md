@@ -60,9 +60,15 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
 - **Interruptible and resumable** via `AccountSyncState` (progress committed per season/token).
 - Graceful shutdown on SIGTERM/SIGINT: finishes current season, then exits.
 - Current flows: season balance collection + leaderboard sync (foundation/wild/modern) + battle history sync.
-- `SeasonBalance`: pre-aggregated per `(username, seasonId, token, type)`. Positive = earned, negative = spent.
+- `SeasonBalance`: pre-aggregated per `(username, seasonId, token, type)`. Two amount fields: `earned` (sum of positive transactions) and `cost` (sum of absolute negative transactions). `count` = number of transactions aggregated.
 - Spillover transactions attributed to previous season.
 - Unclaimed SPS/VOUCHER stored as `UNCLAIMED_SPS`, `UNCLAIMED_VOUCHER`.
+- Unclaimed delegation rows (negative-to-other): aggregated into `cost` on the base type — delegation target is not stored. Old `_to_<player>` type-key encoding is gone.
+
+### Hive Blog Generation
+
+- `buildDetailedEarnings()` (`hive-blog-earnings.ts`): maps `SeasonBalance` rows to `earned[]` and `costs[]` arrays using `EARNINGS_LABELS` for human-readable labels. A single `(token, type)` can produce entries in both arrays if it has both positive and negative transactions (e.g. DEC market_purchase).
+- `buildEarningsSectionLines()` (`hive-blog-markdown.ts`): merges earned/cost by `(token, label)` before rendering — types with both show as one table row with both columns filled instead of two separate rows.
 
 #### `AccountSyncState` field semantics
 

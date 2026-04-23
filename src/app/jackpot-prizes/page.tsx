@@ -100,7 +100,7 @@ export default function HomePage() {
             in the so-called &quot;Gator Buckets&quot;.
           </Typography>
           <Button
-            onClick={() => handleNavigate("/jackpot-prizes/jackpot-prizes")}
+            onClick={() => handleNavigate("/jackpot-prizes/jackpot-prizes-chests")}
             variant="contained"
             size="large"
             fullWidth

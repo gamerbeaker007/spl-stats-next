@@ -32,6 +32,13 @@ export async function generateHiveBlogAction(
 ): Promise<HiveBlogResult> {
   if (selectedAccounts.length === 0) throw new Error("No accounts selected");
 
+  // Guard: only allow accounts the caller actually monitors
+  const monitored = await getMonitoredAccounts();
+  const allowedSet = new Set(monitored.map((a) => a.username));
+  const safeAccounts = selectedAccounts.filter((a) => allowedSet.has(a));
+  if (safeAccounts.length === 0)
+    throw new Error("None of the selected accounts are in your monitored list");
+
   const latestSeason = await getLatestSeason();
   if (!latestSeason) throw new Error("No season data found in database");
 
@@ -57,7 +64,7 @@ export async function generateHiveBlogAction(
   const unclaimedRewardAccounts: string[] = [];
   const accounts: HiveBlogAccountData[] = [];
 
-  for (const username of selectedAccounts) {
+  for (const username of safeAccounts) {
     const [leaderboardRows, token, seasonRows] = await Promise.all([
       getPlayerLeaderboardForSeason(username, previousSeasonId),
       getToken(username),
@@ -65,11 +72,11 @@ export async function generateHiveBlogAction(
     ]);
 
     const hasGlintSeasonRewards = seasonRows.some(
-      (r) => r.token === "GLINT" && r.type === "season_rewards" && r.amount > 0
+      (r) => r.token === "GLINT" && r.type === "season_rewards" && r.earned > 0
     );
     if (!hasGlintSeasonRewards) unclaimedRewardAccounts.push(username);
 
-    const { earned, costs, unlabeledByToken } = buildDetailedEarnings(username, seasonRows);
+    const { earned, costs } = buildDetailedEarnings(seasonRows);
 
     const emptyMarket = { boughtCards: [], soldCards: [], boughtItems: [], soldItems: [] };
     const [rewards, tournaments, marketData] = await Promise.all([
@@ -108,7 +115,6 @@ export async function generateHiveBlogAction(
       leaderboard,
       earned,
       costs,
-      unlabeledByToken,
       rewards,
       tournaments,
       boughtCards: marketData.boughtCards,

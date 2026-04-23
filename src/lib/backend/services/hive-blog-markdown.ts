@@ -363,19 +363,11 @@ function buildRewardsSectionLines(acc: HiveBlogAccountData): string[] {
   return lines;
 }
 
-function otherRow(earnTotal: number, costTotal: number, icon: string): string {
-  const e = earnTotal > 0 ? `${icon} ${fmtNum(earnTotal)}` : "-";
-  const c = costTotal > 0 ? `${icon} ${fmtNum(costTotal)}` : "-";
-  return `| ${e} | <center>other</center> | ${c} |`;
-}
-
 function buildEarningsSectionLines(acc: HiveBlogAccountData): string[] {
   const lines: string[] = [];
   lines.push(`${SUB_HEADER} 💰 Earnings — @${acc.username} ${CLOSE_HEADER}`, "");
 
-  const allItems = [...acc.earned, ...acc.costs];
-  const hasUnlabeled = Object.keys(acc.unlabeledByToken).length > 0;
-  if (allItems.length === 0 && !hasUnlabeled) {
+  if (acc.earned.length === 0 && acc.costs.length === 0) {
     lines.push("*No earnings data found for this season.*", "");
     return lines;
   }
@@ -384,27 +376,33 @@ function buildEarningsSectionLines(acc: HiveBlogAccountData): string[] {
   const TABLE_SEP = "| --- | --- | --- |";
 
   const renderGroup = (label: string, groupIcon: string, groupTokens: Set<string>) => {
-    const earned = acc.earned.filter((r) => groupTokens.has(r.token));
-    const costs = acc.costs.filter((r) => groupTokens.has(r.token));
-    const unlabeledEarn = [...groupTokens].reduce(
-      (sum, t) => sum + (acc.unlabeledByToken[t]?.earnTotal ?? 0),
-      0
-    );
-    const unlabeledCost = [...groupTokens].reduce(
-      (sum, t) => sum + (acc.unlabeledByToken[t]?.costTotal ?? 0),
-      0
-    );
-    if (earned.length === 0 && costs.length === 0 && unlabeledEarn === 0 && unlabeledCost === 0)
-      return;
+    const earnedRows = acc.earned.filter((r) => groupTokens.has(r.token));
+    const costRows = acc.costs.filter((r) => groupTokens.has(r.token));
+    if (earnedRows.length === 0 && costRows.length === 0) return;
+
+    // Merge earned and cost by (token, label) so types with both show on one row
+    const merged = new Map<
+      string,
+      { rowLabel: string; icon: string; earnAmt: number; costAmt: number }
+    >();
+    for (const e of earnedRows) {
+      const key = `${e.token}:${e.label}`;
+      if (!merged.has(key))
+        merged.set(key, { rowLabel: e.label, icon: e.icon, earnAmt: 0, costAmt: 0 });
+      merged.get(key)!.earnAmt += e.amount;
+    }
+    for (const c of costRows) {
+      const key = `${c.token}:${c.label}`;
+      if (!merged.has(key))
+        merged.set(key, { rowLabel: c.label, icon: c.icon, earnAmt: 0, costAmt: 0 });
+      merged.get(key)!.costAmt += c.amount;
+    }
+
     lines.push(`**${groupIcon} ${label}**`, "", TABLE_HEADER, TABLE_SEP);
-    for (const e of earned) {
-      lines.push(`| ${e.icon} ${fmtNum(e.amount)} | <center>${e.label}</center> | - |`);
-    }
-    for (const c of costs) {
-      lines.push(`| - | <center>${c.label}</center> | ${c.icon} ${fmtNum(c.amount)} |`);
-    }
-    if (unlabeledEarn > 0 || unlabeledCost > 0) {
-      lines.push(otherRow(unlabeledEarn, unlabeledCost, groupIcon));
+    for (const { rowLabel, icon, earnAmt, costAmt } of merged.values()) {
+      const earnCell = earnAmt > 0 ? `${icon} ${fmtNum(earnAmt)}` : "-";
+      const costCell = costAmt > 0 ? `${icon} ${fmtNum(costAmt)}` : "-";
+      lines.push(`| ${earnCell} | <center>${rowLabel}</center> | ${costCell} |`);
     }
     lines.push("");
   };
