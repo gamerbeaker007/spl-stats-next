@@ -1,7 +1,7 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
-import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 
 interface Props {
@@ -11,7 +11,7 @@ interface Props {
 export default function HiveMarkdownPreview({ markdown }: Props) {
   return (
     <div className="hive-md-preview">
-      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
         {markdown}
       </ReactMarkdown>
     </div>

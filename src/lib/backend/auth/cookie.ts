@@ -31,7 +31,7 @@ export async function setUserCookie(sessionId: string) {
   const cookieStore = await cookies();
   cookieStore.set(USER_COOKIE, sign(sessionId), {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production", // dev: allow HTTP on localhost; staging must use HTTPS
     sameSite: "lax",
     maxAge: 60 * 60 * 24 * 7, // 7 days
   });

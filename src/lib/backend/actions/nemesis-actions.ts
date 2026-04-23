@@ -1,7 +1,8 @@
 "use server";
 
 import { getNemesisOpponentStats } from "@/lib/backend/db/battle-cards";
-import { BattleFilter, NemesisData, NemesisOpponentStat } from "@/types/battles";
+import { NemesisData, NemesisOpponentStat } from "@/types/battles";
+import { UnifiedCardFilter } from "@/types/card-filter";
 
 function aggregateOpponents(rows: { opponent: string }[]): NemesisOpponentStat[] {
   const map = new Map<string, number>();
@@ -13,7 +14,7 @@ function aggregateOpponents(rows: { opponent: string }[]): NemesisOpponentStat[]
     .sort((a, b) => b.battles - a.battles);
 }
 
-export async function getNemesisDataAction(filter: BattleFilter): Promise<NemesisData | null> {
+export async function getNemesisDataAction(filter: UnifiedCardFilter): Promise<NemesisData | null> {
   if (!filter.account) return null;
 
   const since =

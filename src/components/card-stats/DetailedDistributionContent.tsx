@@ -3,6 +3,7 @@
 import CardStatsFilterDrawer from "@/components/card-stats/CardStatsFilterDrawer";
 import CardStatsStatHeader from "@/components/card-stats/CardStatsStatHeader";
 import { useCardStatsFilter } from "@/lib/frontend/context/CardStatsFilterContext";
+import { matchesCardStatsRow } from "@/lib/shared/card-filter-utils";
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 import type { CardFoil } from "@/types/card";
 import { cardFoilOptions } from "@/types/card";
@@ -81,13 +82,16 @@ interface Props {
 }
 
 export default function DetailedDistributionContent({ rows }: Props) {
-  const { filterRow } = useCardStatsFilter();
+  const { filter } = useCardStatsFilter();
   const [sortKey, setSortKey] = useState<SortKey>("numCards");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
 
-  const filtered = useMemo(() => rows.filter((element) => filterRow(element)), [rows, filterRow]);
+  const filtered = useMemo(
+    () => rows.filter((r) => matchesCardStatsRow(r, filter)),
+    [rows, filter]
+  );
 
   const sorted = useMemo(() => {
     return [...filtered].sort((a, b) => {

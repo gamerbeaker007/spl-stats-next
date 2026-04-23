@@ -17,7 +17,6 @@ import { fetchBattleResult, fetchCardDetails } from "@/lib/backend/api/spl/spl-a
 import { getCardImg } from "@/lib/collectionUtils";
 import type {
   BestCardStat,
-  BattleFilter,
   BattleTeamCard,
   DetailedBattleEntry,
   CardDetailResult,
@@ -27,12 +26,13 @@ import type {
   RulesetCount,
 } from "@/types/battles";
 import { cardFoilOptions } from "@/types/card";
+import { UnifiedCardFilter } from "@/types/card-filter";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function toQueryFilter(filter: BattleFilter): BattleQueryFilter {
+function toQueryFilter(filter: UnifiedCardFilter): BattleQueryFilter {
   return {
     account: filter.account,
     formats: filter.formats,
@@ -68,7 +68,7 @@ function cardImageUrl(cardName: string, edition: number, foil: number, level: nu
   return getCardImg(cardName, edition, cardFoil, level);
 }
 
-function sortBestCards(cards: BestCardStat[], sortBy: BattleFilter["sortBy"]): BestCardStat[] {
+function sortBestCards(cards: BestCardStat[], sortBy: UnifiedCardFilter["sortBy"]): BestCardStat[] {
   switch (sortBy) {
     case "win_percentage":
       return [...cards].sort((a, b) => b.winPercentage - a.winPercentage);
@@ -136,7 +136,7 @@ export async function getCardOptionsAction(
 // getBestCardsAction
 // ---------------------------------------------------------------------------
 
-export async function getBestCardsAction(filter: BattleFilter): Promise<BestCardStat[]> {
+export async function getBestCardsAction(filter: UnifiedCardFilter): Promise<BestCardStat[]> {
   if (!filter.account) return [];
 
   const aggs = await getBestCardStats(toQueryFilter(filter));
@@ -164,7 +164,7 @@ export async function getBestCardsAction(filter: BattleFilter): Promise<BestCard
 // getLosingCardsAction
 // ---------------------------------------------------------------------------
 
-export async function getLosingCardsAction(filter: BattleFilter): Promise<LosingCardStat[]> {
+export async function getLosingCardsAction(filter: UnifiedCardFilter): Promise<LosingCardStat[]> {
   if (!filter.account) return [];
 
   let aggs;
@@ -198,7 +198,7 @@ export async function getLosingCardsAction(filter: BattleFilter): Promise<Losing
 
 export async function getCardDetailAction(
   cardDetailId: number,
-  filter: BattleFilter
+  filter: UnifiedCardFilter
 ): Promise<CardDetailResult | null> {
   if (!filter.account) return null;
 

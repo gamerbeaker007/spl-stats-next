@@ -278,14 +278,12 @@ export async function getSeasonBalanceSummary(
       });
     }
     const entry = byToken.get(row.token)!;
-    const earned = row.amount > 0 ? row.amount : 0;
-    const spent = row.amount < 0 ? Math.abs(row.amount) : 0;
-    entry.totalEarned += earned;
-    entry.totalSpent += spent;
-    entry.net += row.amount;
+    entry.totalEarned += row.earned;
+    entry.totalSpent += row.cost;
+    entry.net += row.earned - row.cost;
     entry.byType[row.type] = {
-      earned: (entry.byType[row.type]?.earned ?? 0) + earned,
-      spent: (entry.byType[row.type]?.spent ?? 0) + spent,
+      earned: (entry.byType[row.type]?.earned ?? 0) + row.earned,
+      spent: (entry.byType[row.type]?.spent ?? 0) + row.cost,
       count: (entry.byType[row.type]?.count ?? 0) + row.count,
     };
   }

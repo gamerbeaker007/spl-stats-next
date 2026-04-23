@@ -5,13 +5,14 @@ export async function upsertSeasonBalance(
   seasonId: number,
   token: string,
   type: string,
-  amount: number,
+  earned: number,
+  cost: number,
   count: number
 ) {
   return prisma.seasonBalance.upsert({
     where: { username_seasonId_token_type: { username, seasonId, token, type } },
-    create: { username, seasonId, token, type, amount, count },
-    update: { amount, count },
+    create: { username, seasonId, token, type, earned, cost, count },
+    update: { earned, cost, count },
   });
 }
 
@@ -21,11 +22,11 @@ export async function upsertSeasonBalanceBatch(
     seasonId: number;
     token: string;
     type: string;
-    amount: number;
+    earned: number;
+    cost: number;
     count: number;
   }>
 ) {
-  // Use a transaction to upsert all rows for a season atomically
   return prisma.$transaction(
     rows.map((row) =>
       prisma.seasonBalance.upsert({
@@ -38,7 +39,7 @@ export async function upsertSeasonBalanceBatch(
           },
         },
         create: row,
-        update: { amount: row.amount, count: row.count },
+        update: { earned: row.earned, cost: row.cost, count: row.count },
       })
     )
   );
@@ -55,7 +56,8 @@ export async function incrementSeasonBalanceBatch(
     seasonId: number;
     token: string;
     type: string;
-    amount: number;
+    earned: number;
+    cost: number;
     count: number;
   }>
 ) {
@@ -71,7 +73,11 @@ export async function incrementSeasonBalanceBatch(
           },
         },
         create: row,
-        update: { amount: { increment: row.amount }, count: { increment: row.count } },
+        update: {
+          earned: { increment: row.earned },
+          cost: { increment: row.cost },
+          count: { increment: row.count },
+        },
       })
     )
   );
@@ -96,17 +102,17 @@ export async function hasAnySeasonData(usernames: string[]): Promise<boolean> {
 
 /**
  * Return all season balances for an account grouped by (seasonId, token).
- * Each element carries an array of { type, amount } entries.
+ * Each element carries an array of { type, earned, cost } entries.
  * Ordered by seasonId asc, then token asc.
  */
 export async function getSeasonBalancesByToken(
   username: string,
   token: string
-): Promise<Array<{ seasonId: number; type: string; amount: number }>> {
+): Promise<Array<{ seasonId: number; type: string; earned: number; cost: number }>> {
   const rows = await prisma.seasonBalance.findMany({
     where: { username, token },
     orderBy: [{ seasonId: "asc" }, { type: "asc" }],
-    select: { seasonId: true, type: true, amount: true },
+    select: { seasonId: true, type: true, earned: true, cost: true },
   });
   return rows;
 }
@@ -126,7 +132,7 @@ export async function getDistinctTokensForUser(username: string): Promise<string
 
 /**
  * Earnings summary per season for a set of tokens.
- * Returns { seasonId, token, total } where total is the sum of only the
+ * Returns { seasonId, token, earned, cost } where earned/cost are sums of only the
  * whitelisted transaction types (typeFilters). Pass an empty array for a
  * token to include all its types (e.g. UNCLAIMED_SPS).
  */
@@ -134,23 +140,24 @@ export async function getSeasonEarningsSummary(
   username: string,
   tokens: string[],
   typeFilters: Record<string, string[]> = {}
-): Promise<Array<{ seasonId: number; token: string; total: number }>> {
+): Promise<Array<{ seasonId: number; token: string; earned: number; cost: number }>> {
   const rows = await prisma.seasonBalance.findMany({
     where: { username, token: { in: tokens } },
     orderBy: [{ seasonId: "asc" }, { token: "asc" }],
-    select: { seasonId: true, token: true, type: true, amount: true },
+    select: { seasonId: true, token: true, type: true, earned: true, cost: true },
   });
 
-  // Group into (seasonId, token) buckets, filtering by whitelisted types
-  const map = new Map<string, { seasonId: number; token: string; total: number }>();
+  const map = new Map<string, { seasonId: number; token: string; earned: number; cost: number }>();
   for (const row of rows) {
     const allowed = typeFilters[row.token];
-    // If a filter list is defined and non-empty, skip types not in it
     if (allowed && allowed.length > 0 && !allowed.includes(row.type)) continue;
 
     const key = `${row.seasonId}:${row.token}`;
-    if (!map.has(key)) map.set(key, { seasonId: row.seasonId, token: row.token, total: 0 });
-    map.get(key)!.total += row.amount;
+    if (!map.has(key))
+      map.set(key, { seasonId: row.seasonId, token: row.token, earned: 0, cost: 0 });
+    const entry = map.get(key)!;
+    entry.earned += row.earned;
+    entry.cost += row.cost;
   }
 
   return Array.from(map.values());

@@ -1,8 +1,9 @@
 "use client";
 
 import { getBestCardsAction } from "@/lib/backend/actions/battle-overview-actions";
-import type { BattleFilter, BestCardStat } from "@/types/battles";
+import type { BestCardStat } from "@/types/battles";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { UnifiedCardFilter } from "@/types/card-filter";
 
 interface UseBattleOverviewReturn {
   cards: BestCardStat[];
@@ -11,7 +12,7 @@ interface UseBattleOverviewReturn {
   refetch: () => void;
 }
 
-export function useBattleOverview(filter: BattleFilter): UseBattleOverviewReturn {
+export function useBattleOverview(filter: UnifiedCardFilter): UseBattleOverviewReturn {
   const [cards, setCards] = useState<BestCardStat[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

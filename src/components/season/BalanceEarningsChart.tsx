@@ -39,7 +39,7 @@ function fillSeasons(
   minSeason: number,
   maxSeason: number
 ): { seasons: number[]; totals: number[] } {
-  const bySeasonId = new Map(rows.map((r) => [r.seasonId, r.total]));
+  const bySeasonId = new Map(rows.map((r) => [r.seasonId, r.earned]));
   const seasons: number[] = [];
   const totals: number[] = [];
   for (let s = minSeason; s <= maxSeason; s++) {
@@ -65,8 +65,10 @@ export default function BalanceEarningsChart({ username, theme, hideCurrentSeaso
     for (const row of data) {
       const token = row.token === "UNCLAIMED_SPS" ? "SPS" : row.token;
       const key = `${row.seasonId}:${token}`;
-      if (!map.has(key)) map.set(key, { seasonId: row.seasonId, token, total: 0 });
-      map.get(key)!.total += row.total;
+      if (!map.has(key)) map.set(key, { seasonId: row.seasonId, token, earned: 0, cost: 0 });
+      const entry = map.get(key)!;
+      entry.earned += row.earned;
+      entry.cost += row.cost;
     }
     return Array.from(map.values());
   }, [data]);

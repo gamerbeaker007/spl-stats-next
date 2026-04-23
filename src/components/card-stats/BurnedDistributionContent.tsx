@@ -3,6 +3,7 @@
 import CardStatsFilterDrawer from "@/components/card-stats/CardStatsFilterDrawer";
 import PlotlyChart from "@/components/shared/PlotlyChart";
 import { useCardStatsFilter } from "@/lib/frontend/context/CardStatsFilterContext";
+import { matchesCardStatsRow } from "@/lib/shared/card-filter-utils";
 import { useTheme } from "@/lib/frontend/context/ThemeSetup";
 import { RARITY_COLORS, RARITY_ORDER } from "@/lib/shared/rarity-utils";
 import type { CardDistributionRow } from "@/types/card-stats";
@@ -121,10 +122,13 @@ interface Props {
 }
 
 export default function BurnedDistributionContent({ rows }: Props) {
-  const { filterRow } = useCardStatsFilter();
+  const { filter } = useCardStatsFilter();
   const { theme } = useTheme();
 
-  const filtered = useMemo(() => rows.filter(filterRow), [rows, filterRow]);
+  const filtered = useMemo(
+    () => rows.filter((r) => matchesCardStatsRow(r, filter)),
+    [rows, filter]
+  );
   const chartData = useMemo(() => buildBurnedBcxChart(filtered), [filtered]);
   const bcxPivot = useMemo(() => buildPivot(filtered, "bcx"), [filtered]);
   const burnedBcxPivot = useMemo(() => buildPivot(filtered, "burnedBcx"), [filtered]);

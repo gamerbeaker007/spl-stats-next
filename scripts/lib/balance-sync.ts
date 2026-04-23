@@ -32,7 +32,8 @@ async function applyDeltaRows(
     seasonId: number;
     token: string;
     type: string;
-    amount: number;
+    earned: number;
+    cost: number;
     count: number;
   }> = [];
 

@@ -2,6 +2,7 @@
 
 import { getAuthStatus, loginAction, logoutAction } from "@/lib/backend/actions/auth-actions";
 import { keychainSignBuffer } from "@/lib/frontend/keychain";
+import { clearAllFilterStorage } from "@/lib/shared/card-filter-utils";
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 
 interface AuthUser {
@@ -93,6 +94,7 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const logout = async () => {
     try {
       setError(null);
+      clearAllFilterStorage();
       await logoutAction();
     } catch (error) {
       console.error("Logout network error:", error);

@@ -97,17 +97,24 @@ function aggregateItems(items: SplUnclaimedBalanceHistoryItem[]): AggregatedEntr
 
     const token = `UNCLAIMED_${item.token}`;
     const toSelf = item.to_player === item.player;
-    const typeKey = toSelf ? item.type : `${item.type}_to_${item.to_player}`;
-    const key = `${token}:${typeKey}`;
-    // Negative to self = earned (credit), negative to other = spent (delegation)
-    const effectiveAmount = toSelf ? Math.abs(amount) : amount;
+    // Use base type as key — delegation target stored in meta, not encoded in type
+    const key = `${token}:${item.type}`;
+    const abs = Math.abs(amount);
 
     const existing = map.get(key);
     if (existing) {
-      existing.amount += effectiveAmount;
+      // Negative to self = earned (credit); negative to other = cost (delegation)
+      if (toSelf) existing.earned += abs;
+      else existing.cost += abs;
       existing.count++;
     } else {
-      map.set(key, { token, type: typeKey, amount: effectiveAmount, count: 1 });
+      map.set(key, {
+        token,
+        type: item.type,
+        earned: toSelf ? abs : 0,
+        cost: toSelf ? 0 : abs,
+        count: 1,
+      });
     }
   }
   return Array.from(map.values());
