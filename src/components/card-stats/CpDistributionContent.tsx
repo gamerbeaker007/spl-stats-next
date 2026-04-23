@@ -3,6 +3,7 @@
 import PlotlyChart from "@/components/shared/PlotlyChart";
 import CardStatsFilterDrawer from "@/components/card-stats/CardStatsFilterDrawer";
 import { useCardStatsFilter } from "@/lib/frontend/context/CardStatsFilterContext";
+import { matchesCardStatsRow } from "@/lib/shared/card-filter-utils";
 import { useTheme } from "@/lib/frontend/context/ThemeSetup";
 import type { CardDistributionRow } from "@/types/card-stats";
 import CardStatsCalcInfo from "@/components/card-stats/CardStatsCalcInfo";
@@ -101,10 +102,13 @@ interface Props {
 }
 
 export default function CpDistributionContent({ rows }: Props) {
-  const { filterRow } = useCardStatsFilter();
+  const { filter } = useCardStatsFilter();
   const { theme } = useTheme();
 
-  const filtered = useMemo(() => rows.filter(filterRow), [rows, filterRow]);
+  const filtered = useMemo(
+    () => rows.filter((r) => matchesCardStatsRow(r, filter)),
+    [rows, filter]
+  );
   const totalCpByEdition = useMemo(() => buildTotalCpByEdition(filtered), [filtered]);
   const cpByRarity = useMemo(() => buildCpByEditionAndRarity(filtered), [filtered]);
   const cpByFoil = useMemo(() => buildCpByEditionAndFoil(filtered), [filtered]);

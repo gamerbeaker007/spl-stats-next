@@ -4,6 +4,7 @@ import CardStatsFilterDrawer from "@/components/card-stats/CardStatsFilterDrawer
 import CardStatsStatHeader from "@/components/card-stats/CardStatsStatHeader";
 import PlotlyChart from "@/components/shared/PlotlyChart";
 import { useCardStatsFilter } from "@/lib/frontend/context/CardStatsFilterContext";
+import { matchesCardStatsRow } from "@/lib/shared/card-filter-utils";
 import { useTheme } from "@/lib/frontend/context/ThemeSetup";
 import { SET_DEFS, getSetForEdition } from "@/lib/shared/edition-utils";
 import { RARITY_COLORS, RARITY_ORDER } from "@/lib/shared/rarity-utils";
@@ -83,10 +84,13 @@ interface Props {
 }
 
 export default function CardDistributionContent({ rows }: Props) {
-  const { filterRow } = useCardStatsFilter();
+  const { filter } = useCardStatsFilter();
   const { theme } = useTheme();
 
-  const filtered = useMemo(() => rows.filter(filterRow), [rows, filterRow]);
+  const filtered = useMemo(
+    () => rows.filter((r) => matchesCardStatsRow(r, filter)),
+    [rows, filter]
+  );
   const cardData = useMemo(() => buildRarityBarData(filtered, "numCards"), [filtered]);
   const burnedData = useMemo(() => buildRarityBarData(filtered, "numBurned"), [filtered]);
   const tierCardData = useMemo(() => buildTierRarityData(filtered, "numCards"), [filtered]);

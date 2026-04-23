@@ -7,7 +7,7 @@ import { useMonitoredAccountNames } from "@/hooks/battles/useMonitoredAccountNam
 import CardStatsCard from "./CardStatsCard";
 import ManaBucketChart from "./ManaBucketChart";
 import type { BestCardStat, DetailedBattleEntry, LosingCardStat } from "@/types/battles";
-import { DEFAULT_BATTLE_FILTER, RARITY_LABELS } from "@/types/battles";
+import { RARITY_LABELS } from "@/types/battles";
 import Accordion from "@mui/material/Accordion";
 import AccordionDetails from "@mui/material/AccordionDetails";
 import AccordionSummary from "@mui/material/AccordionSummary";
@@ -31,6 +31,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { MdArrowBack, MdExpandMore, MdOpenInNew } from "react-icons/md";
 import { useEffect, useMemo, useState } from "react";
+import { DEFAULT_UNIFIED_FILTER } from "@/types/card-filter";
 
 const ACCOUNT_STORAGE_KEY = "card-detail-account";
 
@@ -300,7 +301,7 @@ export default function CardDetailContent({
   const { accounts, loading: accountsLoading } = useMonitoredAccountNames();
   // In tab mode the card is selected via the filter drawer — skip loading card options
   const { cards: cardOptions, loading: cardsLoading } = useCardOptions(tabMode ? "" : account);
-  const filter = useMemo(() => ({ ...DEFAULT_BATTLE_FILTER, account }), [account]);
+  const filter = useMemo(() => ({ ...DEFAULT_UNIFIED_FILTER, account }), [account]);
   const { detail, loading, error } = useCardDetail(cardDetailId, filter);
 
   // Fetch both wins and losses live from SPL API for full team data on both sides

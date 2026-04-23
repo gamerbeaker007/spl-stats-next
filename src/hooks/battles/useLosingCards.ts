@@ -1,8 +1,9 @@
 "use client";
 
 import { getLosingCardsAction } from "@/lib/backend/actions/battle-overview-actions";
-import type { BattleFilter, LosingCardStat } from "@/types/battles";
+import type { LosingCardStat } from "@/types/battles";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { UnifiedCardFilter } from "@/types/card-filter";
 
 interface UseLosingCardsReturn {
   cards: LosingCardStat[];
@@ -11,7 +12,7 @@ interface UseLosingCardsReturn {
   refetch: () => void;
 }
 
-export function useLosingCards(filter: BattleFilter): UseLosingCardsReturn {
+export function useLosingCards(filter: UnifiedCardFilter): UseLosingCardsReturn {
   const [cards, setCards] = useState<LosingCardStat[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -96,14 +96,15 @@ model Season {
 }
 
 // Aggregated balance per account, per season, per token, per transaction type.
-// One row = one (account, season, token, type) tuple with summed amount and count.
+// One row = one (account, season, token, type) tuple with summed earned/cost and count.
 model SeasonBalance {
   id       String @id @default(cuid())
   username String // SPL username
   seasonId Int    @map("season_id") // SPL season number (no FK — standalone lookup)
   token    String // e.g. "DEC", "SPS", "GLINT", "UNCLAIMED_SPS", "UNCLAIMED_VOUCHER"
   type     String // transaction type from API (e.g. "season_rewards", "quest_reward")
-  amount   Float  @default(0) // raw sum (positive = earned, negative = spent)
+  earned   Float  @default(0) // sum of positive transaction amounts
+  cost     Float  @default(0) // sum of absolute negative transaction amounts
   count    Int    @default(0) // number of transactions aggregated
 
   @@unique([username, seasonId, token, type])

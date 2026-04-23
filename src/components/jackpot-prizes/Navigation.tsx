@@ -86,7 +86,7 @@ const mintHistory: NavItem[] = [
 const jackpotPrizes: NavItem[] = [
   {
     label: "Jackpot Prizes",
-    href: `${BASE}/jackpot-prizes`,
+    href: `${BASE}/jackpot-prizes-chests`,
     icon: iconMap.jackpot,
     alt: "Jackpot",
   },

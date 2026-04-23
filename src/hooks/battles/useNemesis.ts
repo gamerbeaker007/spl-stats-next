@@ -1,8 +1,9 @@
 "use client";
 
 import { getNemesisDataAction } from "@/lib/backend/actions/nemesis-actions";
-import { BattleFilter, NemesisData } from "@/types/battles";
+import { NemesisData } from "@/types/battles";
 import { useCallback, useEffect, useState } from "react";
+import { UnifiedCardFilter } from "@/types/card-filter";
 
 interface UseNemesisReturn {
   data: NemesisData | null;
@@ -10,7 +11,7 @@ interface UseNemesisReturn {
   error: string | null;
 }
 
-export function useNemesis(filter: BattleFilter): UseNemesisReturn {
+export function useNemesis(filter: UnifiedCardFilter): UseNemesisReturn {
   const [data, setData] = useState<NemesisData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
