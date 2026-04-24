@@ -11,6 +11,14 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ## [v0.4.1] - 2026-04-24
 
+### Changed
+
+- **Worker splits account processing into two passes** — the cycle now runs two separate loops instead of one:
+  1. **Token-dependent syncs** (`runTokenDependentSyncs`): balance history + battle history, only for accounts with a valid SPL token. Token verification still happens here; invalid tokens are marked and skipped.
+  2. **Public syncs** (`runPublicSyncs`): leaderboard rankings + portfolio snapshots, for **all** monitored accounts regardless of token status. These endpoints are unauthenticated — accounts with an invalid or unknown token now continue to receive leaderboard and portfolio updates instead of being skipped entirely.
+- Added `getDistinctMonitoredUsernames()` DB helper (`spl-accounts.ts`) that returns all monitored usernames without a token-status filter, used by the public sync pass.
+
+
 ### Fixed
 
 - **Token invalidation no longer pollutes leaderboard/portfolio sync states** — when a token is detected as invalid, only the `BALANCE_META` sync state is marked `failed`. Previously all sync states were marked, causing leaderboard and portfolio states (which don't require a token) to show `{status: "completed", errorMessage: "Token invalidated"}` permanently, because `resetStaleSyncStates` skips `completed` rows and never cleared the stale message.
