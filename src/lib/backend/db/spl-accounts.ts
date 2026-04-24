@@ -1,5 +1,5 @@
-import prisma from "@/lib/prisma";
 import logger from "@/lib/backend/log/logger.server";
+import prisma from "@/lib/prisma";
 
 export async function upsertSplAccount(
   username: string,
@@ -78,6 +78,20 @@ export async function getDistinctAccountsWithCredentials() {
     },
     orderBy: { createdAt: "asc" },
   });
+}
+
+/**
+ * Returns distinct usernames for all SPL accounts monitored by at least one user,
+ * regardless of token status. Used by the worker for token-independent syncs
+ * (leaderboard + portfolio) so those still run even when the token is invalid.
+ */
+export async function getDistinctMonitoredUsernames(): Promise<string[]> {
+  const accounts = await prisma.splAccount.findMany({
+    where: { monitoredBy: { some: {} } },
+    select: { username: true },
+    orderBy: { createdAt: "asc" },
+  });
+  return accounts.map((a) => a.username);
 }
 
 /**

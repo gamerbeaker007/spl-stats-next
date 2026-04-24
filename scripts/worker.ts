@@ -9,6 +9,7 @@ import { getAllSeasons } from "@/lib/backend/db/seasons";
 import { pruneExpiredSessions } from "@/lib/backend/db/sessions";
 import {
   getDistinctAccountsWithCredentials,
+  getDistinctMonitoredUsernames,
   updateSplAccountStatusByUsername,
 } from "@/lib/backend/db/spl-accounts";
 import {
@@ -17,6 +18,7 @@ import {
   updateWorkerRunProgress,
 } from "@/lib/backend/db/worker-runs";
 import logger from "@/lib/backend/log/logger.server";
+import { Season } from "@prisma/client";
 import { syncSeasonBalances } from "./lib/balance-sync";
 import { syncBattleHistory } from "./lib/battle-history-sync";
 import {
@@ -31,19 +33,145 @@ import { LOG_RETENTION_DAYS, WORKER_INTERVAL_MS } from "./lib/worker-config";
 
 registerShutdownHandlers();
 
+type AccountWithCredentials = Awaited<
+  ReturnType<typeof getDistinctAccountsWithCredentials>
+>[number];
+
+/**
+ * Syncs balance history and battle history for accounts with a valid SPL token.
+ * Both endpoints require authentication.
+ */
+async function runTokenDependentSyncs(
+  accounts: AccountWithCredentials[],
+  allSeasons: Season[],
+  runId: string,
+  processedUsernames: Set<string>
+): Promise<void> {
+  for (const account of accounts) {
+    if (shouldShutdown()) {
+      logger.info("Worker: shutdown requested, stopping gracefully");
+      return;
+    }
+
+    logger.info(`Worker: syncing token-dependent data for ${account.username}`);
+    let anySuccess = false;
+
+    let tokenDecrypted = "";
+    let tokenOk = false;
+    try {
+      tokenDecrypted = decryptToken(account.encryptedToken, account.iv, account.authTag);
+      const verifyResult = await verifySplToken(account.username, tokenDecrypted);
+      if (verifyResult === "invalid") {
+        logger.warn(
+          `Worker: token invalid for ${account.username} — marking invalid, skipping token-dependent syncs`
+        );
+        await updateSplAccountStatusByUsername(account.username, "invalid");
+        await markBalanceMetaSyncFailed(account.username, "Token invalidated");
+      } else if (verifyResult === "error") {
+        logger.warn(
+          `Worker: token verification failed (transient) for ${account.username} — skipping this cycle`
+        );
+      } else {
+        tokenOk = true;
+      }
+    } catch (error) {
+      await updateSplAccountStatusByUsername(account.username, "invalid");
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.error(`Worker: token decrypt/check failed for ${account.username}: ${msg}`);
+      await markBalanceMetaSyncFailed(account.username, `Token check error: ${msg}`);
+    }
+
+    if (!tokenOk) continue;
+
+    try {
+      await syncSeasonBalances(account, allSeasons, tokenDecrypted);
+      anySuccess = true;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.error(`Worker: failed to sync balances ${account.username}: ${msg}`);
+    }
+
+    if (shouldShutdown()) {
+      logger.info("Worker: shutdown requested, stopping gracefully");
+      return;
+    }
+
+    try {
+      await syncBattleHistory(account, tokenDecrypted);
+      anySuccess = true;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.error(`Worker: failed to sync battle history ${account.username}: ${msg}`);
+    }
+
+    if (anySuccess && !processedUsernames.has(account.username)) {
+      processedUsernames.add(account.username);
+      await updateWorkerRunProgress(runId, processedUsernames.size);
+    }
+  }
+}
+
+/**
+ * Syncs leaderboard rankings and portfolio snapshots for ALL monitored accounts.
+ * Neither endpoint requires a valid SPL token, so this runs even when the token
+ * is invalid or unknown.
+ */
+async function runPublicSyncs(
+  usernames: string[],
+  allSeasons: Season[],
+  currentSeasonId: number,
+  runId: string,
+  processedUsernames: Set<string>
+): Promise<void> {
+  for (const username of usernames) {
+    if (shouldShutdown()) {
+      logger.info("Worker: shutdown requested, stopping gracefully");
+      return;
+    }
+
+    logger.info(`Worker: syncing public data for ${username}`);
+    let anySuccess = false;
+
+    try {
+      await syncLeaderboard(username, allSeasons, currentSeasonId);
+      anySuccess = true;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.error(`Worker: failed to sync leaderboard ${username}: ${msg}`);
+    }
+
+    if (shouldShutdown()) {
+      logger.info("Worker: shutdown requested, stopping gracefully");
+      return;
+    }
+
+    try {
+      await syncPortfolio(username);
+      anySuccess = true;
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.error(`Worker: failed to sync portfolio ${username}: ${msg}`);
+    }
+
+    if (anySuccess && !processedUsernames.has(username)) {
+      processedUsernames.add(username);
+      await updateWorkerRunProgress(runId, processedUsernames.size);
+    }
+  }
+}
+
 async function runCycle(): Promise<void> {
   const run = await createWorkerRun();
-  let accountsProcessed = 0;
+  const processedUsernames = new Set<string>();
 
   try {
     // Step 1: Check settings — bail early if game is in maintenance mode
     const settings = await fetchSettings();
     const currentSeasonId = settings.season.id;
-    const maintenance = settings.maintenance_mode;
 
-    if (maintenance) {
+    if (settings.maintenance_mode) {
       logger.info("Worker: game is in maintenance mode, skipping cycle");
-      await completeWorkerRun(run.id, "completed", accountsProcessed);
+      await completeWorkerRun(run.id, "completed", 0);
       return;
     }
 
@@ -52,123 +180,48 @@ async function runCycle(): Promise<void> {
     await syncSeasonsEndDates(currentSeasonId);
 
     if (shouldShutdown()) {
-      await completeWorkerRun(run.id, "completed", accountsProcessed);
+      await completeWorkerRun(run.id, "completed", 0);
       return;
     }
 
     // Step 3: Reset interrupted/failed sync states from previous run
     await resetStaleSyncStates();
 
-    // Step 4: Get all monitored accounts with valid tokens
-    const accounts = await getDistinctAccountsWithCredentials();
-    logger.info(`Worker: ${accounts.length} accounts to sync`);
-
+    // Step 4: Load all seasons
     const allSeasons = await getAllSeasons();
     if (allSeasons.length === 0) {
-      logger.warn(`No seasons in DB, skipping`);
+      logger.warn("No seasons in DB, skipping");
+      await completeWorkerRun(run.id, "completed", 0);
       return;
     }
 
-    // Step 5: Process each account
-    for (const account of accounts) {
-      if (shouldShutdown()) {
-        logger.info("Worker: shutdown requested, stopping gracefully");
-        break;
-      }
+    // Step 5: Fetch account lists
+    const tokenAccounts = await getDistinctAccountsWithCredentials();
+    const allMonitoredUsernames = await getDistinctMonitoredUsernames();
+    logger.info(
+      `Worker: ${tokenAccounts.length} accounts with valid token, ${allMonitoredUsernames.length} total monitored`
+    );
 
-      logger.info(`Worker: syncing account ${account.username}`);
-      let anySuccess = false;
+    // Step 6: Token-dependent syncs (balance history + battle history)
+    // Only runs for accounts with a valid SPL token.
+    logger.info("Worker: starting token-dependent syncs (balance + battles)");
+    await runTokenDependentSyncs(tokenAccounts, allSeasons, run.id, processedUsernames);
 
-      // Verify the SPL token before running token-dependent syncs.
-      // A 401 from the API means the token has been invalidated; mark it so the DB
-      // reflects the real state and the account is excluded from future cycles.
-      // Transient errors (network, 5xx) skip token syncs without touching the DB status.
-      let tokenDecrypted = "";
-      let tokenOk = false;
-      try {
-        tokenDecrypted = decryptToken(account.encryptedToken, account.iv, account.authTag);
-        const verifyResult = await verifySplToken(account.username, tokenDecrypted);
-        if (verifyResult === "invalid") {
-          logger.warn(
-            `Worker: token invalid for ${account.username} — marking invalid, skipping token-dependent syncs`
-          );
-          await updateSplAccountStatusByUsername(account.username, "invalid");
-          await markBalanceMetaSyncFailed(account.username, "Token invalidated");
-        } else if (verifyResult === "error") {
-          logger.warn(
-            `Worker: token verification failed (transient) for ${account.username} — skipping token-dependent syncs this cycle`
-          );
-        } else {
-          tokenOk = true;
-        }
-      } catch (error) {
-        await updateSplAccountStatusByUsername(account.username, "invalid");
-        const msg = error instanceof Error ? error.message : String(error);
-        logger.error(`Worker: token decrypt/check failed for ${account.username}: ${msg}`);
-        await markBalanceMetaSyncFailed(account.username, `Token check error: ${msg}`);
-      }
-
-      if (tokenOk) {
-        try {
-          await syncSeasonBalances(account, allSeasons, tokenDecrypted);
-          anySuccess = true;
-        } catch (error) {
-          const msg = error instanceof Error ? error.message : String(error);
-          logger.error(`Worker: failed to sync balances ${account.username}: ${msg}`);
-        }
-
-        if (shouldShutdown()) {
-          logger.info("Worker: shutdown requested, stopping gracefully");
-          break;
-        }
-      }
-
-      try {
-        await syncLeaderboard(account.username, allSeasons, currentSeasonId);
-        anySuccess = true;
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        logger.error(`Worker: failed to sync leaderboard ${account.username}: ${msg}`);
-      }
-
-      if (shouldShutdown()) {
-        logger.info("Worker: shutdown requested, stopping gracefully");
-        break;
-      }
-
-      try {
-        await syncPortfolio(account.username);
-        anySuccess = true;
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        logger.error(`Worker: failed to sync portfolio ${account.username}: ${msg}`);
-      }
-
-      if (shouldShutdown()) {
-        logger.info("Worker: shutdown requested, stopping gracefully");
-        break;
-      }
-
-      if (tokenOk) {
-        try {
-          await syncBattleHistory(account, tokenDecrypted);
-          anySuccess = true;
-        } catch (error) {
-          const msg = error instanceof Error ? error.message : String(error);
-          logger.error(`Worker: failed to sync battle history ${account.username}: ${msg}`);
-        }
-      }
-
-      if (anySuccess) {
-        accountsProcessed++;
-        logger.info(
-          `Worker: finished account ${account.username} (${accountsProcessed}/${accounts.length})`
-        );
-        await updateWorkerRunProgress(run.id, accountsProcessed);
-      } else {
-        logger.warn(`Worker: all syncs failed for ${account.username}, not counting as processed`);
-      }
+    if (shouldShutdown()) {
+      await completeWorkerRun(run.id, "completed", processedUsernames.size);
+      return;
     }
+
+    // Step 7: Public syncs (leaderboard + portfolio — no token required)
+    // Runs for ALL monitored accounts, including those with an invalid/unknown token.
+    logger.info("Worker: starting public syncs (leaderboard + portfolio)");
+    await runPublicSyncs(
+      allMonitoredUsernames,
+      allSeasons,
+      currentSeasonId,
+      run.id,
+      processedUsernames
+    );
 
     // Final step: prune old log entries and expired sessions
     try {
@@ -186,10 +239,10 @@ async function runCycle(): Promise<void> {
       logger.warn(`Worker: session pruning failed: ${msg}`);
     }
 
-    await completeWorkerRun(run.id, "completed", accountsProcessed);
+    await completeWorkerRun(run.id, "completed", processedUsernames.size);
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    await completeWorkerRun(run.id, "failed", accountsProcessed, msg);
+    await completeWorkerRun(run.id, "failed", processedUsernames.size, msg);
     logger.error(`Worker: cycle failed: ${msg}`);
   }
 }
