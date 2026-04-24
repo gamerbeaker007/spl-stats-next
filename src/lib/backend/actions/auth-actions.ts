@@ -4,7 +4,14 @@ import { splLogin, verifySplToken } from "@/lib/backend/api/spl/spl-api";
 import { deleteUserCookie, getSessionIdFromCookie, setUserCookie } from "@/lib/backend/auth/cookie";
 import { decryptToken, encryptToken } from "@/lib/backend/auth/encryption";
 import { verifyHiveSignature } from "@/lib/backend/auth/hive-verify";
-import { deleteSyncStatesByUsername } from "@/lib/backend/db/account-sync-states";
+import {
+  clearBalanceMetaSyncError,
+  deleteSyncStatesByUsername,
+} from "@/lib/backend/db/account-sync-states";
+import {
+  deleteOpponentBattleCardsByAccount,
+  deletePlayerBattleCardsByAccount,
+} from "@/lib/backend/db/battle-cards";
 import {
   countMonitoredAccountsBySplAccount,
   createMonitoredAccount,
@@ -14,14 +21,16 @@ import {
   listMonitoredAccounts,
   upsertMonitoredAccount,
 } from "@/lib/backend/db/monitored-accounts";
-import {
-  deleteOpponentBattleCardsByAccount,
-  deletePlayerBattleCardsByAccount,
-} from "@/lib/backend/db/battle-cards";
 import { deletePlayerLeaderboardByUsername } from "@/lib/backend/db/player-leaderboard";
 import { deletePortfolioInvestmentsByUsername } from "@/lib/backend/db/portfolio-investments";
 import { deletePortfolioSnapshotsByUsername } from "@/lib/backend/db/portfolio-snapshots";
 import { deleteSeasonBalancesByUsername } from "@/lib/backend/db/season-balances";
+import {
+  createSession,
+  deleteSession,
+  getValidSession,
+  pruneExpiredSessions,
+} from "@/lib/backend/db/sessions";
 import {
   deleteSplAccount,
   findSplAccountByUsername,
@@ -31,12 +40,6 @@ import {
   upsertSplAccount,
 } from "@/lib/backend/db/spl-accounts";
 import { getUserById, upsertUser } from "@/lib/backend/db/users";
-import {
-  createSession,
-  deleteSession,
-  getValidSession,
-  pruneExpiredSessions,
-} from "@/lib/backend/db/sessions";
 import logger from "@/lib/backend/log/logger.server";
 
 function errorMessage(err: unknown): string {
@@ -281,6 +284,7 @@ export async function reAuthMonitoredAccount(
 
     const { encryptedValue, iv, authTag } = encryptToken(splResponse.token);
     await upsertSplAccount(lc, encryptedValue, iv, authTag);
+    await clearBalanceMetaSyncError(lc);
 
     logger.info(`Token refreshed for '${lc}'`);
     return { success: true, username: lc };

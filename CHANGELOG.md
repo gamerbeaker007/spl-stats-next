@@ -9,6 +9,15 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v0.4.1] - 2026-04-24
+
+### Fixed
+
+- **Token invalidation no longer pollutes leaderboard/portfolio sync states** — when a token is detected as invalid, only the `BALANCE_META` sync state is marked `failed`. Previously all sync states were marked, causing leaderboard and portfolio states (which don't require a token) to show `{status: "completed", errorMessage: "Token invalidated"}` permanently, because `resetStaleSyncStates` skips `completed` rows and never cleared the stale message.
+- **Re-authentication immediately clears the `BALANCE_META` error** — after a successful re-auth `clearBalanceMetaSyncError` resets `BALANCE_META` from `failed → pending` with `errorMessage: null`. Previously the error message lingered for up to 30 min until the next worker cycle called `resetStaleSyncStates`, causing a confusing mixed state (green token status, red sync status) in the UI.
+
+---
+
 ## [v0.4.0] - 2026-04-23
 
 ### What's New

@@ -1,11 +1,12 @@
 import { fetchSettings, verifySplToken } from "@/lib/backend/api/spl/spl-api";
+import { decryptToken } from "@/lib/backend/auth/encryption";
 import {
-  markAllSyncStatesFailedByUsername,
+  markBalanceMetaSyncFailed,
   resetStaleSyncStates,
 } from "@/lib/backend/db/account-sync-states";
 import { pruneLogs } from "@/lib/backend/db/logs";
-import { pruneExpiredSessions } from "@/lib/backend/db/sessions";
 import { getAllSeasons } from "@/lib/backend/db/seasons";
+import { pruneExpiredSessions } from "@/lib/backend/db/sessions";
 import {
   getDistinctAccountsWithCredentials,
   updateSplAccountStatusByUsername,
@@ -27,7 +28,6 @@ import { syncLeaderboard } from "./lib/leaderboard-sync";
 import { syncPortfolio } from "./lib/portfolio-sync";
 import { syncSeasonsEndDates } from "./lib/season-end-dates-sync";
 import { LOG_RETENTION_DAYS, WORKER_INTERVAL_MS } from "./lib/worker-config";
-import { decryptToken } from "@/lib/backend/auth/encryption";
 
 registerShutdownHandlers();
 
@@ -93,7 +93,7 @@ async function runCycle(): Promise<void> {
             `Worker: token invalid for ${account.username} — marking invalid, skipping token-dependent syncs`
           );
           await updateSplAccountStatusByUsername(account.username, "invalid");
-          await markAllSyncStatesFailedByUsername(account.username, "Token invalidated");
+          await markBalanceMetaSyncFailed(account.username, "Token invalidated");
         } else if (verifyResult === "error") {
           logger.warn(
             `Worker: token verification failed (transient) for ${account.username} — skipping token-dependent syncs this cycle`
@@ -105,7 +105,7 @@ async function runCycle(): Promise<void> {
         await updateSplAccountStatusByUsername(account.username, "invalid");
         const msg = error instanceof Error ? error.message : String(error);
         logger.error(`Worker: token decrypt/check failed for ${account.username}: ${msg}`);
-        await markAllSyncStatesFailedByUsername(account.username, `Token check error: ${msg}`);
+        await markBalanceMetaSyncFailed(account.username, `Token check error: ${msg}`);
       }
 
       if (tokenOk) {
