@@ -260,6 +260,8 @@ export async function syncSeasonBalances(
     logger.info(
       `syncBalances ${username}: skipping (last run ${metaState.lastSyncedCreatedDate?.toISOString()})`
     );
+    // Still mark as completed so the UI doesn't show "pending" after a worker restart.
+    await updateSyncState(metaState.id, { status: "completed" });
     return;
   }
 
