@@ -30,6 +30,7 @@ interface UseMonitoredAccountsReturn {
   removeAccount: (accountId: string) => Promise<void>;
   checkRemoveScope: (accountId: string) => Promise<boolean>;
   reAuthAccount: (monitoredAccountId: string, username: string) => Promise<boolean>;
+  reAuthAllInvalid: () => Promise<{ succeeded: number; failed: number }>;
 }
 
 export function useMonitoredAccounts(
@@ -140,12 +141,30 @@ export function useMonitoredAccounts(
         return false;
       }
       setAccounts((prev) =>
-        prev.map((acc) => (acc.id === monitoredAccountId ? { ...acc, tokenStatus: "valid" } : acc))
+        prev.map((acc) =>
+          acc.id === monitoredAccountId
+            ? { ...acc, tokenStatus: "valid", syncStatus: "pending" }
+            : acc
+        )
       );
       return true;
     } finally {
       removeBusy(monitoredAccountId);
     }
+  };
+
+  const reAuthAllInvalid = async (): Promise<{ succeeded: number; failed: number }> => {
+    const needsAuth = accounts.filter(
+      (a) => a.tokenStatus === "invalid" || a.tokenStatus === "unknown"
+    );
+    let succeeded = 0;
+    let failed = 0;
+    for (const acc of needsAuth) {
+      const ok = await reAuthAccount(acc.id, acc.username);
+      if (ok) succeeded++;
+      else failed++;
+    }
+    return { succeeded, failed };
   };
 
   return {
@@ -159,5 +178,6 @@ export function useMonitoredAccounts(
     removeAccount,
     checkRemoveScope,
     reAuthAccount,
+    reAuthAllInvalid,
   };
 }

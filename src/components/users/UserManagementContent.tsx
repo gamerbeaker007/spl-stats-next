@@ -76,6 +76,7 @@ export default function UserManagementContent({
     removeAccount,
     checkRemoveScope,
     reAuthAccount,
+    reAuthAllInvalid,
   } = useMonitoredAccounts(initialAccounts);
 
   // Dialog UI state (stays in component — pure UI)
@@ -84,6 +85,7 @@ export default function UserManagementContent({
   const [confirmRemoveAccount, setConfirmRemoveAccount] = useState<MonitoredAccount | null>(null);
   const [willDeleteAllData, setWillDeleteAllData] = useState(false);
   const [scopeChecking, setScopeChecking] = useState(false);
+  const [reAuthAllBusy, setReAuthAllBusy] = useState(false);
 
   const openAddDialog = () => {
     clearMessages();
@@ -120,19 +122,46 @@ export default function UserManagementContent({
     setScopeChecking(false);
   };
 
+  const needsAuthCount = accounts.filter(
+    (a) => a.tokenStatus === "invalid" || a.tokenStatus === "unknown"
+  ).length;
+
+  const handleReAuthAll = async () => {
+    setReAuthAllBusy(true);
+    clearMessages();
+    try {
+      await reAuthAllInvalid();
+    } finally {
+      setReAuthAllBusy(false);
+    }
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <Stack spacing={3}>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Typography variant="h5">Monitored Accounts</Typography>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={openAddDialog}
-            disabled={splInMaintenance}
-          >
-            Add Account
-          </Button>
+          <Stack direction="row" spacing={1}>
+            {needsAuthCount > 0 && (
+              <Button
+                variant="outlined"
+                color="warning"
+                startIcon={reAuthAllBusy ? <CircularProgress size={16} /> : <KeyIcon />}
+                onClick={handleReAuthAll}
+                disabled={reAuthAllBusy || splInMaintenance}
+              >
+                Re-auth All ({needsAuthCount})
+              </Button>
+            )}
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={openAddDialog}
+              disabled={splInMaintenance}
+            >
+              Add Account
+            </Button>
+          </Stack>
         </Box>
 
         {splInMaintenance && (
@@ -166,7 +195,9 @@ export default function UserManagementContent({
                   const isBusy = busyIds.includes(account.id);
                   const statusChip = TOKEN_STATUS_CHIP[account.tokenStatus];
                   const syncChip = SYNC_STATUS_CHIP[account.syncStatus];
-                  const showReAuth = account.tokenStatus === "invalid" && !isBusy;
+                  const showReAuth =
+                    (account.tokenStatus === "invalid" || account.tokenStatus === "unknown") &&
+                    !isBusy;
 
                   return (
                     <ListItem

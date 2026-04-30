@@ -1,4 +1,4 @@
-import { fetchBalanceHistoryPage } from "@/lib/backend/api/spl/spl-api";
+import { fetchBalanceHistoryPage } from "@/lib/backend/api/spl/spl-authenticated-api";
 import logger from "@/lib/backend/log/logger.server";
 import {
   BALANCE_SPILLOVER_TYPES,

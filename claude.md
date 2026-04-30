@@ -16,13 +16,15 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
 
 ### Security
 
-- `ENCRYPTION_KEY` (AES-256-GCM for SPL tokens) and `COOKIE_SECRET` (HMAC signing for session cookie) are **separate** env variables. Both are **mandatory** — no default fallback; the app throws on startup if either is missing.
+- `ENCRYPTION_KEY` (AES-256-GCM for SPL JWT tokens) and `COOKIE_SECRET` (HMAC signing for session cookie) are **separate** env variables. Both are **mandatory** — no default fallback; the app throws on startup if either is missing.
 - Encryption key: if 64-char hex use directly as 32-byte key; otherwise SHA-256 hash is used. Any string works (SHA-256 produces a valid 32-byte key), but the recommended form is `openssl rand -hex 32` (64-char hex) to use the direct path.
+- **SPL tokens: JWT, not legacy session token** — `addMonitoredAccountWithKeychain` and `reAuthMonitoredAccount` store the `jwt_token` field from `SplLoginResponse` (not the legacy `token`). JWT expiry date (`jwt_expiration_dt`) is stored in `SplAccount.jwtExpiresAt` so token validity can be checked locally without an API call.
+- All authenticated SPL API calls use `Authorization: Bearer <jwtToken>`. Authenticated functions live in `spl-authenticated-api.ts`; unauthenticated public API functions stay in `spl-api.ts`.
 - Session cookie (`spl_user_id`) is HMAC-signed with `COOKIE_SECRET` to prevent forgery. `timingSafeEqual` with length guard to avoid throwing on malformed MACs.
 - HTTP security headers set in `next.config.ts`: `CSP`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'`.
 - Server Action body limit: 50 MB (avoid memory-exhaustion DoS from oversized uploads).
 - All privileged Server Actions verify auth independently: `getCurrentUser()` + ownership check per action — not just at page level.
-- `reAuthMonitoredAccount` is guarded by: timestamp expiry (5 min), Hive signature verify, monitored-account ownership assert.
+- `reAuthMonitoredAccount` is guarded by: timestamp expiry (5 min), Hive signature verify, monitored-account ownership assert. After successful re-auth, calls `resetSplAccountWorkerSync` to queue the account for immediate re-sync.
 - Portfolio actions (`getPortfolioOverviewAction`, `getPortfolioHistoryAction`) filter usernames to the caller's monitored set — prevents IDOR.
 - Token-using actions (`getPlayerBrawl`, `getPlayersDailyProgress`) guarded by `assertMonitorsAccount(username)`.
 - `getLogsAction` defaults to `limit=50`, capped at 500. Admin-only.
@@ -56,9 +58,11 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
 ### Worker (Background Data Collection)
 
 - Separate Docker service (`worker`), same image, `docker-entrypoint-worker.sh` entrypoint.
-- Loop every ~30 min. If cycle exceeds 30 min, next starts immediately.
+- **Queue-based sync** — checks every 60 seconds (`WORKER_CHECK_INTERVAL_MS`) for accounts due for token-dependent sync. An account becomes eligible after 30 min since `lastWorkerSyncAt` (or immediately if `lastWorkerSyncAt = null`). `getAccountsDueForSync(cutoff)` filters out expired JWTs in the DB query — no separate API verify call.
+- After processing each account, `updateSplAccountLastSync` stamps `lastWorkerSyncAt`. Re-authentication clears it via `resetSplAccountWorkerSync`, queuing the account for the next check cycle.
+- Public syncs (leaderboard, portfolio) run on a 30-min in-memory timer (`WORKER_INTERVAL_MS`), independent of the queue.
 - **Interruptible and resumable** via `AccountSyncState` (progress committed per season/token).
-- Graceful shutdown on SIGTERM/SIGINT: finishes current season, then exits.
+- Graceful shutdown on SIGTERM/SIGINT: finishes current account, then exits.
 - Current flows: season balance collection + leaderboard sync (foundation/wild/modern) + battle history sync.
 - `SeasonBalance`: pre-aggregated per `(username, seasonId, token, type)`. Two amount fields: `earned` (sum of positive transactions) and `cost` (sum of absolute negative transactions). `count` = number of transactions aggregated.
 - Spillover transactions attributed to previous season.

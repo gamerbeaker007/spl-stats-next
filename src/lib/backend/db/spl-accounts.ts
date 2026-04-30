@@ -5,18 +5,36 @@ export async function upsertSplAccount(
   username: string,
   encryptedToken: string,
   iv: string,
-  authTag: string
+  authTag: string,
+  jwtExpiresAt?: Date | null
 ) {
   // Log a fingerprint of what is being written so we can forensically trace
   // cases where the wrong token ends up in a row.
   // encryptedToken is hex — log its length and last 8 chars (not sensitive).
   const tokenFingerprint = `len=${encryptedToken.length} tail=${encryptedToken.slice(-8)}`;
-  logger.info(`upsertSplAccount: writing token for '${username}' [${tokenFingerprint}]`);
+  logger.info(
+    `upsertSplAccount: writing JWT for '${username}' [${tokenFingerprint}] expires=${jwtExpiresAt?.toISOString() ?? "unknown"}`
+  );
   const now = new Date();
   return prisma.splAccount.upsert({
     where: { username },
-    create: { username, encryptedToken, iv, authTag, tokenStatus: "valid", tokenVerifiedAt: now },
-    update: { encryptedToken, iv, authTag, tokenStatus: "valid", tokenVerifiedAt: now },
+    create: {
+      username,
+      encryptedToken,
+      iv,
+      authTag,
+      tokenStatus: "valid",
+      tokenVerifiedAt: now,
+      jwtExpiresAt: jwtExpiresAt ?? null,
+    },
+    update: {
+      encryptedToken,
+      iv,
+      authTag,
+      tokenStatus: "valid",
+      tokenVerifiedAt: now,
+      jwtExpiresAt: jwtExpiresAt ?? null,
+    },
   });
 }
 
@@ -51,12 +69,78 @@ export async function getSplAccountTokenStatus(username: string) {
 export async function getSplAccountCredentials(username: string) {
   return prisma.splAccount.findUnique({
     where: { username },
-    select: { encryptedToken: true, iv: true, authTag: true },
+    select: { encryptedToken: true, iv: true, authTag: true, jwtExpiresAt: true },
   });
 }
 
 export async function deleteSplAccount(id: string) {
   return prisma.splAccount.delete({ where: { id } });
+}
+
+/**
+ * Returns accounts that are due for a worker sync cycle.
+ * Due = not "invalid", JWT not expired, and not synced within the given cutoff window.
+ * Accounts with no jwtExpiresAt (legacy tokens) are included for backward compatibility.
+ */
+export async function getAccountsDueForSync(cutoffDate: Date) {
+  const now = new Date();
+  return prisma.splAccount.findMany({
+    where: {
+      tokenStatus: { not: "invalid" },
+      monitoredBy: { some: {} },
+      OR: [{ lastWorkerSyncAt: null }, { lastWorkerSyncAt: { lt: cutoffDate } }],
+      AND: [{ OR: [{ jwtExpiresAt: null }, { jwtExpiresAt: { gt: now } }] }],
+    },
+    select: {
+      id: true,
+      username: true,
+      encryptedToken: true,
+      iv: true,
+      authTag: true,
+      jwtExpiresAt: true,
+      lastWorkerSyncAt: true,
+    },
+    orderBy: { lastWorkerSyncAt: "asc" },
+  });
+}
+
+/**
+ * Mark an account as synced now. Called by the worker after completing a sync cycle.
+ */
+export async function updateSplAccountLastSync(username: string) {
+  return prisma.splAccount.update({
+    where: { username },
+    data: { lastWorkerSyncAt: new Date() },
+  });
+}
+
+/**
+ * Clear the last worker sync timestamp so the worker picks up this account
+ * in the next queue check. Called after a successful re-authentication so
+ * freshly issued JWT credentials are used immediately.
+ */
+export async function resetSplAccountWorkerSync(username: string) {
+  return prisma.splAccount.update({
+    where: { username },
+    data: { lastWorkerSyncAt: null },
+  });
+}
+
+/**
+ * Marks all accounts whose JWT has expired as "invalid".
+ * Called by the worker on each check cycle so the UI can surface the re-auth
+ * prompt without waiting for the user to visit the Users page.
+ * Returns the number of accounts updated.
+ */
+export async function markExpiredJwtsInvalid(): Promise<number> {
+  const result = await prisma.splAccount.updateMany({
+    where: {
+      jwtExpiresAt: { lt: new Date() },
+      tokenStatus: { not: "invalid" },
+    },
+    data: { tokenStatus: "invalid" },
+  });
+  return result.count;
 }
 
 /**
@@ -105,6 +189,7 @@ export async function getAllMonitoredAccountTokenStatuses() {
       username: true,
       tokenStatus: true,
       tokenVerifiedAt: true,
+      jwtExpiresAt: true,
     },
     orderBy: { username: "asc" },
   });

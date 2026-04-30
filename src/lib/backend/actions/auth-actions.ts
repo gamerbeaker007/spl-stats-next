@@ -1,6 +1,7 @@
 "use server";
 
-import { splLogin, verifySplToken } from "@/lib/backend/api/spl/spl-api";
+import { splLogin } from "@/lib/backend/api/spl/spl-api";
+import { verifySplJwt } from "@/lib/backend/api/spl/spl-authenticated-api";
 import { deleteUserCookie, getSessionIdFromCookie, setUserCookie } from "@/lib/backend/auth/cookie";
 import { decryptToken, encryptToken } from "@/lib/backend/auth/encryption";
 import { verifyHiveSignature } from "@/lib/backend/auth/hive-verify";
@@ -36,6 +37,7 @@ import {
   findSplAccountByUsername,
   getSplAccountCredentials,
   getSplAccountTokenStatus,
+  resetSplAccountWorkerSync,
   updateSplAccountStatus,
   upsertSplAccount,
 } from "@/lib/backend/db/spl-accounts";
@@ -173,8 +175,8 @@ export async function addMonitoredAccountWithKeychain(
 
     // New account — fetch SPL token and store it.
     const splResponse = await splLogin(lc, timestamp, signature);
-    if (!splResponse.token) {
-      return { success: false, error: "No token received from Splinterlands" };
+    if (!splResponse.jwt_token) {
+      return { success: false, error: "No JWT token received from Splinterlands" };
     }
 
     // Guard: SPL API resolves identity from the signing key, not the `name` param.
@@ -190,10 +192,13 @@ export async function addMonitoredAccountWithKeychain(
       };
     }
 
-    const { encryptedValue, iv, authTag } = encryptToken(splResponse.token);
+    const jwtExpiresAt = splResponse.jwt_expiration_dt
+      ? new Date(splResponse.jwt_expiration_dt)
+      : null;
+    const { encryptedValue, iv, authTag } = encryptToken(splResponse.jwt_token);
 
     // Upsert SplAccount in case another user raced in since the check above.
-    const splAccount = await upsertSplAccount(lc, encryptedValue, iv, authTag);
+    const splAccount = await upsertSplAccount(lc, encryptedValue, iv, authTag, jwtExpiresAt);
 
     const link = await upsertMonitoredAccount(userId, splAccount.id, lc);
 
@@ -267,8 +272,8 @@ export async function reAuthMonitoredAccount(
     }
 
     const splResponse = await splLogin(lc, timestamp, signature);
-    if (!splResponse.token) {
-      return { success: false, error: "No token received from Splinterlands" };
+    if (!splResponse.jwt_token) {
+      return { success: false, error: "No JWT token received from Splinterlands" };
     }
 
     // Guard: SPL API resolves identity from the signing key, not the `name` param.
@@ -282,11 +287,17 @@ export async function reAuthMonitoredAccount(
       };
     }
 
-    const { encryptedValue, iv, authTag } = encryptToken(splResponse.token);
-    await upsertSplAccount(lc, encryptedValue, iv, authTag);
+    const jwtExpiresAt = splResponse.jwt_expiration_dt
+      ? new Date(splResponse.jwt_expiration_dt)
+      : null;
+    const { encryptedValue, iv, authTag } = encryptToken(splResponse.jwt_token);
+    await upsertSplAccount(lc, encryptedValue, iv, authTag, jwtExpiresAt);
     await clearBalanceMetaSyncError(lc);
+    // Clear the worker sync timestamp so this account is picked up immediately
+    // in the next worker queue check.
+    await resetSplAccountWorkerSync(lc);
 
-    logger.info(`Token refreshed for '${lc}'`);
+    logger.info(`JWT refreshed for '${lc}', expires ${jwtExpiresAt?.toISOString() ?? "unknown"}`);
     return { success: true, username: lc };
   } catch (error) {
     logger.error(`reAuthMonitoredAccount error: ${error}`);
@@ -305,15 +316,24 @@ export async function verifyMonitoredAccountToken(monitoredAccountId: string) {
     const creds = await getSplAccountCredentials(record.username);
     if (!creds) return { success: false, error: "SplAccount not found" };
 
-    let token: string;
+    // If we have a JWT expiry date, use it directly — no API call needed.
+    if (creds.jwtExpiresAt) {
+      const expired = creds.jwtExpiresAt < new Date();
+      const status = expired ? ("invalid" as const) : ("valid" as const);
+      await updateSplAccountStatus(record.splAccountId, status);
+      return { success: true, status };
+    }
+
+    // Legacy path: no expiry date stored — decrypt and verify via API.
+    let jwtToken: string;
     try {
-      token = decryptToken(creds.encryptedToken, creds.iv, creds.authTag);
+      jwtToken = decryptToken(creds.encryptedToken, creds.iv, creds.authTag);
     } catch {
       await updateSplAccountStatus(record.splAccountId, "invalid");
       return { success: true, status: "invalid" as const };
     }
 
-    const verifyResult = await verifySplToken(record.username, token);
+    const verifyResult = await verifySplJwt(record.username, jwtToken);
     if (verifyResult === "error") {
       // Transient failure — keep existing status, report unknown
       return { success: true, status: "unknown" as const };

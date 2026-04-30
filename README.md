@@ -7,7 +7,7 @@ A Next.js 16 application for tracking Splinterlands portfolio statistics across 
 - **Frontend**: Next.js 16 (App Router), React 19, Material-UI v7
 - **Backend**: Next.js Server Actions, Prisma ORM v7, PostgreSQL
 - **Authentication**: Hive Keychain (browser extension) — cookie-based sessions with HMAC signing
-- **Security**: AES-256-GCM encryption for SPL token storage
+- **Security**: AES-256-GCM encryption for SPL JWT storage
 
 ## Authentication
 
@@ -16,7 +16,7 @@ Users sign in with their Hive account via the Hive Keychain browser extension:
 1. User enters their Hive username
 2. Keychain signs `username + timestamp` with the posting key
 3. Server validates the signature against the Hive blockchain (posting key lookup via `@hiveio/dhive`)
-4. SPL token is fetched, encrypted (AES-256-GCM, random IV per token) and stored in the database
+4. A short-lived SPL **JWT** (`jwt_token`) is fetched, encrypted with AES-256-GCM (random IV per token) and stored in the database along with its expiry date
 5. A signed session cookie (`spl_user_id`) is set — HMAC-signed with `COOKIE_SECRET` to prevent forgery
 
 Only the posting key is used — no active key actions are possible through this app.
@@ -169,9 +169,38 @@ npx prisma migrate dev     # Create and apply a new migration
 npx prisma generate        # Regenerate client after schema changes
 ```
 
-## Worker Sync State
+## Worker Sync
 
-The worker uses `AccountSyncState` rows (one per `username + key`) to track progress across restarts. Field semantics:
+The worker runs as a separate Docker service and manages all background data collection.
+
+### Queue loop (every 60 seconds)
+
+Every 60 seconds the worker:
+
+1. Marks any accounts with an expired JWT as `invalid` so the UI surfaces the re-auth prompt
+2. Queries for accounts due for token-dependent sync — accounts where `lastWorkerSyncAt` is null or older than 30 minutes, and whose JWT has not expired
+3. For each due account: runs **balance sync** then **battle sync**, then stamps `lastWorkerSyncAt = now`
+
+### Public sync loop (every 30 minutes)
+
+Independent of the queue, every 30 minutes the worker runs **leaderboard** and **portfolio** sync for all monitored accounts. These don't require authentication, so they run even for accounts with an invalid/expired token.
+
+### Per-sync behaviour
+
+| Sync            | Cadence                           | Skip logic                                                                                                         |
+| --------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| **Balance**     | At most once per 24 hours         | Skipped unless: first sync, new season detected, 24 h elapsed, or a season reward claim is detected                |
+| **Battle**      | Every 30+ minutes (queue cadence) | Incremental — only fetches battles newer than the latest stored date. Restricted to `BATTLE_SYNC_ACCOUNTS` if set. |
+| **Portfolio**   | Once per UTC day                  | Skipped if a snapshot already exists for today                                                                     |
+| **Leaderboard** | Every 30 minutes                  | Skips seasons already fetched (tracks last season ID per format: wild/modern/foundation)                           |
+
+### Forcing an immediate sync
+
+Re-authenticating an account — via **Multi-Account Dashboard → Re-authenticate All** or the per-account key button on the **Users** page — sets `lastWorkerSyncAt = null`, placing the account back in the queue. It will be picked up in the next 60-second cycle and the sync chip on the Users page immediately shows **pending**.
+
+### Sync state tracking
+
+The worker uses `AccountSyncState` rows (one per `username + key`) to track progress across restarts:
 
 | `key`                                | `lastSyncedCreatedDate`                                                        | `lastSeasonProcessed`                                    |
 | ------------------------------------ | ------------------------------------------------------------------------------ | -------------------------------------------------------- |

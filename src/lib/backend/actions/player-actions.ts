@@ -3,16 +3,18 @@
 import { fetchPeakmonstersMarketPrices } from "@/lib/backend/api/peakmonsters/peakmonsters-api";
 import {
   fetchBrawlDetails,
+  fetchDailyProgress,
+  fetchPlayerHistory,
+  fetchPlayerHistoryByDateRange,
+} from "@/lib/backend/api/spl/spl-authenticated-api";
+import {
   fetchCardCollection,
   fetchCardDetails,
   fetchCurrentRewards,
-  fetchDailyProgress,
   fetchFrontierDraws,
   fetchListingPrices,
   fetchPlayerBalances,
   fetchPlayerDetails,
-  fetchPlayerHistory,
-  fetchPlayerHistoryByDateRange,
   fetchRankedDraws,
 } from "@/lib/backend/api/spl/spl-api";
 import { decryptToken } from "@/lib/backend/auth/encryption";
@@ -45,7 +47,7 @@ import { getCurrentUser, getMonitoredAccounts } from "./auth-actions";
 // Helpers
 // ---------------------------------------------------------------------------
 
-async function getDecryptedToken(username: string): Promise<string | undefined> {
+async function getDecryptedJwt(username: string): Promise<string | undefined> {
   const creds = await getSplAccountCredentials(username);
   if (!creds) return undefined;
   return decryptToken(creds.encryptedToken, creds.iv, creds.authTag);
@@ -100,13 +102,13 @@ async function assertMonitorsAccount(username: string): Promise<boolean> {
 
 export async function getPlayerBrawl(username: string, guildId: string, tournamentId: string) {
   if (!(await assertMonitorsAccount(username))) return null;
-  const token = await getDecryptedToken(username);
+  const token = await getDecryptedJwt(username);
   return fetchBrawlDetails(guildId, tournamentId, username, token);
 }
 
 export async function getPlayersDailyProgress(username: string): Promise<DailyProgressData | null> {
   if (!(await assertMonitorsAccount(username))) return null;
-  const token = await getDecryptedToken(username);
+  const token = await getDecryptedJwt(username);
   if (!token) return null;
 
   const [modern, wild, foundation] = await Promise.allSettled([
@@ -223,7 +225,7 @@ export async function getDetailedPlayerCardCollection(
 // ---------------------------------------------------------------------------
 
 export async function getPlayerHistory(username: string, types: string, beforeBlock?: number) {
-  const token = await getDecryptedToken(username);
+  const token = await getDecryptedJwt(username);
   if (!token) return [];
   return fetchPlayerHistory(username, token, types, beforeBlock);
 }
@@ -234,7 +236,7 @@ export async function getPlayerHistoryByDateRange(
   startDate: Date,
   endDate: Date
 ) {
-  const token = await getDecryptedToken(username);
+  const token = await getDecryptedJwt(username);
   if (!token) return [];
   return fetchPlayerHistoryByDateRange(username, token, types, startDate, endDate);
 }
@@ -309,7 +311,7 @@ export async function getPlayerSeasonHistory(
   const endDate = new Date(season.endsAt);
   const startDate = prevSeason ? new Date(prevSeason.endsAt) : new Date(0);
 
-  const token = await getDecryptedToken(username);
+  const token = await getDecryptedJwt(username);
   if (!token) return null;
 
   const allHistory: ParsedHistory[] = await fetchPlayerHistoryByDateRange(

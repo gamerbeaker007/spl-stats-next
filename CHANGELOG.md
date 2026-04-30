@@ -9,6 +9,52 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.0.0] -
+
+### Summary
+
+Major security and architecture improvement: replaced the legacy SPL session `token` with a short-lived **JWT** (`jwt_token`), separated authenticated vs. public SPL API calls into distinct modules, and migrated the worker from a fixed 30-minute sleep cycle to a per-account **queue-based** sync approach.
+
+### Changed
+
+#### JWT Migration
+
+- **SPL accounts now store a JWT** instead of the legacy persistent session token. `addMonitoredAccountWithKeychain` and `reAuthMonitoredAccount` now read `jwt_token` + `jwt_expiration_dt` from the SPL login response and store the encrypted JWT in the existing `encryptedToken`/`iv`/`authTag` fields. All authenticated API requests use `Authorization: Bearer <jwtToken>`.
+- **`SplAccount` schema extended** — two new nullable fields added:
+  - `jwtExpiresAt` (`jwt_expires_at`) — stores the JWT expiry so token validity can be checked locally without an API call.
+  - `lastWorkerSyncAt` (`last_worker_sync_at`) — tracks when the worker last processed this account, enabling the queue approach.
+- **Token verification is now free** — `verifyMonitoredAccountToken` checks `jwtExpiresAt` directly; the legacy API-verify fallback is retained for accounts without an expiry date (migrated accounts).
+- **Re-authentication queues an immediate resync** — `reAuthMonitoredAccount` now calls `resetSplAccountWorkerSync` after storing the new JWT, setting `lastWorkerSyncAt = null` so the worker picks up the account in its next check cycle.
+
+#### API Module Split
+
+- New module `src/lib/backend/api/spl/spl-authenticated-api.ts` contains all SPL API functions that require authentication (Bearer JWT):
+  - `fetchBalanceHistoryPage`, `fetchUnclaimedBalanceHistoryPage`, `fetchBrawlDetails`, `fetchBattleHistory`, `fetchDailyProgress`, `fetchPlayerHistory`, `fetchPlayerHistoryByDateRange`, `fetchMarketHistoryByDateRange`, `verifySplJwt`
+- `spl-api.ts` retains only public (unauthenticated) functions. `verifySplToken` removed entirely.
+- All callers updated: `player-actions.ts`, `hive-blog-rewards.ts`, `hive-blog-market.ts`, `scripts/lib/balance-sync.ts`, `scripts/lib/battle-history-sync.ts`, `scripts/lib/service/balance-history.ts`, `scripts/lib/service/unclaimed-balance-history.ts`.
+
+#### Worker Queue-Based Sync
+
+- The worker no longer sleeps for a fixed 30 minutes between cycles. Instead it runs a **queue check every 60 seconds**:
+  - `getAccountsDueForSync(cutoff)` queries accounts where `lastWorkerSyncAt` is null or older than 30 minutes, and whose JWT has not expired — no separate token verify call needed.
+  - After processing each account, `updateSplAccountLastSync` sets `lastWorkerSyncAt = now`.
+  - Public syncs (leaderboard, portfolio) still run on a 30-minute timer tracked in memory.
+- New DB helpers: `getAccountsDueForSync`, `updateSplAccountLastSync`, `resetSplAccountWorkerSync`.
+- Worker no longer calls `verifySplToken` — JWT expiry is pre-filtered in the DB query.
+- New constants in `worker-config.ts`: `WORKER_CHECK_INTERVAL_MS` (60 s), `SYNC_INTERVAL_MS` (30 min).
+
+#### Re-authenticate All
+
+- `useMonitoredAccounts` hook gains `reAuthAllInvalid()` — iterates through all accounts with `tokenStatus === "invalid"` and calls `reAuthAccount` for each.
+- **Users page** (`UserManagementContent`) shows a "Re-auth All Invalid (N)" button when one or more accounts have an expired token.
+- **Multi-account dashboard** (`PlayerStatusDashboard`) has a persistent "Re-authenticate All" button that checks each account's token status then triggers Keychain re-auth for any expired ones.
+
+### Database Migration
+
+- `prisma/migrations/20260430000000_add_jwt_token_fields/migration.sql` — adds `jwt_expires_at` and `last_worker_sync_at` columns to `spl_accounts`.
+
+---
+
 ## [v0.4.1] - 2026-04-24
 
 ### Changed
@@ -17,7 +63,6 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
   1. **Token-dependent syncs** (`runTokenDependentSyncs`): balance history + battle history, only for accounts with a valid SPL token. Token verification still happens here; invalid tokens are marked and skipped.
   2. **Public syncs** (`runPublicSyncs`): leaderboard rankings + portfolio snapshots, for **all** monitored accounts regardless of token status. These endpoints are unauthenticated — accounts with an invalid or unknown token now continue to receive leaderboard and portfolio updates instead of being skipped entirely.
 - Added `getDistinctMonitoredUsernames()` DB helper (`spl-accounts.ts`) that returns all monitored usernames without a token-status filter, used by the public sync pass.
-
 
 ### Fixed
 
