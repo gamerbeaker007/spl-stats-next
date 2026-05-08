@@ -368,7 +368,11 @@ export async function getAccountTokenStatus(
     const account = await getSplAccountTokenStatus(username.toLowerCase());
     if (!account) return "not_found";
     // Treat a locally-expired JWT as invalid even if the worker hasn't marked it yet.
-    if (account.tokenStatus === "valid" && account.jwtExpiresAt && account.jwtExpiresAt < new Date()) {
+    if (
+      account.tokenStatus === "valid" &&
+      account.jwtExpiresAt &&
+      account.jwtExpiresAt < new Date()
+    ) {
       return "invalid";
     }
     return account.tokenStatus as "valid" | "invalid" | "unknown";
