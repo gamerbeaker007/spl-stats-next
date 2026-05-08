@@ -2,11 +2,7 @@ import { Alert, Box } from "@mui/material";
 import Link from "next/link";
 
 import SeasonOverviewContent from "@/components/season/SeasonOverviewContent";
-import {
-  getCurrentUser,
-  getInvalidTokenAccounts,
-  getMonitoredAccounts,
-} from "@/lib/backend/actions/auth-actions";
+import { getCurrentUser, getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
 
 /**
  * Server component — fetches the current user and their monitored accounts,
@@ -25,7 +21,9 @@ export default async function SeasonOverviewServer() {
 
   const accounts = await getMonitoredAccounts();
   const usernames = accounts.map((a) => a.username);
-  const invalidAccounts = await getInvalidTokenAccounts();
+  const invalidAccounts = accounts
+    .filter((a) => a.splAccount?.tokenStatus === "invalid")
+    .map((a) => a.username);
 
   return (
     <>

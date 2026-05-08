@@ -53,6 +53,10 @@ Major security and architecture improvement: replaced the legacy SPL session `to
 
 - `prisma/migrations/20260430000000_add_jwt_token_fields/migration.sql` — adds `jwt_expires_at` and `last_worker_sync_at` columns to `spl_accounts`.
 
+### Removed
+
+- **CSV import feature removed from admin panel** — `PortfolioImport`, `InvestmentImport`, and `BattleImport` components and their corresponding Server Actions (`portfolio-import-action.ts`, `investment-import-action.ts`, `battle-import-action.ts`) have been deleted. Server Action body size limit removed (back to default) in `next.config.ts`.
+
 ---
 
 ## [v0.4.1] - 2026-04-24
