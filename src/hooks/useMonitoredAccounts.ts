@@ -108,7 +108,7 @@ export function useMonitoredAccounts(
           splAccountId: "",
           tokenStatus: "valid",
           syncStatus: "pending",
-          jwtExpiresAt: null,
+          jwtExpiresAt: response.jwtExpiresAt ?? null,
         },
       ]);
       return true;

@@ -21,8 +21,15 @@ export default async function SeasonOverviewServer() {
 
   const accounts = await getMonitoredAccounts();
   const usernames = accounts.map((a) => a.username);
+  const now = new Date();
   const invalidAccounts = accounts
-    .filter((a) => a.splAccount?.tokenStatus === "invalid")
+    .filter((a) => {
+      if (a.splAccount?.tokenStatus === "invalid") return true;
+      // Also catch tokens that have expired but the worker hasn't marked them yet
+      const expiresAt = a.splAccount?.jwtExpiresAt;
+      if (expiresAt && expiresAt < now) return true;
+      return false;
+    })
     .map((a) => a.username);
 
   return (

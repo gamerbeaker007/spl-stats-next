@@ -171,7 +171,12 @@ export async function addMonitoredAccountWithKeychain(
     if (existingSpl) {
       const link = await createMonitoredAccount(userId, existingSpl.id, lc);
       logger.info(`Linked existing SplAccount '${lc}' for user ${userId} (no SPL API call)`);
-      return { success: true, accountId: link.id, username: lc };
+      return {
+        success: true,
+        accountId: link.id,
+        username: lc,
+        jwtExpiresAt: existingSpl.jwtExpiresAt,
+      };
     }
 
     // New account — fetch SPL token and store it.
@@ -204,7 +209,7 @@ export async function addMonitoredAccountWithKeychain(
     const link = await upsertMonitoredAccount(userId, splAccount.id, lc);
 
     logger.info(`Monitored account '${lc}' added for user ${userId}`);
-    return { success: true, accountId: link.id, username: lc };
+    return { success: true, accountId: link.id, username: lc, jwtExpiresAt };
   } catch (error) {
     logger.error(`addMonitoredAccountWithKeychain error: ${error}`);
     return { success: false, error: errorMessage(error) };
