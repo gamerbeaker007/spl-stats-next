@@ -6,8 +6,8 @@ import { deleteUserCookie, getSessionIdFromCookie, setUserCookie } from "@/lib/b
 import { decryptToken, encryptToken } from "@/lib/backend/auth/encryption";
 import { verifyHiveSignature } from "@/lib/backend/auth/hive-verify";
 import {
-  clearBalanceMetaSyncError,
   deleteSyncStatesByUsername,
+  resetSyncStatesOnReAuth,
 } from "@/lib/backend/db/account-sync-states";
 import {
   deleteOpponentBattleCardsByAccount,
@@ -43,6 +43,7 @@ import {
 } from "@/lib/backend/db/spl-accounts";
 import { getUserById, upsertUser } from "@/lib/backend/db/users";
 import logger from "@/lib/backend/log/logger.server";
+import { JWT_WARN_DAYS } from "@/lib/shared/token-constants";
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : "Unknown error";
@@ -292,13 +293,13 @@ export async function reAuthMonitoredAccount(
       : null;
     const { encryptedValue, iv, authTag } = encryptToken(splResponse.jwt_token);
     await upsertSplAccount(lc, encryptedValue, iv, authTag, jwtExpiresAt);
-    await clearBalanceMetaSyncError(lc);
+    await resetSyncStatesOnReAuth(lc);
     // Clear the worker sync timestamp so this account is picked up immediately
     // in the next worker queue check.
     await resetSplAccountWorkerSync(lc);
 
     logger.info(`JWT refreshed for '${lc}', expires ${jwtExpiresAt?.toISOString() ?? "unknown"}`);
-    return { success: true, username: lc };
+    return { success: true, username: lc, jwtExpiresAt };
   } catch (error) {
     logger.error(`reAuthMonitoredAccount error: ${error}`);
     return { success: false, error: errorMessage(error) };
@@ -417,19 +418,46 @@ export async function checkRemoveScopeAction(accountId: string): Promise<{ isLas
   }
 }
 
+export interface TokenAlertAccount {
+  username: string;
+  jwtExpiresAt: Date | null;
+  tokenStatus: "valid" | "invalid" | "unknown";
+}
+
 /**
- * Returns the usernames of the caller's monitored accounts that have an invalid SPL token.
+ * Returns the caller's monitored accounts that need attention:
+ *  - tokenStatus === "invalid" or "unknown"
+ *  - JWT expiry is within JWT_WARN_DAYS (expiring soon or already expired)
+ *  - tokenStatus === "valid" but jwtExpiresAt is null (legacy account — needs re-auth to enable expiry tracking)
  * Safe to call from a client component — returns [] when not logged in.
  */
-export async function getInvalidTokenAccounts(): Promise<string[]> {
+export async function getTokenAlertAccounts(): Promise<TokenAlertAccount[]> {
   try {
     const userId = await getValidatedUserId();
     if (!userId) return [];
 
     const accounts = await listMonitoredAccounts(userId);
-    return accounts.filter((a) => a.splAccount.tokenStatus === "invalid").map((a) => a.username);
+    const warnMs = JWT_WARN_DAYS * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    return accounts
+      .filter((a) => {
+        if (a.splAccount.tokenStatus === "invalid") return true;
+        if (a.splAccount.tokenStatus === "unknown") return true;
+        // Legacy account: valid token but no expiry tracking — prompt re-auth to upgrade
+        if (a.splAccount.tokenStatus === "valid" && !a.splAccount.jwtExpiresAt) return true;
+        if (a.splAccount.jwtExpiresAt) {
+          return a.splAccount.jwtExpiresAt.getTime() - now <= warnMs;
+        }
+        return false;
+      })
+      .map((a) => ({
+        username: a.username,
+        jwtExpiresAt: a.splAccount.jwtExpiresAt,
+        tokenStatus: a.splAccount.tokenStatus as "valid" | "invalid" | "unknown",
+      }));
   } catch (error) {
-    logger.error(`getInvalidTokenAccounts error: ${error}`);
+    logger.error(`getTokenAlertAccounts error: ${error}`);
     return [];
   }
 }

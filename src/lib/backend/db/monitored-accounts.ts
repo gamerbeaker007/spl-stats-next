@@ -35,7 +35,7 @@ export async function listMonitoredAccounts(userId: string) {
       id: true,
       username: true,
       createdAt: true,
-      splAccount: { select: { id: true, tokenStatus: true } },
+      splAccount: { select: { id: true, tokenStatus: true, jwtExpiresAt: true } },
     },
     orderBy: { username: "asc" },
   });

@@ -1,8 +1,8 @@
 import { getCurrentUser, getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
 import { getSplMaintenanceStatus } from "@/lib/backend/actions/spl-status";
 import { getSyncStatesForUsernames } from "@/lib/backend/db/account-sync-states";
-import { AccountSyncState } from "@prisma/client";
 import { Alert, Box } from "@mui/material";
+import { AccountSyncState } from "@prisma/client";
 import UserManagementContent from "./UserManagementContent";
 
 type SyncStatus = "pending" | "processing" | "failed" | "completed";
@@ -50,6 +50,7 @@ export default async function UserManagementServer() {
         createdAt: acc.createdAt,
         splAccountId: acc.splAccount.id,
         tokenStatus: acc.splAccount.tokenStatus as "valid" | "invalid" | "unknown",
+        jwtExpiresAt: acc.splAccount.jwtExpiresAt,
         syncStatus: aggregateSyncStatus(syncByUsername.get(acc.username) ?? []),
       }))}
     />

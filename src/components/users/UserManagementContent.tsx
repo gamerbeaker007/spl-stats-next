@@ -1,6 +1,8 @@
 "use client";
 
 import { useMonitoredAccounts } from "@/hooks/useMonitoredAccounts";
+import { JWT_WARN_DAYS } from "@/lib/shared/token-constants";
+import { formatTokenExpiry, getTokenExpiryState } from "@/lib/shared/token-utils";
 import { Add as AddIcon, Delete as DeleteIcon, Key as KeyIcon } from "@mui/icons-material";
 import {
   Alert,
@@ -33,6 +35,7 @@ interface MonitoredAccount {
   splAccountId: string;
   tokenStatus: "valid" | "invalid" | "unknown";
   syncStatus: "pending" | "processing" | "failed" | "completed";
+  jwtExpiresAt: Date | null;
 }
 
 interface UserManagementContentProps {
@@ -76,7 +79,7 @@ export default function UserManagementContent({
     removeAccount,
     checkRemoveScope,
     reAuthAccount,
-    reAuthAllInvalid,
+    reAuthAll,
   } = useMonitoredAccounts(initialAccounts);
 
   // Dialog UI state (stays in component — pure UI)
@@ -122,15 +125,11 @@ export default function UserManagementContent({
     setScopeChecking(false);
   };
 
-  const needsAuthCount = accounts.filter(
-    (a) => a.tokenStatus === "invalid" || a.tokenStatus === "unknown"
-  ).length;
-
   const handleReAuthAll = async () => {
     setReAuthAllBusy(true);
     clearMessages();
     try {
-      await reAuthAllInvalid();
+      await reAuthAll();
     } finally {
       setReAuthAllBusy(false);
     }
@@ -142,17 +141,15 @@ export default function UserManagementContent({
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <Typography variant="h5">Monitored Accounts</Typography>
           <Stack direction="row" spacing={1}>
-            {needsAuthCount > 0 && (
-              <Button
-                variant="outlined"
-                color="warning"
-                startIcon={reAuthAllBusy ? <CircularProgress size={16} /> : <KeyIcon />}
-                onClick={handleReAuthAll}
-                disabled={reAuthAllBusy || splInMaintenance}
-              >
-                Re-auth All ({needsAuthCount})
-              </Button>
-            )}
+            <Button
+              variant="outlined"
+              color="warning"
+              startIcon={reAuthAllBusy ? <CircularProgress size={16} /> : <KeyIcon />}
+              onClick={handleReAuthAll}
+              disabled={reAuthAllBusy || splInMaintenance || accounts.length === 0}
+            >
+              Re-auth All ({accounts.length})
+            </Button>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -195,8 +192,13 @@ export default function UserManagementContent({
                   const isBusy = busyIds.includes(account.id);
                   const statusChip = TOKEN_STATUS_CHIP[account.tokenStatus];
                   const syncChip = SYNC_STATUS_CHIP[account.syncStatus];
+                  const expiryState = getTokenExpiryState(account.jwtExpiresAt);
                   const showReAuth =
-                    (account.tokenStatus === "invalid" || account.tokenStatus === "unknown") &&
+                    (account.tokenStatus === "invalid" ||
+                      account.tokenStatus === "unknown" ||
+                      !account.jwtExpiresAt ||
+                      expiryState === "expiring_soon" ||
+                      expiryState === "expired") &&
                     !isBusy;
 
                   return (
@@ -262,7 +264,37 @@ export default function UserManagementContent({
                             />
                           </Box>
                         }
-                        secondary={`Added: ${new Date(account.createdAt).toLocaleDateString("en-GB")}`}
+                        secondary={
+                          <>
+                            {`Added: ${new Date(account.createdAt).toLocaleDateString("en-GB")}`}
+                            {account.jwtExpiresAt ? (
+                              <>
+                                {" · "}
+                                <span
+                                  style={{
+                                    color:
+                                      expiryState === "expired"
+                                        ? "var(--mui-palette-error-main)"
+                                        : expiryState === "expiring_soon"
+                                          ? "var(--mui-palette-warning-main)"
+                                          : undefined,
+                                  }}
+                                >
+                                  {formatTokenExpiry(account.jwtExpiresAt)}
+                                  {expiryState === "expiring_soon" &&
+                                    ` (< ${JWT_WARN_DAYS}d warning)`}
+                                </span>
+                              </>
+                            ) : account.tokenStatus === "valid" ? (
+                              <>
+                                {" · "}
+                                <span style={{ color: "var(--mui-palette-warning-main)" }}>
+                                  no expiry tracking — re-auth to upgrade
+                                </span>
+                              </>
+                            ) : null}
+                          </>
+                        }
                       />
                     </ListItem>
                   );
