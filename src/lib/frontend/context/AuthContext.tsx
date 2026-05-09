@@ -23,6 +23,10 @@ interface AuthContextType {
    *  can include this in useEffect deps to react to token status changes. */
   reAuthVersion: number;
   notifyReAuth: () => void;
+  /** Incremented each time token verification completes. Consumers can include
+   *  this in useEffect deps to refresh the token alert state. */
+  tokenStatusVersion: number;
+  notifyTokenVerified: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -32,6 +36,7 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reAuthVersion, setReAuthVersion] = useState(0);
+  const [tokenStatusVersion, setTokenStatusVersion] = useState(0);
 
   // Check if user is logged in (from server)
   const checkAuthStatus = async () => {
@@ -125,6 +130,8 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     refreshAuth: checkAuthStatus,
     reAuthVersion,
     notifyReAuth: () => setReAuthVersion((v) => v + 1),
+    tokenStatusVersion,
+    notifyTokenVerified: () => setTokenStatusVersion((v) => v + 1),
   };
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>;

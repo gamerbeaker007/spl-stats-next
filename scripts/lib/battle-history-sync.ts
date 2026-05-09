@@ -1,5 +1,5 @@
-import { fetchBattleHistory, fetchCardDetails } from "@/lib/backend/api/spl/spl-api";
-import { decryptToken } from "@/lib/backend/auth/encryption";
+import { fetchCardDetails } from "@/lib/backend/api/spl/spl-api";
+import { fetchBattleHistory } from "@/lib/backend/api/spl/spl-authenticated-api";
 import {
   getLatestPlayerBattleDate,
   upsertOpponentBattleCards,

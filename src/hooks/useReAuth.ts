@@ -1,11 +1,13 @@
 "use client";
 
 import { reAuthMonitoredAccount } from "@/lib/backend/actions/auth-actions";
-import { keychainSignBuffer } from "@/lib/frontend/keychain";
 import { useAuth } from "@/lib/frontend/context/AuthContext";
+import { keychainSignBuffer } from "@/lib/frontend/keychain";
 import { useCallback, useState } from "react";
 
-type ReAuthResult = { success: true } | { success: false; error: string };
+type ReAuthResult =
+  | { success: true; jwtExpiresAt: Date | null }
+  | { success: false; error: string };
 
 export function useReAuth() {
   const [loading, setLoading] = useState(false);
@@ -23,7 +25,7 @@ export function useReAuth() {
           return { success: false, error: result.error ?? "Re-authentication failed" };
         }
         notifyReAuth();
-        return { success: true };
+        return { success: true, jwtExpiresAt: result.jwtExpiresAt ?? null };
       } catch (err) {
         return {
           success: false,

@@ -1,4 +1,4 @@
-import { fetchPlayerHistoryByDateRange } from "@/lib/backend/api/spl/spl-api";
+import { fetchPlayerHistoryByDateRange } from "@/lib/backend/api/spl/spl-authenticated-api";
 import { fetchMarketLanding } from "@/lib/backend/api/spl/vapi-spl";
 import { getSkinImageUrl } from "@/lib/shared/card-image-utils";
 import {

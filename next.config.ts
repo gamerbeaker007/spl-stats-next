@@ -34,12 +34,6 @@ const nextConfig: NextConfig = {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
 
-  experimental: {
-    serverActions: {
-      bodySizeLimit: "5mb",
-    },
-  },
-
   images: {
     remotePatterns: [
       {

@@ -1,8 +1,7 @@
-import { decryptToken } from "@/lib/backend/auth/encryption";
 import { getOrCreateSyncState, updateSyncState } from "@/lib/backend/db/account-sync-states";
 import { incrementSeasonBalanceBatch } from "@/lib/backend/db/season-balances";
 import logger from "@/lib/backend/log/logger.server";
-import { fetchPlayerHistory } from "@/lib/backend/api/spl/spl-api";
+import { fetchPlayerHistory } from "@/lib/backend/api/spl/spl-authenticated-api";
 import { fetchBalanceHistoryDelta, IncrementalResult } from "./service/balance-history";
 import {
   fetchIncrementalUnclaimedHistory,
@@ -261,6 +260,8 @@ export async function syncSeasonBalances(
     logger.info(
       `syncBalances ${username}: skipping (last run ${metaState.lastSyncedCreatedDate?.toISOString()})`
     );
+    // Still mark as completed so the UI doesn't show "pending" after a worker restart.
+    await updateSyncState(metaState.id, { status: "completed" });
     return;
   }
 

@@ -1,4 +1,4 @@
-import { fetchUnclaimedBalanceHistoryPage } from "@/lib/backend/api/spl/spl-api";
+import { fetchUnclaimedBalanceHistoryPage } from "@/lib/backend/api/spl/spl-authenticated-api";
 import logger from "@/lib/backend/log/logger.server";
 import {
   SplUnclaimedBalanceHistoryItem,
