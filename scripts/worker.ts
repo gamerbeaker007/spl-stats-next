@@ -1,4 +1,4 @@
-import { fetchSettings, verifySplToken } from "@/lib/backend/api/spl/spl-api";
+import { fetchSettings } from "@/lib/backend/api/spl/spl-api";
 import { decryptToken } from "@/lib/backend/auth/encryption";
 import {
   markBalanceMetaSyncFailed,
@@ -8,13 +8,17 @@ import { pruneLogs } from "@/lib/backend/db/logs";
 import { getAllSeasons } from "@/lib/backend/db/seasons";
 import { pruneExpiredSessions } from "@/lib/backend/db/sessions";
 import {
-  getDistinctAccountsWithCredentials,
+  getAccountsDueForSync,
   getDistinctMonitoredUsernames,
+  markExpiredJwtsInvalid,
+  updateSplAccountLastSync,
   updateSplAccountStatusByUsername,
 } from "@/lib/backend/db/spl-accounts";
 import {
   completeWorkerRun,
   createWorkerRun,
+  markStaleWorkerRunsFailed,
+  pruneOldWorkerRuns,
   updateWorkerRunProgress,
 } from "@/lib/backend/db/worker-runs";
 import logger from "@/lib/backend/log/logger.server";
@@ -29,86 +33,54 @@ import {
 import { syncLeaderboard } from "./lib/leaderboard-sync";
 import { syncPortfolio } from "./lib/portfolio-sync";
 import { syncSeasonsEndDates } from "./lib/season-end-dates-sync";
-import { LOG_RETENTION_DAYS, WORKER_INTERVAL_MS } from "./lib/worker-config";
+import {
+  LOG_RETENTION_DAYS,
+  SYNC_INTERVAL_MS,
+  WORKER_CHECK_INTERVAL_MS,
+  WORKER_INTERVAL_MS,
+} from "./lib/worker-config";
 
 registerShutdownHandlers();
 
-type AccountWithCredentials = Awaited<
-  ReturnType<typeof getDistinctAccountsWithCredentials>
->[number];
+type AccountDueForSync = Awaited<ReturnType<typeof getAccountsDueForSync>>[number];
 
 /**
- * Syncs balance history and battle history for accounts with a valid SPL token.
- * Both endpoints require authentication.
+ * Processes a single account's token-dependent syncs (balance + battle history).
+ * JWT expiry is pre-filtered by getAccountsDueForSync, so no API verify needed.
  */
-async function runTokenDependentSyncs(
-  accounts: AccountWithCredentials[],
-  allSeasons: Season[],
-  runId: string,
-  processedUsernames: Set<string>
-): Promise<void> {
-  for (const account of accounts) {
-    if (shouldShutdown()) {
-      logger.info("Worker: shutdown requested, stopping gracefully");
-      return;
-    }
-
-    logger.info(`Worker: syncing token-dependent data for ${account.username}`);
-    let anySuccess = false;
-
-    let tokenDecrypted = "";
-    let tokenOk = false;
-    try {
-      tokenDecrypted = decryptToken(account.encryptedToken, account.iv, account.authTag);
-      const verifyResult = await verifySplToken(account.username, tokenDecrypted);
-      if (verifyResult === "invalid") {
-        logger.warn(
-          `Worker: token invalid for ${account.username} — marking invalid, skipping token-dependent syncs`
-        );
-        await updateSplAccountStatusByUsername(account.username, "invalid");
-        await markBalanceMetaSyncFailed(account.username, "Token invalidated");
-      } else if (verifyResult === "error") {
-        logger.warn(
-          `Worker: token verification failed (transient) for ${account.username} — skipping this cycle`
-        );
-      } else {
-        tokenOk = true;
-      }
-    } catch (error) {
-      await updateSplAccountStatusByUsername(account.username, "invalid");
-      const msg = error instanceof Error ? error.message : String(error);
-      logger.error(`Worker: token decrypt/check failed for ${account.username}: ${msg}`);
-      await markBalanceMetaSyncFailed(account.username, `Token check error: ${msg}`);
-    }
-
-    if (!tokenOk) continue;
-
-    try {
-      await syncSeasonBalances(account, allSeasons, tokenDecrypted);
-      anySuccess = true;
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      logger.error(`Worker: failed to sync balances ${account.username}: ${msg}`);
-    }
-
-    if (shouldShutdown()) {
-      logger.info("Worker: shutdown requested, stopping gracefully");
-      return;
-    }
-
-    try {
-      await syncBattleHistory(account, tokenDecrypted);
-      anySuccess = true;
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      logger.error(`Worker: failed to sync battle history ${account.username}: ${msg}`);
-    }
-
-    if (anySuccess && !processedUsernames.has(account.username)) {
-      processedUsernames.add(account.username);
-      await updateWorkerRunProgress(runId, processedUsernames.size);
-    }
+async function processAccount(account: AccountDueForSync, allSeasons: Season[]): Promise<boolean> {
+  let jwtDecrypted = "";
+  try {
+    jwtDecrypted = decryptToken(account.encryptedToken, account.iv, account.authTag);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    logger.error(`Worker: token decrypt failed for ${account.username}: ${msg}`);
+    await updateSplAccountStatusByUsername(account.username, "invalid");
+    await markBalanceMetaSyncFailed(account.username, `Token decrypt error: ${msg}`);
+    return false;
   }
+
+  let anySuccess = false;
+
+  try {
+    await syncSeasonBalances(account, allSeasons, jwtDecrypted);
+    anySuccess = true;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    logger.error(`Worker: failed to sync balances ${account.username}: ${msg}`);
+  }
+
+  if (shouldShutdown()) return anySuccess;
+
+  try {
+    await syncBattleHistory(account, jwtDecrypted);
+    anySuccess = true;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    logger.error(`Worker: failed to sync battle history ${account.username}: ${msg}`);
+  }
+
+  return anySuccess;
 }
 
 /**
@@ -160,117 +132,138 @@ async function runPublicSyncs(
   }
 }
 
-async function runCycle(): Promise<void> {
-  const run = await createWorkerRun();
-  const processedUsernames = new Set<string>();
+/**
+ * One check cycle: processes all accounts due for sync, then returns.
+ * Public syncs (leaderboard/portfolio) run on a separate timer.
+ */
+async function runQueueCycle(
+  allSeasons: Season[],
+  currentSeasonId: number,
+  runId: string,
+  processedUsernames: Set<string>
+): Promise<void> {
+  // Mark accounts with an expired JWT as invalid so the UI can surface the
+  // re-auth prompt without the user visiting the Users page first.
+  const markedInvalid = await markExpiredJwtsInvalid();
+  if (markedInvalid > 0) {
+    logger.info(`Worker: marked ${markedInvalid} account(s) with expired JWT as invalid`);
+  }
 
-  try {
-    // Step 1: Check settings — bail early if game is in maintenance mode
-    const settings = await fetchSettings();
-    const currentSeasonId = settings.season.id;
+  const cutoff = new Date(Date.now() - SYNC_INTERVAL_MS);
+  const accountsDue = await getAccountsDueForSync(cutoff);
 
-    if (settings.maintenance_mode) {
-      logger.info("Worker: game is in maintenance mode, skipping cycle");
-      await completeWorkerRun(run.id, "completed", 0);
-      return;
-    }
+  if (accountsDue.length === 0) {
+    logger.info("Worker: no accounts due for sync this cycle");
+    return;
+  }
 
-    // Step 2: Sync season end dates
-    logger.info("Worker: starting season sync");
-    await syncSeasonsEndDates(currentSeasonId);
+  logger.info(`Worker: ${accountsDue.length} account(s) due for token-dependent sync`);
 
+  for (const account of accountsDue) {
     if (shouldShutdown()) {
-      await completeWorkerRun(run.id, "completed", 0);
+      logger.info("Worker: shutdown requested, stopping gracefully");
       return;
     }
 
-    // Step 3: Reset interrupted/failed sync states from previous run
-    await resetStaleSyncStates();
+    logger.info(`Worker: syncing token-dependent data for ${account.username}`);
+    const success = await processAccount(account, allSeasons);
 
-    // Step 4: Load all seasons
-    const allSeasons = await getAllSeasons();
-    if (allSeasons.length === 0) {
-      logger.warn("No seasons in DB, skipping");
-      await completeWorkerRun(run.id, "completed", 0);
-      return;
+    // Always update lastWorkerSyncAt so we don't retry immediately on transient failures.
+    await updateSplAccountLastSync(account.username);
+
+    if (success && !processedUsernames.has(account.username)) {
+      processedUsernames.add(account.username);
+      await updateWorkerRunProgress(runId, processedUsernames.size);
     }
-
-    // Step 5: Fetch account lists
-    const tokenAccounts = await getDistinctAccountsWithCredentials();
-    const allMonitoredUsernames = await getDistinctMonitoredUsernames();
-    logger.info(
-      `Worker: ${tokenAccounts.length} accounts with valid token, ${allMonitoredUsernames.length} total monitored`
-    );
-
-    // Step 6: Token-dependent syncs (balance history + battle history)
-    // Only runs for accounts with a valid SPL token.
-    logger.info("Worker: starting token-dependent syncs (balance + battles)");
-    await runTokenDependentSyncs(tokenAccounts, allSeasons, run.id, processedUsernames);
-
-    if (shouldShutdown()) {
-      await completeWorkerRun(run.id, "completed", processedUsernames.size);
-      return;
-    }
-
-    // Step 7: Public syncs (leaderboard + portfolio — no token required)
-    // Runs for ALL monitored accounts, including those with an invalid/unknown token.
-    logger.info("Worker: starting public syncs (leaderboard + portfolio)");
-    await runPublicSyncs(
-      allMonitoredUsernames,
-      allSeasons,
-      currentSeasonId,
-      run.id,
-      processedUsernames
-    );
-
-    // Final step: prune old log entries and expired sessions
-    try {
-      const { count } = await pruneLogs(LOG_RETENTION_DAYS);
-      if (count > 0)
-        logger.info(`Worker: pruned ${count} log entries older than ${LOG_RETENTION_DAYS} days`);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      logger.warn(`Worker: log pruning failed: ${msg}`);
-    }
-    try {
-      await pruneExpiredSessions();
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      logger.warn(`Worker: session pruning failed: ${msg}`);
-    }
-
-    await completeWorkerRun(run.id, "completed", processedUsernames.size);
-  } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    await completeWorkerRun(run.id, "failed", processedUsernames.size, msg);
-    logger.error(`Worker: cycle failed: ${msg}`);
   }
 }
 
 async function main(): Promise<void> {
-  logger.info("Worker: starting background worker");
+  logger.info("Worker: starting background worker (queue-based)");
+
+  // Mark any runs left in "running" state (from a previous crash) as failed.
+  const { count: stale } = await markStaleWorkerRunsFailed();
+  if (stale > 0) logger.warn(`Worker: marked ${stale} stale worker run(s) as failed`);
+
+  // Prune stale runs from previous Docker lifetimes; keep the 10 most recent.
+  const { count: pruned } = await pruneOldWorkerRuns(10);
+  if (pruned > 0) logger.info(`Worker: pruned ${pruned} old worker run record(s)`);
+
+  // Run an initial common setup once
+  await syncSeasonsEndDates(0);
+  await resetStaleSyncStates();
+
+  const run = await createWorkerRun();
+  const processedUsernames = new Set<string>();
+  let lastPublicSyncAt = 0;
+  let lastSeasonRefreshAt = 0;
+  let allSeasons: Season[] = await getAllSeasons();
+  let currentSeasonId = 0;
 
   while (!shouldShutdown()) {
-    const cycleStart = Date.now();
-    await runCycle();
+    try {
+      // Refresh seasons and settings periodically
+      if (Date.now() - lastSeasonRefreshAt > WORKER_INTERVAL_MS) {
+        const settings = await fetchSettings();
+        currentSeasonId = settings.season.id;
+        if (settings.maintenance_mode) {
+          logger.info("Worker: game is in maintenance mode, skipping cycle");
+          await interruptibleSleep(WORKER_CHECK_INTERVAL_MS);
+          continue;
+        }
+        allSeasons = await getAllSeasons();
+        await syncSeasonsEndDates(currentSeasonId);
+        lastSeasonRefreshAt = Date.now();
+      }
 
-    if (shouldShutdown()) break;
+      // Process queue
+      await runQueueCycle(allSeasons, currentSeasonId, run.id, processedUsernames);
 
-    const elapsed = Date.now() - cycleStart;
-    const sleepTime = Math.max(0, WORKER_INTERVAL_MS - elapsed);
+      // Public syncs on 30-min timer
+      if (Date.now() - lastPublicSyncAt > WORKER_INTERVAL_MS) {
+        const allMonitoredUsernames = await getDistinctMonitoredUsernames();
+        logger.info(
+          `Worker: running public syncs for ${allMonitoredUsernames.length} monitored accounts`
+        );
+        await runPublicSyncs(
+          allMonitoredUsernames,
+          allSeasons,
+          currentSeasonId,
+          run.id,
+          processedUsernames
+        );
 
-    if (sleepTime > 0) {
-      logger.info(
-        `Worker: cycle took ${Math.round(elapsed / 1000)}s, sleeping ${Math.round(sleepTime / 1000)}s`
-      );
-      await interruptibleSleep(sleepTime);
-    } else {
-      logger.info(
-        `Worker: cycle took ${Math.round(elapsed / 1000)}s (exceeded interval), running next immediately`
-      );
+        // Periodic maintenance
+        try {
+          const { count } = await pruneLogs(LOG_RETENTION_DAYS);
+          if (count > 0)
+            logger.info(
+              `Worker: pruned ${count} log entries older than ${LOG_RETENTION_DAYS} days`
+            );
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          logger.warn(`Worker: log pruning failed: ${msg}`);
+        }
+        try {
+          await pruneExpiredSessions();
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          logger.warn(`Worker: session pruning failed: ${msg}`);
+        }
+
+        lastPublicSyncAt = Date.now();
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      logger.error(`Worker: cycle error: ${msg}`);
+    }
+
+    if (!shouldShutdown()) {
+      await interruptibleSleep(WORKER_CHECK_INTERVAL_MS);
     }
   }
 
+  await completeWorkerRun(run.id, "completed", processedUsernames.size);
   logger.info("Worker: shut down cleanly");
   process.exit(0);
 }

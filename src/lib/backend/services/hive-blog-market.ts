@@ -1,7 +1,5 @@
-import {
-  fetchTransactionLookup,
-  fetchMarketHistoryByDateRange,
-} from "@/lib/backend/api/spl/spl-api";
+import { fetchTransactionLookup } from "@/lib/backend/api/spl/spl-api";
+import { fetchMarketHistoryByDateRange } from "@/lib/backend/api/spl/spl-authenticated-api";
 import { fetchListingItem } from "@/lib/backend/api/spl/vapi-spl";
 import type { HiveBlogMarketCard, HiveBlogMarketItem } from "@/types/hive-blog";
 import { CardFoil } from "@/types/card";

@@ -10,7 +10,7 @@ const SEARCH_DEBOUNCE_MS = 400;
 export function useLogs() {
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [level, setLevel] = useState<LogLevel | undefined>();

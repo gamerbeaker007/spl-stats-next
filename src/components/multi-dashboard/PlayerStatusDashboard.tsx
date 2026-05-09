@@ -12,7 +12,9 @@ import {
 import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
 import { getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
-import { Alert, Box, Container, Typography } from "@mui/material";
+import { useReAuth } from "@/hooks/useReAuth";
+import KeyIcon from "@mui/icons-material/Key";
+import { Alert, Box, Button, CircularProgress, Container, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { PlayerCard } from "./PlayerCard";
 
@@ -30,6 +32,12 @@ function applyStoredOrder(usernames: string[], stored: string[]): string[] {
 export default function PlayerStatusDashboard() {
   const [usernames, setUsernames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reAuthAllBusy, setReAuthAllBusy] = useState(false);
+  const [reAuthResult, setReAuthResult] = useState<{
+    succeeded: string[];
+    failed: string[];
+  } | null>(null);
+  const { reAuth } = useReAuth();
 
   useEffect(() => {
     getMonitoredAccounts()
@@ -66,6 +74,24 @@ export default function PlayerStatusDashboard() {
     });
   };
 
+  const handleReAuthAll = async () => {
+    setReAuthAllBusy(true);
+    setReAuthResult(null);
+    const succeeded: string[] = [];
+    const failed: string[] = [];
+    try {
+      // Re-authenticate every account — Keychain will prompt once per account.
+      for (const username of usernames) {
+        const result = await reAuth(username);
+        if (result.success) succeeded.push(username);
+        else failed.push(username);
+      }
+    } finally {
+      setReAuthAllBusy(false);
+      setReAuthResult({ succeeded, failed });
+    }
+  };
+
   if (loading) {
     return (
       <Container maxWidth="xl" sx={{ px: { xs: 2, md: 6, lg: 8 } }}>
@@ -78,9 +104,34 @@ export default function PlayerStatusDashboard() {
 
   return (
     <Container maxWidth="xl" sx={{ px: { xs: 2, md: 6, lg: 8 } }}>
-      <Typography variant="h4" gutterBottom>
-        Splinterlands Multi-Account Dashboard
-      </Typography>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+        <Typography variant="h4">Splinterlands Multi-Account Dashboard</Typography>
+        <Button
+          variant="outlined"
+          color="warning"
+          startIcon={reAuthAllBusy ? <CircularProgress size={16} /> : <KeyIcon />}
+          onClick={handleReAuthAll}
+          disabled={reAuthAllBusy || usernames.length === 0}
+        >
+          Re-authenticate All
+        </Button>
+      </Box>
+
+      {reAuthResult && (
+        <Alert
+          severity={reAuthResult.failed.length === 0 ? "success" : "warning"}
+          onClose={() => setReAuthResult(null)}
+          sx={{ mb: 2 }}
+        >
+          {reAuthResult.succeeded.length > 0 && (
+            <>Re-authenticated: {reAuthResult.succeeded.join(", ")}. </>
+          )}
+          {reAuthResult.failed.length > 0 && <>Failed: {reAuthResult.failed.join(", ")}.</>}
+          {reAuthResult.succeeded.length === 0 && reAuthResult.failed.length === 0 && (
+            <>No accounts to re-authenticate.</>
+          )}
+        </Alert>
+      )}
 
       {usernames.length > 0 ? (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

@@ -1,13 +1,7 @@
 import AdminLogsSkeleton from "@/components/admin/AdminLogsSkeleton";
-import BattleImport from "@/components/admin/BattleImport";
-import BattleImportSkeleton from "@/components/admin/BattleImportSkeleton";
 import DbSizeContent from "@/components/admin/DbSizeContent";
 import DbSizeSkeleton from "@/components/admin/DbSizeSkeleton";
-import InvestmentImport from "@/components/admin/InvestmentImport";
-import InvestmentImportSkeleton from "@/components/admin/InvestmentImportSkeleton";
 import LogsContent from "@/components/admin/LogsContent";
-import PortfolioImport from "@/components/admin/PortfolioImport";
-import PortfolioImportSkeleton from "@/components/admin/PortfolioImportSkeleton";
 import WorkerStatusContent from "@/components/admin/WorkerStatusContent";
 import WorkerStatusSkeleton from "@/components/admin/WorkerStatusSkeleton";
 import PageErrorBoundary from "@/components/shared/error-boundaries/PageErrorBoundary";
@@ -53,21 +47,6 @@ export default async function AdminGate() {
       <PageErrorBoundary>
         <Suspense fallback={<AdminLogsSkeleton />}>
           <LogsContent />
-        </Suspense>
-      </PageErrorBoundary>
-      <PageErrorBoundary>
-        <Suspense fallback={<PortfolioImportSkeleton />}>
-          <PortfolioImport />
-        </Suspense>
-      </PageErrorBoundary>
-      <PageErrorBoundary>
-        <Suspense fallback={<InvestmentImportSkeleton />}>
-          <InvestmentImport />
-        </Suspense>
-      </PageErrorBoundary>
-      <PageErrorBoundary>
-        <Suspense fallback={<BattleImportSkeleton />}>
-          <BattleImport />
         </Suspense>
       </PageErrorBoundary>
     </>

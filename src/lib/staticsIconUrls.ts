@@ -1,5 +1,6 @@
 export const WEB_URL = `https://d36mxiodymuqjm.cloudfront.net/`;
 const SPL_NEXT_URL = "https://next.splinterlands.com/";
+const PEAKD_URL = "https://files.peakd.com/file/peakd-hive/beaker007/";
 
 export const dec_icon_url = `${WEB_URL}website/icon_dec.png`;
 export const credits_icon_url = `${WEB_URL}website/nav/img_credits.png`;
@@ -21,7 +22,7 @@ export const land_icon_url = `${WEB_URL}website/ui_elements/popups/land_presale/
 
 export const coins_icon_url = `${WEB_URL}website/ui_elements/shop/img_credits.png`;
 export const other_icon_url = `${WEB_URL}website/nav/icon_nav_items_active@2x.png`;
-export const energy_icon_url = `${WEB_URL}website/battle/battle_page/Icon_lightning_frontier.svg`;
+export const energy_icon_url = `${PEAKD_URL}23uQBz19V89rX13gPTNuLgA9grV11BhG5fhckJsA64VMG8dTkEEPybCSmZVtcUehAkwyN.png`;
 export const hammer_icon_url = `${WEB_URL}website/land/deedOverview/hammer.svg`;
 
 export const wild_league_icon_url = `${WEB_URL}website/icons/leagues/wild_150/league_0.png`;
@@ -29,10 +30,8 @@ export const modern_league_icon_url = `${WEB_URL}website/icons/leagues/modern_15
 export const avatar_icon_url = `${WEB_URL}website/icons/avatars/avatar_0.png`;
 export const foundation_league_icon_url = `${WEB_URL}website/icons/leagues/wild_150/league_0.png`;
 
-export const foundation_entries_icon_url =
-  "https://files.peakd.com/file/peakd-hive/beaker007/AK7xJPdJL7S4Ysbrx81zzezt1RXkPTPfYXW7gNRk81Hi8awDWRqBzUT7mNHkxH2.png";
-export const ranked_entries_icon_url =
-  "https://files.peakd.com/file/peakd-hive/beaker007/23wC7kgNZrcrZ1XoE3H3or89eBsQMiwGAXDyyxh6hzFnmuQAvKT6iPwjTSnXt9CTQwPo3.png";
+export const foundation_entries_icon_url = `${PEAKD_URL}AK7xJPdJL7S4Ysbrx81zzezt1RXkPTPfYXW7gNRk81Hi8awDWRqBzUT7mNHkxH2.png`;
+export const ranked_entries_icon_url = `${PEAKD_URL}23wC7kgNZrcrZ1XoE3H3or89eBsQMiwGAXDyyxh6hzFnmuQAvKT6iPwjTSnXt9CTQwPo3.png`;
 
 export const reward_draw_minor_icon_url = `${WEB_URL}website/ui_elements/shop/ranked/draws/img_chest-minor_250.webp`;
 export const reward_draw_major_icon_url = `${WEB_URL}website/ui_elements/shop/ranked/draws/img_chest-major_250.webp`;
@@ -102,5 +101,4 @@ export const pack_rift_icon_url = `${WEB_URL}website/ui_elements/open_packs/pack
 export const pack_foundations_icon_url = `${WEB_URL}website/icons/img_pack_foundations_250.png`;
 
 export const spl_logo_icon_url = `${WEB_URL}website/splinterlands_logo.png`;
-export const splinterlands_statistics_icon_url =
-  "https://files.peakd.com/file/peakd-hive/beaker007/23tSKnFQVREdG5gFbEZFWqAYNMB6cREM9oMiy4asHybefQfoYw927KUivHGhGp3ycuiKD.png";
+export const splinterlands_statistics_icon_url = `${PEAKD_URL}23tSKnFQVREdG5gFbEZFWqAYNMB6cREM9oMiy4asHybefQfoYw927KUivHGhGp3ycuiKD.png`;

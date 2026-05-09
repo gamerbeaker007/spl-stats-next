@@ -55,16 +55,20 @@ model MonitoredAccount {
 // Centralised SPL account token store.
 // One row per unique SPL username; multiple users can link to the same row
 // without needing to re-authenticate via Keychain.
+// encryptedToken/iv/authTag now store the AES-256-GCM encrypted JWT token
+// (previously stored the legacy long-lived game token).
 model SplAccount {
-  id             String   @id @default(cuid())
-  username       String   @unique // Splinterlands username
-  encryptedToken  String    @map("encrypted_token") @db.Text // AES-256-GCM encrypted token
-  iv              String    // Initialization Vector (nonce) for AES-GCM
-  authTag         String    @map("auth_tag") // Authentication tag for AES-GCM
-  tokenStatus     String    @default("unknown") @map("token_status") // "valid" | "invalid" | "unknown"
-  tokenVerifiedAt DateTime? @map("token_verified_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
-  createdAt       DateTime  @default(now()) @map("created_at")
+  id               String    @id @default(cuid())
+  username         String    @unique // Splinterlands username
+  encryptedToken   String    @map("encrypted_token") @db.Text // AES-256-GCM encrypted JWT token
+  iv               String    // Initialization Vector (nonce) for AES-GCM
+  authTag          String    @map("auth_tag") // Authentication tag for AES-GCM
+  tokenStatus      String    @default("unknown") @map("token_status") // "valid" | "invalid" | "unknown"
+  tokenVerifiedAt  DateTime? @map("token_verified_at")
+  jwtExpiresAt     DateTime? @map("jwt_expires_at") // JWT expiry date from SPL login response
+  lastWorkerSyncAt DateTime? @map("last_worker_sync_at") // When the worker last fully synced this account
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
 
   monitoredBy MonitoredAccount[]
 

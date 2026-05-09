@@ -72,13 +72,27 @@ export async function deleteSyncStatesByUsername(username: string) {
 }
 
 /**
- * Clear the BALANCE_META failed state after a successful token re-authentication.
- * This gives immediate UI feedback — without this the error lingers until the
- * next worker cycle resets it via resetStaleSyncStates().
+ * Reset sync states after a successful token re-authentication:
+ *  - BALANCE_META is reset unconditionally (even from "completed") so the worker
+ *    re-queues a fresh balance sync with the new token.
+ *  - All other rows that are in "failed" state are cleared so the aggregate
+ *    no longer shows "sync error" after re-auth.
  */
+export async function resetSyncStatesOnReAuth(username: string) {
+  await prisma.accountSyncState.updateMany({
+    where: { username, key: "BALANCE_META" },
+    data: { status: "pending", errorMessage: null },
+  });
+  await prisma.accountSyncState.updateMany({
+    where: { username, key: { not: "BALANCE_META" }, status: "failed" },
+    data: { status: "pending", errorMessage: null },
+  });
+}
+
+/** @deprecated Use resetSyncStatesOnReAuth instead. */
 export async function clearBalanceMetaSyncError(username: string) {
   return prisma.accountSyncState.updateMany({
-    where: { username, key: "BALANCE_META", status: "failed" },
+    where: { username, key: "BALANCE_META" },
     data: { status: "pending", errorMessage: null },
   });
 }

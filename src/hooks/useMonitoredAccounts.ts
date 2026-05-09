@@ -1,13 +1,14 @@
 "use client";
 
+import { useReAuth } from "@/hooks/useReAuth";
 import {
   addMonitoredAccountWithKeychain,
   checkRemoveScopeAction,
   removeMonitoredAccount,
   verifyMonitoredAccountToken,
 } from "@/lib/backend/actions/auth-actions";
+import { useAuth } from "@/lib/frontend/context/AuthContext";
 import { keychainSignBuffer } from "@/lib/frontend/keychain";
-import { useReAuth } from "@/hooks/useReAuth";
 import { useEffect, useState } from "react";
 
 interface MonitoredAccount {
@@ -17,6 +18,7 @@ interface MonitoredAccount {
   splAccountId: string;
   tokenStatus: "valid" | "invalid" | "unknown";
   syncStatus: "pending" | "processing" | "failed" | "completed";
+  jwtExpiresAt: Date | null;
 }
 
 interface UseMonitoredAccountsReturn {
@@ -30,6 +32,7 @@ interface UseMonitoredAccountsReturn {
   removeAccount: (accountId: string) => Promise<void>;
   checkRemoveScope: (accountId: string) => Promise<boolean>;
   reAuthAccount: (monitoredAccountId: string, username: string) => Promise<boolean>;
+  reAuthAll: () => Promise<{ succeeded: number; failed: number }>;
 }
 
 export function useMonitoredAccounts(
@@ -41,6 +44,7 @@ export function useMonitoredAccounts(
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const { reAuth } = useReAuth();
+  const { notifyTokenVerified } = useAuth();
 
   const clearMessages = () => {
     setError(null);
@@ -68,7 +72,10 @@ export function useMonitoredAccounts(
 
   // Auto-verify all accounts on page load
   useEffect(() => {
-    initialAccounts.forEach((acc) => verifyToken(acc.id));
+    if (initialAccounts.length === 0) return;
+    Promise.all(initialAccounts.map((acc) => verifyToken(acc.id))).then(() => {
+      notifyTokenVerified();
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -101,6 +108,7 @@ export function useMonitoredAccounts(
           splAccountId: "",
           tokenStatus: "valid",
           syncStatus: "pending",
+          jwtExpiresAt: response.jwtExpiresAt ?? null,
         },
       ]);
       return true;
@@ -140,12 +148,32 @@ export function useMonitoredAccounts(
         return false;
       }
       setAccounts((prev) =>
-        prev.map((acc) => (acc.id === monitoredAccountId ? { ...acc, tokenStatus: "valid" } : acc))
+        prev.map((acc) =>
+          acc.id === monitoredAccountId
+            ? {
+                ...acc,
+                tokenStatus: "valid",
+                syncStatus: "pending",
+                jwtExpiresAt: result.jwtExpiresAt,
+              }
+            : acc
+        )
       );
       return true;
     } finally {
       removeBusy(monitoredAccountId);
     }
+  };
+
+  const reAuthAll = async (): Promise<{ succeeded: number; failed: number }> => {
+    let succeeded = 0;
+    let failed = 0;
+    for (const acc of accounts) {
+      const ok = await reAuthAccount(acc.id, acc.username);
+      if (ok) succeeded++;
+      else failed++;
+    }
+    return { succeeded, failed };
   };
 
   return {
@@ -159,5 +187,6 @@ export function useMonitoredAccounts(
     removeAccount,
     checkRemoveScope,
     reAuthAccount,
+    reAuthAll,
   };
 }

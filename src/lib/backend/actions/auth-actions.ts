@@ -1,12 +1,13 @@
 "use server";
 
-import { splLogin, verifySplToken } from "@/lib/backend/api/spl/spl-api";
+import { splLogin } from "@/lib/backend/api/spl/spl-api";
+import { verifySplJwt } from "@/lib/backend/api/spl/spl-authenticated-api";
 import { deleteUserCookie, getSessionIdFromCookie, setUserCookie } from "@/lib/backend/auth/cookie";
 import { decryptToken, encryptToken } from "@/lib/backend/auth/encryption";
 import { verifyHiveSignature } from "@/lib/backend/auth/hive-verify";
 import {
-  clearBalanceMetaSyncError,
   deleteSyncStatesByUsername,
+  resetSyncStatesOnReAuth,
 } from "@/lib/backend/db/account-sync-states";
 import {
   deleteOpponentBattleCardsByAccount,
@@ -36,11 +37,13 @@ import {
   findSplAccountByUsername,
   getSplAccountCredentials,
   getSplAccountTokenStatus,
+  resetSplAccountWorkerSync,
   updateSplAccountStatus,
   upsertSplAccount,
 } from "@/lib/backend/db/spl-accounts";
 import { getUserById, upsertUser } from "@/lib/backend/db/users";
 import logger from "@/lib/backend/log/logger.server";
+import { JWT_WARN_DAYS } from "@/lib/shared/token-constants";
 
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : "Unknown error";
@@ -168,13 +171,18 @@ export async function addMonitoredAccountWithKeychain(
     if (existingSpl) {
       const link = await createMonitoredAccount(userId, existingSpl.id, lc);
       logger.info(`Linked existing SplAccount '${lc}' for user ${userId} (no SPL API call)`);
-      return { success: true, accountId: link.id, username: lc };
+      return {
+        success: true,
+        accountId: link.id,
+        username: lc,
+        jwtExpiresAt: existingSpl.jwtExpiresAt,
+      };
     }
 
     // New account — fetch SPL token and store it.
     const splResponse = await splLogin(lc, timestamp, signature);
-    if (!splResponse.token) {
-      return { success: false, error: "No token received from Splinterlands" };
+    if (!splResponse.jwt_token) {
+      return { success: false, error: "No JWT token received from Splinterlands" };
     }
 
     // Guard: SPL API resolves identity from the signing key, not the `name` param.
@@ -190,15 +198,18 @@ export async function addMonitoredAccountWithKeychain(
       };
     }
 
-    const { encryptedValue, iv, authTag } = encryptToken(splResponse.token);
+    const jwtExpiresAt = splResponse.jwt_expiration_dt
+      ? new Date(splResponse.jwt_expiration_dt)
+      : null;
+    const { encryptedValue, iv, authTag } = encryptToken(splResponse.jwt_token);
 
     // Upsert SplAccount in case another user raced in since the check above.
-    const splAccount = await upsertSplAccount(lc, encryptedValue, iv, authTag);
+    const splAccount = await upsertSplAccount(lc, encryptedValue, iv, authTag, jwtExpiresAt);
 
     const link = await upsertMonitoredAccount(userId, splAccount.id, lc);
 
     logger.info(`Monitored account '${lc}' added for user ${userId}`);
-    return { success: true, accountId: link.id, username: lc };
+    return { success: true, accountId: link.id, username: lc, jwtExpiresAt };
   } catch (error) {
     logger.error(`addMonitoredAccountWithKeychain error: ${error}`);
     return { success: false, error: errorMessage(error) };
@@ -267,8 +278,8 @@ export async function reAuthMonitoredAccount(
     }
 
     const splResponse = await splLogin(lc, timestamp, signature);
-    if (!splResponse.token) {
-      return { success: false, error: "No token received from Splinterlands" };
+    if (!splResponse.jwt_token) {
+      return { success: false, error: "No JWT token received from Splinterlands" };
     }
 
     // Guard: SPL API resolves identity from the signing key, not the `name` param.
@@ -282,12 +293,18 @@ export async function reAuthMonitoredAccount(
       };
     }
 
-    const { encryptedValue, iv, authTag } = encryptToken(splResponse.token);
-    await upsertSplAccount(lc, encryptedValue, iv, authTag);
-    await clearBalanceMetaSyncError(lc);
+    const jwtExpiresAt = splResponse.jwt_expiration_dt
+      ? new Date(splResponse.jwt_expiration_dt)
+      : null;
+    const { encryptedValue, iv, authTag } = encryptToken(splResponse.jwt_token);
+    await upsertSplAccount(lc, encryptedValue, iv, authTag, jwtExpiresAt);
+    await resetSyncStatesOnReAuth(lc);
+    // Clear the worker sync timestamp so this account is picked up immediately
+    // in the next worker queue check.
+    await resetSplAccountWorkerSync(lc);
 
-    logger.info(`Token refreshed for '${lc}'`);
-    return { success: true, username: lc };
+    logger.info(`JWT refreshed for '${lc}', expires ${jwtExpiresAt?.toISOString() ?? "unknown"}`);
+    return { success: true, username: lc, jwtExpiresAt };
   } catch (error) {
     logger.error(`reAuthMonitoredAccount error: ${error}`);
     return { success: false, error: errorMessage(error) };
@@ -305,15 +322,24 @@ export async function verifyMonitoredAccountToken(monitoredAccountId: string) {
     const creds = await getSplAccountCredentials(record.username);
     if (!creds) return { success: false, error: "SplAccount not found" };
 
-    let token: string;
+    // If we have a JWT expiry date, use it directly — no API call needed.
+    if (creds.jwtExpiresAt) {
+      const expired = creds.jwtExpiresAt < new Date();
+      const status = expired ? ("invalid" as const) : ("valid" as const);
+      await updateSplAccountStatus(record.splAccountId, status);
+      return { success: true, status };
+    }
+
+    // Legacy path: no expiry date stored — decrypt and verify via API.
+    let jwtToken: string;
     try {
-      token = decryptToken(creds.encryptedToken, creds.iv, creds.authTag);
+      jwtToken = decryptToken(creds.encryptedToken, creds.iv, creds.authTag);
     } catch {
       await updateSplAccountStatus(record.splAccountId, "invalid");
       return { success: true, status: "invalid" as const };
     }
 
-    const verifyResult = await verifySplToken(record.username, token);
+    const verifyResult = await verifySplJwt(record.username, jwtToken);
     if (verifyResult === "error") {
       // Transient failure — keep existing status, report unknown
       return { success: true, status: "unknown" as const };
@@ -341,6 +367,14 @@ export async function getAccountTokenStatus(
 
     const account = await getSplAccountTokenStatus(username.toLowerCase());
     if (!account) return "not_found";
+    // Treat a locally-expired JWT as invalid even if the worker hasn't marked it yet.
+    if (
+      account.tokenStatus === "valid" &&
+      account.jwtExpiresAt &&
+      account.jwtExpiresAt < new Date()
+    ) {
+      return "invalid";
+    }
     return account.tokenStatus as "valid" | "invalid" | "unknown";
   } catch {
     return "not_found";
@@ -397,19 +431,46 @@ export async function checkRemoveScopeAction(accountId: string): Promise<{ isLas
   }
 }
 
+export interface TokenAlertAccount {
+  username: string;
+  jwtExpiresAt: Date | null;
+  tokenStatus: "valid" | "invalid" | "unknown";
+}
+
 /**
- * Returns the usernames of the caller's monitored accounts that have an invalid SPL token.
+ * Returns the caller's monitored accounts that need attention:
+ *  - tokenStatus === "invalid" or "unknown"
+ *  - JWT expiry is within JWT_WARN_DAYS (expiring soon or already expired)
+ *  - tokenStatus === "valid" but jwtExpiresAt is null (legacy account — needs re-auth to enable expiry tracking)
  * Safe to call from a client component — returns [] when not logged in.
  */
-export async function getInvalidTokenAccounts(): Promise<string[]> {
+export async function getTokenAlertAccounts(): Promise<TokenAlertAccount[]> {
   try {
     const userId = await getValidatedUserId();
     if (!userId) return [];
 
     const accounts = await listMonitoredAccounts(userId);
-    return accounts.filter((a) => a.splAccount.tokenStatus === "invalid").map((a) => a.username);
+    const warnMs = JWT_WARN_DAYS * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    return accounts
+      .filter((a) => {
+        if (a.splAccount.tokenStatus === "invalid") return true;
+        if (a.splAccount.tokenStatus === "unknown") return true;
+        // Legacy account: valid token but no expiry tracking — prompt re-auth to upgrade
+        if (a.splAccount.tokenStatus === "valid" && !a.splAccount.jwtExpiresAt) return true;
+        if (a.splAccount.jwtExpiresAt) {
+          return a.splAccount.jwtExpiresAt.getTime() - now <= warnMs;
+        }
+        return false;
+      })
+      .map((a) => ({
+        username: a.username,
+        jwtExpiresAt: a.splAccount.jwtExpiresAt,
+        tokenStatus: a.splAccount.tokenStatus as "valid" | "invalid" | "unknown",
+      }));
   } catch (error) {
-    logger.error(`getInvalidTokenAccounts error: ${error}`);
+    logger.error(`getTokenAlertAccounts error: ${error}`);
     return [];
   }
 }
