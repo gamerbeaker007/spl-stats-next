@@ -157,14 +157,15 @@ model PlayerLeaderboard {
 // Per-account sync cursor. Tracks where the worker left off
 // for each (username, token) combination, enabling resumability.
 model AccountSyncState {
-  id                   String    @id @default(cuid())
-  username             String
-  key                  String    // e.g. "DEC", "SPS", "UNCLAIMED", LEADERBOARD_wild, PORTFOLIO
-  lastSeasonProcessed  Int       @default(0) @map("last_season_processed") // used by leaderboard sync
-  lastSyncedCreatedDate DateTime? @map("last_synced_created_date")          // cursor for balance/unclaimed sync; for PORTFOLIO: date of last completed daily sync
-  status               String    @default("pending") // "pending" | "processing" | "completed" | "failed"
-  errorMessage         String?   @db.Text @map("error_message")
-  updatedAt            DateTime  @updatedAt @map("updated_at")
+  id                    String    @id @default(cuid())
+  username              String
+  key                   String    // e.g. "DEC", "SPS", "UNCLAIMED", LEADERBOARD_wild, PORTFOLIO
+  lastSeasonProcessed   Int       @default(0) @map("last_season_processed")    // used by LEADERBOARD_* and BALANCE_META (season rollover detection)
+  lastSyncedCreatedDate DateTime? @map("last_synced_created_date")              // data cursor: latest transaction created_date seen (per-token and UNCLAIMED rows only)
+  lastRunAt             DateTime? @map("last_run_at")                           // operational timestamp: when the last full run completed (BALANCE_META and PORTFOLIO only)
+  status                String    @default("pending") // "pending" | "processing" | "completed" | "failed"
+  errorMessage          String?   @db.Text @map("error_message")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
 
   @@unique([username, key])
   @@index([status])

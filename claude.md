@@ -76,15 +76,18 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
 
 #### `AccountSyncState` field semantics
 
-| `key`                                | `lastSyncedCreatedDate`                                                                  | `lastSeasonProcessed`                                                   |
-| ------------------------------------ | ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| `BALANCE_META`                       | Timestamp of last full balance run — used as the skip-gate (daily / claim-trigger logic) | Last completed season ID — used to detect a new season rollover trigger |
-| `SPS`, `DEC`, `GLINT`, … (per token) | Date cursor — "fetch transactions from this point forward"                               | Not used (always `0`)                                                   |
-| `UNCLAIMED`                          | Cursor for unclaimed balance history                                                     | Not used (always `0`)                                                   |
-| `LEADERBOARD_WILD/MODERN/FOUNDATION` | Not used                                                                                 | Last season whose leaderboard was fetched — skip seasons ≤ this         |
-| `PORTFOLIO`                          | Date of the last successful portfolio snapshot — used to enforce once-per-UTC-day        | Not used (always `0`)                                                   |
+Three fields carry state per row — each has a distinct, non-overlapping purpose:
 
-> `lastSeasonProcessed = 0` on per-token rows is expected and harmless — those rows only use the date cursor. Only `BALANCE_META` and `LEADERBOARD_*` rows ever write a non-zero value here.
+| `key`                                | `lastSyncedCreatedDate` (data cursor)                      | `lastRunAt` (operational timestamp)                                      | `lastSeasonProcessed`                                                   |
+| ------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| `BALANCE_META`                       | Not used (always `null`)                                   | Wall-clock time of last full balance run — skip-gate (daily / claim-trigger logic) | Last completed season ID — used to detect a new season rollover trigger |
+| `SPS`, `DEC`, `GLINT`, … (per token) | API `created_date` cursor — "fetch transactions from here" | Not used                                                                 | Not used (always `0`)                                                   |
+| `UNCLAIMED`                          | API `created_date` cursor for unclaimed balance history    | Not used                                                                 | Not used (always `0`)                                                   |
+| `LEADERBOARD_WILD/MODERN/FOUNDATION` | Not used                                                   | Not used                                                                 | Last season whose leaderboard was fetched — skip seasons ≤ this         |
+| `PORTFOLIO`                          | Not used                                                   | Wall-clock date (UTC midnight) of last successful snapshot — once-per-UTC-day gate | Not used (always `0`)                                                   |
+
+> `lastSeasonProcessed = 0` on per-token/unclaimed rows is expected — only `BALANCE_META` and `LEADERBOARD_*` rows write a non-zero value here.
+> `lastSyncedCreatedDate` is domain data (comes from the API) on per-token and UNCLAIMED rows; `lastRunAt` is always a wall-clock write by the worker.
 
 - `BATTLE_SYNC_ACCOUNTS` (env, optional, comma-separated): when **not set** → all monitored accounts get battle history synced and the UI shows all accounts in the filter. When **set** → only the listed accounts are synced by the worker AND the battles page filter is restricted to those accounts. If none of the user's monitored accounts appear in the list, a friendly "not on the list" alert is shown instead of the battles UI.
 

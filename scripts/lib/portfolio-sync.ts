@@ -2,7 +2,7 @@
  * Portfolio sync — runs once per calendar day per monitored account.
  *
  * Sync state key: "PORTFOLIO"
- * Uses AccountSyncState.lastSyncedCreatedDate to track when the last full sync ran.
+ * Uses AccountSyncState.lastRunAt to track when the last full sync ran.
  * If shutdown is requested mid-fetch, the state stays "processing" and
  * resetStaleSyncStates() resets it to "pending" on the next worker startup.
  */
@@ -29,7 +29,7 @@ export async function syncPortfolio(username: string): Promise<void> {
 
   // Skip if already completed today — but ensure state is "completed" so a pending
   // state left by resetStaleSyncStates() doesn't linger.
-  if (isTodayUtc(syncState.lastSyncedCreatedDate)) {
+  if (isTodayUtc(syncState.lastRunAt)) {
     logger.info(`portfolioSync ${username}: already synced today, skipping`);
     if (syncState.status !== "completed") {
       await updateSyncState(syncState.id, { status: "completed" });
@@ -55,7 +55,7 @@ export async function syncPortfolio(username: string): Promise<void> {
     today.setUTCHours(0, 0, 0, 0);
     await updateSyncState(syncState.id, {
       status: "completed",
-      lastSyncedCreatedDate: today,
+      lastRunAt: today,
     });
 
     logger.info(
