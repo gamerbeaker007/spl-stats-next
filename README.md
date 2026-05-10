@@ -72,13 +72,13 @@ src/
 
 ## Security
 
-- **AES-256-GCM** — authenticated encryption with random IV per token; auth tag stored separately; tampering is detected on decryption
+- **AES-256-GCM** — authenticated encryption with random IV per token; auth tag stored separately; tampering is detected on decryption. The encrypted payload is now a **short-lived SPL JWT** (`jwt_token`) rather than a long-lived session token, limiting the exposure window if the database is ever compromised.
+- **JWT expiry enforced locally** — `jwtExpiresAt` is stored alongside the token so expiry can be checked in the DB query without an API round-trip. Expired tokens are automatically marked `invalid` by the worker each cycle, surfacing the re-auth prompt without user intervention.
 - **HMAC-signed session cookie** — `COOKIE_SECRET`-keyed SHA-256 MAC; `timingSafeEqual` with length guard prevents timing attacks and malformed-cookie crashes
 - **HTTP security headers** — CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'` set via `next.config.ts`
 - **Per-action auth** — every privileged Server Action re-checks `getCurrentUser()` + ownership independently; page-level guards alone are not relied upon
 - **IDOR prevention** — portfolio and player-token actions filter requested usernames to the caller's monitored set before any DB query
 - **Replay prevention** — 5-minute timestamp window on all Hive signature checks
-- **Body size limit** — Server Actions capped at 200 MB to prevent memory-exhaustion DoS (temporary first release only)
 - **No secrets on the client** — `ENCRYPTION_KEY`, `COOKIE_SECRET`, `ADMIN_USERNAMES`, `DATABASE_URL` are accessed only in server-only files; no `NEXT_PUBLIC_` secrets exist
 
 ## Environment Variables
@@ -200,17 +200,17 @@ Re-authenticating an account — via **Multi-Account Dashboard → Re-authentica
 
 ### Sync state tracking
 
-The worker uses `AccountSyncState` rows (one per `username + key`) to track progress across restarts:
+The worker uses `AccountSyncState` rows (one per `username + key`) to track progress across restarts. Three fields serve distinct, non-overlapping purposes:
 
-| `key`                                | `lastSyncedCreatedDate`                                                        | `lastSeasonProcessed`                                    |
-| ------------------------------------ | ------------------------------------------------------------------------------ | -------------------------------------------------------- |
-| `BALANCE_META`                       | Timestamp of last full balance run (skip-gate for daily / claim-trigger logic) | Latest completed season ID (detects new-season rollover) |
-| `SPS`, `DEC`, `GLINT`, …             | Date cursor — fetch transactions from this point forward                       | Not used — always `0`                                    |
-| `UNCLAIMED`                          | Cursor for unclaimed balance history                                           | Not used — always `0`                                    |
-| `LEADERBOARD_WILD/MODERN/FOUNDATION` | Not used                                                                       | Last season fetched — skips seasons ≤ this value         |
-| `PORTFOLIO`                          | Date of last successful snapshot — enforces once-per-UTC-day                   | Not used — always `0`                                    |
+| `key`                                | `lastSyncedCreatedDate` (data cursor)                    | `lastRunAt` (operational timestamp)                                       | `lastSeasonProcessed`                                    |
+| ------------------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `BALANCE_META`                       | Not used (always `null`)                                 | Wall-clock time of last full balance run — 24-h skip-gate / claim-trigger | Latest completed season ID — detects new-season rollover |
+| `SPS`, `DEC`, `GLINT`, …             | API `created_date` cursor — fetch transactions from here | Not used                                                                  | Not used — always `0`                                    |
+| `UNCLAIMED`                          | API `created_date` cursor for unclaimed balance history  | Not used                                                                  | Not used — always `0`                                    |
+| `LEADERBOARD_WILD/MODERN/FOUNDATION` | Not used                                                 | Not used                                                                  | Last season fetched — skips seasons ≤ this value         |
+| `PORTFOLIO`                          | Not used                                                 | UTC-midnight date of last successful snapshot — once-per-UTC-day gate     | Not used — always `0`                                    |
 
-`lastSeasonProcessed = 0` on per-token rows is expected — those rows only use the date cursor.
+`lastSeasonProcessed = 0` on per-token/unclaimed rows is expected — only `BALANCE_META` and `LEADERBOARD_*` rows write a non-zero value here.
 
 ## Code Quality
 

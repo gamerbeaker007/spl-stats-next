@@ -3,6 +3,7 @@ import { getValidMonitoredAccountUsernames } from "@/lib/backend/db/monitored-ac
 import { getAllMonitoredAccountTokenStatuses } from "@/lib/backend/db/spl-accounts";
 import { getLatestSeason } from "@/lib/backend/db/seasons";
 import { getLatestWorkerRun } from "@/lib/backend/db/worker-runs";
+import { JWT_WARN_DAYS } from "@/lib/shared/token-constants";
 import { AccountSyncState } from "@prisma/client";
 import {
   Alert,
@@ -49,6 +50,39 @@ function aggregateSyncStatus(states: AccountSyncState[]): SyncStatus {
   if (states.some((s) => s.status === "processing")) return "processing";
   if (states.every((s) => s.status === "completed")) return "completed";
   return "pending";
+}
+
+function jwtExpiryInfo(expiresAt: Date | null): {
+  label: string;
+  color: "success" | "warning" | "error" | "default";
+  title: string;
+} {
+  if (!expiresAt) return { label: "no expiry", color: "default", title: "No JWT expiry stored" };
+  const now = Date.now();
+  const diffMs = expiresAt.getTime() - now;
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  if (diffDays < 0) {
+    const expiredDaysAgo = Math.floor(-diffDays);
+    return {
+      label: `expired ${expiredDaysAgo}d ago`,
+      color: "error",
+      title: `Expired ${expiresAt.toISOString()}`,
+    };
+  }
+  if (diffDays < JWT_WARN_DAYS) {
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    return {
+      label: hours < 24 ? `${hours}h left` : `${Math.floor(diffDays)}d left`,
+      color: "warning",
+      title: `Expires ${expiresAt.toISOString()}`,
+    };
+  }
+  const days = Math.floor(diffDays);
+  return {
+    label: `${days}d left`,
+    color: "success",
+    title: `Expires ${expiresAt.toISOString()}`,
+  };
 }
 
 function formatDuration(ms: number): string {
@@ -115,6 +149,7 @@ export default async function WorkerStatusContent() {
         error: states.find((s) => s.errorMessage)?.errorMessage ?? null,
         tokenStatus: ts?.tokenStatus ?? "unknown",
         tokenVerifiedAt: ts?.tokenVerifiedAt ?? null,
+        jwtExpiresAt: ts?.jwtExpiresAt ?? null,
       };
     })
     .sort((a, b) => {
@@ -168,6 +203,7 @@ export default async function WorkerStatusContent() {
                 <TableRow>
                   <TableCell>Account</TableCell>
                   <TableCell>Token</TableCell>
+                  <TableCell>JWT Expiry</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Sync Key</TableCell>
                   <TableCell>Last Synced Key</TableCell>
@@ -199,6 +235,20 @@ export default async function WorkerStatusContent() {
                             : undefined
                         }
                       />
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const expiry = jwtExpiryInfo(acc.jwtExpiresAt);
+                        return (
+                          <Chip
+                            label={expiry.label}
+                            size="small"
+                            color={expiry.color}
+                            variant="outlined"
+                            title={expiry.title}
+                          />
+                        );
+                      })()}
                     </TableCell>
                     <TableCell>
                       <Stack spacing={0.5} alignItems="flex-start">
