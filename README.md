@@ -72,13 +72,13 @@ src/
 
 ## Security
 
-- **AES-256-GCM** — authenticated encryption with random IV per token; auth tag stored separately; tampering is detected on decryption
+- **AES-256-GCM** — authenticated encryption with random IV per token; auth tag stored separately; tampering is detected on decryption. The encrypted payload is now a **short-lived SPL JWT** (`jwt_token`) rather than a long-lived session token, limiting the exposure window if the database is ever compromised.
+- **JWT expiry enforced locally** — `jwtExpiresAt` is stored alongside the token so expiry can be checked in the DB query without an API round-trip. Expired tokens are automatically marked `invalid` by the worker each cycle, surfacing the re-auth prompt without user intervention.
 - **HMAC-signed session cookie** — `COOKIE_SECRET`-keyed SHA-256 MAC; `timingSafeEqual` with length guard prevents timing attacks and malformed-cookie crashes
 - **HTTP security headers** — CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `frame-ancestors 'none'` set via `next.config.ts`
 - **Per-action auth** — every privileged Server Action re-checks `getCurrentUser()` + ownership independently; page-level guards alone are not relied upon
 - **IDOR prevention** — portfolio and player-token actions filter requested usernames to the caller's monitored set before any DB query
 - **Replay prevention** — 5-minute timestamp window on all Hive signature checks
-- **Body size limit** — Server Actions capped at 200 MB to prevent memory-exhaustion DoS (temporary first release only)
 - **No secrets on the client** — `ENCRYPTION_KEY`, `COOKIE_SECRET`, `ADMIN_USERNAMES`, `DATABASE_URL` are accessed only in server-only files; no `NEXT_PUBLIC_` secrets exist
 
 ## Environment Variables
