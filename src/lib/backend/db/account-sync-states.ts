@@ -13,6 +13,7 @@ export async function updateSyncState(
   data: {
     lastSeasonProcessed?: number;
     lastSyncedCreatedDate?: Date | null;
+    lastRunAt?: Date | null;
     status?: "pending" | "processing" | "completed" | "failed";
     errorMessage?: string | null;
   }
@@ -79,9 +80,12 @@ export async function deleteSyncStatesByUsername(username: string) {
  *    no longer shows "sync error" after re-auth.
  */
 export async function resetSyncStatesOnReAuth(username: string) {
+  // Clear lastRunAt so the 24-h skip-gate re-opens immediately.
+  // Without this the worker would pick up the account, find no trigger (< 24 h
+  // since last run), skip the per-token syncs, and leave them stuck in "pending".
   await prisma.accountSyncState.updateMany({
     where: { username, key: "BALANCE_META" },
-    data: { status: "pending", errorMessage: null },
+    data: { status: "pending", errorMessage: null, lastRunAt: null },
   });
   await prisma.accountSyncState.updateMany({
     where: { username, key: { not: "BALANCE_META" }, status: "failed" },
@@ -92,7 +96,7 @@ export async function resetSyncStatesOnReAuth(username: string) {
 /** @deprecated Use resetSyncStatesOnReAuth instead. */
 export async function clearBalanceMetaSyncError(username: string) {
   return prisma.accountSyncState.updateMany({
-    where: { username, key: "BALANCE_META" },
+    where: { username, key: "BALANCE_META", status: "failed" },
     data: { status: "pending", errorMessage: null },
   });
 }

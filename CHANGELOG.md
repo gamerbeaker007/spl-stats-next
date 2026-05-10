@@ -7,9 +7,24 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Balance sync stuck in `pending` after re-auth** — `resetSyncStatesOnReAuth` was correctly marking `BALANCE_META` as `pending` but leaving its skip-gate timestamp (`lastRunAt`) intact. The worker would pick up the account, find no trigger (< 24 h since last run), skip all per-token syncs, and silently mark `BALANCE_META` completed — leaving the 11+ token rows stuck in `pending` indefinitely. Fixed by nulling `lastRunAt` on re-auth so the skip-gate opens immediately.
+
+### Changed
+
+- **`AccountSyncState` field split** — the overloaded `lastSyncedCreatedDate` field has been separated into two purpose-specific fields:
+  - `lastSyncedCreatedDate` — data cursor only: the latest API `created_date` seen, used by per-token (`DEC`, `SPS`, etc.) and `UNCLAIMED` rows for incremental pagination. Never written by `BALANCE_META` or `PORTFOLIO`.
+  - `lastRunAt` — operational timestamp only: wall-clock time of the last completed run, used by `BALANCE_META` (24-h skip-gate / claim-trigger) and `PORTFOLIO` (once-per-UTC-day gate).
+  - Migration copies existing `lastSyncedCreatedDate` → `lastRunAt` for `BALANCE_META` and `PORTFOLIO` rows, then nulls `lastSyncedCreatedDate` on `BALANCE_META` rows.
+- **Admin page — JWT Expiry column** — new "JWT Expiry" chip column added to the worker status account table:
+  - Green: token expires in > `JWT_WARN_DAYS` (2) days, showing days remaining
+  - Yellow: expires within 2 days, showing hours or days remaining
+  - Red: no expiry stored, or already expired (shows "expired Xd ago")
+
 ---
 
-## [v1.0.0] -
+## [v1.0.0] - 2026-05-10
 
 ### Summary
 

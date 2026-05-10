@@ -200,17 +200,17 @@ Re-authenticating an account — via **Multi-Account Dashboard → Re-authentica
 
 ### Sync state tracking
 
-The worker uses `AccountSyncState` rows (one per `username + key`) to track progress across restarts:
+The worker uses `AccountSyncState` rows (one per `username + key`) to track progress across restarts. Three fields serve distinct, non-overlapping purposes:
 
-| `key`                                | `lastSyncedCreatedDate`                                                        | `lastSeasonProcessed`                                    |
-| ------------------------------------ | ------------------------------------------------------------------------------ | -------------------------------------------------------- |
-| `BALANCE_META`                       | Timestamp of last full balance run (skip-gate for daily / claim-trigger logic) | Latest completed season ID (detects new-season rollover) |
-| `SPS`, `DEC`, `GLINT`, …             | Date cursor — fetch transactions from this point forward                       | Not used — always `0`                                    |
-| `UNCLAIMED`                          | Cursor for unclaimed balance history                                           | Not used — always `0`                                    |
-| `LEADERBOARD_WILD/MODERN/FOUNDATION` | Not used                                                                       | Last season fetched — skips seasons ≤ this value         |
-| `PORTFOLIO`                          | Date of last successful snapshot — enforces once-per-UTC-day                   | Not used — always `0`                                    |
+| `key`                                | `lastSyncedCreatedDate` (data cursor)                       | `lastRunAt` (operational timestamp)                                        | `lastSeasonProcessed`                                    |
+| ------------------------------------ | ----------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `BALANCE_META`                       | Not used (always `null`)                                    | Wall-clock time of last full balance run — 24-h skip-gate / claim-trigger  | Latest completed season ID — detects new-season rollover |
+| `SPS`, `DEC`, `GLINT`, …             | API `created_date` cursor — fetch transactions from here    | Not used                                                                   | Not used — always `0`                                    |
+| `UNCLAIMED`                          | API `created_date` cursor for unclaimed balance history     | Not used                                                                   | Not used — always `0`                                    |
+| `LEADERBOARD_WILD/MODERN/FOUNDATION` | Not used                                                    | Not used                                                                   | Last season fetched — skips seasons ≤ this value         |
+| `PORTFOLIO`                          | Not used                                                    | UTC-midnight date of last successful snapshot — once-per-UTC-day gate      | Not used — always `0`                                    |
 
-`lastSeasonProcessed = 0` on per-token rows is expected — those rows only use the date cursor.
+`lastSeasonProcessed = 0` on per-token/unclaimed rows is expected — only `BALANCE_META` and `LEADERBOARD_*` rows write a non-zero value here.
 
 ## Code Quality
 

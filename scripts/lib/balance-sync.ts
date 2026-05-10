@@ -235,15 +235,15 @@ export async function syncSeasonBalances(
     .filter((s) => s.endsAt <= now)
     .sort((a, b) => b.id - a.id)[0];
 
-  // BALANCE_META tracks the last full sync timestamp and last completed season covered.
+  // BALANCE_META tracks the last full run timestamp (lastRunAt) and last completed season covered.
   const metaState = await getOrCreateSyncState(username, "BALANCE_META");
 
-  const isFirstSync = !metaState.lastSyncedCreatedDate;
+  const isFirstSync = !metaState.lastRunAt;
   const newSeasonDetected =
     !!latestCompletedSeason && latestCompletedSeason.id > metaState.lastSeasonProcessed;
   const dailyCheckDue =
-    !!metaState.lastSyncedCreatedDate &&
-    now.getTime() - metaState.lastSyncedCreatedDate.getTime() > RESCAN_MIN_INTERVAL_MS;
+    !!metaState.lastRunAt &&
+    now.getTime() - metaState.lastRunAt.getTime() > RESCAN_MIN_INTERVAL_MS;
 
   // Claim trigger: only API-check when no cheaper trigger already fired.
   let claimDetected = false;
@@ -252,13 +252,13 @@ export async function syncSeasonBalances(
       username,
       tokenDecrypted,
       latestCompletedSeason.id,
-      metaState.lastSyncedCreatedDate!
+      metaState.lastRunAt!
     );
   }
 
   if (!isFirstSync && !newSeasonDetected && !dailyCheckDue && !claimDetected) {
     logger.info(
-      `syncBalances ${username}: skipping (last run ${metaState.lastSyncedCreatedDate?.toISOString()})`
+      `syncBalances ${username}: skipping (last run ${metaState.lastRunAt?.toISOString()})`
     );
     // Still mark as completed so the UI doesn't show "pending" after a worker restart.
     await updateSyncState(metaState.id, { status: "completed" });
@@ -284,12 +284,12 @@ export async function syncSeasonBalances(
   // the worker is interrupted before or during syncUnclaimedBalances, which
   // would cause newSeasonDetected to be permanently true on every cycle.
   //
-  // NOTE: lastSyncedCreatedDate is intentionally NOT written here. It is the
-  // skip-gate for the daily/claim-trigger logic. Writing it before unclaimed
-  // completes would cause the next cycle to skip the entire balance sync for
-  // up to 24 h if syncUnclaimedBalances fails mid-run (e.g. on a 401). By
-  // deferring it to after unclaimed succeeds, a failed unclaimed pass keeps
-  // the old timestamp in place, so the next cycle retries sooner.
+  // NOTE: lastRunAt is intentionally NOT written here. It is the skip-gate for
+  // the daily/claim-trigger logic. Writing it before unclaimed completes would
+  // cause the next cycle to skip the entire balance sync for up to 24 h if
+  // syncUnclaimedBalances fails mid-run (e.g. on a 401). By deferring it to
+  // after unclaimed succeeds, a failed unclaimed pass keeps the old timestamp
+  // in place so the next cycle retries sooner.
   if (!shouldShutdown()) {
     await updateSyncState(metaState.id, {
       lastSeasonProcessed: latestCompletedSeason?.id ?? metaState.lastSeasonProcessed,
@@ -302,11 +302,11 @@ export async function syncSeasonBalances(
 
   // Advance the skip-gate timestamp and mark the full cycle complete — only
   // after unclaimed succeeds and we have not been asked to shut down.
-  // If unclaimed failed, lastSyncedCreatedDate stays at the previous successful
-  // run time, so the daily gate will reopen sooner and trigger a retry.
+  // If unclaimed failed, lastRunAt stays at the previous successful run time,
+  // so the daily gate will reopen sooner and trigger a retry.
   if (!shouldShutdown()) {
     await updateSyncState(metaState.id, {
-      lastSyncedCreatedDate: now,
+      lastRunAt: now,
       status: "completed",
     });
   }
