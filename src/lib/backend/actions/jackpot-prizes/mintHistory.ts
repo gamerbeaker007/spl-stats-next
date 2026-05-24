@@ -3,6 +3,7 @@
 import {
   fetchFrontierDrawsRecentPrizes,
   fetchMintHistory,
+  fetchMintHistoryByDate,
   fetchRankedDrawsRecentPrizes,
 } from "@/lib/backend/api/spl/spl-api";
 import { MintHistoryResponse, RecentWinner } from "@/types/jackpot-prizes/shared";
@@ -20,7 +21,7 @@ export async function getRecentWinnersAction(edition: number = 14): Promise<Rece
   const fetchForFoil = (foil: number) => {
     if (edition === 18) return fetchRankedDrawsRecentPrizes(foil);
     if (edition === 15) return fetchFrontierDrawsRecentPrizes(foil);
-    return fetchMintHistory(foil, 0, true, edition);
+    return fetchMintHistoryByDate(foil, edition);
   };
 
   const results = await Promise.allSettled(foilTypes.map(fetchForFoil));

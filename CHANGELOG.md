@@ -9,6 +9,21 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.1.0] - 2026-05-24
+
+### Changed
+
+- **`fetchMintHistory` split into two functions** — the overloaded signature (with a dummy `cardDetailId: 0` when calling in by-date mode) has been replaced by two focused functions:
+  - `fetchMintHistory(foil, cardDetailId)` — fetches mint history for a specific card, returns `MintHistoryResponse`.
+  - `fetchMintHistoryByDate(foil, edition?)` — fetches recent winners sorted by date, returns `MintHistoryByDateItem[]`.
+  - Caller in `mintHistory.ts` (`getRecentWinnersAction`) updated to use `fetchMintHistoryByDate` directly.
+
+### Fixed
+
+- **Stale error message persists after successful re-sync** — a per-token sync state row could end up as `{ status: "completed", errorMessage: "Request failed with status code 503" }` if the worker retried successfully _before_ the user re-authenticated (success path only wrote `status: "completed"`, never cleared `errorMessage`). `resetSyncStatesOnReAuth` only targets `status: "failed"` rows, so the stale message survived indefinitely. Fixed in `updateSyncState`: when `status: "completed"` is set and `errorMessage` is not explicitly provided, it is automatically cleared to `null`.
+
+---
+
 ## [v1.0.0] - 2026-05-10
 
 ### Summary
