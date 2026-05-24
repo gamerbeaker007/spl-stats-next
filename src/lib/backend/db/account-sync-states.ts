@@ -18,7 +18,14 @@ export async function updateSyncState(
     errorMessage?: string | null;
   }
 ) {
-  return prisma.accountSyncState.update({ where: { id }, data });
+  // A completed row must never retain a stale error message from a previous
+  // failure. Guard here so every success path is covered even if individual
+  // callers forget to pass errorMessage: null.
+  const payload =
+    data.status === "completed" && data.errorMessage === undefined
+      ? { ...data, errorMessage: null }
+      : data;
+  return prisma.accountSyncState.update({ where: { id }, data: payload });
 }
 
 /** Reset interrupted or failed sync states so they get retried. */

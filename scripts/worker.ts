@@ -190,14 +190,16 @@ async function main(): Promise<void> {
   if (pruned > 0) logger.info(`Worker: pruned ${pruned} old worker run record(s)`);
 
   // Run an initial common setup once
-  await syncSeasonsEndDates(0);
   await resetStaleSyncStates();
 
   const run = await createWorkerRun();
   const processedUsernames = new Set<string>();
   let lastPublicSyncAt = 0;
   let lastSeasonRefreshAt = 0;
-  let allSeasons: Season[] = await getAllSeasons();
+  // allSeasons is populated in the first loop iteration's season refresh block.
+  // Do not load it here — the refresh block calls syncSeasonsEndDates first,
+  // which must run before getAllSeasons() to ensure a fresh DB is populated.
+  let allSeasons: Season[] = [];
   let currentSeasonId = 0;
 
   while (!shouldShutdown()) {
@@ -211,8 +213,11 @@ async function main(): Promise<void> {
           await interruptibleSleep(WORKER_CHECK_INTERVAL_MS);
           continue;
         }
-        allSeasons = await getAllSeasons();
+        // Sync season end-dates into DB first, then load the up-to-date list.
+        // Order matters: getAllSeasons() before syncSeasonsEndDates() would return
+        // stale/empty data on the first startup, causing per-season syncs to skip.
         await syncSeasonsEndDates(currentSeasonId);
+        allSeasons = await getAllSeasons();
         lastSeasonRefreshAt = Date.now();
       }
 

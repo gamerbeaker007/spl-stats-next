@@ -382,57 +382,54 @@ export async function fetchPackJackpotOverview(edition: number = 14): Promise<Pa
   }
 }
 
-/**
- * Fetch mint history for a specific card and foil type.
- * When byDate is true, returns recent winners sorted by date instead.
- */
+/** Fetch mint history for a specific card and foil type. */
 export async function fetchMintHistory(
   foil: number,
-  cardDetailId: number,
-  byDate: true,
-  edition?: number
-): Promise<MintHistoryByDateItem[]>;
-export async function fetchMintHistory(
-  foil: number,
-  cardDetailId: number,
-  byDate?: false,
-  edition?: number
-): Promise<MintHistoryResponse>;
-export async function fetchMintHistory(
-  foil: number,
-  cardDetailId: number,
-  byDate?: boolean,
-  edition: number = 14
-): Promise<MintHistoryResponse | MintHistoryByDateItem[]> {
-  const url = "/cards/mint_history";
-
+  cardDetailId: number
+): Promise<MintHistoryResponse> {
   try {
-    const params = byDate
-      ? { foil, by_date: true, by_date_edition: edition }
-      : { foil, card_detail_id: cardDetailId };
-
-    const res = await splBaseClient.get(url, { params });
+    const res = await splBaseClient.get("/cards/mint_history", {
+      params: { foil, card_detail_id: cardDetailId },
+    });
     const data = res.data;
-
     if (!data || typeof data !== "object") {
       throw new Error("Invalid response from Splinterlands API: expected object");
     }
-
-    if (byDate) {
-      if (!Array.isArray(data.mints)) {
-        throw new Error(
-          `Invalid response from Splinterlands API: expected mints array for foil ${foil}, edition ${edition}`
-        );
-      }
-      return data.mints as MintHistoryByDateItem[];
-    }
-
     return data as MintHistoryResponse;
   } catch (error) {
     console.error(
-      `Failed to fetch mint history for foil ${foil}${
-        byDate ? `, edition ${edition} (by_date)` : `, card ${cardDetailId}`
-      }: ${error instanceof Error ? error.message : "Unknown error"}`
+      `Failed to fetch mint history for foil ${foil}, card ${cardDetailId}: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
+    );
+    throw error;
+  }
+}
+
+/** Fetch recent mint winners for a foil type, sorted by date. */
+export async function fetchMintHistoryByDate(
+  foil: number,
+  edition: number = 14
+): Promise<MintHistoryByDateItem[]> {
+  try {
+    const res = await splBaseClient.get("/cards/mint_history", {
+      params: { foil, by_date: true, by_date_edition: edition },
+    });
+    const data = res.data;
+    if (!data || typeof data !== "object") {
+      throw new Error("Invalid response from Splinterlands API: expected object");
+    }
+    if (!Array.isArray(data.mints)) {
+      throw new Error(
+        `Invalid response from Splinterlands API: expected mints array for foil ${foil}, edition ${edition}`
+      );
+    }
+    return data.mints as MintHistoryByDateItem[];
+  } catch (error) {
+    console.error(
+      `Failed to fetch mint history by date for foil ${foil}, edition ${edition}: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`
     );
     throw error;
   }

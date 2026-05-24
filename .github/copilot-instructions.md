@@ -124,6 +124,16 @@ scripts/
 - Run migrations with `npx prisma migrate dev`
 - Generate client with `npx prisma generate`
 
+## Versioning
+
+- `package.json` `version` **must stay in sync** with the latest released version in `CHANGELOG.md`.
+- Use [SemVer](https://semver.org/): `MAJOR.MINOR.PATCH`.
+  - **Patch** (`x.y.Z`) — bug fixes, no API/schema changes.
+  - **Minor** (`x.Y.0`) — new features, refactors, non-breaking changes.
+  - **Major** (`X.0.0`) — breaking changes (DB schema requiring migration, removed APIs, auth changes).
+- Every code change that ships gets a CHANGELOG entry under a new `## [vX.Y.Z] - YYYY-MM-DD` header (move out of `[Unreleased]`).
+- Update `package.json` `version` at the same time as the CHANGELOG entry.
+
 ## Packages (as of March 2026)
 
 - Next.js 16, React 19, MUI v7 (CSS vars / extendTheme), Prisma 7, NextAuth **v5** (beta.30).
