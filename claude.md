@@ -78,12 +78,12 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
 
 Three fields carry state per row — each has a distinct, non-overlapping purpose:
 
-| `key`                                | `lastSyncedCreatedDate` (data cursor)                      | `lastRunAt` (operational timestamp)                                      | `lastSeasonProcessed`                                                   |
-| ------------------------------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| `key`                                | `lastSyncedCreatedDate` (data cursor)                      | `lastRunAt` (operational timestamp)                                                | `lastSeasonProcessed`                                                   |
+| ------------------------------------ | ---------------------------------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | `BALANCE_META`                       | Not used (always `null`)                                   | Wall-clock time of last full balance run — skip-gate (daily / claim-trigger logic) | Last completed season ID — used to detect a new season rollover trigger |
-| `SPS`, `DEC`, `GLINT`, … (per token) | API `created_date` cursor — "fetch transactions from here" | Not used                                                                 | Not used (always `0`)                                                   |
-| `UNCLAIMED`                          | API `created_date` cursor for unclaimed balance history    | Not used                                                                 | Not used (always `0`)                                                   |
-| `LEADERBOARD_WILD/MODERN/FOUNDATION` | Not used                                                   | Not used                                                                 | Last season whose leaderboard was fetched — skip seasons ≤ this         |
+| `SPS`, `DEC`, `GLINT`, … (per token) | API `created_date` cursor — "fetch transactions from here" | Not used                                                                           | Not used (always `0`)                                                   |
+| `UNCLAIMED`                          | API `created_date` cursor for unclaimed balance history    | Not used                                                                           | Not used (always `0`)                                                   |
+| `LEADERBOARD_WILD/MODERN/FOUNDATION` | Not used                                                   | Not used                                                                           | Last season whose leaderboard was fetched — skip seasons ≤ this         |
 | `PORTFOLIO`                          | Not used                                                   | Wall-clock date (UTC midnight) of last successful snapshot — once-per-UTC-day gate | Not used (always `0`)                                                   |
 
 > `lastSeasonProcessed = 0` on per-token/unclaimed rows is expected — only `BALANCE_META` and `LEADERBOARD_*` rows write a non-zero value here.
