@@ -9,6 +9,20 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.2.0] - 2026-05-25
+
+### Added
+
+- **Frontier Extra Rewards page** (`/jackpot-prizes/frontier-extra-rewards`) — Edition 17 Tier 15 special cards with real per-card `mint_history` data; nav entry added.
+- **Frontier Jackpot bucket overview** — compact card grid at the top of the page showing NFTs remaining in the `$FRONTIER_JACKPOT` account, grouped per card × foil with a per-minute cache.
+- **Multi-edition recent winners carousels** (`MultiRecentWinnersSection`) — renders multiple `RecentWinnersCarousel` instances with optional tier filtering; used on Frontier Reward Draws and Jackpot Prizes Chests pages. `ClientCardGrid` gains a `recentWinnersConfigs` prop as the multi-edition alternative to `showRecentWinnersForEdition`.
+
+### Fixed
+
+- **Black Foil shows `minted/total` on Edition 17 cards** — `Card.tsx` now includes edition 17 in the `showFullStats` condition (e.g. `30/150` instead of `150`).
+
+---
+
 ## [v1.1.0] - 2026-05-24
 
 ### Changed

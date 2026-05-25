@@ -22,6 +22,7 @@ function Card({ prizeData, card, onFoilClick, selectedFoil }: Props) {
   const isArchmageYabanius = card.name === "Archmage Yabanius";
   const isConclaveArcanaRewardEdition = editions.includes("18");
   const isFrontierDraws = editions.includes("15") || editions.includes("16");
+  const isEdition17Extra = editions.includes("17");
   const isLandCard = editions.includes("19");
 
   const foilTypes = useMemo(
@@ -82,6 +83,7 @@ function Card({ prizeData, card, onFoilClick, selectedFoil }: Props) {
                   isArchmageYabanius ||
                   isConclaveArcanaRewardEdition ||
                   isFrontierDraws ||
+                  isEdition17Extra ||
                   isLandCard;
                 const displayText = hasData
                   ? showFullStats

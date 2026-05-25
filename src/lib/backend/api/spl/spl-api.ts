@@ -575,6 +575,30 @@ export async function fetchFrontierDrawsPrizeOverview(): Promise<RankedDrawsPriz
 }
 
 /**
+ * Fetch all cards held by the $FRONTIER_JACKPOT account (cards still available in the bucket).
+ */
+export async function fetchFrontierJackpotCollection(): Promise<SplPlayerCardDetail[]> {
+  const url = "/cards/collection/$FRONTIER_JACKPOT";
+  console.info("Fetching frontier jackpot collection for $FRONTIER_JACKPOT");
+
+  try {
+    const res = await splBaseClient.get(url);
+    const data = res.data as SplPlayerCollection;
+
+    if (!data || !Array.isArray(data.cards)) {
+      throw new Error("Invalid response from Splinterlands API: expected array");
+    }
+
+    return data.cards;
+  } catch (error) {
+    console.error(
+      `Failed to fetch frontier jackpot collection: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+/**
  * Fetch pack jackpot gold from Splinterlands API
  */
 export async function fetchJackpotCards(): Promise<SplPlayerCardDetail[]> {

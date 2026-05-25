@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  MultiRecentWinnersSection,
+  RecentWinnersConfig,
+} from "@/components/jackpot-prizes/MultiRecentWinnersSection";
 import { RecentWinnersCarousel } from "@/components/jackpot-prizes/RecentWinnersCarousel";
 import { useRecentWinners } from "@/hooks/jackpot-prizes/useRecentWinners";
 import { CardPrizeData, SplCardDetail } from "@/types/jackpot-prizes/shared";
@@ -24,6 +28,7 @@ interface Props {
   title: string;
   subtitle?: string;
   showRecentWinnersForEdition?: number;
+  recentWinnersConfigs?: RecentWinnersConfig[];
 }
 
 export default function ClientCardGrid({
@@ -32,6 +37,7 @@ export default function ClientCardGrid({
   title,
   subtitle,
   showRecentWinnersForEdition,
+  recentWinnersConfigs,
 }: Props) {
   const [selectedRarities, setSelectedRarities] = useState<number[]>([]);
   const [paneSelection, setPaneSelection] = useState<PaneSelection | null>(null);
@@ -85,7 +91,9 @@ export default function ClientCardGrid({
   );
 
   const winnersLabel = `Recent Winners (last 8 days)`;
-  const { winners, loading: winnersLoading } = useRecentWinners(showRecentWinnersForEdition);
+  const { winners, loading: winnersLoading } = useRecentWinners(
+    recentWinnersConfigs ? undefined : showRecentWinnersForEdition
+  );
 
   return (
     <Container maxWidth="xl">
@@ -105,8 +113,13 @@ export default function ClientCardGrid({
         </Stack>
       </Box>
 
-      {/* Recent Winners carousel */}
-      {showRecentWinnersForEdition !== undefined && (
+      {/* Multi-edition recent winners */}
+      {recentWinnersConfigs !== undefined && (
+        <MultiRecentWinnersSection configs={recentWinnersConfigs} cardDetails={cardDetails} />
+      )}
+
+      {/* Single-edition recent winners carousel (legacy) */}
+      {recentWinnersConfigs === undefined && showRecentWinnersForEdition !== undefined && (
         <Box sx={{ mb: 2, mt: 3 }}>
           <Typography variant="h6" gutterBottom>
             {winnersLabel}
@@ -129,7 +142,9 @@ export default function ClientCardGrid({
         </Box>
       )}
 
-      {showRecentWinnersForEdition !== undefined && <Divider sx={{ mb: 4 }} />}
+      {recentWinnersConfigs === undefined && showRecentWinnersForEdition !== undefined && (
+        <Divider sx={{ mb: 4 }} />
+      )}
 
       <Box sx={{ mb: 4, display: "flex", justifyContent: "center", alignItems: "center" }}>
         <Stack>

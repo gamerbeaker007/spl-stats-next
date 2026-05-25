@@ -81,6 +81,12 @@ const mintHistory: NavItem[] = [
     icon: iconMap.frontier,
     alt: "Frontier Draws",
   },
+  {
+    label: "Frontier Extra Rewards",
+    href: `${BASE}/frontier-extra-rewards`,
+    icon: iconMap.frontier,
+    alt: "Frontier Extra",
+  },
 ];
 
 const jackpotPrizes: NavItem[] = [
