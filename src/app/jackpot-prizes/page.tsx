@@ -199,6 +199,33 @@ export default function HomePage() {
           }}
         >
           <Typography variant="h5" gutterBottom>
+            Frontier Extra Rewards
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+            Overview of cards available in frontier extra rewards with detailed mint information and
+            foil statistics.
+          </Typography>
+          <Button
+            onClick={() => handleNavigate("/jackpot-prizes/frontier-extra-rewards")}
+            variant="contained"
+            size="large"
+            fullWidth
+          >
+            View Frontier Extra Rewards
+          </Button>
+        </Box>
+
+        <Box
+          sx={{
+            p: 3,
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 2,
+            textAlign: "center",
+            backgroundColor: "background.paper",
+          }}
+        >
+          <Typography variant="h5" gutterBottom>
             Land Mint History
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
