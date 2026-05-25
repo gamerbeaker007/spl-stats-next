@@ -6,6 +6,7 @@ import { JackpotCardDetail } from "@/types/jackpot-prizes/card";
 import { SplCardDetail } from "@/types/jackpot-prizes/shared";
 import { Alert, Box, Divider, Typography } from "@mui/material";
 import { useCallback, useState } from "react";
+import { MultiRecentWinnersSection } from "./MultiRecentWinnersSection";
 
 interface Props {
   jackpotCards: JackpotCardDetail[];
@@ -54,6 +55,14 @@ export function JackpotCardSectionClient({ jackpotCards, cardDetails }: Props) {
           <br />
         </Typography>
       </Alert>
+
+      {/* Recent winners for frontier draws */}
+      <MultiRecentWinnersSection
+        configs={[
+          { edition: 17, tier: 14, label: "Recent Winners – Edition 17, Tier 15 (last 8 days)" },
+        ]}
+        cardDetails={cardDetails}
+      />
 
       <RarityFilter selected={selectedRarities} onToggle={toggleRarity} />
 
