@@ -1,11 +1,25 @@
 import ClientCardGrid from "@/components/jackpot-prizes/ClientCardGrid";
-import { getEdition17Tier15Cards } from "@/lib/backend/actions/jackpot-prizes/edition17Tier15Cards";
+import { getEditionTierCards } from "@/lib/backend/actions/jackpot-prizes/editionTierCards";
 import { Alert, Box } from "@mui/material";
 
-export async function Edition17SpecialCardsServer() {
+interface Props {
+  edition: number;
+  tier: number;
+  title: string;
+  subtitle?: string;
+  recentWinnersLabel: string;
+}
+
+export async function EditionTierCardsServer({
+  edition,
+  tier,
+  title,
+  subtitle,
+  recentWinnersLabel,
+}: Props) {
   let data;
   try {
-    data = await getEdition17Tier15Cards();
+    data = await getEditionTierCards(edition, tier);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return (
@@ -21,11 +35,9 @@ export async function Edition17SpecialCardsServer() {
     <ClientCardGrid
       prizeData={data.prizeData}
       cardDetails={data.cardDetails}
-      title="Frontier Extra Cards"
-      subtitle="Extra cards from the frontier era"
-      recentWinnersConfigs={[
-        { edition: 17, tier: 15, label: "Recent Winners – Frontier Extra (last 8 days)" },
-      ]}
+      title={title}
+      subtitle={subtitle}
+      recentWinnersConfigs={[{ edition, tier, label: recentWinnersLabel }]}
     />
   );
 }

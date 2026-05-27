@@ -6,12 +6,15 @@ import { cacheLife } from "next/cache";
 
 const FOIL_TYPES = [3, 2, 4] as const;
 
-export interface Edition17Tier15Result {
+export interface EditionTierResult {
   prizeData: CardPrizeData[];
   cardDetails: SplCardDetail[];
 }
 
-export async function getEdition17Tier15Cards(): Promise<Edition17Tier15Result> {
+export async function getEditionTierCards(
+  edition: number,
+  tier: number
+): Promise<EditionTierResult> {
   "use cache";
   cacheLife("hours");
 
@@ -22,7 +25,7 @@ export async function getEdition17Tier15Cards(): Promise<Edition17Tier15Result> 
       c.editions
         .split(",")
         .map((e) => e.trim())
-        .includes("17") && c.tier === 15
+        .includes(String(edition)) && c.tier === tier
   );
 
   const prizeData = await Promise.all(

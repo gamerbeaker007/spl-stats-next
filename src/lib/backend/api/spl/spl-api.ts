@@ -575,11 +575,12 @@ export async function fetchFrontierDrawsPrizeOverview(): Promise<RankedDrawsPriz
 }
 
 /**
- * Fetch all cards held by the $FRONTIER_JACKPOT account (cards still available in the bucket).
+ * Fetch all cards held by a named SPL account from /cards/collection/<username>.
+ * Used for bucket accounts such as $FRONTIER_JACKPOT, $JACKPOT, $ETN_REWARD_FOILS, etc.
  */
-export async function fetchFrontierJackpotCollection(): Promise<SplPlayerCardDetail[]> {
-  const url = "/cards/collection/$FRONTIER_JACKPOT";
-  console.info("Fetching frontier jackpot collection for $FRONTIER_JACKPOT");
+export async function fetchAccountCardCollection(username: string): Promise<SplPlayerCardDetail[]> {
+  const url = `/cards/collection/${encodeURIComponent(username)}`;
+  logger.info(`Fetching card collection for account ${username}`);
 
   try {
     const res = await splBaseClient.get(url);
@@ -591,36 +592,21 @@ export async function fetchFrontierJackpotCollection(): Promise<SplPlayerCardDet
 
     return data.cards;
   } catch (error) {
-    console.error(
-      `Failed to fetch frontier jackpot collection: ${error instanceof Error ? error.message : "Unknown error"}`
+    logger.error(
+      `Failed to fetch card collection for ${username}: ${error instanceof Error ? error.message : "Unknown error"}`
     );
     throw error;
   }
 }
 
-/**
- * Fetch pack jackpot gold from Splinterlands API
- */
+/** Fetch all cards held by the $FRONTIER_JACKPOT account (cards still available in the bucket). */
+export async function fetchFrontierJackpotCollection(): Promise<SplPlayerCardDetail[]> {
+  return fetchAccountCardCollection("$FRONTIER_JACKPOT");
+}
+
+/** Fetch all cards held by the $JACKPOT account. */
 export async function fetchJackpotCards(): Promise<SplPlayerCardDetail[]> {
-  const url = "/cards/collection/$JACKPOT";
-  console.info(`Fetching pack jackpot gold for username $JACKPOT`);
-
-  try {
-    const res = await splBaseClient.get(url);
-    const data = res.data as SplPlayerCollection;
-
-    // Handle API-level error even if HTTP status is 200
-    if (!data || !Array.isArray(data.cards)) {
-      throw new Error("Invalid response from Splinterlands API: expected array");
-    }
-
-    return data.cards;
-  } catch (error) {
-    console.error(
-      `Failed to fetch jackpot gold: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-    throw error;
-  }
+  return fetchAccountCardCollection("$JACKPOT");
 }
 /**
  * Fetch music inventory from Splinterlands API for $MUSIC_JACKPOT

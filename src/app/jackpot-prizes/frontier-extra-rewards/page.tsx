@@ -1,5 +1,5 @@
-import { Edition17SpecialCardsServer } from "@/components/jackpot-prizes/Edition17SpecialCardsServer";
-import { FrontierBucketServer } from "@/components/jackpot-prizes/FrontierBucketServer";
+import { BucketServer } from "@/components/jackpot-prizes/BucketServer";
+import { EditionTierCardsServer } from "@/components/jackpot-prizes/EditionTierCardsServer";
 import LoadingSkeleton from "@/components/jackpot-prizes/LoadingSkeleton";
 import { Box, Container, Divider } from "@mui/material";
 import { Suspense } from "react";
@@ -9,12 +9,18 @@ export default function FrontierExtraRewardsPage() {
     <Box>
       <Container maxWidth="xl" sx={{ py: 3 }}>
         <Suspense fallback={<LoadingSkeleton />}>
-          <FrontierBucketServer />
+          <BucketServer username="$FRONTIER_JACKPOT" />
         </Suspense>
       </Container>
       <Divider />
       <Suspense fallback={<LoadingSkeleton />}>
-        <Edition17SpecialCardsServer />
+        <EditionTierCardsServer
+          edition={17}
+          tier={15}
+          title="Frontier Extra Cards"
+          subtitle="Extra cards from the frontier era"
+          recentWinnersLabel="Recent Winners \u2013 Frontier Extra (last 8 days)"
+        />
       </Suspense>
     </Box>
   );

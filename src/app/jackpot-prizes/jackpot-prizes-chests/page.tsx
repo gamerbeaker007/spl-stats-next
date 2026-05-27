@@ -1,11 +1,12 @@
-import { JackpotCardSectionServer } from "@/components/jackpot-prizes/JackpotCardSectionServer";
+import { BucketServer } from "@/components/jackpot-prizes/BucketServer";
+import { EditionTierCardsServer } from "@/components/jackpot-prizes/EditionTierCardsServer";
 import LoadingSkeleton from "@/components/jackpot-prizes/LoadingSkeleton";
 import { MusicCard } from "@/components/jackpot-prizes/MusicCard";
 import { SkinsCard } from "@/components/jackpot-prizes/SkinsCard";
 import { getCardDetails } from "@/lib/backend/actions/jackpot-prizes/cardDetails";
 import { getJackpotMusic } from "@/lib/backend/actions/jackpot-prizes/jackpotMusic";
 import { getJackpotSkins } from "@/lib/backend/actions/jackpot-prizes/jackpotSkins";
-import { Alert, Box, CircularProgress, Container, Divider, Typography } from "@mui/material";
+import { Alert, Box, Container, Divider, Typography } from "@mui/material";
 import { Suspense } from "react";
 
 async function JackpotPrizesContent() {
@@ -151,25 +152,40 @@ async function JackpotPrizesContent() {
 
       <Divider sx={{ my: 4 }} />
 
-      {/* Slow loading section with its own Suspense boundary */}
-      <Suspense
-        fallback={
-          <Box
-            display="flex"
-            flexDirection="column"
-            alignItems="center"
-            justifyContent="center"
-            gap={2}
-            py={8}
-          >
-            <Typography variant="h6" color="text.secondary">
-              Loading Jackpot Cards...
-            </Typography>
-            <CircularProgress />
-          </Box>
-        }
-      >
-        <JackpotCardSectionServer cardDetails={cardDetails} />
+      <Typography variant="h4" component="h2" gutterBottom>
+        Jackpot Card Data
+      </Typography>
+      <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
+        <Typography variant="body2" component="div">
+          <strong>Found as part of jackpot in reward chest</strong>
+          <br />
+          • Minor: 0.08%
+          <br />
+          • Major: 0.8%
+          <br />
+          • Ultimate: 8%
+          <br />
+        </Typography>
+      </Alert>
+
+      <Suspense fallback={<LoadingSkeleton />}>
+        <BucketServer username="$JACKPOT" />
+      </Suspense>
+
+      <Divider sx={{ my: 3 }} />
+
+      <Suspense fallback={<LoadingSkeleton />}>
+        <BucketServer username="$ETN_REWARD_FOILS" />
+      </Suspense>
+
+      <Suspense fallback={<LoadingSkeleton />}>
+        <EditionTierCardsServer
+          edition={17}
+          tier={14}
+          title="ETN Reward Foils"
+          subtitle="Edition 17 Tier 14 special cards"
+          recentWinnersLabel="Recent Winners \u2013 ETN Rewards (last 8 days)"
+        />
       </Suspense>
     </Container>
   );

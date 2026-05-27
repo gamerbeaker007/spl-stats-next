@@ -9,6 +9,19 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.3.0] - 2026-05-27
+
+### Added
+
+- **`fetchAccountCardCollection(username)`** in `spl-api.ts` — generic function for fetching card collections from named SPL accounts (`$FRONTIER_JACKPOT`, `$JACKPOT`, `$ETN_REWARD_FOILS`, etc.). `fetchFrontierJackpotCollection` and `fetchJackpotCards` now delegate to it.
+- **Generic `getAccountBucket(username)`** action (`accountBucket.ts`) — replaces the per-account bucket actions; cache key automatically scoped per account.
+- **Generic `getEditionTierCards(edition, tier)`** action (`editionTierCards.ts`) — replaces per-tier card actions; fetches mint history for any edition × tier combination.
+- **`BucketServer({ username })`** server component — renders a `FrontierBucketOverview` for any named account bucket.
+- **`EditionTierCardsServer({ edition, tier, title, subtitle, recentWinnersLabel })`** server component — renders a `ClientCardGrid` for any edition × tier combination.
+- **ETN bucket + Tier 14 cards on Jackpot Prizes Chests page** — `$JACKPOT` and `$ETN_REWARD_FOILS` bucket overviews plus Edition 17 Tier 14 card grid added to the "Jackpot Card Data" section.
+
+---
+
 ## [v1.2.0] - 2026-05-25
 
 ### Added
