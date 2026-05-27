@@ -34,7 +34,6 @@ async function JackpotPrizesContent() {
       <Typography variant="h4" component="h2" gutterBottom>
         Jackpot Skins Data
       </Typography>
-
       <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
         <Typography variant="body2" component="div">
           <strong>Found in the ultimate chests as jackpot prizes</strong>
@@ -63,7 +62,6 @@ async function JackpotPrizesContent() {
           />
         ))}
       </Box>
-
       {jackpotSkins.length === 0 && (
         <Box textAlign="center" mt={4}>
           <Typography variant="h6" color="text.secondary">
@@ -71,14 +69,11 @@ async function JackpotPrizesContent() {
           </Typography>
         </Box>
       )}
-
       <Divider sx={{ my: 4 }} />
-
       {/* Third Part - Chest Jackpot Music Data */}
       <Typography variant="h4" component="h2" gutterBottom>
         Jackpot Music (Chest)
       </Typography>
-
       <Alert severity="info" sx={{ mb: 4 }}>
         <Typography variant="body2" component="div">
           <strong>Found in the minor chest as jackpot prizes</strong>
@@ -102,7 +97,6 @@ async function JackpotPrizesContent() {
           <MusicCard key={`chest-music-${item.item_detail_id}`} item={item} />
         ))}
       </Box>
-
       {chestMusic.length === 0 && (
         <Box textAlign="center" mb={3}>
           <Typography variant="h6" color="text.secondary">
@@ -110,21 +104,17 @@ async function JackpotPrizesContent() {
           </Typography>
         </Box>
       )}
-
       <Divider sx={{ my: 4 }} />
-
       {/* Fourth Part - Frontier Jackpot Music Data */}
       <Typography variant="h4" component="h2" gutterBottom>
         Jackpot Music (Frontier)
       </Typography>
-
       <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
         <Typography variant="body2" component="div">
           <strong>Every claim (5 wins) 0.05% odds</strong>
           <br />• Maximum 3 per day
         </Typography>
       </Alert>
-
       <Box
         sx={{
           display: "grid",
@@ -141,7 +131,6 @@ async function JackpotPrizesContent() {
           <MusicCard key={`frontier-music-${item.item_detail_id}`} item={item} />
         ))}
       </Box>
-
       {frontierMusic.length === 0 && (
         <Box textAlign="center" mt={4}>
           <Typography variant="h6" color="text.secondary">
@@ -149,11 +138,9 @@ async function JackpotPrizesContent() {
           </Typography>
         </Box>
       )}
-
       <Divider sx={{ my: 4 }} />
-
       <Typography variant="h4" component="h2" gutterBottom>
-        Jackpot Card Data
+        Jackpot Card Data Chest Reward Foils
       </Typography>
       <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
         <Typography variant="body2" component="div">
@@ -167,24 +154,40 @@ async function JackpotPrizesContent() {
           <br />
         </Typography>
       </Alert>
-
       <Suspense fallback={<LoadingSkeleton />}>
         <BucketServer username="$JACKPOT" />
       </Suspense>
-
       <Divider sx={{ my: 3 }} />
+
+      <Typography variant="h5" component="h2" gutterBottom>
+        Jackpot Card Data ETN Reward Foils
+      </Typography>
+
+      <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
+        <Typography variant="body2" component="div">
+          <strong>Found as part of jackpot in reward chest</strong>
+          <br />
+          • Volt: 0.005%
+          <br />
+          • Arcing : 0.05%
+          <br />
+          • Hyper: 0.25%
+          <br />
+          • Aurelius : 1.5%
+          <br />
+        </Typography>
+      </Alert>
 
       <Suspense fallback={<LoadingSkeleton />}>
         <BucketServer username="$ETN_REWARD_FOILS" />
       </Suspense>
-
       <Suspense fallback={<LoadingSkeleton />}>
         <EditionTierCardsServer
           edition={17}
           tier={14}
-          title="ETN Reward Foils"
+          title="Jackpot Chest Reward Foils"
           subtitle="Edition 17 Tier 14 special cards"
-          recentWinnersLabel="Recent Winners \u2013 ETN Rewards (last 8 days)"
+          recentWinnersLabel="Recent Winners (last 8 days)"
         />
       </Suspense>
     </Container>

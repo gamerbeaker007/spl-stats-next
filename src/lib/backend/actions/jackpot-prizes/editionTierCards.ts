@@ -4,7 +4,7 @@ import { fetchCardDetails, fetchMintHistory } from "@/lib/backend/api/spl/spl-ap
 import { CardPrizeData, FoilStats, SplCardDetail } from "@/types/jackpot-prizes/shared";
 import { cacheLife } from "next/cache";
 
-const FOIL_TYPES = [3, 2, 4] as const;
+const FOIL_TYPES = [2, 3, 4] as const;
 
 export interface EditionTierResult {
   prizeData: CardPrizeData[];
