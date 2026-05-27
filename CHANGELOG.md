@@ -12,7 +12,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 ## [v1.3.1] - 2026-05-27
 
 - Fix jackpot prizes seprate ETN and reward chest
-- Added info on changes
+- Added info on chances
 
 ## [v1.3.0] - 2026-05-27
 
