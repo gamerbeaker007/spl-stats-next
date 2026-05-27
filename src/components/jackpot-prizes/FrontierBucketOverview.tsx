@@ -1,4 +1,4 @@
-import { BucketCardEntry } from "@/lib/backend/actions/jackpot-prizes/frontierJackpotBucket";
+import { BucketCardEntry } from "@/lib/backend/actions/jackpot-prizes/accountBucket";
 import { getCardImageUrl, getFoilLabel } from "@/lib/shared/card-image-utils";
 import { Box, Typography } from "@mui/material";
 import Image from "next/image";

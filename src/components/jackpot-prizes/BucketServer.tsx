@@ -1,11 +1,15 @@
-import { getFrontierJackpotBucket } from "@/lib/backend/actions/jackpot-prizes/frontierJackpotBucket";
+import { getAccountBucket } from "@/lib/backend/actions/jackpot-prizes/accountBucket";
 import { Alert, Box } from "@mui/material";
 import { FrontierBucketOverview } from "./FrontierBucketOverview";
 
-export async function FrontierBucketServer() {
+interface Props {
+  username: string;
+}
+
+export async function BucketServer({ username }: Props) {
   let result;
   try {
-    result = await getFrontierJackpotBucket();
+    result = await getAccountBucket(username);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     return (

@@ -1,6 +1,6 @@
 "use server";
 
-import { fetchCardDetails, fetchFrontierJackpotCollection } from "@/lib/backend/api/spl/spl-api";
+import { fetchAccountCardCollection, fetchCardDetails } from "@/lib/backend/api/spl/spl-api";
 import { cacheLife } from "next/cache";
 
 export interface BucketFoilCount {
@@ -15,22 +15,21 @@ export interface BucketCardEntry {
   total: number;
 }
 
-export interface FrontierBucketResult {
+export interface AccountBucketResult {
   cards: BucketCardEntry[];
 }
 
-export async function getFrontierJackpotBucket(): Promise<FrontierBucketResult> {
+export async function getAccountBucket(username: string): Promise<AccountBucketResult> {
   "use cache";
   cacheLife("hours");
 
   const [cards, allCardDetails] = await Promise.all([
-    fetchFrontierJackpotCollection(),
+    fetchAccountCardCollection(username),
     fetchCardDetails(),
   ]);
 
   const cardDetailMap = new Map(allCardDetails.map((c) => [c.id, c]));
 
-  // Tally counts per card_detail_id × foil
   const bucketMap = new Map<number, Map<number, number>>();
   for (const card of cards) {
     if (!bucketMap.has(card.card_detail_id)) {
