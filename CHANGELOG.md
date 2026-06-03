@@ -9,6 +9,16 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.3.2] - 2026-06-03
+
+### Added
+
+- **Minor Jackpot Skins** — new section on the Jackpot Prizes Chests page showing skins from the `$MINOR_JACKPOT_SKINS` account (Minor chest, 0.05% odds).
+- **`fetchAccountSkins(username)`** in `spl-api.ts` — generic helper for `/players/skins`; `fetchJackPotSkins` and `fetchMinorJackpotSkins` delegate to it (same pattern as `fetchAccountCardCollection`).
+- **`getMinorJackpotSkins()`** server action in `jackpotSkins.ts`.
+
+---
+
 ## [v1.3.1] - 2026-05-27
 
 - Fix jackpot prizes seprate ETN and reward chest

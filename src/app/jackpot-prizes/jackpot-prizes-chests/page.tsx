@@ -5,15 +5,19 @@ import { MusicCard } from "@/components/jackpot-prizes/MusicCard";
 import { SkinsCard } from "@/components/jackpot-prizes/SkinsCard";
 import { getCardDetails } from "@/lib/backend/actions/jackpot-prizes/cardDetails";
 import { getJackpotMusic } from "@/lib/backend/actions/jackpot-prizes/jackpotMusic";
-import { getJackpotSkins } from "@/lib/backend/actions/jackpot-prizes/jackpotSkins";
+import {
+  getJackpotSkins,
+  getMinorJackpotSkins,
+} from "@/lib/backend/actions/jackpot-prizes/jackpotSkins";
 import { Alert, Box, Container, Divider, Typography } from "@mui/material";
 import { Suspense } from "react";
 
 async function JackpotPrizesContent() {
-  let jackpotSkins, jackpotMusicData, cardDetails;
+  let jackpotSkins, minorJackpotSkins, jackpotMusicData, cardDetails;
   try {
-    [jackpotSkins, jackpotMusicData, cardDetails] = await Promise.all([
+    [jackpotSkins, minorJackpotSkins, jackpotMusicData, cardDetails] = await Promise.all([
       getJackpotSkins(),
+      getMinorJackpotSkins(),
       getJackpotMusic(),
       getCardDetails(),
     ]);
@@ -30,9 +34,50 @@ async function JackpotPrizesContent() {
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, pb: 4 }}>
+      {/* Minor Jackpot Skins */}
+      <Typography variant="h4" component="h2" gutterBottom>
+        Minor Chest Jackpot Skins
+      </Typography>
+      <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
+        <Typography variant="body2" component="div">
+          <strong>Found in the minor chests as jackpot prizes</strong>
+          <br />
+          • Minor: 0.05%
+          <br />
+        </Typography>
+      </Alert>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, 1fr)",
+            md: "repeat(3, 1fr)",
+            lg: "repeat(4, 1fr)",
+          },
+          gap: 3,
+        }}
+      >
+        {minorJackpotSkins.map((item) => (
+          <SkinsCard
+            key={`minor-jackpot-skins-${item.skin_detail_id}`}
+            item={item}
+            cardDetails={cardDetails}
+          />
+        ))}
+      </Box>
+      {minorJackpotSkins.length === 0 && (
+        <Box textAlign="center" mt={4}>
+          <Typography variant="h6" color="text.secondary">
+            No minor jackpot skins data available
+          </Typography>
+        </Box>
+      )}
+      <Divider sx={{ my: 4 }} />
+
       {/* Second Part - Jackpot Skins Data */}
       <Typography variant="h4" component="h2" gutterBottom>
-        Jackpot Skins Data
+        Ultimate Chest Jackpot Skins
       </Typography>
       <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
         <Typography variant="body2" component="div">
