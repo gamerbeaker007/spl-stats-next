@@ -436,30 +436,33 @@ export async function fetchMintHistoryByDate(
 }
 
 /**
- * Fetch pack jackpot skins from Splinterlands API
+ * Fetch skins held by a named SPL account from /players/skins.
+ * Used for bucket accounts such as $JACKPOT_SKINS, $MINOR_JACKPOT_SKINS, etc.
  */
-export async function fetchJackPotSkins(): Promise<SplSkin[]> {
-  const url = "/players/skins";
-  console.info(`Fetching pack jackpot skins for username $JACKPOT_SKINS`);
-
+export async function fetchAccountSkins(username: string): Promise<SplSkin[]> {
   try {
-    const res = await splBaseClient.get(url, { params: { username: "$JACKPOT_SKINS" } });
+    const res = await splBaseClient.get("/players/skins", { params: { username } });
     const data = res.data;
-
-    // Handle API-level error even if HTTP status is 200
     if (!data || !Array.isArray(data)) {
       throw new Error("Invalid response from Splinterlands API: expected array");
     }
-
-    console.info(`Fetched ${data.length} pack jackpot skins for username $JACKPOT_SKINS`);
-
     return data as SplSkin[];
   } catch (error) {
-    console.error(
-      `Failed to fetch jackpot skins: ${error instanceof Error ? error.message : "Unknown error"}`
+    logger.error(
+      `Failed to fetch skins for ${username}: ${error instanceof Error ? error.message : "Unknown error"}`
     );
     throw error;
   }
+}
+
+/** Fetch skins held by the $JACKPOT_SKINS account. */
+export async function fetchJackPotSkins(): Promise<SplSkin[]> {
+  return fetchAccountSkins("$JACKPOT_SKINS");
+}
+
+/** Fetch skins held by the $MINOR_JACKPOT_SKINS account. */
+export async function fetchMinorJackpotSkins(): Promise<SplSkin[]> {
+  return fetchAccountSkins("$MINOR_JACKPOT_SKINS");
 }
 
 /**
