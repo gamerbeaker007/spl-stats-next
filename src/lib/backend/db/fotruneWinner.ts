@@ -1,3 +1,5 @@
+"use server";
+
 import { prisma } from "@/lib/prisma";
 import { GeneratedFortuneWinner } from "@/types/fortune/fortune";
 import { SplFortuneDraw } from "@/types/spl/draws";
@@ -69,6 +71,9 @@ export const getTopTenFortuneWinners = async (type: FortuneType) => {
   const winners = await prisma.fortuneWinner.groupBy({
     by: ["player"],
     where: { type },
+    _sum: {
+      entries: true,
+    },
     _count: {
       player: true,
     },
@@ -80,8 +85,9 @@ export const getTopTenFortuneWinners = async (type: FortuneType) => {
     take: 10,
   });
 
-  return winners.map(({ player, _count }) => ({
+  return winners.map(({ player, _count, _sum }) => ({
     player,
     count: _count.player,
+    entries: _sum.entries ?? 0,
   }));
 };

@@ -1,3 +1,5 @@
+"use client";
+
 import { findFortuneWinners, getTopTenFortuneWinners } from "@/lib/backend/db/fotruneWinner";
 import { FortuneType, FortuneWinner } from "@prisma/client";
 import { useCallback, useEffect, useState } from "react";
@@ -5,8 +7,12 @@ import { useCallback, useEffect, useState } from "react";
 export function useFortuneWinners(initialPlayers: string[]) {
   const [players, setPlayers] = useState(initialPlayers);
   const [winners, setWinners] = useState<FortuneWinner[]>([]);
-  const [topTenRanked, setTopTenRanked] = useState<{ player: string; count: number }[]>([]);
-  const [topTenFrontier, setTopTenFrontier] = useState<{ player: string; count: number }[]>([]);
+  const [topTenRanked, setTopTenRanked] = useState<
+    { player: string; count: number; entries: number }[]
+  >([]);
+  const [topTenFrontier, setTopTenFrontier] = useState<
+    { player: string; count: number; entries: number }[]
+  >([]);
   const [loading, setLoading] = useState(false);
 
   const search = useCallback(async (accounts: string[]) => {
@@ -22,6 +28,16 @@ export function useFortuneWinners(initialPlayers: string[]) {
 
   // Fetch top ten ranked and frontier winners on mount
   useEffect(() => {
+    const fetchWinners = async () => {
+      setLoading(true);
+      try {
+        const result = await findFortuneWinners(initialPlayers);
+        setWinners(result);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     const fetchTopTenRanked = async () => {
       try {
         const result = await getTopTenFortuneWinners(FortuneType.RANKED);
@@ -40,9 +56,10 @@ export function useFortuneWinners(initialPlayers: string[]) {
       }
     };
 
+    fetchWinners();
     fetchTopTenRanked();
     fetchTopTenFrontier();
-  }, []);
+  }, [initialPlayers]);
 
   return {
     players,

@@ -398,6 +398,11 @@ export async function fetchMintHistory(
     const res = await splBaseClient.get("/cards/mint_history", {
       params: { foil, card_detail_id: cardDetailId },
     });
+    console.log(
+      "url: ",
+      SPL_BASE_URL,
+      res.request?.path + `?foil=${foil}&card_detail_id=${cardDetailId}`
+    );
     const data = res.data;
     if (!data || typeof data !== "object") {
       throw new Error("Invalid response from Splinterlands API: expected object");
