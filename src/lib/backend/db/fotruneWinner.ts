@@ -58,9 +58,30 @@ export const createFortuneWinners = async (
   });
 };
 
-export const findFortuneWinnersDB = async (players: string[]) => {
+export const findFortuneWinners = async (players: string[]) => {
   return await prisma.fortuneWinner.findMany({
     where: { player: { in: players } },
     orderBy: { drawId: "desc" },
   });
+};
+
+export const getTopTenFortuneWinners = async (type: FortuneType) => {
+  const winners = await prisma.fortuneWinner.groupBy({
+    by: ["player"],
+    where: { type },
+    _count: {
+      player: true,
+    },
+    orderBy: {
+      _count: {
+        player: "desc",
+      },
+    },
+    take: 10,
+  });
+
+  return winners.map(({ player, _count }) => ({
+    player,
+    count: _count.player,
+  }));
 };

@@ -5,7 +5,7 @@ import {
   fetchFrontierDrawAvailablePrizes,
   fetchFrontierDrawEntries,
 } from "@/lib/backend/api/spl/spl-api";
-import { createFortuneWinners, getLatestProcessedDrawId } from "@/lib/backend/db/foruneWinner";
+import { createFortuneWinners, getLatestProcessedDrawId } from "@/lib/backend/db/fotruneWinner";
 import logger from "@/lib/backend/log/logger.server";
 import { SplAvailablePrize, SplFortuneEntry, SplFortuneVerificationData } from "@/types/spl/draws";
 import { FortuneType } from "@prisma/client";

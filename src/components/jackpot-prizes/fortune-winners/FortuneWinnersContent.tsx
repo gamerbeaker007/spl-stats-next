@@ -6,13 +6,14 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Typography from "@mui/material/Typography";
 
 import { useFortuneWinners } from "@/hooks/fortune-winners/useFortuneWinners";
+import AccountSelector from "./AccountSelector";
 
 interface Props {
   monitoredAccounts: string[];
 }
 
 export default function FortuneWinnersContent({ monitoredAccounts }: Props) {
-  const { winners, loading, error, players, setPlayers, refetch } =
+  const { winners, topTenRanked, topTenFrontier, loading, players, setPlayers, search } =
     useFortuneWinners(monitoredAccounts);
 
   if (loading) {
@@ -29,17 +30,42 @@ export default function FortuneWinnersContent({ monitoredAccounts }: Props) {
     );
   }
 
-  if (error) {
-    return <Alert severity="error">{error}</Alert>;
-  }
-
   return (
     <Box p={2}>
       <Typography variant="h4" gutterBottom>
         Fortune Winners
       </Typography>
 
-      {/* TODO AccountChipSelector */}
+      <Typography variant="h6" gutterBottom>
+        Top Ten Ranked Winners
+      </Typography>
+      {topTenRanked.length === 0 ? (
+        <Alert severity="info">No ranked winners found.</Alert>
+      ) : (
+        <Box>
+          {topTenRanked.map((winner) => (
+            <Typography key={winner.player}>
+              {winner.player} - {winner.count}
+            </Typography>
+          ))}
+        </Box>
+      )}
+
+      <Typography variant="h6" gutterBottom mt={4}>
+        Top Ten Frontier Winners
+      </Typography>
+      {topTenFrontier.length === 0 ? (
+        <Alert severity="info">No frontier winners found.</Alert>
+      ) : (
+        <Box>
+          {topTenFrontier.map((winner) => (
+            <Typography key={winner.player}>
+              {winner.player} - {winner.count}
+            </Typography>
+          ))}
+        </Box>
+      )}
+      <AccountSelector accounts={players} setAccounts={setPlayers} search={search} />
 
       {/* TODO Search button */}
 
