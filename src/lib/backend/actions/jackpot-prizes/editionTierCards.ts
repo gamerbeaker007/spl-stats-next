@@ -1,7 +1,8 @@
 "use server";
 
 import { fetchCardDetails, fetchMintHistory } from "@/lib/backend/api/spl/spl-api";
-import { CardPrizeData, FoilStats, SplCardDetail } from "@/types/jackpot-prizes/shared";
+import { CardPrizeData, FoilStats } from "@/types/jackpot-prizes/shared";
+import { SplCardDetail } from "@/types/spl/cardDetails";
 import { cacheLife } from "next/cache";
 
 const FOIL_TYPES = [2, 3, 4] as const;

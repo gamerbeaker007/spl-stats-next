@@ -2,7 +2,8 @@
 
 import { RecentWinnersCarousel } from "@/components/jackpot-prizes/RecentWinnersCarousel";
 import { useRecentWinners } from "@/hooks/jackpot-prizes/useRecentWinners";
-import { RecentWinner, SplCardDetail } from "@/types/jackpot-prizes/shared";
+import { RecentWinner } from "@/types/jackpot-prizes/shared";
+import { SplCardDetail } from "@/types/spl/cardDetails";
 import { Box, Divider, Skeleton, Typography } from "@mui/material";
 import { useMemo } from "react";
 

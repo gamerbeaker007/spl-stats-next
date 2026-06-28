@@ -1,7 +1,8 @@
 "use client";
 
 import { getCardImageUrl, getFoilLabel } from "@/lib/shared/card-image-utils";
-import { CardPrizeData, SplCardDetail } from "@/types/jackpot-prizes/shared";
+import { CardPrizeData } from "@/types/jackpot-prizes/shared";
+import { SplCardDetail } from "@/types/spl/cardDetails";
 import { Info } from "@mui/icons-material";
 import { Box, CardContent, IconButton, Card as MuiCard, Typography } from "@mui/material";
 import Image from "next/image";

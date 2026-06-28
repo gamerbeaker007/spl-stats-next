@@ -6,7 +6,7 @@ import {
 } from "@/components/jackpot-prizes/MultiRecentWinnersSection";
 import { RecentWinnersCarousel } from "@/components/jackpot-prizes/RecentWinnersCarousel";
 import { useRecentWinners } from "@/hooks/jackpot-prizes/useRecentWinners";
-import { CardPrizeData, SplCardDetail } from "@/types/jackpot-prizes/shared";
+import { CardPrizeData } from "@/types/jackpot-prizes/shared";
 import {
   Box,
   Container,
@@ -21,6 +21,7 @@ import { useCallback, useMemo, useState } from "react";
 import Card from "./Card";
 import DetailPane, { PaneSelection } from "./DetailPane";
 import RarityFilter from "./RarityFilter";
+import { SplCardDetail } from "@/types/spl/cardDetails";
 
 interface Props {
   prizeData: CardPrizeData[];

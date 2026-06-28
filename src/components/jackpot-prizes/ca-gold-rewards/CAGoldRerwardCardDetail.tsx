@@ -1,8 +1,8 @@
 import { getCardImageUrl, getFallbackImageUrl } from "@/lib/shared/card-image-utils";
-import { SplCardDetail } from "@/types/jackpot-prizes/shared";
 import { Box, Card, CardContent, Typography } from "@mui/material";
 import Image from "next/image";
 import { SplCAGoldReward } from "../../../types/jackpot-prizes/cardCollection";
+import { SplCardDetail } from "@/types/spl/cardDetails";
 
 const distrubution = [
   5000, // Common

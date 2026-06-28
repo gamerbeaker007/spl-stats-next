@@ -207,7 +207,6 @@ async function main(): Promise<void> {
     try {
       // Refresh seasons and settings periodically
       if (Date.now() - lastSeasonRefreshAt > WORKER_INTERVAL_MS) {
-
         // scan every 30 minutes for new ranked/frontier draws and update winners if any new draws are found
         await updateRankedDrawWinners();
         await updateFrontierDrawWinners();

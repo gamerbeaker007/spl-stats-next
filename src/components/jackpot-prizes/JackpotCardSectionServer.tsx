@@ -1,6 +1,6 @@
 import { JackpotCardSectionClient } from "@/components/jackpot-prizes/JackpotCardSectionClient";
 import { getJackpotCards } from "@/lib/backend/actions/jackpot-prizes/jackpotCards";
-import { SplCardDetail } from "@/types/jackpot-prizes/shared";
+import { SplCardDetail } from "@/types/spl/cardDetails";
 import { Alert, Box } from "@mui/material";
 
 interface Props {
