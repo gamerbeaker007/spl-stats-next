@@ -33,3 +33,40 @@ export type SplFrontierDrawStatus = {
     player_entries: number;
   };
 };
+
+export interface SplFortuneVerificationData {
+  trx_id: string;
+  block_id: string;
+  block_num: number;
+  block_time: Date;
+  prev_block_id: string;
+}
+
+export interface SplFortuneDraw {
+  id: number;
+  end_date: Date;
+  total_entries: number;
+  player_entries: number;
+  verification_data: SplFortuneVerificationData;
+  draw_number: number;
+}
+
+export interface SplCompleteFortuneDraws {
+  draws: SplFortuneDraw[];
+}
+
+export interface SplFortuneEntry {
+  player: string;
+  entries: number;
+  last_update_date: Date;
+}
+
+export interface SplAvailablePrize {
+  card_detail_id: number;
+  card_edition: number;
+  card_foil: number;
+  card_mint: string;
+  card_tier: number;
+  card_uid: string;
+  card_xp: number;
+}

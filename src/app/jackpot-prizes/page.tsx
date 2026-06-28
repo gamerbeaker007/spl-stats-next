@@ -241,6 +241,33 @@ export default function HomePage() {
             View Land Mint History
           </Button>
         </Box>
+
+        <Box
+          sx={{
+            p: 3,
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 2,
+            textAlign: "center",
+            backgroundColor: "background.paper",
+          }}
+        >
+          <Typography variant="h5" gutterBottom>
+            Fortune Winners
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+            Check on who has won what. Overview of lucky winners from the fortune draws overall with
+            detailed mint information and foil statistics.
+          </Typography>
+          <Button
+            onClick={() => handleNavigate("/jackpot-prizes/fortune-winners")}
+            variant="contained"
+            size="large"
+            fullWidth
+          >
+            View Fortune Winners
+          </Button>
+        </Box>
       </Box>
     </Container>
   );

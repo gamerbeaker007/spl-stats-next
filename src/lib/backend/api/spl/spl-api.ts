@@ -1,5 +1,4 @@
 import logger from "@/lib/backend/log/logger.server";
-import type { SplMetricEntry } from "@/types/spl/metrics";
 import { SplCAGoldReward } from "@/types/jackpot-prizes/cardCollection";
 import { CardHistoryResponse } from "@/types/jackpot-prizes/cardHistory";
 import { PackJackpotCard } from "@/types/jackpot-prizes/packJackpot";
@@ -11,7 +10,14 @@ import { SplBattleResult } from "@/types/spl/battle";
 import { SplCardCollection } from "@/types/spl/card";
 import { SplCardDetail } from "@/types/spl/cardDetails";
 import { SplPlayerDetails } from "@/types/spl/details";
-import { SplFrontierDrawStatus, SplRankedDrawStatus } from "@/types/spl/draws";
+import {
+  SplAvailablePrize,
+  SplCompleteFortuneDraws,
+  SplFortuneDraw,
+  SplFortuneEntry,
+  SplFrontierDrawStatus,
+  SplRankedDrawStatus,
+} from "@/types/spl/draws";
 import {
   SplInventoryItem,
   SplPlayerCardDetail,
@@ -20,12 +26,13 @@ import {
 } from "@/types/spl/jackpot";
 import { SplFormats, SplLeaderboardPlayer, SplLeaderboardResponse } from "@/types/spl/leaderboard";
 import { SplCardListingPriceEntry } from "@/types/spl/market";
+import type { SplMetricEntry } from "@/types/spl/metrics";
 import { SplSeasonInfo, SplSettings } from "@/types/spl/season";
 import { SPLSeasonRewards } from "@/types/spl/seasonRewards";
 import axios from "axios";
 import * as rax from "retry-axios";
 
-const SPL_BASE_URL = "https://api2.splinterlands.com/";
+const SPL_BASE_URL = "https://api.splinterlands.com/";
 
 // Allow self-hosters to set their own User-Agent via SPL_USER_AGENT.
 // The fallback is intentionally generic so forgotten configs don't masquerade as spl-stats.com.
@@ -737,12 +744,6 @@ const splPricesClient = axios.create({
   headers: { "User-Agent": SPL_USER_AGENT },
 });
 
-const splV1Client = axios.create({
-  baseURL: "https://api.splinterlands.com/",
-  timeout: 30000,
-  headers: { "Accept-Encoding": "gzip, deflate, br, zstd", "User-Agent": SPL_USER_AGENT },
-});
-
 // ---------------------------------------------------------------------------
 // Tournaments
 // ---------------------------------------------------------------------------
@@ -865,7 +866,7 @@ export async function fetchTransactionLookup(
   trxId: string
 ): Promise<SplTransactionLookupInfo | null> {
   try {
-    const res = await splV1Client.get("/transactions/lookup", { params: { trx_id: trxId } });
+    const res = await splBaseClient.get("/transactions/lookup", { params: { trx_id: trxId } });
     return (res.data as { trx_info: SplTransactionLookupInfo }).trx_info ?? null;
   } catch {
     return null;
@@ -887,6 +888,105 @@ export async function fetchSplPrices(): Promise<SplPrices> {
   } catch (error) {
     logger.error(
       `Failed to fetch SPL prices: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+export async function fetchCompletedForntierDraws(): Promise<SplFortuneDraw[]> {
+  try {
+    const res = await splBaseClient.get("/frontier_draws/complete");
+    console.info(`Fetched ${res.data?.length ?? 0} completed frontier draws`);
+    if (!res.data) {
+      throw new Error("Invalid response from Splinterlands API");
+    }
+    return (res.data as SplCompleteFortuneDraws).draws ?? [];
+  } catch (error) {
+    logger.error(
+      `Failed to fetch completed frontier draws: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+export async function fetchCompletedRankedDraws(): Promise<SplFortuneDraw[]> {
+  try {
+    const res = await splBaseClient.get("/ranked_draws/complete");
+    if (!res.data) {
+      throw new Error("Invalid response from Splinterlands API");
+    }
+    return (res.data as SplCompleteFortuneDraws).draws ?? [];
+  } catch (error) {
+    logger.error(
+      `Failed to fetch completed ranked draws: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+export async function fetchRankedDrawEntries(drawId: number): Promise<SplFortuneEntry[]> {
+  try {
+    const res = await splBaseClient.get("/ranked_draws/entries_completed", {
+      params: { id: drawId },
+    });
+    if (!res.data || !Array.isArray(res.data)) {
+      throw new Error("Invalid response from Splinterlands API: expected array");
+    }
+    return res.data as SplFortuneEntry[];
+  } catch (error) {
+    logger.error(
+      `Failed to fetch completed ranked draw entries for draw ${drawId}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+export async function fetchFrontierDrawEntries(drawId: number): Promise<SplFortuneEntry[]> {
+  try {
+    const res = await splBaseClient.get("/frontier_draws/entries_completed", {
+      params: { id: drawId },
+    });
+    if (!res.data || !Array.isArray(res.data)) {
+      throw new Error("Invalid response from Splinterlands API: expected array");
+    }
+    return res.data as SplFortuneEntry[];
+  } catch (error) {
+    logger.error(
+      `Failed to fetch completed frontier draw entries for draw ${drawId}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+export async function fetchRankedDrawAvailablePrizes(atDate: Date): Promise<SplAvailablePrize[]> {
+  try {
+    const res = await splBaseClient.get("/ranked_draws/available_prizes", {
+      params: { at_date: atDate },
+    });
+    if (!res.data || !Array.isArray(res.data)) {
+      throw new Error("Invalid response from Splinterlands API: expected array");
+    }
+    return res.data as SplAvailablePrize[];
+  } catch (error) {
+    logger.error(
+      `Failed to fetch available ranked draw prizes for date ${atDate}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
+export async function fetchFrontierDrawAvailablePrizes(atDate: Date): Promise<SplAvailablePrize[]> {
+  try {
+    const res = await splBaseClient.get("/frontier_draws/available_prizes", {
+      params: { at_date: atDate },
+    });
+    if (!res.data || !Array.isArray(res.data)) {
+      throw new Error("Invalid response from Splinterlands API: expected array");
+    }
+    return res.data as SplAvailablePrize[];
+  } catch (error) {
+    logger.error(
+      `Failed to fetch available frontier draw prizes for date ${atDate}: ${error instanceof Error ? error.message : "Unknown error"}`
     );
     throw error;
   }

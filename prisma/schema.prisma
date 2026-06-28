@@ -341,3 +341,46 @@ model PortfolioInvestment {
   @@index([date])
   @@map("portfolio_investments")
 }
+
+
+enum FortuneType {
+  FRONTIER
+  RANKED
+}
+
+model FortuneWinner {
+  type          FortuneType
+
+  drawId        Int @map("draw_id")
+  drawNumber    Int @map("draw_number")
+  endDate       DateTime @map("end_date")
+
+  player        String
+  entries       Int @map("entries")
+
+  totalEntries  Int @map("total_entries")
+
+  trxId         String @map("trx_id")
+  blockId       String @map("block_id")
+  blockNum      Int @map("block_num")
+  blockTime     DateTime @map("block_time")
+  prevBlockId   String @map("prev_block_id")
+
+  cardDetailId  Int @map("card_detail_id")
+  cardEdition   Int @map("card_edition")
+  cardFoil      Int @map("card_foil")
+  cardTier      Int @map("card_tier")
+  cardUid       String @unique @map("card_uid")
+  cardMint      String @map("card_mint")
+  cardXp        Int @map("card_xp")
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@id([type, drawId, player])
+  @@index([player])
+  @@index([drawNumber])
+  @@index([endDate])
+  @@map("fortune_winners")
+
+}
