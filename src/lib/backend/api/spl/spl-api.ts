@@ -398,11 +398,6 @@ export async function fetchMintHistory(
     const res = await splBaseClient.get("/cards/mint_history", {
       params: { foil, card_detail_id: cardDetailId },
     });
-    console.log(
-      "url: ",
-      SPL_BASE_URL,
-      res.request?.path + `?foil=${foil}&card_detail_id=${cardDetailId}`
-    );
     const data = res.data;
     if (!data || typeof data !== "object") {
       throw new Error("Invalid response from Splinterlands API: expected object");
@@ -898,10 +893,9 @@ export async function fetchSplPrices(): Promise<SplPrices> {
   }
 }
 
-export async function fetchCompletedForntierDraws(): Promise<SplFortuneDraw[]> {
+export async function fetchCompletedFrontierDraws(): Promise<SplFortuneDraw[]> {
   try {
     const res = await splBaseClient.get("/frontier_draws/complete");
-    console.info(`Fetched ${res.data?.length ?? 0} completed frontier draws`);
     if (!res.data) {
       throw new Error("Invalid response from Splinterlands API");
     }
@@ -966,7 +960,7 @@ export async function fetchFrontierDrawEntries(drawId: number): Promise<SplFortu
 export async function fetchRankedDrawAvailablePrizes(atDate: Date): Promise<SplAvailablePrize[]> {
   try {
     const res = await splBaseClient.get("/ranked_draws/available_prizes", {
-      params: { at_date: atDate },
+      params: { at_date: new Date(atDate).toISOString() },
     });
     if (!res.data || !Array.isArray(res.data)) {
       throw new Error("Invalid response from Splinterlands API: expected array");
@@ -983,7 +977,7 @@ export async function fetchRankedDrawAvailablePrizes(atDate: Date): Promise<SplA
 export async function fetchFrontierDrawAvailablePrizes(atDate: Date): Promise<SplAvailablePrize[]> {
   try {
     const res = await splBaseClient.get("/frontier_draws/available_prizes", {
-      params: { at_date: atDate },
+      params: { at_date: new Date(atDate).toISOString() },
     });
     if (!res.data || !Array.isArray(res.data)) {
       throw new Error("Invalid response from Splinterlands API: expected array");

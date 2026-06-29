@@ -16,8 +16,6 @@ const FOIL_BORDER: Record<number, string> = {
   4: "2px solid #9C27B0",
 };
 
-const CARD_WIDTH = 200;
-
 export const CardTile = ({
   winner,
   cardDetails,
@@ -32,11 +30,12 @@ export const CardTile = ({
     <Card
       key={`${winner.cardUid}`}
       sx={{
-        minWidth: CARD_WIDTH,
-        maxWidth: CARD_WIDTH,
-        flexShrink: 0,
-        border: FOIL_BORDER[winner.cardFoil] ?? "1px solid #333",
+        width: "100%",
+        border: FOIL_BORDER[winner.cardFoil] ?? "1px solid",
+        borderColor: FOIL_BORDER[winner.cardFoil] ? undefined : "divider",
         bgcolor: "background.paper",
+        transition: "transform 150ms ease, box-shadow 150ms ease",
+        "&:hover": { transform: "translateY(-2px)", boxShadow: 4 },
       }}
     >
       <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
@@ -54,7 +53,7 @@ export const CardTile = ({
               src={imageUrl}
               alt={cardName || `Card ${winner.cardDetailId}`}
               fill
-              sizes={`${CARD_WIDTH}px`}
+              sizes="200px"
               style={{ objectFit: "contain", pointerEvents: "none" }}
               draggable={false}
             />

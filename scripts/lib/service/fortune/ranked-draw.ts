@@ -1,11 +1,9 @@
-"use server";
-
 import {
   fetchCompletedRankedDraws,
   fetchRankedDrawAvailablePrizes,
   fetchRankedDrawEntries,
 } from "@/lib/backend/api/spl/spl-api";
-import { createFortuneWinners, getLatestProcessedDrawId } from "@/lib/backend/db/fotruneWinner";
+import { createFortuneWinners, getLatestProcessedDrawId } from "@/lib/backend/db/fortune-winners";
 import logger from "@/lib/backend/log/logger.server";
 import {
   SplAvailablePrize,

@@ -207,9 +207,16 @@ async function main(): Promise<void> {
     try {
       // Refresh seasons and settings periodically
       if (Date.now() - lastSeasonRefreshAt > WORKER_INTERVAL_MS) {
-        // scan every 30 minutes for new ranked/frontier draws and update winners if any new draws are found
-        await updateRankedDrawWinners();
-        await updateFrontierDrawWinners();
+        // Scan every 30 minutes for new ranked/frontier draws and update winners.
+        // Isolated so a draws API failure cannot block the settings/season refresh below.
+        try {
+          await updateRankedDrawWinners();
+          await updateFrontierDrawWinners();
+        } catch (error) {
+          logger.error(
+            `Worker: fortune draw sync failed: ${error instanceof Error ? error.message : "Unknown error"}`
+          );
+        }
 
         const settings = await fetchSettings();
         currentSeasonId = settings.season.id;

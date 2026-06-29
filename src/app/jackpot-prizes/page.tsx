@@ -253,7 +253,7 @@ export default function HomePage() {
           }}
         >
           <Typography variant="h5" gutterBottom>
-            Fortune Winners
+            Fortune Draw Winners
           </Typography>
           <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
             Check on who has won what. Overview of lucky winners from the fortune draws overall with
@@ -265,7 +265,7 @@ export default function HomePage() {
             size="large"
             fullWidth
           >
-            View Fortune Winners
+            View Fortune Draw Winners
           </Button>
         </Box>
       </Box>

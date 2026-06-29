@@ -1,7 +1,5 @@
-"use server";
-
 import { prisma } from "@/lib/prisma";
-import { GeneratedFortuneWinner } from "@/types/fortune/fortune";
+import { GeneratedFortuneWinner, TopFortuneWinner } from "@/types/fortune/fortune";
 import { SplFortuneDraw } from "@/types/spl/draws";
 import { FortuneType } from "@prisma/client";
 
@@ -21,7 +19,7 @@ function mapWinnerToPrisma(
   winner: GeneratedFortuneWinner
 ) {
   return {
-    type: type,
+    type,
 
     drawId: draw.id,
     drawNumber: draw.draw_number,
@@ -47,42 +45,37 @@ function mapWinnerToPrisma(
   };
 }
 
-export const createFortuneWinners = async (
+export async function createFortuneWinners(
   type: FortuneType,
   draw: SplFortuneDraw,
   winners: GeneratedFortuneWinner[]
-) => {
-  await prisma.$transaction(async (tx) => {
-    await tx.fortuneWinner.createMany({
-      data: winners.map((winner) => mapWinnerToPrisma(type, draw, winner)),
-      skipDuplicates: true,
-    });
+) {
+  await prisma.fortuneWinner.createMany({
+    data: winners.map((winner) => mapWinnerToPrisma(type, draw, winner)),
+    skipDuplicates: true,
   });
-};
+}
 
-export const findFortuneWinners = async (players: string[]) => {
-  return await prisma.fortuneWinner.findMany({
+export async function findFortuneWinners(players: string[]) {
+  if (players.length === 0) return [];
+
+  return prisma.fortuneWinner.findMany({
     where: { player: { in: players } },
     orderBy: { drawId: "desc" },
   });
-};
+}
 
-export const getTopTenFortuneWinners = async (type: FortuneType) => {
+export async function getTopFortuneWinners(
+  type: FortuneType,
+  take = 10
+): Promise<TopFortuneWinner[]> {
   const winners = await prisma.fortuneWinner.groupBy({
     by: ["player"],
     where: { type },
-    _sum: {
-      entries: true,
-    },
-    _count: {
-      player: true,
-    },
-    orderBy: {
-      _count: {
-        player: "desc",
-      },
-    },
-    take: 10,
+    _sum: { entries: true },
+    _count: { player: true },
+    orderBy: { _count: { player: "desc" } },
+    take,
   });
 
   return winners.map(({ player, _count, _sum }) => ({
@@ -90,4 +83,4 @@ export const getTopTenFortuneWinners = async (type: FortuneType) => {
     count: _count.player,
     entries: _sum.entries ?? 0,
   }));
-};
+}

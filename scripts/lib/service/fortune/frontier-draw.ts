@@ -1,11 +1,9 @@
-"use server";
-
 import {
-  fetchCompletedForntierDraws,
+  fetchCompletedFrontierDraws,
   fetchFrontierDrawAvailablePrizes,
   fetchFrontierDrawEntries,
 } from "@/lib/backend/api/spl/spl-api";
-import { createFortuneWinners, getLatestProcessedDrawId } from "@/lib/backend/db/fotruneWinner";
+import { createFortuneWinners, getLatestProcessedDrawId } from "@/lib/backend/db/fortune-winners";
 import logger from "@/lib/backend/log/logger.server";
 import { SplAvailablePrize, SplFortuneEntry, SplFortuneVerificationData } from "@/types/spl/draws";
 import { FortuneType } from "@prisma/client";
@@ -25,7 +23,7 @@ function generateFrontierDraw(
 }
 
 export async function updateFrontierDrawWinners(): Promise<void> {
-  const completedDraws = (await fetchCompletedForntierDraws()).sort(
+  const completedDraws = (await fetchCompletedFrontierDraws()).sort(
     (a, b) => b.draw_number - a.draw_number
   );
 

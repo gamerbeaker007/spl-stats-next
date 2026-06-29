@@ -104,10 +104,10 @@ const jackpotPrizes: NavItem[] = [
     color: "#FFD700",
   },
   {
-    label: "Fortune Winners",
+    label: "Fortune Draw Winners",
     href: `${BASE}/fortune-winners`,
     icon: iconMap.ranked,
-    alt: "Fortune Winners",
+    alt: "Fortune Draw Winners",
   },
 ];
 

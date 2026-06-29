@@ -33,7 +33,6 @@ import {
   CardElement,
   CardFoil,
   CardRarity,
-  CardRole,
   DetailedPlayerCardCollection,
   DetailedPlayerCardCollectionItem,
 } from "@/types/card";
@@ -41,6 +40,7 @@ import { ParsedHistory, ParsedPlayerRewardHistory, PurchaseResult } from "@/type
 import { PlayerCardCollectionData } from "@/types/playerCardCollection";
 import { DailyProgressData } from "@/types/playerDailyProgress";
 import { SeasonBalanceHistory, TokenBalanceSummary } from "@/types/spl/balanceHistory";
+import { SplCardDetail } from "@/types/spl/cardDetails";
 import { getCurrentUser, getMonitoredAccounts } from "./auth-actions";
 
 // ---------------------------------------------------------------------------
@@ -152,6 +152,43 @@ export async function getPlayersCardCollection(
 const FOIL_MAP: CardFoil[] = ["regular", "gold", "gold arcane", "black", "black arcane"];
 const RARITY_MAP: CardRarity[] = ["common", "rare", "epic", "legendary"];
 
+/**
+ * Editions a card was printed in. A single card detail (one `card_detail_id`)
+ * can exist in several editions — e.g. an Alpha card almost always also has a
+ * Beta variant, encoded in the `editions` field as a comma-separated list
+ * ("0,1"). Each edition is a distinct collectible, so we expand the card into
+ * one entry per edition. Falls back to the distribution's first edition.
+ */
+function parseCardEditions(detail: SplCardDetail): number[] {
+  const fromList = (detail.editions ?? "")
+    .split(",")
+    .map((e) => Number.parseInt(e.trim(), 10))
+    .filter((n) => Number.isInteger(n));
+
+  if (fromList.length > 0) return Array.from(new Set(fromList));
+
+  return [detail.distribution?.[0]?.edition ?? 0];
+}
+
+function buildCollectionItem(
+  detail: SplCardDetail,
+  edition: number
+): DetailedPlayerCardCollectionItem {
+  return {
+    cardDetailId: detail.id,
+    name: detail.name,
+    edition,
+    tier: detail.tier ?? undefined,
+    rarity: RARITY_MAP[detail.rarity - 1] ?? "common",
+    color: (detail.color?.toLowerCase() ?? "gray") as CardElement,
+    secondaryColor: detail.secondary_color
+      ? (detail.secondary_color.toLowerCase() as CardElement)
+      : undefined,
+    role: detail.type === "Summoner" ? "archon" : "unit",
+    allCards: [],
+  };
+}
+
 export async function getDetailedPlayerCardCollection(
   username: string
 ): Promise<DetailedPlayerCardCollection> {
@@ -161,35 +198,29 @@ export async function getDetailedPlayerCardCollection(
   ]);
 
   const detailedMap: DetailedPlayerCardCollection = {};
+  const detailById = new Map<number, SplCardDetail>();
 
+  // One entry per (card, edition) so multi-edition cards (alpha + beta, …)
+  // each get their own slot, owned or missing.
   for (const detail of cardDetails) {
-    const rarity: CardRarity = RARITY_MAP[detail.rarity - 1] ?? "common";
-    const color = (detail.color?.toLowerCase() ?? "gray") as CardElement;
-    const secondaryColor = detail.secondary_color
-      ? (detail.secondary_color.toLowerCase() as CardElement)
-      : undefined;
-    const role: CardRole = detail.type === "Summoner" ? "archon" : "unit";
-    const edition = detail.distribution?.[0]?.edition ?? 0;
-
-    const item: DetailedPlayerCardCollectionItem = {
-      cardDetailId: detail.id,
-      name: detail.name,
-      edition,
-      tier: detail.tier ?? undefined,
-      rarity,
-      color,
-      secondaryColor,
-      role,
-      allCards: [],
-    };
-
-    detailedMap[String(detail.id)] = item;
+    detailById.set(detail.id, detail);
+    for (const edition of parseCardEditions(detail)) {
+      detailedMap[`${detail.id}-${edition}`] = buildCollectionItem(detail, edition);
+    }
   }
 
   for (const playerCard of collection.cards) {
-    const key = String(playerCard.card_detail_id);
-    const item = detailedMap[key];
-    if (!item) continue;
+    const key = `${playerCard.card_detail_id}-${playerCard.edition}`;
+    let item = detailedMap[key];
+
+    // Owned in an edition not listed in card details — create its slot on the
+    // fly so the card is never dropped from the collection view.
+    if (!item) {
+      const detail = detailById.get(playerCard.card_detail_id);
+      if (!detail) continue;
+      item = buildCollectionItem(detail, playerCard.edition);
+      detailedMap[key] = item;
+    }
 
     const foil: CardFoil = FOIL_MAP[playerCard.foil] ?? "regular";
     const cardDetail: CardDetail = {

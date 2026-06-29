@@ -9,6 +9,26 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.4.0] - 2026-06-29
+
+### Added
+
+- **Fortune Winners page** (`/jackpot-prizes/fortune-winners`) — all-time top-ten ranked & frontier draw winners, plus an account search list to look up the cards specific players have won. Logging in while on the page resets the search list to your monitored accounts; logging out clears it.
+- **`FortuneWinner` model / `fortune_winners` table** (migration `add_fortune_draw_winners`) storing verified ranked & frontier fortune-draw results.
+- **Worker fortune-draw sync** — `updateRankedDrawWinners` / `updateFrontierDrawWinners` reproduce the official Splinterlands draw verifier (`generateFortuneDraw`) and persist winners on the 30-min public-sync cycle.
+- **SPL fortune-draw API helpers** in `spl-api.ts` (`fetchCompletedFrontierDraws`, `fetchCompletedRankedDraws`, draw entries & available prizes).
+
+### Changed
+
+- **SPL API base URL** switched from `api2.splinterlands.com` to `api.splinterlands.com` (v1) for all calls; the separate `splV1Client` is removed. Prepares for a future test environment that does not serve `api2`.
+- **`getFortuneWinnersAction` / `getTopFortuneWinnersAction`** server actions wrapping the `fortune-winners` DB layer.
+
+### Fixed
+
+- **Multi-dashboard card collection** — cards printed in multiple editions (e.g. Alpha + Beta) now show a separate slot per edition. Previously `getDetailedPlayerCardCollection` keyed each card by `card_detail_id` only and took the edition from `distribution[0]`, so a missing card displayed just one of its editions. It now expands each card into one entry per edition from the `editions` field.
+
+---
+
 ## [v1.3.2] - 2026-06-03
 
 ### Added

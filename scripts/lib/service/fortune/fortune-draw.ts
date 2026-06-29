@@ -1,23 +1,7 @@
-"use server";
-
 import { GeneratedFortuneWinner } from "@/types/fortune/fortune";
 import { SplAvailablePrize, SplFortuneEntry, SplFortuneVerificationData } from "@/types/spl/draws";
 import md5 from "md5";
 import seedrandom from "seedrandom";
-
-export interface GenerateFortuneDrawOptions {
-  verification: SplFortuneVerificationData;
-
-  entries: readonly SplFortuneEntry[];
-
-  prizes: readonly SplAvailablePrize[];
-
-  /**
-   * Frontier = 76
-   * Ranked   = 78
-   */
-  prizeCount: number;
-}
 
 /**
  * Exact implementation of the official Splinterlands
