@@ -3,10 +3,10 @@
 import { JackpotCard } from "@/components/jackpot-prizes/JackpotCard";
 import RarityFilter from "@/components/jackpot-prizes/RarityFilter";
 import { JackpotCardDetail } from "@/types/jackpot-prizes/card";
-import { SplCardDetail } from "@/types/jackpot-prizes/shared";
 import { Alert, Box, Divider, Typography } from "@mui/material";
 import { useCallback, useState } from "react";
 import { MultiRecentWinnersSection } from "./MultiRecentWinnersSection";
+import { SplCardDetail } from "@/types/spl/cardDetails";
 
 interface Props {
   jackpotCards: JackpotCardDetail[];

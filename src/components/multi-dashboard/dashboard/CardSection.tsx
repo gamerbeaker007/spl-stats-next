@@ -63,9 +63,11 @@ export const CardSection = ({ username, playerCards }: CardSectionProps) => {
             >
           );
 
+          const foilFilterActive = filter.foilCategories.length > 0;
+
           // Filter groups by foil if a foil filter is active
           const filteredGroups = cardsByEditionAndFoil
-            ? filter.foilCategories.length > 0
+            ? foilFilterActive
               ? Object.values(cardsByEditionAndFoil).filter((g) =>
                   filter.foilCategories.includes(g.foil)
                 )
@@ -95,22 +97,34 @@ export const CardSection = ({ username, playerCards }: CardSectionProps) => {
                 />
               );
             });
-          } else if (!filter.hideMissingCards && filter.foilCategories.length === 0) {
-            // Render missing card placeholder only when foil filter is not active
-            return (
-              <Card
-                key={`${cardItem.cardDetailId}-missing-${cardItem.edition}`}
-                player={username}
-                name={cardItem.name}
-                imageUrl={getCardImg(cardItem.name, cardItem.edition, "regular", 0)}
-                subTitle="(Missing)"
-                opacity={0.3}
-                priority={cardIndex < 6}
-              />
-            );
-          } else {
+          }
+
+          // No owned cards match the current foil selection — decide whether to
+          // show a "missing" placeholder.
+          if (filter.hideMissingCards) return null;
+
+          // With a foil filter active, only show "missing" when this card was
+          // actually printed in at least one of the selected foils for this
+          // edition (e.g. don't mark an Alpha card as a missing "black" foil —
+          // it never existed).
+          if (
+            foilFilterActive &&
+            !filter.foilCategories.some((f) => cardItem.availableFoils.includes(f))
+          ) {
             return null;
           }
+
+          return (
+            <Card
+              key={`${cardItem.cardDetailId}-missing-${cardItem.edition}`}
+              player={username}
+              name={cardItem.name}
+              imageUrl={getCardImg(cardItem.name, cardItem.edition, "regular", 0)}
+              subTitle="(Missing)"
+              opacity={0.3}
+              priority={cardIndex < 6}
+            />
+          );
         })}
       </Box>
     </Box>

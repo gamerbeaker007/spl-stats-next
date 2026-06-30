@@ -5,7 +5,8 @@ import { useMintData } from "@/hooks/jackpot-prizes/useMintData";
 import { usePeakMonsterPrices } from "@/hooks/jackpot-prizes/usePeakMonsterPrices";
 import { getFoilLabel } from "@/lib/shared/card-image-utils";
 import { CardHistoryItem } from "@/types/jackpot-prizes/cardHistory";
-import { CardPrizeData, MintHistoryItem, SplCardDetail } from "@/types/jackpot-prizes/shared";
+import { CardPrizeData, MintHistoryItem } from "@/types/jackpot-prizes/shared";
+import { SplCardDetail } from "@/types/spl/cardDetails";
 import { ArrowBack, Close, Info } from "@mui/icons-material";
 import {
   Alert,

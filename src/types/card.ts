@@ -89,6 +89,8 @@ export interface DetailedPlayerCardCollectionItem {
   color: CardElement;
   secondaryColor: CardElement | undefined;
   role: CardRole;
+  /** Foils this card was printed in for this edition (derived from the API distribution). */
+  availableFoils: CardFoil[];
   highestLevelCard?: CardDetail;
   allCards?: CardDetail[];
 }

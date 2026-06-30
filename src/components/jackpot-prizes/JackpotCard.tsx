@@ -1,9 +1,9 @@
 import { JackpotCardDetail } from "@/types/jackpot-prizes/card";
-import { SplCardDetail } from "@/types/jackpot-prizes/shared";
 import { Box, Card, CardContent, Typography } from "@mui/material";
 import Image from "next/image";
 
 import { getCardImageUrl, getFallbackImageUrl } from "@/lib/shared/card-image-utils";
+import { SplCardDetail } from "@/types/spl/cardDetails";
 
 interface Props {
   item: JackpotCardDetail;

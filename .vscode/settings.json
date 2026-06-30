@@ -1,38 +1,60 @@
 {
+  // Auto-format on save
   "editor.formatOnSave": true,
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnPaste": true,
+  "editor.formatOnType": true,
+
+  // Auto-organize imports on save
   "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit",
     "source.fixAll.eslint": "explicit"
   },
+
+  // TypeScript/JavaScript specific settings
   "[typescript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
   },
   "[typescriptreact]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
   },
   "[javascript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true
   },
   "[json]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "typescript.enablePromptUseWorkspaceTsdk": true,
-  "files.eol": "\n",
-  "files.associations": {
-    "*.css": "css"
-  },
-  "search.exclude": {
-    "**/node_modules": true,
-    "**/.next": true,
-    "**/dist": true,
-    "**/build": true,
-    "**/.git": true,
-    "**/logs": true
-  },
-  "files.exclude": {
-    "**/.git": true,
-    "**/.DS_Store": true,
-    "**/node_modules": false
+
+  // Import organization settings
+  "js/ts.preferences.includePackageJsonAutoImports": "auto",
+  "js/ts.suggest.autoImports": true,
+  "js/ts.suggest.includeAutomaticOptionalChainCompletions": true,
+
+  // ESLint settings
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+  "eslint.format.enable": true,
+
+  // Additional helpful settings
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": true,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+
+  // Auto-save
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 5000,
+
+  // Emmet for JSX/TSX
+  "emmet.includeLanguages": {
+    "javascriptreact": "javascriptreact",
+    "typescriptreact": "typescriptreact"
   }
 }

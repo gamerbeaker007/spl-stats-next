@@ -1,11 +1,11 @@
 "use client";
 
 import RarityFilter from "@/components/jackpot-prizes/RarityFilter";
-import { SplCardDetail } from "@/types/jackpot-prizes/shared";
 import { Alert, Box, Container, Divider, Typography } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { SplCAGoldReward } from "../../../types/jackpot-prizes/cardCollection";
 import { CAGoldRewardCardDetail } from "./CAGoldRerwardCardDetail";
+import { SplCardDetail } from "@/types/spl/cardDetails";
 
 interface Props {
   caGoldRewards: SplCAGoldReward[];

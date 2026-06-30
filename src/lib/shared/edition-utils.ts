@@ -34,6 +34,7 @@ import {
   edition_soulbound_rebellion_icon_url,
   edition_soulkeep_icon_url,
   edition_untamed_icon_url,
+  edition_verico_icon_url,
 } from "@/lib/staticsIconUrls";
 
 // ---------------------------------------------------------------------------
@@ -222,6 +223,13 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     urlName: "escalation",
     setName: "conclave",
     iconUrl: edition_escalation_icon_url,
+  },
+  {
+    id: 21,
+    label: "Verico",
+    urlName: "verico",
+    setName: "eternal",
+    iconUrl: edition_verico_icon_url,
   },
 ];
 

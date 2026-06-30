@@ -33,6 +33,8 @@ import {
 import { syncLeaderboard } from "./lib/leaderboard-sync";
 import { syncPortfolio } from "./lib/portfolio-sync";
 import { syncSeasonsEndDates } from "./lib/season-end-dates-sync";
+import { updateFrontierDrawWinners } from "./lib/service/fortune/frontier-draw";
+import { updateRankedDrawWinners } from "./lib/service/fortune/ranked-draw";
 import {
   LOG_RETENTION_DAYS,
   SYNC_INTERVAL_MS,
@@ -138,7 +140,6 @@ async function runPublicSyncs(
  */
 async function runQueueCycle(
   allSeasons: Season[],
-  currentSeasonId: number,
   runId: string,
   processedUsernames: Set<string>
 ): Promise<void> {
@@ -206,6 +207,17 @@ async function main(): Promise<void> {
     try {
       // Refresh seasons and settings periodically
       if (Date.now() - lastSeasonRefreshAt > WORKER_INTERVAL_MS) {
+        // Scan every 30 minutes for new ranked/frontier draws and update winners.
+        // Isolated so a draws API failure cannot block the settings/season refresh below.
+        try {
+          await updateRankedDrawWinners();
+          await updateFrontierDrawWinners();
+        } catch (error) {
+          logger.error(
+            `Worker: fortune draw sync failed: ${error instanceof Error ? error.message : "Unknown error"}`
+          );
+        }
+
         const settings = await fetchSettings();
         currentSeasonId = settings.season.id;
         if (settings.maintenance_mode) {
@@ -222,7 +234,7 @@ async function main(): Promise<void> {
       }
 
       // Process queue
-      await runQueueCycle(allSeasons, currentSeasonId, run.id, processedUsernames);
+      await runQueueCycle(allSeasons, run.id, processedUsernames);
 
       // Public syncs on 30-min timer
       if (Date.now() - lastPublicSyncAt > WORKER_INTERVAL_MS) {
