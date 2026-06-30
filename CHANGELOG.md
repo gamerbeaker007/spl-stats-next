@@ -9,6 +9,15 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.4.1] - 2026-06-30
+
+### Fix
+
+- Fix loading intial account for fortune winners
+
+
+---
+
 ## [v1.4.0] - 2026-06-30
 
 ### Added

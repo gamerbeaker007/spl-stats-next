@@ -7,18 +7,14 @@ import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 
 import { useFortuneWinners } from "@/hooks/fortune-winners/useFortuneWinners";
-import { SplCardDetail } from "@/types/spl/cardDetails";
+import { useCardDetails } from "@/hooks/multi-account-dashboard/useCardDetails";
 import { FortuneType } from "@prisma/client";
 import AccountSelector from "./AccountSelector";
 import TopTenPanel from "./TopTenPanel";
 import { WinnerList } from "./WinnerList";
 
-interface Props {
-  monitoredAccounts: string[];
-  cardDetails: SplCardDetail[];
-}
-
-export default function FortuneWinnersClient({ monitoredAccounts, cardDetails }: Props) {
+export default function FortuneWinnersClient() {
+  const { cardDetails } = useCardDetails(); // Client component, so we can use the hook here
   const {
     winners,
     topTenRanked,
@@ -28,7 +24,7 @@ export default function FortuneWinnersClient({ monitoredAccounts, cardDetails }:
     players,
     setPlayers,
     search,
-  } = useFortuneWinners(monitoredAccounts);
+  } = useFortuneWinners();
 
   return (
     <Box p={{ xs: 1.5, md: 3 }}>

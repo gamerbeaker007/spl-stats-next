@@ -10,11 +10,11 @@ import { TopFortuneWinner } from "@/types/fortune/fortune";
 import { FortuneType, FortuneWinner } from "@prisma/client";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export function useFortuneWinners(initialPlayers: string[]) {
+export function useFortuneWinners() {
   const { user } = useAuth();
   const username = user?.username ?? null;
 
-  const [players, setPlayers] = useState(initialPlayers);
+  const [players, setPlayers] = useState<string[]>([]);
   const [winners, setWinners] = useState<FortuneWinner[]>([]);
   const [topTenRanked, setTopTenRanked] = useState<TopFortuneWinner[]>([]);
   const [topTenFrontier, setTopTenFrontier] = useState<TopFortuneWinner[]>([]);
@@ -35,11 +35,6 @@ export function useFortuneWinners(initialPlayers: string[]) {
       setSearching(false);
     }
   }, []);
-
-  // Initial winner search for the server-provided monitored accounts.
-  useEffect(() => {
-    search(initialPlayers);
-  }, [initialPlayers, search]);
 
   // The page is client-rendered, so a login/logout does not re-run the server
   // component that supplied `initialPlayers`. React to auth changes here: on
