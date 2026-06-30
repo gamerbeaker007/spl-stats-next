@@ -170,6 +170,23 @@ function parseCardEditions(detail: SplCardDetail): number[] {
   return [detail.distribution?.[0]?.edition ?? 0];
 }
 
+/**
+ * Foils this card was printed in for a given edition (e.g. Alpha has no black
+ * foil while Beta does). Derived from the distribution rows for that edition;
+ * used to decide whether a "missing" placeholder makes sense for a selected
+ * foil. Falls back to "regular" when the edition has no distribution rows.
+ */
+function parseAvailableFoils(detail: SplCardDetail, edition: number): CardFoil[] {
+  const foils = Array.from(
+    new Set(
+      (detail.distribution ?? [])
+        .filter((d) => d.edition === edition)
+        .map((d) => FOIL_MAP[d.foil] ?? "regular")
+    )
+  );
+  return foils.length > 0 ? foils : ["regular"];
+}
+
 function buildCollectionItem(
   detail: SplCardDetail,
   edition: number
@@ -185,6 +202,7 @@ function buildCollectionItem(
       ? (detail.secondary_color.toLowerCase() as CardElement)
       : undefined,
     role: detail.type === "Summoner" ? "archon" : "unit",
+    availableFoils: parseAvailableFoils(detail, edition),
     allCards: [],
   };
 }

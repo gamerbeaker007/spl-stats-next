@@ -9,7 +9,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
-## [v1.4.0] - 2026-06-29
+## [v1.4.0] - 2026-06-30
 
 ### Added
 
@@ -17,6 +17,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 - **`FortuneWinner` model / `fortune_winners` table** (migration `add_fortune_draw_winners`) storing verified ranked & frontier fortune-draw results.
 - **Worker fortune-draw sync** — `updateRankedDrawWinners` / `updateFrontierDrawWinners` reproduce the official Splinterlands draw verifier (`generateFortuneDraw`) and persist winners on the 30-min public-sync cycle.
 - **SPL fortune-draw API helpers** in `spl-api.ts` (`fetchCompletedFrontierDraws`, `fetchCompletedRankedDraws`, draw entries & available prizes).
+- Add Verico as Edition Set
 
 ### Changed
 
@@ -26,6 +27,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 ### Fixed
 
 - **Multi-dashboard card collection** — cards printed in multiple editions (e.g. Alpha + Beta) now show a separate slot per edition. Previously `getDetailedPlayerCardCollection` keyed each card by `card_detail_id` only and took the edition from `distribution[0]`, so a missing card displayed just one of its editions. It now expands each card into one entry per edition from the `editions` field.
+- **Card collection: missing cards now show when a foil filter is active.** Previously, selecting any foil (e.g. Gold, Black) hid all "Missing" placeholders. Now a missing placeholder is shown when you own none of the selected foils, and is suppressed only when the card was never printed in any of the selected foils for that edition (e.g. an Alpha card is no longer flagged as a missing Black foil, while its Beta variant still can be). Added per-edition `availableFoils` to `DetailedPlayerCardCollectionItem`, derived from the API card distribution.
 
 ---
 
