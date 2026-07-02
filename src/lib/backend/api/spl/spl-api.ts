@@ -1,9 +1,16 @@
 import logger from "@/lib/backend/log/logger.server";
+import { splApiConfig } from "@/lib/shared/config/splApiConfig";
 import { SplCAGoldReward } from "@/types/jackpot-prizes/cardCollection";
 import { CardHistoryResponse } from "@/types/jackpot-prizes/cardHistory";
 import { PackJackpotCard } from "@/types/jackpot-prizes/packJackpot";
 import { RankedDrawsPrizeCard } from "@/types/jackpot-prizes/rankedDraws";
 import { MintHistoryByDateItem, MintHistoryResponse } from "@/types/jackpot-prizes/shared";
+import {
+  FetchMarketListingsByCardParams,
+  SplMarketListing,
+  SplMarketListingsResponse,
+  SplTransactionLookupResponse,
+} from "@/types/purchase/purchase-plan";
 import { SplLoginResponse } from "@/types/spl/auth";
 import { SplBalance } from "@/types/spl/balances";
 import { SplBattleResult } from "@/types/spl/battle";
@@ -32,7 +39,7 @@ import { SPLSeasonRewards } from "@/types/spl/seasonRewards";
 import axios from "axios";
 import * as rax from "retry-axios";
 
-const SPL_BASE_URL = "https://api.splinterlands.com/";
+const SPL_BASE_URL = `${splApiConfig.publicBaseUrl}/`;
 
 // Allow self-hosters to set their own User-Agent via SPL_USER_AGENT.
 // The fallback is intentionally generic so forgotten configs don't masquerade as spl-stats.com.
@@ -358,6 +365,39 @@ export async function fetchListingPrices(): Promise<SplCardListingPriceEntry[]> 
     );
     throw error;
   }
+}
+
+/** Fetch exact market listings for a single card target. */
+export async function fetchMarketListingsByCard({
+  cardDetailId,
+  foil,
+  edition,
+  type = "buy",
+  level,
+}: FetchMarketListingsByCardParams): Promise<SplMarketListing[]> {
+  const apiFoil = foil === 1 || foil === 2 ? "gold" : foil === 3 || foil === 4 ? "black" : foil;
+  const params: Record<string, string | number> = {
+    card_detail_id: cardDetailId,
+    foil: apiFoil,
+    edition,
+    type: type === "buy" ? "sell" : type,
+    sort: "low_price_bcx",
+  };
+  if (typeof level === "number") params.level = level;
+  const res = await splBaseClient.get("/market/market_query_by_card", { params });
+  const data = res.data as SplMarketListing[] | SplMarketListingsResponse;
+  const listings = Array.isArray(data) ? data : data?.data;
+  if (!Array.isArray(listings)) {
+    throw new Error("Invalid response from Splinterlands API");
+  }
+
+  return listings
+    .filter((listing) => listing.foil === foil)
+    .sort((a, b) => {
+      const aPricePerCc = a.buy_price / Math.max(1, a.bcx);
+      const bPricePerCc = b.buy_price / Math.max(1, b.bcx);
+      return aPricePerCc - bPricePerCc;
+    });
 }
 
 /**
@@ -853,21 +893,41 @@ export async function fetchCardsByIds(ids: string): Promise<SplMarketCard[]> {
 // Market transaction lookup
 // ---------------------------------------------------------------------------
 
-export interface SplTransactionLookupInfo {
-  id: string;
-  type: string;
-  player: string;
-  data: string;
-  result: string | null;
-}
-
 /** Fetch a transaction by trx_id (v1 API) to resolve card UIDs from a listing. */
 export async function fetchTransactionLookup(
   trxId: string
-): Promise<SplTransactionLookupInfo | null> {
+): Promise<SplTransactionLookupResponse | null> {
   try {
-    const res = await splBaseClient.get("/transactions/lookup", { params: { trx_id: trxId } });
-    return (res.data as { trx_info: SplTransactionLookupInfo }).trx_info ?? null;
+    const res = await splBaseClient.get<Record<string, unknown>>("/transactions/lookup", {
+      params: { trx_id: trxId },
+    });
+    const raw = res.data;
+    if (!raw || typeof raw !== "object") return null;
+
+    const wrapped = raw as { trx_info?: unknown };
+    if (wrapped.trx_info && typeof wrapped.trx_info === "object") {
+      return raw as unknown as SplTransactionLookupResponse;
+    }
+
+    const info = raw as Partial<SplTransactionLookupResponse["trx_info"]>;
+    if (
+      typeof info.id === "string" &&
+      typeof info.type === "string" &&
+      typeof info.player === "string" &&
+      typeof info.data === "string"
+    ) {
+      return {
+        trx_info: {
+          id: info.id,
+          type: info.type,
+          player: info.player,
+          data: info.data,
+          result: typeof info.result === "string" || info.result === null ? info.result : null,
+        },
+      };
+    }
+
+    return null;
   } catch {
     return null;
   }

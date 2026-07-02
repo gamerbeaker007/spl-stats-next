@@ -1,5 +1,7 @@
 import NavShell from "@/components/nav/NavShell";
+import TestModeChip from "@/components/test-mode/TestModeChip";
 import { AuthProvider } from "@/lib/frontend/context/AuthContext";
+import { PurchasePlanProvider } from "@/lib/frontend/context/PurchasePlanContext";
 import { ThemeSetup } from "@/lib/frontend/context/ThemeSetup";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter";
 import type { Metadata } from "next";
@@ -21,8 +23,11 @@ export default function RootLayout({
         <AppRouterCacheProvider>
           <ThemeSetup>
             <AuthProvider>
-              <NavShell>{children}</NavShell>
+              <PurchasePlanProvider>
+                <NavShell>{children}</NavShell>
+              </PurchasePlanProvider>
             </AuthProvider>
+            <TestModeChip />
           </ThemeSetup>
         </AppRouterCacheProvider>
       </body>

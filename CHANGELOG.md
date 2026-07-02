@@ -9,6 +9,29 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.5.0] - 2026-07-02
+
+### Added
+
+- **Buy from collection flow (Feature A foundation)** with reusable purchase infrastructure.
+- **New cards route**: `/cards/collection` as the main entry for multi-account collection buying.
+- **Reusable `BuyCardDialog`** in `manual-listings` mode with listing fetch, foil + level filters, row/range selection (shift-click), pagination (20/50/100), selected totals, and cart markers.
+- **Purchase plan/cart infrastructure** (`PurchasePlanContext`) with dedupe by `account + marketId`, global cart badge in the top bar, and checkout dialog.
+- **Direct account-signed market purchases** via Hive Keychain Active key using `sm_market_purchase` custom-json.
+- **Transaction verification polling** via `lookupTransaction` parser + `waitForTransactionsAction`.
+- **Top-bar balance summary** for CREDITS, DEC, and SPS with per-account hover details.
+
+### Changed
+
+- Collection links now point to `/cards/collection` from multi-dashboard entry points.
+- SPL API clients now share centralized environment-aware config in `splApiConfig` (public/auth/vapi base URLs, app id, operation prefix).
+
+### Fixed
+
+- Market transaction lookup handling now supports raw `/transactions/lookup` payload wrappers consistently (including existing hive-blog market lookup usage).
+
+---
+
 ## [v1.4.1] - 2026-06-30
 
 ### Fix

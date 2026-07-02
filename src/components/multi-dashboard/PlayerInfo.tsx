@@ -141,7 +141,7 @@ export default function PlayerInfo({ username, playerDetails }: Props) {
       {/* Collection Link Icon */}
       <IconButton
         component={Link}
-        href={`/multi-dashboard/collection?users=${encodeURIComponent(username)}`}
+        href={`/cards/collection?users=${encodeURIComponent(username)}`}
         size="small"
         sx={{
           position: "absolute",

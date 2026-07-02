@@ -7,6 +7,7 @@ Add card-buying support to the existing multi-dashboard collection page:
 ```txt
 /multi-dashboard/collection?users=beaker007
 ```
+Move this to new main /cards/collection (later there will be also a /cards/buy_missing_cc page) so make small page and make the links correct from multiaccoutn dashboard.
 
 When the user clicks a card in the collection view, open a reusable `BuyCardDialog` in `manual-listings` mode. The user can inspect exact market listings, select one or more listings, add them to a shopping cart / purchase plan, or buy the selected listings immediately.
 
@@ -192,6 +193,7 @@ interface PurchasePlanItem {
   foil: number;
   level: number;
   cc: number;
+  pruceUsd:number
   priceDec: number;
   priceCredits?: number;
   seller?: string;
@@ -331,7 +333,7 @@ Display:
 Checkout behavior:
 
 - Let the user choose purchase currency: `DEC` or `CREDITS`.
-- Check balance for each account before broadcasting.
+- Check balance for each account before broadcasting (before actual buy make button disabled when unsufficiend resource independant DEC / Credits make hove why disabled).
 - If the cart contains items for multiple accounts, split into one transaction per account.
 - Ask Hive Keychain separately for each account transaction.
 - Use Active key.
@@ -369,4 +371,3 @@ Checkout behavior:
 - Successful purchases refresh balances and affected card collections.
 - Completed items are removed from the cart after confirmed success.
 - When not logged in, browsing works but buy actions are disabled.
-

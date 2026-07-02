@@ -1,9 +1,13 @@
 "use client";
+import BuyCardDialog from "@/components/cards/BuyCardDialog";
+import { useAuth } from "@/lib/frontend/context/AuthContext";
+import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { getCardImg } from "@/lib/collectionUtils";
 import { useCardFilter } from "@/lib/frontend/context/CardFilterContext";
 import { matchesCardFilter } from "@/lib/shared/card-filter-utils";
 import { CardFoil, DetailedPlayerCardCollection } from "@/types/card";
-import { Box, Typography } from "@mui/material";
+import { Alert, Box, Snackbar, Typography } from "@mui/material";
+import { useState } from "react";
 import { Card } from "./Card";
 
 interface CardSectionProps {
@@ -13,6 +17,31 @@ interface CardSectionProps {
 
 export const CardSection = ({ username, playerCards }: CardSectionProps) => {
   const { filter } = useCardFilter();
+  const { isAuthenticated } = useAuth();
+  const { addItems } = usePurchasePlan();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [dialogCard, setDialogCard] = useState<{
+    cardDetailId: number;
+    cardName: string;
+    edition: number;
+    foil: number;
+    currentCc: number;
+  } | null>(null);
+
+  const canBuy = isAuthenticated;
+
+  const openBuyDialog = (card: {
+    cardDetailId: number;
+    cardName: string;
+    edition: number;
+    foil: number;
+    currentCc: number;
+  }) => {
+    setDialogCard(card);
+    setDialogOpen(true);
+  };
 
   return (
     <Box display="flex" flex={1} flexDirection="column">
@@ -94,6 +123,24 @@ export const CardSection = ({ username, playerCards }: CardSectionProps) => {
                   subTitle={`(Lvl ${cardGroup.highest_level}) - x${cardGroup.count}`}
                   allCards={cardGroup.cards}
                   priority={cardIndex < 6 && groupIndex === 0}
+                  onClick={() =>
+                    openBuyDialog({
+                      cardDetailId: cardItem.cardDetailId,
+                      cardName: cardItem.name,
+                      edition: cardGroup.edition,
+                      foil:
+                        cardGroup.foil === "regular"
+                          ? 0
+                          : cardGroup.foil === "gold"
+                            ? 1
+                            : cardGroup.foil === "gold arcane"
+                              ? 2
+                              : cardGroup.foil === "black"
+                                ? 3
+                                : 4,
+                      currentCc: cardGroup.count,
+                    })
+                  }
                 />
               );
             });
@@ -123,10 +170,55 @@ export const CardSection = ({ username, playerCards }: CardSectionProps) => {
               subTitle="(Missing)"
               opacity={0.3}
               priority={cardIndex < 6}
+              onClick={() =>
+                openBuyDialog({
+                  cardDetailId: cardItem.cardDetailId,
+                  cardName: cardItem.name,
+                  edition: cardItem.edition,
+                  foil: 0,
+                  currentCc:
+                    cardItem.allCards?.filter(
+                      (card) => card.owner.toLowerCase() === username.toLowerCase()
+                    ).length ?? 0,
+                })
+              }
             />
           );
         })}
       </Box>
+
+      {dialogCard && (
+        <BuyCardDialog
+          open={dialogOpen}
+          mode="manual-listings"
+          account={username}
+          cardDetailId={dialogCard.cardDetailId}
+          cardName={dialogCard.cardName}
+          edition={dialogCard.edition}
+          foil={dialogCard.foil}
+          currentCc={dialogCard.currentCc}
+          canBuy={canBuy}
+          selectableAccounts={[username]}
+          onClose={() => setDialogOpen(false)}
+          onAddToPurchasePlan={(items) => {
+            addItems(items);
+            setFeedback(`Added ${items.length} listing(s) to cart.`);
+          }}
+        />
+      )}
+
+      {feedbackError && (
+        <Alert severity="error" sx={{ mt: 2 }} onClose={() => setFeedbackError(null)}>
+          {feedbackError}
+        </Alert>
+      )}
+
+      <Snackbar
+        open={Boolean(feedback)}
+        autoHideDuration={3000}
+        onClose={() => setFeedback(null)}
+        message={feedback}
+      />
     </Box>
   );
 };

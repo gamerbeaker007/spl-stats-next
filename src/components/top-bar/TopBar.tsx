@@ -9,8 +9,8 @@ import Tooltip from "@mui/material/Tooltip";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MdMenu } from "react-icons/md";
-import LoginComponent from "./LoginComponent";
 import InvalidTokenAlert from "./InvalidTokenAlert";
+import LoginComponent from "./LoginComponent";
 import SplMaintenanceIndicator from "./SplMaintenanceIndicator";
 import ThemeToggle from "./ThemeToggle";
 

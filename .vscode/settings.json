@@ -56,5 +56,8 @@
   "emmet.includeLanguages": {
     "javascriptreact": "javascriptreact",
     "typescriptreact": "typescriptreact"
+  },
+  "chat.tools.terminal.autoApprove": {
+    "npm run build": true
   }
 }
