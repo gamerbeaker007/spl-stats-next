@@ -10,9 +10,11 @@ import { useEffect, useState } from "react";
 export function PlayerDashboardContent({
   username,
   showHeader = false,
+  selectableAccounts,
 }: Readonly<{
   username: string;
   showHeader?: boolean;
+  selectableAccounts?: string[];
 }>) {
   const [cardCollection, setCardCollection] = useState<DetailedPlayerCardCollection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,7 +76,11 @@ export function PlayerDashboardContent({
           {username}
         </Typography>
       )}
-      <CardSection username={username} playerCards={cardCollection} />
+      <CardSection
+        username={username}
+        playerCards={cardCollection}
+        selectableAccounts={selectableAccounts}
+      />
     </Box>
   );
 }

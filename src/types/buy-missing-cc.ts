@@ -18,6 +18,13 @@ export interface BuyMissingCcSnapshot {
   balances: SplBalance[];
 }
 
+export interface BuyMissingCcAccountData {
+  account: string;
+  collection: SplCardCollection;
+  groupedMarket: SplCardListingPriceEntry[];
+  balances: SplBalance[];
+}
+
 export interface BuyMissingCcListing {
   marketId: string;
   uid?: string;

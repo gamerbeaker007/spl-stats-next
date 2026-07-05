@@ -2,9 +2,11 @@
 
 import BuyCardDialog from "@/components/cards/buy-card-dialog/BuyCardDialog";
 import BuyMissingCcFilterDrawer from "@/components/cards/buy-missing-cc/BuyMissingCcFilterDrawer";
+import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
 import ScrollableTableContainer from "@/components/shared/ScrollableTableContainer";
-import { getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
-import { getBuyMissingCcSnapshotAction } from "@/lib/backend/actions/buy-missing-cc-actions";
+import { useAccountSelectorState } from "@/hooks/useAccountSelectorState";
+import { useBuyMissingCcSharedData } from "@/hooks/cards/useBuyMissingCcSharedData";
+import { getBuyMissingCcAccountDataAction } from "@/lib/backend/actions/buy-missing-cc-actions";
 import { useAuth } from "@/lib/frontend/context/AuthContext";
 import { useBuyMissingCcFilter } from "@/lib/frontend/context/BuyMissingCcFilterContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
@@ -26,7 +28,6 @@ import {
 import { getRarityIconUrl } from "@/lib/shared/rarity-utils";
 import type { LeagueBracket } from "@/types/buy-missing-cc";
 import type { CardFoil } from "@/types/card";
-import type { SplSettings } from "@/types/spl/season";
 import {
   Alert,
   Box,
@@ -50,7 +51,7 @@ import {
 } from "@mui/material";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import { MdAdd, MdCheckCircle, MdErrorOutline, MdLocalOffer, MdWarningAmber } from "react-icons/md";
+import { MdCheckCircle, MdErrorOutline, MdLocalOffer, MdWarningAmber } from "react-icons/md";
 import { TbCopyPlusFilled } from "react-icons/tb";
 import BracketFilter from "./BracketFilter";
 
@@ -95,7 +96,7 @@ type DisplayRow = Row & {
 };
 
 const PAGE_SIZE_OPTIONS = [50, 100, 1000] as const;
-const LS_KEY = "buy-missing-cc-selection-v3";
+const LS_KEY = "buy-missing-cc-selection-v4";
 
 function isMaxOnlyFoil(foil: number): boolean {
   return foil === 2 || foil === 3 || foil === 4;
@@ -111,20 +112,31 @@ function bracketStatus(level: number, bracket: LeagueBracket, rarity: number) {
 export default function BuyMissingCcPageClient() {
   const { addItems } = usePurchasePlan();
   const { filter } = useBuyMissingCcFilter();
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
+  const {
+    cardDetails,
+    settings,
+    loading: sharedLoading,
+    error: sharedError,
+  } = useBuyMissingCcSharedData();
 
-  const [monitoredAccounts, setMonitoredAccounts] = useState<string[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState("");
-  const [savedAccounts, setSavedAccounts] = useState<string[]>([]);
-  const [addAccountInput, setAddAccountInput] = useState("");
+  const {
+    monitoredAccounts,
+    selectedAccount,
+    setSelectedAccount,
+    addAccountInput,
+    setAddAccountInput,
+    accountOptions,
+    addLocalAccount,
+    removeLocalAccount,
+  } = useAccountSelectorState({
+    storageKey: LS_KEY,
+    loggedInUsername: user?.username,
+  });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
-  const [settings, setSettings] = useState<SplSettings | null>(null);
-  const [balancesByAccount, setBalancesByAccount] = useState<
-    Record<string, { DEC: number; CREDITS: number }>
-  >({});
 
   const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(50);
   const [page, setPage] = useState(1);
@@ -137,75 +149,7 @@ export default function BuyMissingCcPageClient() {
 
   const [dialogRow, setDialogRow] = useState<Row | null>(null);
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as {
-        selectedAccount?: string;
-        savedAccounts?: string[];
-      };
-      if (typeof parsed.selectedAccount === "string") {
-        setSelectedAccount(parsed.selectedAccount.toLowerCase());
-      }
-      if (Array.isArray(parsed.savedAccounts)) {
-        setSavedAccounts(parsed.savedAccounts.map((entry) => entry.toLowerCase()));
-      }
-    } catch {
-      // ignore local-storage parse issues
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem(
-      LS_KEY,
-      JSON.stringify({
-        selectedAccount,
-        savedAccounts,
-      })
-    );
-  }, [selectedAccount, savedAccounts]);
-
-  useEffect(() => {
-    let active = true;
-    getMonitoredAccounts().then((accounts) => {
-      if (!active) return;
-      const names = accounts.map((entry) => entry.username.toLowerCase());
-      setMonitoredAccounts(names);
-      if (
-        names.length > 0 &&
-        (!selectedAccount || ![...names, ...savedAccounts].includes(selectedAccount))
-      ) {
-        setSelectedAccount(names[0]);
-      }
-    });
-
-    return () => {
-      active = false;
-    };
-  }, [isAuthenticated, user?.username, selectedAccount, savedAccounts]);
-
-  const accountOptions = useMemo(
-    () => Array.from(new Set([...monitoredAccounts, ...savedAccounts])),
-    [monitoredAccounts, savedAccounts]
-  );
-
-  useEffect(() => {
-    if (selectedAccount) return;
-    if (accountOptions.length > 0) {
-      setSelectedAccount(accountOptions[0]);
-    }
-  }, [accountOptions, selectedAccount]);
-
-  const canBuy = !!selectedAccount && monitoredAccounts.includes(selectedAccount);
-
-  function addLocalAccount() {
-    const normalized = addAccountInput.trim().toLowerCase();
-    if (!normalized) return;
-    setSavedAccounts((prev) => Array.from(new Set([...prev, normalized])));
-    setSelectedAccount(normalized);
-    setAddAccountInput("");
-  }
+  const canBuy = selectedAccount.trim().length > 0;
 
   useEffect(() => {
     let active = true;
@@ -213,7 +157,6 @@ export default function BuyMissingCcPageClient() {
     async function load() {
       if (!selectedAccount) {
         setRows([]);
-        setBalancesByAccount({});
         return;
       }
 
@@ -221,7 +164,20 @@ export default function BuyMissingCcPageClient() {
       setError(null);
 
       try {
-        const snapshot = await getBuyMissingCcSnapshotAction(selectedAccount);
+        if (sharedLoading) {
+          return;
+        }
+
+        if (sharedError) {
+          setError(sharedError);
+          return;
+        }
+
+        if (!settings || cardDetails.length === 0) {
+          return;
+        }
+
+        const snapshot = await getBuyMissingCcAccountDataAction(selectedAccount);
         if (!active) return;
 
         const byKey: Record<string, AccountCardState> = {};
@@ -251,7 +207,7 @@ export default function BuyMissingCcPageClient() {
         }
 
         const nextRows: Row[] = [];
-        for (const detail of snapshot.cardDetails) {
+        for (const detail of cardDetails) {
           const available = (detail.distribution ?? []).filter((entry) => entry.edition !== 16);
           const variants = new Set(available.map((entry) => `${entry.edition}-${entry.foil}`));
 
@@ -299,15 +255,6 @@ export default function BuyMissingCcPageClient() {
         }
 
         setRows(nextRows);
-        setSettings(snapshot.settings);
-        setBalancesByAccount({
-          [selectedAccount]: {
-            DEC:
-              (snapshot.balances.find((entry) => entry.token === "DEC")?.balance ?? 0) +
-              (snapshot.balances.find((entry) => entry.token === "DEC-B")?.balance ?? 0),
-            CREDITS: snapshot.balances.find((entry) => entry.token === "CREDITS")?.balance ?? 0,
-          },
-        });
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load Buy Missing CC data");
       } finally {
@@ -320,7 +267,9 @@ export default function BuyMissingCcPageClient() {
     return () => {
       active = false;
     };
-  }, [selectedAccount]);
+  }, [cardDetails, selectedAccount, settings, sharedError, sharedLoading]);
+
+  const isLoading = loading || sharedLoading;
 
   const displayRows = useMemo<DisplayRow[]>(() => {
     return rows.map((row) => {
@@ -471,65 +420,25 @@ export default function BuyMissingCcPageClient() {
         <Stack spacing={2} sx={{ mb: 2 }}>
           <Typography variant="h4">Buy Missing CC</Typography>
 
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }}>
-            <ToggleButtonGroup
-              exclusive
-              value={selectedAccount}
-              onChange={(_event, next) => {
-                if (typeof next === "string" && next.length > 0) {
-                  setSelectedAccount(next);
-                }
-              }}
-              size="small"
-              sx={{
-                maxWidth: "100%",
-                flexWrap: "wrap",
-                gap: 0.5,
-              }}
-            >
-              {accountOptions.map((account) => (
-                <ToggleButton key={account} value={account} sx={{ textTransform: "none" }}>
-                  {account}
-                </ToggleButton>
-              ))}
-            </ToggleButtonGroup>
-
-            <TextField
-              size="small"
-              label="Add Account"
-              value={addAccountInput}
-              onChange={(event) => setAddAccountInput(event.target.value)}
-              sx={{ minWidth: 220 }}
-            />
-
-            <Button size="small" variant="outlined" startIcon={<MdAdd />} onClick={addLocalAccount}>
-              Add Account
-            </Button>
-
-            <Button
-              size="small"
-              variant="text"
-              onClick={() => {
-                const normalized = selectedAccount.trim().toLowerCase();
-                if (!normalized) return;
-                setSavedAccounts((prev) => prev.filter((entry) => entry !== normalized));
-                if (!monitoredAccounts.includes(normalized)) {
-                  setSelectedAccount(monitoredAccounts[0] ?? "");
-                }
-              }}
-              disabled={!selectedAccount || monitoredAccounts.includes(selectedAccount)}
-            >
-              Remove Local
-            </Button>
-
-            <TextField
-              size="small"
-              label="Search card"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              sx={{ minWidth: 220 }}
-            />
-          </Stack>
+          <AccountSelectorBar
+            accounts={accountOptions}
+            selectedAccount={selectedAccount}
+            onSelectedAccountChange={setSelectedAccount}
+            addAccountInput={addAccountInput}
+            onAddAccountInputChange={setAddAccountInput}
+            onAddAccount={addLocalAccount}
+            onRemoveSelected={() => removeLocalAccount(selectedAccount)}
+            removeDisabled={!selectedAccount || monitoredAccounts.includes(selectedAccount)}
+            extraContent={
+              <TextField
+                size="small"
+                label="Search card"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                sx={{ minWidth: 220 }}
+              />
+            }
+          />
 
           <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
             <BracketFilter
@@ -555,12 +464,7 @@ export default function BuyMissingCcPageClient() {
             )}
           </Stack>
 
-          {!canBuy && (
-            <Alert severity="info">
-              Selected account is not monitored. Planning is enabled, but purchasing actions are
-              disabled.
-            </Alert>
-          )}
+          {!canBuy && <Alert severity="info">Select an account to enable purchasing.</Alert>}
 
           {error && <Alert severity="error">{error}</Alert>}
 
@@ -744,7 +648,7 @@ export default function BuyMissingCcPageClient() {
                       <Tooltip
                         title={
                           !canBuy
-                            ? "Enable monitor accounts and select at least one account"
+                            ? "Select an account first"
                             : maxOnlyFoil
                               ? "This foil supports max-level purchases only"
                               : "Buy CC"
@@ -868,7 +772,7 @@ export default function BuyMissingCcPageClient() {
                 );
               })}
 
-              {!loading && pagedRows.length === 0 && (
+              {!isLoading && pagedRows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={selectedBracket ? 16 : 15}>
                     No cards found for current filters.
@@ -918,8 +822,6 @@ export default function BuyMissingCcPageClient() {
           cardStats={dialogRow.stats}
           settings={settings}
           initialTargetBracket={selectedBracket || undefined}
-          accountStates={dialogRow.accountStates}
-          accountBalances={balancesByAccount}
           canBuy={canBuy}
           selectableAccounts={accountOptions}
           onClose={() => setDialogRow(null)}

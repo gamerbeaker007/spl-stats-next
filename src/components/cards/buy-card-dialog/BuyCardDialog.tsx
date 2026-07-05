@@ -1,8 +1,10 @@
 "use client";
 
-import CurrencyAmountChip from "@/components/cards/top-bar/CurrencyAmountChip";
-import ScrollableTableContainer from "@/components/shared/ScrollableTableContainer";
 import { useMarketListings } from "@/hooks/cards/useMarketListings";
+import {
+  getBuyCardDialogAccountContextAction,
+  getBuyCardDialogSharedContextAction,
+} from "@/lib/backend/actions/buy-missing-cc-actions";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { checkoutItems } from "@/lib/frontend/purchase/checkout";
 import {
@@ -12,10 +14,7 @@ import {
   selectCheapestListings,
 } from "@/lib/shared/buy-missing-cc";
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
-import { abilityIconUrl } from "@/lib/shared/card-utils";
 import { getBracketLevelRange, LEAGUE_BRACKETS } from "@/lib/shared/league-brackets";
-import { credits_icon_url, dec_icon_url, WEB_URL } from "@/lib/staticsIconUrls";
-import { findLeagueLogoUrl } from "@/lib/utils";
 import type { LeagueBracket } from "@/types/buy-missing-cc";
 import { CardFoil } from "@/types/card";
 import type { PurchaseCurrency, PurchasePlanItem } from "@/types/purchase/purchase-plan";
@@ -32,16 +31,9 @@ import {
   FormControl,
   InputLabel,
   MenuItem,
-  Pagination,
   Select,
   Stack,
   Tab,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  TableSortLabel,
   Tabs,
   Tooltip,
   Typography,
@@ -49,8 +41,9 @@ import {
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import BracketFilter from "../buy-missing-cc/BracketFilter";
-import ManualSelectionTotalsBar from "./ManualSelectionTotalsBar";
+import ManualListingsTabContent from "./ManualListingsTabContent";
 import PurchaseTxProgressPanel from "./PurchaseTxProgressPanel";
+import TargetLevelTabContent from "./TargetLevelTabContent";
 
 export type BuyCardDialogMode = "manual-listings" | "target-level";
 
@@ -85,14 +78,6 @@ export interface BuyCardDialogProps {
 
 const PAGE_OPTIONS = [20, 50, 100] as const;
 const BRACKET_ORDER: LeagueBracket[] = ["wood", "bronze", "silver", "gold", "diamond", "champion"];
-const BRACKET_LOGO_LEAGUE: Record<LeagueBracket, number> = {
-  wood: 0,
-  bronze: 3,
-  silver: 6,
-  gold: 9,
-  diamond: 12,
-  champion: 15,
-};
 
 function levelBracket(level: number, rarity: number): LeagueBracket {
   for (const bracket of BRACKET_ORDER) {
@@ -101,16 +86,6 @@ function levelBracket(level: number, rarity: number): LeagueBracket {
   }
   return "champion";
 }
-
-const STAT_ICON_URL: Record<Exclude<keyof CardStats, "abilities">, string> = {
-  mana: `${WEB_URL}website/icons/icon_mana.svg`,
-  attack: `${WEB_URL}website/stats/2.0/128/melee.webp`,
-  ranged: `${WEB_URL}website/stats/2.0/128/ranged.webp`,
-  magic: `${WEB_URL}website/stats/2.0/128/magic.webp`,
-  armor: `${WEB_URL}website/stats/2.0/128/armor.webp`,
-  health: `${WEB_URL}website/stats/2.0/128/health.webp`,
-  speed: `${WEB_URL}website/stats/2.0/128/speed.webp`,
-};
 
 function playableBrackets(level: number, rarity: number): LeagueBracket[] {
   return BRACKET_ORDER.filter((bracket) => {
@@ -187,6 +162,18 @@ export default function BuyCardDialog({
   >("priceDec");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [buyBusy, setBuyBusy] = useState(false);
+  const [contextLoading, setContextLoading] = useState(false);
+  const [contextError, setContextError] = useState<string | null>(null);
+  const [resolvedSettings, setResolvedSettings] = useState<SplSettings | null>(settings ?? null);
+  const [resolvedCardRarity, setResolvedCardRarity] = useState<number | undefined>(cardRarity);
+  const [resolvedCardTier, setResolvedCardTier] = useState<number | null | undefined>(cardTier);
+  const [resolvedCardStats, setResolvedCardStats] = useState<CardStats | undefined>(cardStats);
+  const [dynamicAccountStates, setDynamicAccountStates] = useState<
+    Record<string, AccountCardState>
+  >(accountStates ?? {});
+  const [dynamicBalances, setDynamicBalances] = useState<
+    Record<string, { DEC: number; CREDITS: number }>
+  >(accountBalances ?? {});
   const [txProgress, setTxProgress] = useState<{
     submitted: boolean;
     processed: boolean;
@@ -199,41 +186,123 @@ export default function BuyCardDialog({
     setSelectedAccount(account.toLowerCase());
     setActiveMode(mode);
     setTargetBracket(initialTargetBracket || "");
-  }, [account, mode, open, initialTargetBracket]);
+    setContextError(null);
+    setResolvedSettings(settings ?? null);
+    setResolvedCardRarity(cardRarity);
+    setResolvedCardTier(cardTier);
+    setResolvedCardStats(cardStats);
+    setDynamicAccountStates(accountStates ?? {});
+    setDynamicBalances(accountBalances ?? {});
+  }, [
+    account,
+    accountBalances,
+    accountStates,
+    cardRarity,
+    cardStats,
+    cardTier,
+    initialTargetBracket,
+    mode,
+    open,
+    settings,
+  ]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (settings) setResolvedSettings(settings);
+    if (typeof cardRarity === "number") setResolvedCardRarity(cardRarity);
+    if (typeof cardTier !== "undefined") setResolvedCardTier(cardTier);
+    if (cardStats) setResolvedCardStats(cardStats);
+    if (accountStates) setDynamicAccountStates((prev) => ({ ...prev, ...accountStates }));
+    if (accountBalances) setDynamicBalances((prev) => ({ ...prev, ...accountBalances }));
+  }, [accountBalances, accountStates, cardRarity, cardStats, cardTier, open, settings]);
 
   useEffect(() => {
     if (!open) return;
 
-    const maxOnlyFoil = isMaxOnlyFoil(selectedFoil);
-    const cardDetailMaxLevel = cardStats
-      ? Math.max(
-          cardStats.health?.length ?? 0,
-          cardStats.armor?.length ?? 0,
-          cardStats.speed?.length ?? 0,
-          cardStats.attack?.length ?? 0,
-          cardStats.ranged?.length ?? 0,
-          cardStats.magic?.length ?? 0,
-          cardStats.mana?.length ?? 0,
-          cardStats.abilities?.length ?? 0,
-          1
-        )
-      : 1;
+    if (resolvedSettings && resolvedCardStats && typeof resolvedCardRarity === "number") {
+      return;
+    }
 
+    let active = true;
+
+    async function loadSharedContext() {
+      try {
+        const context = await getBuyCardDialogSharedContextAction(cardDetailId);
+        if (!active) return;
+
+        setResolvedSettings(context.settings);
+        setResolvedCardRarity(context.cardDetail.rarity);
+        setResolvedCardTier(context.cardDetail.tier ?? null);
+        setResolvedCardStats(context.cardDetail.stats);
+      } catch (err) {
+        if (!active) return;
+        setContextError(
+          err instanceof Error ? err.message : "Failed to load card context for target-level tab"
+        );
+      }
+    }
+
+    loadSharedContext();
+
+    return () => {
+      active = false;
+    };
+  }, [cardDetailId, open, resolvedCardRarity, resolvedCardStats, resolvedSettings]);
+
+  useEffect(() => {
+    if (!open || !selectedAccount) return;
+
+    let active = true;
+
+    async function loadAccountContext() {
+      setContextLoading(true);
+      try {
+        const context = await getBuyCardDialogAccountContextAction(
+          selectedAccount,
+          cardDetailId,
+          edition,
+          selectedFoil
+        );
+
+        if (!active) return;
+
+        setDynamicAccountStates((prev) => ({
+          ...prev,
+          [context.account]: context.accountState,
+        }));
+
+        setDynamicBalances((prev) => ({
+          ...prev,
+          [context.account]: context.balance,
+        }));
+      } catch (err) {
+        if (!active) return;
+        setContextError(
+          err instanceof Error
+            ? err.message
+            : "Failed to load selected account balances and ownership"
+        );
+      } finally {
+        if (active) setContextLoading(false);
+      }
+    }
+
+    loadAccountContext();
+
+    return () => {
+      active = false;
+    };
+  }, [cardDetailId, edition, open, selectedAccount, selectedFoil]);
+
+  useEffect(() => {
+    if (!open) return;
     fetchRows({
       cardDetailId,
       edition,
       foil: selectedFoil,
       type: "buy",
-      level:
-        activeMode === "manual-listings"
-          ? maxOnlyFoil
-            ? cardDetailMaxLevel
-            : levelFilter !== "all"
-              ? levelFilter
-              : undefined
-          : undefined,
     });
-  }, [activeMode, cardDetailId, cardStats, edition, fetchRows, levelFilter, open, selectedFoil]);
+  }, [cardDetailId, edition, fetchRows, open, selectedFoil]);
 
   useEffect(() => {
     setSelectedIds([]);
@@ -246,8 +315,13 @@ export default function BuyCardDialog({
     [rows]
   );
 
+  const manualRows = useMemo(() => {
+    if (levelFilter === "all") return rows;
+    return rows.filter((row) => row.level === levelFilter);
+  }, [levelFilter, rows]);
+
   const sortedRows = useMemo(() => {
-    const sorted = [...rows];
+    const sorted = [...manualRows];
     sorted.sort((a, b) => {
       const av = a[sortBy] ?? 0;
       const bv = b[sortBy] ?? 0;
@@ -255,7 +329,7 @@ export default function BuyCardDialog({
       return sortDir === "asc" ? delta : -delta;
     });
     return sorted;
-  }, [rows, sortBy, sortDir]);
+  }, [manualRows, sortBy, sortDir]);
 
   const pagedRows = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -401,20 +475,28 @@ export default function BuyCardDialog({
             ? "black"
             : "black arcane";
 
-  const accountState = accountStates?.[selectedAccount] ?? {
+  const accountState = dynamicAccountStates[selectedAccount] ?? {
     highestLevel: Math.max(0, currentLevel ?? 0),
     highestCc: Math.max(0, currentCc ?? 0),
     totalCc: Math.max(0, currentCc ?? 0),
   };
-  const balance = accountBalances?.[selectedAccount] ?? { DEC: 0, CREDITS: 0 };
+  const balance = dynamicBalances[selectedAccount] ?? { DEC: 0, CREDITS: 0 };
+
+  const canBuyResolved = canBuy && selectedAccount.trim().length > 0;
 
   const canAffordDec = selectionTotals.dec <= balance.DEC;
   const canAffordCredits = selectionTotals.credits <= balance.CREDITS;
 
   const combineRates = useMemo(() => {
-    if (!settings || !cardRarity) return null;
-    return getCombineRatesForCard(settings, edition, selectedFoil, cardRarity, cardTier);
-  }, [settings, cardRarity, edition, selectedFoil, cardTier]);
+    if (!resolvedSettings || typeof resolvedCardRarity !== "number") return null;
+    return getCombineRatesForCard(
+      resolvedSettings,
+      edition,
+      selectedFoil,
+      resolvedCardRarity,
+      resolvedCardTier
+    );
+  }, [resolvedCardRarity, resolvedCardTier, resolvedSettings, edition, selectedFoil]);
 
   const numberOfLevels = combineRates?.length ?? 0;
   const isHighestCcAtMaxLevel =
@@ -629,395 +711,57 @@ export default function BuyCardDialog({
             </Stack>
           </Box>
 
-          {error && <Alert severity="error">{error}</Alert>}
+          {(error || contextError) && <Alert severity="error">{error ?? contextError}</Alert>}
+          {contextLoading && (
+            <Alert severity="info">Refreshing account balances and ownership...</Alert>
+          )}
 
           {activeMode === "target-level" ? (
-            <>
-              {!combineRates && (
-                <Alert severity="warning">
-                  Target-level calculations are unavailable for this card configuration.
-                </Alert>
-              )}
-
-              {combineRates && (
-                <ScrollableTableContainer>
-                  <Table size="small" stickyHeader>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Playable Bracket</TableCell>
-                        <TableCell>Level</TableCell>
-                        {dynamicStats.map((row) => (
-                          <TableCell key={row.key}>
-                            <Tooltip title={row.label}>
-                              <Box sx={{ display: "inline-flex", alignItems: "center" }}>
-                                <Image
-                                  src={
-                                    STAT_ICON_URL[row.key as Exclude<keyof CardStats, "abilities">]
-                                  }
-                                  alt={row.label}
-                                  width={18}
-                                  height={18}
-                                />
-                              </Box>
-                            </Tooltip>
-                          </TableCell>
-                        ))}
-                        <TableCell>Abilities</TableCell>
-                        <TableCell>Target BCX</TableCell>
-                        <TableCell>Owned BCX</TableCell>
-                        <TableCell>Needed BCX</TableCell>
-                        <TableCell>Upgrade Cost ($)</TableCell>
-                        <TableCell>Add to Cart</TableCell>
-                        <TableCell>Buy Credits</TableCell>
-                        <TableCell>Buy DEC</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {targetRows.map((row) => {
-                        const highlighted = row.level === accountState.highestLevel;
-
-                        const [targetMin, targetMax] =
-                          cardRarity && targetBracket !== ""
-                            ? getBracketLevelRange(targetBracket, cardRarity)
-                            : [null, null];
-
-                        const targetBottom = row.level === targetMin;
-                        const targetTop = row.level === targetMax;
-
-                        return (
-                          <TableRow
-                            key={row.level}
-                            selected={highlighted}
-                            sx={{
-                              "& td": {
-                                ...(targetBottom && {
-                                  borderTop: "2px solid",
-                                  borderTopColor: "error.main",
-                                }),
-
-                                ...(targetTop && {
-                                  borderBottom: "2px solid",
-                                  borderBottomColor: "error.main",
-                                }),
-                              },
-                            }}
-                          >
-                            <TableCell>
-                              <Stack
-                                direction="row"
-                                spacing={0.5}
-                                alignItems="center"
-                                flexWrap="wrap"
-                              >
-                                {row.playableBrackets.map((bracket) => {
-                                  const logo = findLeagueLogoUrl(
-                                    "modern",
-                                    BRACKET_LOGO_LEAGUE[bracket]
-                                  );
-                                  if (!logo) return null;
-                                  return (
-                                    <Tooltip
-                                      key={`${row.level}-${bracket}`}
-                                      title={LEAGUE_BRACKETS[bracket].label}
-                                    >
-                                      <Box sx={{ display: "inline-flex" }}>
-                                        <Image
-                                          src={logo}
-                                          alt={LEAGUE_BRACKETS[bracket].label}
-                                          width={18}
-                                          height={18}
-                                        />
-                                      </Box>
-                                    </Tooltip>
-                                  );
-                                })}
-                              </Stack>
-                            </TableCell>
-                            <TableCell>{row.level}</TableCell>
-                            {dynamicStats.map((stat) => (
-                              <TableCell key={stat.key}>
-                                {cardStats?.[stat.key][Math.max(0, row.level - 1)] ?? 0}
-                              </TableCell>
-                            ))}
-                            <TableCell>
-                              <Stack direction="row" spacing={0.5} flexWrap="wrap">
-                                {row.abilities.map((ability) => (
-                                  <Tooltip key={`${row.level}-${ability}`} title={ability}>
-                                    <Box sx={{ display: "inline-flex" }}>
-                                      <Image
-                                        src={abilityIconUrl(ability)}
-                                        alt={ability}
-                                        width={22}
-                                        height={22}
-                                        style={{ borderRadius: 4 }}
-                                      />
-                                    </Box>
-                                  </Tooltip>
-                                ))}
-                                {row.abilities.length === 0 && (
-                                  <Typography variant="caption">-</Typography>
-                                )}
-                              </Stack>
-                            </TableCell>
-                            <TableCell>{row.targetCc}</TableCell>
-                            <TableCell
-                              sx={
-                                row.level === accountState.highestLevel && isHighestCcAtMaxLevel
-                                  ? { color: "success.main", fontWeight: 700 }
-                                  : undefined
-                              }
-                            >
-                              {row.level === accountState.highestLevel
-                                ? accountState.highestCc
-                                : row.ownedBcx}
-                            </TableCell>
-                            <TableCell>{row.neededBcx}</TableCell>
-                            <TableCell>{row.usd > 0 ? row.usd.toFixed(3) : "-"}</TableCell>
-                            <TableCell>
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                disabled={!canBuy || row.planItems.length === 0 || !row.exact}
-                                onClick={() => onAddToPurchasePlan(row.planItems)}
-                              >
-                                Add
-                              </Button>
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                disabled={
-                                  !canBuy ||
-                                  buyBusy ||
-                                  row.planItems.length === 0 ||
-                                  !row.exact ||
-                                  row.planItems.reduce((sum, item) => sum + item.priceCredits, 0) >
-                                    balance.CREDITS
-                                }
-                                onClick={() => runCheckoutForPlan(row.planItems, "CREDITS")}
-                              >
-                                <Stack direction="row" spacing={0.5} alignItems="center">
-                                  <Image
-                                    src={credits_icon_url}
-                                    alt="Credits"
-                                    width={14}
-                                    height={14}
-                                  />
-                                  <Typography variant="caption">
-                                    {row.credits.toFixed(0)}
-                                  </Typography>
-                                </Stack>
-                              </Button>
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                disabled={
-                                  !canBuy ||
-                                  buyBusy ||
-                                  row.planItems.length === 0 ||
-                                  !row.exact ||
-                                  row.planItems.reduce((sum, item) => sum + item.priceDec, 0) >
-                                    balance.DEC
-                                }
-                                onClick={() => runCheckoutForPlan(row.planItems, "DEC")}
-                              >
-                                <Stack direction="row" spacing={0.5} alignItems="center">
-                                  <Image src={dec_icon_url} alt="DEC" width={14} height={14} />
-                                  <Typography variant="caption">{row.dec.toFixed(3)}</Typography>
-                                </Stack>
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </ScrollableTableContainer>
-              )}
-            </>
+            <TargetLevelTabContent
+              combineRatesAvailable={Boolean(combineRates)}
+              dynamicStats={dynamicStats}
+              targetRows={targetRows}
+              cardStats={resolvedCardStats}
+              cardRarity={resolvedCardRarity}
+              targetBracket={targetBracket}
+              accountHighestLevel={accountState.highestLevel}
+              accountHighestCc={accountState.highestCc}
+              accountTotalCc={accountState.totalCc}
+              isHighestCcAtMaxLevel={isHighestCcAtMaxLevel}
+              canBuy={canBuyResolved}
+              buyBusy={buyBusy}
+              balance={balance}
+              onAddToPurchasePlan={onAddToPurchasePlan}
+              onRunCheckoutForPlan={runCheckoutForPlan}
+            />
           ) : (
-            <>
-              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                <FormControl size="small" sx={{ minWidth: 180 }}>
-                  <InputLabel>Listing Level</InputLabel>
-                  <Select
-                    label="Listing Level"
-                    value={levelFilter}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setLevelFilter(v === "all" ? "all" : Number(v));
-                    }}
-                  >
-                    <MenuItem value="all">All levels</MenuItem>
-                    {listingLevels.map((level) => (
-                      <MenuItem key={level} value={level}>
-                        Level {level}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl size="small" sx={{ minWidth: 120 }}>
-                  <InputLabel>Rows</InputLabel>
-                  <Select
-                    label="Rows"
-                    value={pageSize}
-                    onChange={(e) =>
-                      setPageSize(Number(e.target.value) as (typeof PAGE_OPTIONS)[number])
-                    }
-                  >
-                    {PAGE_OPTIONS.map((option) => (
-                      <MenuItem key={option} value={option}>
-                        {option}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Box>
-
-              <ScrollableTableContainer>
-                <Table size="small" stickyHeader>
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Cart</TableCell>
-                      <TableCell>
-                        <TableSortLabel
-                          active={sortBy === "level"}
-                          direction={sortBy === "level" ? sortDir : "asc"}
-                          onClick={() => toggleSort("level")}
-                        >
-                          Level
-                        </TableSortLabel>
-                      </TableCell>
-                      <TableCell>
-                        <TableSortLabel
-                          active={sortBy === "cc"}
-                          direction={sortBy === "cc" ? sortDir : "asc"}
-                          onClick={() => toggleSort("cc")}
-                        >
-                          CC
-                        </TableSortLabel>
-                      </TableCell>
-                      <TableCell>
-                        <TableSortLabel
-                          active={sortBy === "priceUsd"}
-                          direction={sortBy === "priceUsd" ? sortDir : "asc"}
-                          onClick={() => toggleSort("priceUsd")}
-                        >
-                          USD
-                        </TableSortLabel>
-                      </TableCell>
-                      <TableCell>
-                        <TableSortLabel
-                          active={sortBy === "priceDec"}
-                          direction={sortBy === "priceDec" ? sortDir : "asc"}
-                          onClick={() => toggleSort("priceDec")}
-                        >
-                          DEC
-                        </TableSortLabel>
-                      </TableCell>
-                      <TableCell>
-                        <TableSortLabel
-                          active={sortBy === "priceCredits"}
-                          direction={sortBy === "priceCredits" ? sortDir : "asc"}
-                          onClick={() => toggleSort("priceCredits")}
-                        >
-                          Credits
-                        </TableSortLabel>
-                      </TableCell>
-                      <TableCell>
-                        <TableSortLabel
-                          active={sortBy === "pricePerCcDec"}
-                          direction={sortBy === "pricePerCcDec" ? sortDir : "asc"}
-                          onClick={() => toggleSort("pricePerCcDec")}
-                        >
-                          DEC/CC
-                        </TableSortLabel>
-                      </TableCell>
-                      <TableCell>Seller</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {pagedRows.map((row, idx) => {
-                      const globalIndex = (page - 1) * pageSize + idx;
-                      const inCart = inCartSet.has(row.marketId);
-                      const reservedByOther = reservedByOtherAccountSet.has(row.marketId);
-                      const cannotAddBecauseReserved = !inCart && reservedByOther;
-                      const cartButtonTooltip = cannotAddBecauseReserved
-                        ? "This marketplace listing is already reserved by another account in your purchase plan."
-                        : inCart
-                          ? "Remove from cart"
-                          : "Add to cart";
-
-                      return (
-                        <TableRow key={row.marketId} selected={selectedIds.includes(row.marketId)}>
-                          <TableCell>
-                            <Tooltip title={cartButtonTooltip}>
-                              <span>
-                                <Button
-                                  size="small"
-                                  variant="outlined"
-                                  color={inCart ? "error" : "success"}
-                                  disabled={cannotAddBecauseReserved}
-                                  onMouseDown={(event) => event.preventDefault()}
-                                  onClick={(event) =>
-                                    toggleCartByButton(globalIndex, event.shiftKey)
-                                  }
-                                  sx={{
-                                    minWidth: 36,
-                                    px: 1,
-                                    textTransform: "none",
-                                    "&:hover": { opacity: 0.9 },
-                                  }}
-                                >
-                                  {inCart ? "-" : "+"}
-                                </Button>
-                              </span>
-                            </Tooltip>
-                          </TableCell>
-                          <TableCell>{row.level}</TableCell>
-                          <TableCell>{row.cc}</TableCell>
-                          <TableCell>
-                            <CurrencyAmountChip currency="USD" value={row.priceUsd} />
-                          </TableCell>
-                          <TableCell>
-                            <CurrencyAmountChip currency="DEC" value={row.priceDec} />
-                          </TableCell>
-                          <TableCell>
-                            <CurrencyAmountChip currency="CREDITS" value={row.priceCredits ?? 0} />
-                          </TableCell>
-                          <TableCell>{row.pricePerCcDec.toFixed(3)}</TableCell>
-                          <TableCell>{row.seller ?? "-"}</TableCell>
-                        </TableRow>
-                      );
-                    })}
-                    {!loading && pagedRows.length === 0 && (
-                      <TableRow>
-                        <TableCell colSpan={8}>No listings found.</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </ScrollableTableContainer>
-
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Typography variant="body2" color="text.secondary">
-                  Shift-click on +/- applies add/remove to a row range.
-                </Typography>
-                <Pagination page={page} count={pageCount} onChange={(_e, p) => setPage(p)} />
-              </Box>
-
-              <ManualSelectionTotalsBar selectionTotals={selectionTotals} />
-            </>
+            <ManualListingsTabContent
+              listingLevels={listingLevels}
+              levelFilter={levelFilter}
+              setLevelFilter={setLevelFilter}
+              pageSize={pageSize}
+              setPageSize={setPageSize}
+              pageOptions={PAGE_OPTIONS}
+              sortBy={sortBy}
+              sortDir={sortDir}
+              toggleSort={toggleSort}
+              pagedRows={pagedRows}
+              loading={loading}
+              selectedIds={selectedIds}
+              inCartSet={inCartSet}
+              reservedByOtherAccountSet={reservedByOtherAccountSet}
+              page={page}
+              pageCount={pageCount}
+              setPage={setPage}
+              toggleCartByButton={toggleCartByButton}
+              selectionTotals={selectionTotals}
+            />
           )}
 
           <PurchaseTxProgressPanel buyBusy={buyBusy} txProgress={txProgress} />
 
-          {!canBuy && (
-            <Alert severity="warning">Browsing is enabled, but buy actions are disabled.</Alert>
+          {!canBuyResolved && (
+            <Alert severity="warning">Select an account to enable buy actions.</Alert>
           )}
         </Stack>
       </DialogContent>
@@ -1028,7 +772,7 @@ export default function BuyCardDialog({
           <>
             <Tooltip
               title={
-                !canAffordDec && canBuy && selectedItems.length > 0
+                !canAffordDec && canBuyResolved && selectedItems.length > 0
                   ? `Insufficient DEC (${selectionTotals.dec.toFixed(3)} required)`
                   : ""
               }
@@ -1037,7 +781,9 @@ export default function BuyCardDialog({
                 <Button
                   variant="contained"
                   onClick={() => buySelected("DEC")}
-                  disabled={buyBusy || !canBuy || selectedItems.length === 0 || !canAffordDec}
+                  disabled={
+                    buyBusy || !canBuyResolved || selectedItems.length === 0 || !canAffordDec
+                  }
                 >
                   {buyBusy ? "Processing..." : "Buy with DEC"}
                 </Button>
@@ -1045,7 +791,7 @@ export default function BuyCardDialog({
             </Tooltip>
             <Tooltip
               title={
-                !canAffordCredits && canBuy && selectedItems.length > 0
+                !canAffordCredits && canBuyResolved && selectedItems.length > 0
                   ? `Insufficient Credits (${selectionTotals.credits.toFixed(0)} required)`
                   : ""
               }
@@ -1054,7 +800,9 @@ export default function BuyCardDialog({
                 <Button
                   variant="contained"
                   onClick={() => buySelected("CREDITS")}
-                  disabled={buyBusy || !canBuy || selectedItems.length === 0 || !canAffordCredits}
+                  disabled={
+                    buyBusy || !canBuyResolved || selectedItems.length === 0 || !canAffordCredits
+                  }
                 >
                   {buyBusy ? "Processing..." : "Buy with Credits"}
                 </Button>

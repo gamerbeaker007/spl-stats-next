@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  canSignForAccountAction,
-  getBalancesForAccountsAction,
-} from "@/lib/backend/actions/purchase-actions";
+import { getBalancesForAccountsAction } from "@/lib/backend/actions/purchase-actions";
 import { broadcastMarketPurchase, waitForTransactions } from "@/lib/frontend/purchase/splBroadcast";
 import type { PurchaseCurrency, PurchasePlanItem } from "@/types/purchase/purchase-plan";
 
@@ -47,11 +44,6 @@ export async function checkoutItems(
   const txRows: Array<{ account: string; txId: string; items: PurchasePlanItem[] }> = [];
 
   for (const [account, accountItems] of grouped.entries()) {
-    const canSign = await canSignForAccountAction(account);
-    if (!canSign) {
-      throw new Error(`Cannot sign for account ${account}.`);
-    }
-
     const total = accountItems.reduce(
       (sum, item) => sum + (currency === "DEC" ? item.priceDec : item.priceCredits),
       0

@@ -8,30 +8,41 @@ import {
   fetchSettings,
 } from "@/lib/backend/api/spl/spl-api";
 import { SOULKEEP_EDITIONS } from "@/lib/shared/edition-utils";
-import type { BuyMissingCcSnapshot } from "@/types/buy-missing-cc";
+import type { BuyMissingCcAccountData, BuyMissingCcSnapshot } from "@/types/buy-missing-cc";
+import type { SplCardDetail } from "@/types/spl/cardDetails";
+import { cacheLife } from "next/cache";
 
-export async function getBuyMissingCcSnapshotAction(
+export async function getBuyMissingCcSharedDataAction() {
+  "use cache";
+  cacheLife("days");
+
+  const [cardDetails, settings] = await Promise.all([fetchCardDetails(), fetchSettings()]);
+
+  // SoulKeep cards cannot be bought through the Buy Missing CC feature.
+  const filteredCardDetails = cardDetails.filter((card) => {
+    const editions = card.editions.split(",").map((edition) => edition.trim());
+    return !editions.some((edition) => SOULKEEP_EDITIONS.has(Number(edition)));
+  });
+
+  return {
+    cardDetails: filteredCardDetails,
+    settings,
+  };
+}
+
+export async function getBuyMissingCcAccountDataAction(
   account: string
-): Promise<BuyMissingCcSnapshot> {
+): Promise<BuyMissingCcAccountData> {
   const normalized = account.trim().toLowerCase();
   if (!normalized) {
     throw new Error("Account is required");
   }
 
-  const [cardDetails, collection, groupedMarket, settings, balances] = await Promise.all([
-    fetchCardDetails(),
+  const [collection, groupedMarket, balances] = await Promise.all([
     fetchCardCollection(normalized),
     fetchMarketForSaleGrouped(),
-    fetchSettings(),
     fetchPlayerBalances(normalized),
   ]);
-
-  // SoulKeep cards cannot be bought through the Buy Missing CC feature,
-  // so exclude them from the player's collection and the card details.
-  const filteredCardDetails = cardDetails.filter((card) => {
-    const editions = card.editions.split(",").map((e) => e.trim());
-    return !editions.some((edition) => SOULKEEP_EDITIONS.has(Number(edition)));
-  });
 
   collection.cards = collection.cards.filter(
     (card) => !SOULKEEP_EDITIONS.has(Number(card.edition))
@@ -39,10 +50,104 @@ export async function getBuyMissingCcSnapshotAction(
 
   return {
     account: normalized,
-    cardDetails: filteredCardDetails,
     collection,
     groupedMarket,
-    settings,
     balances,
+  };
+}
+
+function normalizeAccount(account: string): string {
+  const normalized = account.trim().toLowerCase();
+  if (!normalized) {
+    throw new Error("Account is required");
+  }
+  return normalized;
+}
+
+export async function getBuyCardDialogSharedContextAction(cardDetailId: number): Promise<{
+  settings: BuyMissingCcSnapshot["settings"];
+  cardDetail: SplCardDetail;
+}> {
+  const sharedData = await getBuyMissingCcSharedDataAction();
+  const detail = sharedData.cardDetails.find((entry) => entry.id === cardDetailId);
+
+  if (!detail) {
+    throw new Error(`Card detail ${cardDetailId} not found`);
+  }
+
+  return {
+    settings: sharedData.settings,
+    cardDetail: detail,
+  };
+}
+
+export async function getBuyCardDialogAccountContextAction(
+  account: string,
+  cardDetailId: number,
+  edition: number,
+  foil: number
+): Promise<{
+  account: string;
+  accountState: { highestLevel: number; highestCc: number; totalCc: number };
+  balance: { DEC: number; CREDITS: number };
+}> {
+  const normalized = normalizeAccount(account);
+  const [collection, balances] = await Promise.all([
+    fetchCardCollection(normalized),
+    fetchPlayerBalances(normalized),
+  ]);
+
+  const cards = collection.cards.filter(
+    (card) =>
+      card.card_detail_id === cardDetailId &&
+      Number(card.edition) === edition &&
+      Number(card.foil) === foil
+  );
+
+  const accountState = cards.reduce(
+    (acc, card) => {
+      const level = card.level ?? 0;
+      const bcx = card.bcx ?? 0;
+      acc.totalCc += bcx;
+
+      if (level > acc.highestLevel) {
+        acc.highestLevel = level;
+        acc.highestCc = bcx;
+      } else if (level === acc.highestLevel) {
+        acc.highestCc = Math.max(acc.highestCc, bcx);
+      }
+
+      return acc;
+    },
+    { highestLevel: 0, highestCc: 0, totalCc: 0 }
+  );
+
+  return {
+    account: normalized,
+    accountState,
+    balance: {
+      DEC:
+        (balances.find((entry) => entry.token === "DEC")?.balance ?? 0) +
+        (balances.find((entry) => entry.token === "DEC-B")?.balance ?? 0),
+      CREDITS: balances.find((entry) => entry.token === "CREDITS")?.balance ?? 0,
+    },
+  };
+}
+
+export async function getBuyMissingCcSnapshotAction(
+  account: string
+): Promise<BuyMissingCcSnapshot> {
+  const [sharedData, accountData] = await Promise.all([
+    getBuyMissingCcSharedDataAction(),
+    getBuyMissingCcAccountDataAction(account),
+  ]);
+
+  return {
+    account: accountData.account,
+    cardDetails: sharedData.cardDetails,
+    collection: accountData.collection,
+    groupedMarket: accountData.groupedMarket,
+    settings: sharedData.settings,
+    balances: accountData.balances,
   };
 }

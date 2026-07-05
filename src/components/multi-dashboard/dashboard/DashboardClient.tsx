@@ -1,13 +1,16 @@
 "use client";
 
+import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
 import { CardFilterDrawer } from "@/components/multi-dashboard/dashboard/CardFilterDrawer";
 import { PlayerDashboardContent } from "@/components/multi-dashboard/dashboard/PlayerDashboardContent";
-import { getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
+import { useAccountSelectorState } from "@/hooks/useAccountSelectorState";
 import { useAuth } from "@/lib/frontend/context/AuthContext";
 import { CardFilterProvider } from "@/lib/frontend/context/CardFilterContext";
-import { Box, Skeleton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Box, Skeleton, Typography } from "@mui/material";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo } from "react";
+
+const LS_KEY = "collection-cards-selection-v1";
 
 function PlayerDashboardSkeleton() {
   return (
@@ -30,72 +33,54 @@ function PlayerDashboardSkeleton() {
 }
 
 function DashboardContent() {
-  const [usernames, setUsernames] = useState<string[]>([]);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const searchParams = useSearchParams();
   const userParam = searchParams.get("users");
   const router = useRouter();
+  const pathname = usePathname();
+  const {
+    monitoredAccounts,
+    selectedAccount,
+    setSelectedAccount,
+    addAccountInput,
+    setAddAccountInput,
+    accountOptions,
+    addLocalAccount,
+    removeLocalAccount,
+  } = useAccountSelectorState({
+    storageKey: LS_KEY,
+    loggedInUsername: user?.username,
+  });
 
-  useEffect(() => {
-    getMonitoredAccounts().then((accounts) => {
-      setUsernames(accounts.map((a) => a.username));
-      setIsInitialized(true);
-    });
-  }, [isAuthenticated, user?.username]);
+  const selectedUsersFromUrl = useMemo(() => {
+    if (!userParam) return [];
+    return userParam
+      .split(",")
+      .map((entry) => entry.trim().toLowerCase())
+      .filter((entry) => entry.length > 0 && accountOptions.includes(entry));
+  }, [accountOptions, userParam]);
 
-  // Derive selected users from URL parameter (comma-separated)
   const selectedUsers = useMemo(() => {
-    if (!isInitialized || usernames.length === 0) return [];
-
-    if (userParam) {
-      // Parse comma-separated users from URL
-      const users = userParam
-        .split(",")
-        .map((u) => u.trim())
-        .filter((u) => usernames.includes(u));
-      return users.length > 0 ? users : [usernames[0]];
+    if (selectedUsersFromUrl.length > 0) return selectedUsersFromUrl;
+    if (selectedAccount && accountOptions.includes(selectedAccount)) {
+      return [selectedAccount];
     }
+    if (accountOptions.length > 0) {
+      return [accountOptions[0]];
+    }
+    return [];
+  }, [accountOptions, selectedAccount, selectedUsersFromUrl]);
 
-    // Default to first user if no URL param
-    return [usernames[0]];
-  }, [userParam, usernames, isInitialized]);
-
-  const handleUserChange = (_event: React.MouseEvent<HTMLElement>, newUsers: string[]) => {
-    if (newUsers.length === 0) return;
-    // Update URL with comma-separated users
-    const newParam = newUsers.join(",");
-    router.push(`/collection/cards?users=${encodeURIComponent(newParam)}`);
-  };
-
-  // Redirect to home if no users
   useEffect(() => {
-    if (isInitialized && usernames.length === 0) {
-      router.push("/");
-    }
-  }, [isInitialized, usernames, router]);
-
-  // Show loading only while not initialized
-  if (!isInitialized) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
-        <Typography sx={{ ml: 2 }}>Loading users...</Typography>
-      </Box>
-    );
-  }
-
-  // Show nothing while redirecting (if no users)
-  if (usernames.length === 0) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
-        <Typography sx={{ ml: 2 }}>Redirecting to home...</Typography>
-      </Box>
-    );
-  }
+    if (selectedUsers.length === 0) return;
+    const nextParam = selectedUsers.join(",");
+    const currentParam = userParam ?? "";
+    if (currentParam === nextParam) return;
+    router.replace(`${pathname}?users=${encodeURIComponent(nextParam)}`);
+  }, [pathname, router, selectedUsers, userParam]);
 
   return (
     <Box>
-      {/* User Toggle Buttons */}
       <Box
         sx={{
           display: "flex",
@@ -106,45 +91,31 @@ function DashboardContent() {
           backgroundColor: "background.paper",
         }}
       >
-        <ToggleButtonGroup
-          value={selectedUsers}
-          onChange={handleUserChange}
-          aria-label="user selection"
-          sx={{
-            flexWrap: "wrap",
-            gap: 0,
+        <AccountSelectorBar
+          multiSelect
+          accounts={accountOptions}
+          selectedAccounts={selectedUsers}
+          onSelectedAccountsChange={(nextUsers) => {
+            if (nextUsers.length === 0) return;
+            setSelectedAccount(nextUsers[0]);
+            router.replace(`${pathname}?users=${encodeURIComponent(nextUsers.join(","))}`);
           }}
-        >
-          {usernames.map((username) => {
-            const isSelected = selectedUsers.includes(username);
-            return (
-              <ToggleButton
-                key={username}
-                value={username}
-                aria-label={username}
-                sx={{
-                  px: 5,
-                  textTransform: "none",
-                  fontWeight: isSelected ? "bold" : "normal",
-                  backgroundColor: isSelected ? "primary.main" : "transparent",
-                  color: isSelected ? "primary.contrastText" : "text.primary",
-                  border: isSelected ? "2px solid" : "1px solid",
-                  borderColor: isSelected ? "primary.main" : "divider",
-                  borderRadius: 10,
-                }}
-              >
-                {username}
-              </ToggleButton>
-            );
-          })}
-        </ToggleButtonGroup>
+          addAccountInput={addAccountInput}
+          onAddAccountInputChange={setAddAccountInput}
+          onAddAccount={addLocalAccount}
+          onRemoveSelected={() => removeLocalAccount(selectedUsers[0] ?? "")}
+          removeDisabled={!selectedUsers[0] || monitoredAccounts.includes(selectedUsers[0])}
+        />
       </Box>
 
-      {/* Content Area with Filter Context - Drawer loaded immediately */}
-      {selectedUsers.length > 0 && (
+      {selectedUsers.length > 0 ? (
         <CardFilterProvider key="filter-provider">
           <DrawerAndContent selectedUsers={selectedUsers} />
         </CardFilterProvider>
+      ) : (
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="35vh">
+          <Typography>Select or add an account to view card collection data.</Typography>
+        </Box>
       )}
     </Box>
   );
@@ -170,7 +141,11 @@ function DrawerAndContent({ selectedUsers }: Readonly<{ selectedUsers: string[] 
             }}
           >
             <Suspense fallback={<PlayerDashboardSkeleton />}>
-              <PlayerDashboardContent username={username} showHeader={multipleSelected} />
+              <PlayerDashboardContent
+                username={username}
+                showHeader={multipleSelected}
+                selectableAccounts={selectedUsers}
+              />
             </Suspense>
           </Box>
         ))}

@@ -114,7 +114,7 @@ function VisualBattleEntry({ battle }: { battle: DetailedBattleEntry }) {
   const rulesets = [battle.ruleset1, battle.ruleset2, battle.ruleset3].filter(
     (r) => r && r !== "None" && r !== ""
   );
-  const replayUrl = `https://next.splinterlands.com/battle/${battle.battleId}`;
+  const replayUrl = `{https://splinterlands.com}/battle/${battle.battleId}`;
 
   const summoner = battle.playerTeam.find((c) => c.position === 0);
   // Python ref: reversed(my_team['monsters']) — player monsters face inward toward "vs"

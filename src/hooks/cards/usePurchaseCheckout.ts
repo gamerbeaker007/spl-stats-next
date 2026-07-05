@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  canSignForAccountAction,
-  getBalancesForAccountsAction,
-} from "@/lib/backend/actions/purchase-actions";
+import { getBalancesForAccountsAction } from "@/lib/backend/actions/purchase-actions";
 import { broadcastMarketPurchase, waitForTransactions } from "@/lib/frontend/purchase/splBroadcast";
 import type {
   PurchaseCurrency,
@@ -91,11 +88,6 @@ export function usePurchaseCheckout(items: PurchasePlanItem[]) {
         const balances = await refreshBalances();
 
         for (const [account, accountItems] of byAccount) {
-          const canSign = await canSignForAccountAction(account);
-          if (!canSign) {
-            throw new Error(`Cannot sign for account ${account}.`);
-          }
-
           const total = accountItems.reduce(
             (sum, item) => sum + (currency === "DEC" ? item.priceDec : item.priceCredits),
             0

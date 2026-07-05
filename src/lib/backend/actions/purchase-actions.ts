@@ -7,7 +7,6 @@ import {
   fetchTransactionLookup,
 } from "@/lib/backend/api/spl/spl-api";
 import { lookupTransaction } from "@/lib/backend/api/spl/trxLookupParser";
-import { getCurrentUser, getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
 import type {
   FetchMarketListingsByCardParams,
   LookupTransactionStatus,
@@ -55,14 +54,6 @@ export async function getMarketListingsByCardAction(params: FetchMarketListingsB
       seller: listing.seller,
     };
   });
-}
-
-export async function canSignForAccountAction(account: string): Promise<boolean> {
-  const user = await getCurrentUser();
-  if (!user) return false;
-
-  const monitored = await getMonitoredAccounts();
-  return monitored.some((entry) => entry.username === account.toLowerCase());
 }
 
 export async function getBalancesForAccountsAction(accounts: string[]) {

@@ -103,3 +103,11 @@ export const pack_foundations_icon_url = `${WEB_URL}website/icons/img_pack_found
 
 export const spl_logo_icon_url = `${WEB_URL}website/splinterlands_logo.png`;
 export const splinterlands_statistics_icon_url = `${PEAKD_URL}23tSKnFQVREdG5gFbEZFWqAYNMB6cREM9oMiy4asHybefQfoYw927KUivHGhGp3ycuiKD.png`;
+
+export const mana_icon_url = `${WEB_URL}website/stats/2.0/128/mana.webp`;
+export const attack_icon_url = `${WEB_URL}website/stats/2.0/128/melee.webp`;
+export const ranged_icon_url = `${WEB_URL}website/stats/2.0/128/ranged.webp`;
+export const magic_icon_url = `${WEB_URL}website/stats/2.0/128/magic.webp`;
+export const armor_icon_url = `${WEB_URL}website/stats/2.0/128/armor.webp`;
+export const health_icon_url = `${WEB_URL}website/stats/2.0/128/health.webp`;
+export const speed_icon_url = `${WEB_URL}website/stats/2.0/128/speed.webp`;

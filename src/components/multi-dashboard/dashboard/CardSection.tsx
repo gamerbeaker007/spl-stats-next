@@ -1,6 +1,5 @@
 "use client";
 import BuyCardDialog from "@/components/cards/buy-card-dialog/BuyCardDialog";
-import { useAuth } from "@/lib/frontend/context/AuthContext";
 import { useCardFilter } from "@/lib/frontend/context/CardFilterContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { matchesCardFilter } from "@/lib/shared/card-filter-utils";
@@ -13,11 +12,11 @@ import { Card } from "./Card";
 interface CardSectionProps {
   username: string;
   playerCards: DetailedPlayerCardCollection;
+  selectableAccounts?: string[];
 }
 
-export const CardSection = ({ username, playerCards }: CardSectionProps) => {
+export const CardSection = ({ username, playerCards, selectableAccounts }: CardSectionProps) => {
   const { filter } = useCardFilter();
-  const { isAuthenticated } = useAuth();
   const { addItems } = usePurchasePlan();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -30,7 +29,7 @@ export const CardSection = ({ username, playerCards }: CardSectionProps) => {
     currentCc: number;
   } | null>(null);
 
-  const canBuy = isAuthenticated;
+  const canBuy = username.trim().length > 0;
 
   const openBuyDialog = (card: {
     cardDetailId: number;
@@ -198,7 +197,7 @@ export const CardSection = ({ username, playerCards }: CardSectionProps) => {
           foil={dialogCard.foil}
           currentCc={dialogCard.currentCc}
           canBuy={canBuy}
-          selectableAccounts={[username]}
+          selectableAccounts={selectableAccounts ?? [username]}
           onClose={() => setDialogOpen(false)}
           onAddToPurchasePlan={(items) => {
             addItems(items);
