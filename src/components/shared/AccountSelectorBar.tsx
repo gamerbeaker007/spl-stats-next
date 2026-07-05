@@ -1,8 +1,8 @@
 "use client";
 
-import { MdAdd } from "react-icons/md";
 import { Box, Button, Stack, TextField, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { ReactNode } from "react";
+import { MdAdd } from "react-icons/md";
 
 interface AccountSelectorBarBaseProps {
   accounts: string[];
