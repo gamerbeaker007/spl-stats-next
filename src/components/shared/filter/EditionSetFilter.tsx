@@ -34,6 +34,7 @@ function SubIcon({
   return (
     <Tooltip title={label} placement="top" arrow>
       <Box
+        suppressHydrationWarning
         onClick={onClick}
         sx={{
           width: 28,
@@ -203,6 +204,7 @@ export default function EditionSetFilter({
               arrow
             >
               <Box
+                suppressHydrationWarning
                 onClick={toggleSet}
                 sx={{
                   width: 36,

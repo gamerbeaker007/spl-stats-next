@@ -233,6 +233,7 @@ export const EDITION_DEFS: readonly EditionDef[] = [
   },
 ];
 
+export const SOULKEEP_EDITIONS = new Set([9, 11]);
 // ---------------------------------------------------------------------------
 // Canonical set definitions
 // ---------------------------------------------------------------------------
@@ -300,14 +301,15 @@ const _SET_DEF_INPUTS: readonly SetDefInput[] = [
     hasReward: true,
     hasExtra: false,
   },
-  {
-    setName: "soulkeep",
-    label: "Soulkeep",
-    iconUrl: edition_soulkeep_icon_url,
-    hasPromo: false,
-    hasReward: false,
-    hasExtra: false,
-  },
+  // Do not show the soulkeep
+  // {
+  //   setName: "soulkeep",
+  //   label: "Soulkeep",
+  //   iconUrl: edition_soulkeep_icon_url,
+  //   hasPromo: false,
+  //   hasReward: false,
+  //   hasExtra: false,
+  // },
   {
     setName: "rebellion",
     label: "Rebellion",
