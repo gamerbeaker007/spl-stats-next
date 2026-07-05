@@ -1,6 +1,7 @@
 "use client";
 
-import CurrencyAmountChip from "@/components/cards/CurrencyAmountChip";
+import CurrencyAmountChip from "@/components/cards/top-bar/CurrencyAmountChip";
+import ScrollableTableContainer from "@/components/shared/ScrollableTableContainer";
 import { usePurchaseCheckout } from "@/hooks/cards/usePurchaseCheckout";
 import { getBalancesForAccountsAction } from "@/lib/backend/actions/purchase-actions";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
@@ -181,61 +182,63 @@ export default function PurchaseCartDialog() {
             </Button>
           </Box>
 
-          <Table size="small" stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell align="center">Remove</TableCell>
-                <TableCell>Account</TableCell>
-                <TableCell>Card</TableCell>
-                <TableCell>Edition</TableCell>
-                <TableCell>Foil</TableCell>
-                <TableCell>Level</TableCell>
-                <TableCell>UID</TableCell>
-                <TableCell>CC</TableCell>
-                <TableCell>Seller</TableCell>
-                <TableCell>USD</TableCell>
-                <TableCell>DEC</TableCell>
-                <TableCell>CREDITS</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {items.map((item) => (
-                <TableRow key={`${item.account}-${item.marketId}`}>
-                  <TableCell align="center">
-                    <IconButton
-                      size="small"
-                      onClick={() => removeItem(item.account, item.marketId)}
-                      aria-label="Remove listing"
-                    >
-                      <MdDelete />
-                    </IconButton>
-                  </TableCell>
-                  <TableCell>{item.account}</TableCell>
-                  <TableCell>{item.cardName}</TableCell>
-                  <TableCell>{item.edition}</TableCell>
-                  <TableCell>{item.foil === 1 ? "Gold" : "Regular"}</TableCell>
-                  <TableCell>{item.level}</TableCell>
-                  <TableCell>{item.uid ?? "-"}</TableCell>
-                  <TableCell>{item.cc}</TableCell>
-                  <TableCell>{item.seller ?? "-"}</TableCell>
-                  <TableCell>
-                    <CurrencyAmountChip currency="USD" value={item.priceUsd} />
-                  </TableCell>
-                  <TableCell>
-                    <CurrencyAmountChip currency="DEC" value={item.priceDec} />
-                  </TableCell>
-                  <TableCell>
-                    <CurrencyAmountChip currency="CREDITS" value={item.priceCredits} />
-                  </TableCell>
-                </TableRow>
-              ))}
-              {items.length === 0 && (
+          <ScrollableTableContainer>
+            <Table size="small" stickyHeader>
+              <TableHead>
                 <TableRow>
-                  <TableCell colSpan={12}>No listings selected.</TableCell>
+                  <TableCell align="center">Remove</TableCell>
+                  <TableCell>Account</TableCell>
+                  <TableCell>Card</TableCell>
+                  <TableCell>Edition</TableCell>
+                  <TableCell>Foil</TableCell>
+                  <TableCell>Level</TableCell>
+                  <TableCell>UID</TableCell>
+                  <TableCell>CC</TableCell>
+                  <TableCell>Seller</TableCell>
+                  <TableCell>USD</TableCell>
+                  <TableCell>DEC</TableCell>
+                  <TableCell>CREDITS</TableCell>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
+              </TableHead>
+              <TableBody>
+                {items.map((item) => (
+                  <TableRow key={`${item.account}-${item.marketId}`}>
+                    <TableCell align="center">
+                      <IconButton
+                        size="small"
+                        onClick={() => removeItem(item.account, item.marketId)}
+                        aria-label="Remove listing"
+                      >
+                        <MdDelete />
+                      </IconButton>
+                    </TableCell>
+                    <TableCell>{item.account}</TableCell>
+                    <TableCell>{item.cardName}</TableCell>
+                    <TableCell>{item.edition}</TableCell>
+                    <TableCell>{item.foil === 1 ? "Gold" : "Regular"}</TableCell>
+                    <TableCell>{item.level}</TableCell>
+                    <TableCell>{item.uid ?? "-"}</TableCell>
+                    <TableCell>{item.cc}</TableCell>
+                    <TableCell>{item.seller ?? "-"}</TableCell>
+                    <TableCell>
+                      <CurrencyAmountChip currency="USD" value={item.priceUsd} />
+                    </TableCell>
+                    <TableCell>
+                      <CurrencyAmountChip currency="DEC" value={item.priceDec} />
+                    </TableCell>
+                    <TableCell>
+                      <CurrencyAmountChip currency="CREDITS" value={item.priceCredits} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {items.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={12}>No listings selected.</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </ScrollableTableContainer>
 
           <Box
             sx={{

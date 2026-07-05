@@ -2,12 +2,6 @@
 
 import { fetchPeakmonstersMarketPrices } from "@/lib/backend/api/peakmonsters/peakmonsters-api";
 import {
-  fetchBrawlDetails,
-  fetchDailyProgress,
-  fetchPlayerHistory,
-  fetchPlayerHistoryByDateRange,
-} from "@/lib/backend/api/spl/spl-authenticated-api";
-import {
   fetchCardCollection,
   fetchCardDetails,
   fetchCurrentRewards,
@@ -17,16 +11,23 @@ import {
   fetchPlayerDetails,
   fetchRankedDraws,
 } from "@/lib/backend/api/spl/spl-api";
+import {
+  fetchBrawlDetails,
+  fetchDailyProgress,
+  fetchPlayerHistory,
+  fetchPlayerHistoryByDateRange,
+} from "@/lib/backend/api/spl/spl-authenticated-api";
 import { decryptToken } from "@/lib/backend/auth/encryption";
 import { getSeasonBalances } from "@/lib/backend/db/season-balances";
 import { getAllSeasons, getLatestSeason, getSeasonById } from "@/lib/backend/db/seasons";
 import { getSplAccountCredentials } from "@/lib/backend/db/spl-accounts";
-import { getCardImg, getPlayerCollectionValue } from "@/lib/collectionUtils";
+import { getPlayerCollectionValue } from "@/lib/collectionUtils";
 import {
   aggregatePurchaseRewards,
   aggregateRewards,
   mergeRewardSummaries,
 } from "@/lib/rewardAggregator";
+import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 import { CardSetName } from "@/lib/shared/edition-utils";
 import {
   CardDetail,
@@ -256,7 +257,7 @@ export async function getDetailedPlayerCardCollection(
       foil,
       mint: playerCard.mint,
       level: playerCard.level,
-      imgUrl: getCardImg(item.name, playerCard.edition, foil, playerCard.level),
+      imgUrl: getCardImageByLevel(item.name, playerCard.edition, foil, playerCard.level),
     };
 
     item.allCards!.push(cardDetail);

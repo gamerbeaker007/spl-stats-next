@@ -1,6 +1,6 @@
 "use client";
 
-import PurchaseCartButton from "@/components/cards/PurchaseCartButton";
+import PurchaseCartButton from "@/components/cards/top-bar/PurchaseCartButton";
 import TopBarBalances from "@/components/top-bar/TopBarBalances";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";

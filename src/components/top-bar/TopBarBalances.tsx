@@ -1,8 +1,9 @@
 "use client";
 
+import CurrencyAmountChip from "@/components/cards/top-bar/CurrencyAmountChip";
 import { getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
 import { getBalancesForAccountsAction } from "@/lib/backend/actions/purchase-actions";
-import CurrencyAmountChip from "@/components/cards/CurrencyAmountChip";
+import { useAuth } from "@/lib/frontend/context/AuthContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { SplBalance } from "@/types/spl/balances";
 import { Box, CircularProgress, Tooltip, Typography } from "@mui/material";
@@ -22,6 +23,7 @@ function totalToken(rows: AccountBalances[], token: string): number {
 
 export default function TopBarBalances() {
   const { balanceRefreshVersion } = usePurchasePlan();
+  const { user, isAuthenticated } = useAuth();
   const [rows, setRows] = useState<AccountBalances[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -51,7 +53,7 @@ export default function TopBarBalances() {
     return () => {
       active = false;
     };
-  }, [balanceRefreshVersion]);
+  }, [balanceRefreshVersion, isAuthenticated, user?.username]);
 
   const totals = useMemo(
     () => ({

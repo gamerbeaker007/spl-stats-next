@@ -1,6 +1,7 @@
 "use client";
 
-import { getCardImageUrl, getFoilLabel } from "@/lib/shared/card-image-utils";
+import { getCardImageV2 } from "@/lib/shared/card-image-utils";
+import { getFoilLabel } from "@/lib/shared/card-utils";
 import { CardPrizeData } from "@/types/jackpot-prizes/shared";
 import { SplCardDetail } from "@/types/spl/cardDetails";
 import { Info } from "@mui/icons-material";
@@ -31,7 +32,7 @@ function Card({ prizeData, card, onFoilClick, selectedFoil }: Props) {
     [isArchmageYabanius]
   );
 
-  const imageUrl = getCardImageUrl(card.name || "Unknown", 0, isLandCard);
+  const imageUrl = getCardImageV2(card.name || "Unknown", 0, isLandCard);
   const isSelected = selectedFoil !== null && selectedFoil !== undefined;
 
   return (

@@ -36,6 +36,7 @@ Reuse:
 - card collection refresh
 
 Feature B adds the `target-level` mode to `BuyCardDialog`.
+The buyCardDialog need to be exetended with tabs to witch between buying method
 
 ## Terminology
 
@@ -85,6 +86,8 @@ Use the route that best matches the existing app navigation conventions. If no c
 ```
 
 Add it to navigation only if that matches existing product patterns.
+Add to side bar
+so in main layout Card / sub pages collection and buy missing CC
 
 ## Account Selection
 
@@ -155,7 +158,7 @@ Important:
 
 - Request grouped market information for all card levels.
 - Do not request only max-level cards.
-- In `splinter-lands-next`, the grouped endpoint currently uses `level: "max"` in some flows; do not copy that behavior for this feature.
+- In `splinter-lands-next` (porject aslo on VsCodeProject folder), the grouped endpoint currently uses `level: "max"` in some flows; do not copy that behavior for this feature.
 
 Use `low_price_bcx` / low price per CC to estimate:
 
@@ -202,6 +205,9 @@ Purpose:
 - Foundations combine rates
 - Alpha/Beta/Promo/Reward XP conversion rules
 - edition-specific rules
+
+public api enpoint you can validate result
+https://api.splinterlands.com/settings
 
 ## Page Layout
 
@@ -271,14 +277,14 @@ Changing future bracket caps should only require editing this one config.
 
 Current values:
 
-| League | Common | Rare | Epic | Legendary |
-| --- | --- | --- | --- | --- |
-| Novice | 1 | 1 | 1 | 1 |
-| Bronze | 1-3 | 1-3 | 1-2 | 1 |
-| Silver | 2-5 | 1-4 | 1-3 | 1-2 |
-| Gold | 4-8 | 3-7 | 2-5 | 2-3 |
-| Diamond | 6-10 | 5-8 | 4-6 | 2-4 |
-| Champion | 8-10 | 6-8 | 5-6 | 3-4 |
+| League   | Common | Rare | Epic | Legendary |
+| ---      | ---    | ---  | ---  | ---       |
+| Novice   | 1      | 1    | 1    | 1         |
+| Bronze   | 1-3    | 1-3  | 1-2  | 1         |
+| Silver   | 2-5    | 1-4  | 1-3  | 1-2       |
+| Gold     | 4-8    | 3-7  | 2-5  | 2-3       |
+| Diamond  | 6-10   | 5-8  | 4-6  | 2-4       |
+| Champion | 8-10   | 6-8  | 5-6  | 3-4       |
 
 Interpretation:
 
@@ -509,6 +515,7 @@ If the existing project or official implementation does not make the conversion 
 ## BuyCardDialog: `target-level` Mode
 
 The `Buy CC` action opens the shared `BuyCardDialog` from Feature A in `target-level` mode.
+Note again you can switch here between target-level and manual-listingmode
 
 Display:
 
@@ -622,10 +629,16 @@ Do not let Storybook setup block the core feature.
 As a follow-up task, set up Storybook using `splinter-lands-next` as reference and add stories for:
 
 - ability icons
+exmaple:
+ ability in cardDetails abilities":[["Ambush"],[],["Stun"],
+ icon https://d36mxiodymuqjm.cloudfront.net/website/abilities/ability_ambush.png
 - reusable purchase components
 - upgrade comparison
 - ability preview
 - a page showing every ability icon returned by `fetchCardDetails`
+
+this api is public available to explore:
+https://api.splinterlands.com/cards/get_details
 
 ## Acceptance Criteria
 
@@ -650,4 +663,3 @@ As a follow-up task, set up Storybook using `splinter-lands-next` as reference a
 - Successful purchase refreshes the selected account collection and balances.
 - No combine functionality is implemented.
 - If Alpha/Beta/Promo/Reward XP conversion is unclear, implementation stops and asks instead of guessing.
-

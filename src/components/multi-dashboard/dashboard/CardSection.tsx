@@ -1,14 +1,14 @@
 "use client";
-import BuyCardDialog from "@/components/cards/BuyCardDialog";
+import BuyCardDialog from "@/components/cards/buy-card-dialog/BuyCardDialog";
 import { useAuth } from "@/lib/frontend/context/AuthContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
-import { getCardImg } from "@/lib/collectionUtils";
 import { useCardFilter } from "@/lib/frontend/context/CardFilterContext";
 import { matchesCardFilter } from "@/lib/shared/card-filter-utils";
 import { CardFoil, DetailedPlayerCardCollection } from "@/types/card";
 import { Alert, Box, Snackbar, Typography } from "@mui/material";
 import { useState } from "react";
 import { Card } from "./Card";
+import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 
 interface CardSectionProps {
   username: string;
@@ -107,7 +107,7 @@ export const CardSection = ({ username, playerCards }: CardSectionProps) => {
           if (filteredGroups.length > 0) {
             // Render owned cards grouped by edition and foil
             return filteredGroups.map((cardGroup, groupIndex) => {
-              const imageUrl = getCardImg(
+              const imageUrl = getCardImageByLevel(
                 cardItem.name,
                 cardGroup.edition,
                 cardGroup.foil,
@@ -166,7 +166,7 @@ export const CardSection = ({ username, playerCards }: CardSectionProps) => {
               key={`${cardItem.cardDetailId}-missing-${cardItem.edition}`}
               player={username}
               name={cardItem.name}
-              imageUrl={getCardImg(cardItem.name, cardItem.edition, "regular", 0)}
+              imageUrl={getCardImageByLevel(cardItem.name, cardItem.edition, "regular", 0)}
               subTitle="(Missing)"
               opacity={0.3}
               priority={cardIndex < 6}

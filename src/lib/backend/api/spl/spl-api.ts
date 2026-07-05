@@ -354,7 +354,7 @@ export async function fetchCurrentRewards(username: string): Promise<SPLSeasonRe
 // ---------------------------------------------------------------------------
 
 /** Fetch grouped market listing prices from /market/for_sale_grouped. */
-export async function fetchListingPrices(): Promise<SplCardListingPriceEntry[]> {
+export async function fetchMarketForSaleGrouped(): Promise<SplCardListingPriceEntry[]> {
   try {
     const res = await splBaseClient.get("/market/for_sale_grouped");
     if (!res.data) throw new Error("Invalid response from Splinterlands API");
@@ -365,6 +365,11 @@ export async function fetchListingPrices(): Promise<SplCardListingPriceEntry[]> 
     );
     throw error;
   }
+}
+
+/** Backward-compatible alias used by older code paths. */
+export async function fetchListingPrices(): Promise<SplCardListingPriceEntry[]> {
+  return fetchMarketForSaleGrouped();
 }
 
 /** Fetch exact market listings for a single card target. */

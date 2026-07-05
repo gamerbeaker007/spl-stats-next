@@ -1,4 +1,5 @@
-import { getCardImageV2, getFoilLabel } from "@/lib/shared/card-image-utils";
+import { getCardImageV2 } from "@/lib/shared/card-image-utils";
+import { getFoilLabel } from "@/lib/shared/card-utils";
 import { SplCardDetail } from "@/types/spl/cardDetails";
 import { Box, Card, CardContent, Typography } from "@mui/material";
 import { FortuneWinner } from "@prisma/client";

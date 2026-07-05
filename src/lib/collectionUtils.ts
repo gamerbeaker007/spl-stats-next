@@ -1,10 +1,8 @@
-import { CardFoil, cardFoilSuffixMap } from "@/types/card";
-import { EDITION_DEFS, getEditionUrlName } from "@/lib/shared/edition-utils";
+import { EDITION_DEFS } from "@/lib/shared/edition-utils";
 import { PeakmonstersMarketPriceEntry } from "@/types/peakmonsters/market";
 import { EditionValues, PlayerCollectionValue } from "@/types/playerCardCollection";
 import { EnrichedCollectionCard, SplCardCollection, SplPlayerCard } from "@/types/spl/card";
 import { SplCardListingPriceEntry } from "@/types/spl/market";
-import { WEB_URL } from "./staticsIconUrls";
 
 /**
  * Group cards by BCX to reduce processing time for identifying values
@@ -150,22 +148,4 @@ export async function getPlayerCollectionValue(
   }
 
   return result;
-}
-
-/**
- * Generate image URL for a card
- */
-export function getCardImg(
-  cardName: string,
-  editionId: number,
-  foil: CardFoil,
-  level?: number
-): string {
-  const suffix = cardFoilSuffixMap[foil] ?? "";
-  const baseCardUrl = `${WEB_URL}cards_by_level`;
-  const safeCardName = encodeURIComponent(cardName.trim());
-  const lvl = level && level > 1 ? level : 1;
-  const editionName = getEditionUrlName(editionId) ?? "unknown_edition";
-
-  return `${baseCardUrl}/${editionName}/${safeCardName}_lv${lvl}${suffix}.png`;
 }

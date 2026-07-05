@@ -1,8 +1,8 @@
-import { getCardImageUrl, getFallbackImageUrl } from "@/lib/shared/card-image-utils";
+import { getCardImageV2, getFallbackImageUrl } from "@/lib/shared/card-image-utils";
+import { SplCardDetail } from "@/types/spl/cardDetails";
 import { Box, Card, CardContent, Typography } from "@mui/material";
 import Image from "next/image";
 import { SplCAGoldReward } from "../../../types/jackpot-prizes/cardCollection";
-import { SplCardDetail } from "@/types/spl/cardDetails";
 
 const distrubution = [
   5000, // Common
@@ -41,7 +41,7 @@ export function CAGoldRewardCardDetail({
   }
 
   // Use the utility function for safe image URL generation
-  const imageUrl = getCardImageUrl(cardDetail.name, 1); // always 1 gold in this case
+  const imageUrl = getCardImageV2(cardDetail.name, 1); // always 1 gold in this case
   const fallbackUrl = getFallbackImageUrl(cardDetail.name);
 
   return (

@@ -11,9 +11,14 @@ export interface SplSettings {
     ends: string;
   };
   maintenance_mode: boolean;
+  combine_rates?: number[][];
+  combine_rates_gold?: number[][];
+  foundations_combine_rates?: number[][];
+  foundations_combine_rates_gold?: number[][];
   /** XP thresholds for BCX calculation — indexed by rarity-1 (0=Common … 3=Legendary). */
   alpha_xp?: number[];
   beta_xp?: number[];
   beta_gold_xp?: number[];
   gold_xp?: number[];
+  xp_levels?: number[][];
 }

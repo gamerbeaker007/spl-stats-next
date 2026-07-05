@@ -25,7 +25,6 @@ export function createFilterContext<F extends UnifiedCardFilter>(defaults: F, st
   }
 
   function Provider({ children }: { children: ReactNode }) {
-    // Lazy init: server gets defaults, client gets localStorage (avoids hydration mismatch)
     const [filter, setFilterState] = useState<F>(() =>
       typeof window !== "undefined" ? loadFromStorage() : { ...defaults }
     );

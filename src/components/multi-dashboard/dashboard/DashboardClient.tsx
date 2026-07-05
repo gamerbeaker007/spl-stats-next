@@ -3,6 +3,7 @@
 import { CardFilterDrawer } from "@/components/multi-dashboard/dashboard/CardFilterDrawer";
 import { PlayerDashboardContent } from "@/components/multi-dashboard/dashboard/PlayerDashboardContent";
 import { getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
+import { useAuth } from "@/lib/frontend/context/AuthContext";
 import { CardFilterProvider } from "@/lib/frontend/context/CardFilterContext";
 import { Box, Skeleton, ToggleButton, ToggleButtonGroup, Typography } from "@mui/material";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -31,6 +32,7 @@ function PlayerDashboardSkeleton() {
 function DashboardContent() {
   const [usernames, setUsernames] = useState<string[]>([]);
   const [isInitialized, setIsInitialized] = useState(false);
+  const { user, isAuthenticated } = useAuth();
   const searchParams = useSearchParams();
   const userParam = searchParams.get("users");
   const router = useRouter();
@@ -40,7 +42,7 @@ function DashboardContent() {
       setUsernames(accounts.map((a) => a.username));
       setIsInitialized(true);
     });
-  }, []);
+  }, [isAuthenticated, user?.username]);
 
   // Derive selected users from URL parameter (comma-separated)
   const selectedUsers = useMemo(() => {
@@ -63,7 +65,7 @@ function DashboardContent() {
     if (newUsers.length === 0) return;
     // Update URL with comma-separated users
     const newParam = newUsers.join(",");
-    router.push(`/cards/collection?users=${encodeURIComponent(newParam)}`);
+    router.push(`/collection/cards?users=${encodeURIComponent(newParam)}`);
   };
 
   // Redirect to home if no users

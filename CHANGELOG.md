@@ -9,7 +9,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
-## [v1.5.0] - 2026-07-02
+## [v1.5.0] - 
 
 ### Added
 
