@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { name, version } from "./package.json";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -29,6 +30,10 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   cacheComponents: true,
+  env: {
+    NEXT_PUBLIC_APP_NAME: name,
+    NEXT_PUBLIC_APP_VERSION: version,
+  },
 
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];

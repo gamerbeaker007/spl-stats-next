@@ -12,6 +12,8 @@ export function currentMode(): SplApiMode {
 
 const mode = currentMode();
 
+const APP = `${process.env.NEXT_PUBLIC_APP_NAME ?? "spl-stats-next"}/${process.env.NEXT_PUBLIC_APP_VERSION ?? "dev"}`;
+
 export const splApiConfig = {
   mode,
   publicBaseUrl: trimTrailingSlash(
@@ -26,7 +28,7 @@ export const splApiConfig = {
         ? (process.env.SPL_TEST_VAPI_BASE_URL ?? "https://vapi.mavs-sl.com")
         : "https://vapi.splinterlands.com")
   ),
-  app: process.env.SPL_APP_NAME ?? "spl-stats",
+  app: APP,
   operationPrefix:
     process.env.SPL_OPERATION_PREFIX ??
     (mode === "test" ? (process.env.SPL_TEST_OPERATION_PREFIX ?? "sl-mavs") : ""),

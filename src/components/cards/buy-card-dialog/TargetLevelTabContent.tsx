@@ -130,7 +130,7 @@ export default function TargetLevelTabContent({
       <Table size="small" stickyHeader>
         <TableHead>
           <TableRow>
-            <TableCell>Playable Bracket</TableCell>
+            <TableCell>Target Bracket</TableCell>
             <TableCell>Level</TableCell>
             {dynamicStats.map((row) => (
               <TableCell key={row.key}>

@@ -40,7 +40,6 @@ export async function getBuyMissingCcAccountDataAction(
     throw new Error("Account is required");
   }
 
-  console.log("Fetching data for account", normalized);
   const [collection, groupedMarket, balances] = await Promise.all([
     fetchCardCollection(normalized),
     fetchMarketForSaleGrouped(),
@@ -51,7 +50,6 @@ export async function getBuyMissingCcAccountDataAction(
     (card) => !SOULKEEP_EDITIONS.has(Number(card.edition))
   );
 
-  console.log("Filtered cards:", collection.cards.length);
   return {
     account: normalized,
     collection,

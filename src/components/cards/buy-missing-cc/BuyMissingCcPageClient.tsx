@@ -496,13 +496,7 @@ export default function BuyMissingCcPageClient() {
               <TableRow>
                 <TableCell>Card</TableCell>
                 <TableCell>Buy CC</TableCell>
-                <TableCell>
-                  <Tooltip title="Combine (coming soon)">
-                    <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
-                      <TbCopyPlusFilled size={16} /> Combine
-                    </Box>
-                  </Tooltip>
-                </TableCell>
+                <TableCell>Combine</TableCell>
                 <TableCell>
                   <TableSortLabel
                     active={sortBy === "name"}
@@ -528,14 +522,14 @@ export default function BuyMissingCcPageClient() {
                   </TableSortLabel>
                 </TableCell>
                 <TableCell>Bracket Status</TableCell>
-                <TableCell>Lowest Price/BCX</TableCell>
+                <TableCell>Lowest Price/CC ($)</TableCell>
                 <TableCell>
                   <TableSortLabel
                     active={sortBy === "next"}
                     direction={sortBy === "next" ? sortDir : "asc"}
                     onClick={() => toggleSort("next")}
                   >
-                    Estimated Next ($)
+                    Est. Next ($)
                   </TableSortLabel>
                 </TableCell>
                 {selectedBracket && (
@@ -545,7 +539,7 @@ export default function BuyMissingCcPageClient() {
                       direction={sortBy === "bracket" ? sortDir : "asc"}
                       onClick={() => toggleSort("bracket")}
                     >
-                      Estimated Bracket ($)
+                      Est. Bracket ($)
                     </TableSortLabel>
                   </TableCell>
                 )}
@@ -562,7 +556,9 @@ export default function BuyMissingCcPageClient() {
             </TableHead>
             <TableBody>
               {pagedRows.map((row) => {
-                const setName = getSetName(row.edition);
+                const setName =
+                  row.tier !== undefined ? getSetName(row.tier) : getSetName(row.edition);
+
                 const setIcon = setName ? getSetIconUrl(setName) : undefined;
                 const editionIcon = getEditionIconUrl(row.edition);
                 const rarityIcon = getRarityIconUrl(rarityNameById(row.rarity));
