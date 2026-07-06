@@ -16,6 +16,7 @@ import {
 } from "@/lib/staticsIconUrls";
 import { findLeagueLogoUrl } from "@/lib/utils";
 import type { LeagueBracket } from "@/types/buy-missing-cc";
+import type { CardFoil } from "@/types/card";
 import type { CardStats } from "@/types/spl/cardDetails";
 import {
   Alert,
@@ -51,12 +52,13 @@ const STAT_ICON_URL: Record<Exclude<keyof CardStats, "abilities">, string> = {
   speed: speed_icon_url,
 };
 
-type TargetRow = {
+export type TargetLevelRow = {
   level: number;
+  statsLevel: number;
   playableBrackets: LeagueBracket[];
-  targetCc: number;
+  targetCc: number | null;
   ownedBcx: number;
-  neededBcx: number;
+  neededBcx: number | null;
   dec: number;
   credits: number;
   usd: number;
@@ -67,7 +69,7 @@ type TargetRow = {
     cardDetailId: number;
     cardName: string;
     edition: number;
-    foil: number;
+    foil: CardFoil;
     level: number;
     cc: number;
     priceUsd: number;
@@ -75,14 +77,15 @@ type TargetRow = {
     priceCredits: number;
     seller?: string;
   }>;
-  exact: boolean;
+  fulfilled: boolean;
+  isTargetable: boolean;
   abilities: string[];
 };
 
 interface TargetLevelTabContentProps {
   combineRatesAvailable: boolean;
   dynamicStats: Array<{ key: keyof CardStats; label: string }>;
-  targetRows: TargetRow[];
+  targetRows: TargetLevelRow[];
   cardStats?: CardStats;
   cardRarity?: number;
   targetBracket: LeagueBracket | "";
@@ -93,8 +96,8 @@ interface TargetLevelTabContentProps {
   canBuy: boolean;
   buyBusy: boolean;
   balance: { DEC: number; CREDITS: number };
-  onAddToPurchasePlan: (items: TargetRow["planItems"]) => void;
-  onRunCheckoutForPlan: (items: TargetRow["planItems"], currency: "DEC" | "CREDITS") => void;
+  onAddToPurchasePlan: (items: TargetLevelRow["planItems"]) => void;
+  onRunCheckoutForPlan: (items: TargetLevelRow["planItems"], currency: "DEC" | "CREDITS") => void;
 }
 
 export default function TargetLevelTabContent({
@@ -156,6 +159,8 @@ export default function TargetLevelTabContent({
         <TableBody>
           {targetRows.map((row) => {
             const highlighted = row.level === accountHighestLevel;
+            const canPurchaseRow =
+              row.isTargetable && row.planItems.length > 0 && row.fulfilled && canBuy;
 
             const [targetMin, targetMax] =
               cardRarity && targetBracket !== ""
@@ -209,7 +214,7 @@ export default function TargetLevelTabContent({
                 <TableCell>{row.level}</TableCell>
                 {dynamicStats.map((stat) => (
                   <TableCell key={stat.key}>
-                    {cardStats?.[stat.key][Math.max(0, row.level - 1)] ?? 0}
+                    {cardStats?.[stat.key][Math.max(0, row.statsLevel - 1)] ?? 0}
                   </TableCell>
                 ))}
                 <TableCell>
@@ -230,7 +235,7 @@ export default function TargetLevelTabContent({
                     {row.abilities.length === 0 && <Typography variant="caption">-</Typography>}
                   </Stack>
                 </TableCell>
-                <TableCell>{row.targetCc}</TableCell>
+                <TableCell>{row.targetCc ?? "N/A"}</TableCell>
                 <TableCell
                   sx={
                     row.level === accountHighestLevel && isHighestCcAtMaxLevel
@@ -240,56 +245,60 @@ export default function TargetLevelTabContent({
                 >
                   {row.level === accountHighestLevel ? accountHighestCc : accountTotalCc}
                 </TableCell>
-                <TableCell>{row.neededBcx}</TableCell>
-                <TableCell>{row.usd > 0 ? row.usd.toFixed(3) : "-"}</TableCell>
+                <TableCell>{row.neededBcx ?? "N/A"}</TableCell>
                 <TableCell>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    disabled={!canBuy || row.planItems.length === 0 || !row.exact}
-                    onClick={() => onAddToPurchasePlan(row.planItems)}
-                  >
-                    Add
-                  </Button>
+                  {row.isTargetable ? (row.usd > 0 ? row.usd.toFixed(3) : "-") : "N/A"}
                 </TableCell>
                 <TableCell>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    disabled={
-                      !canBuy ||
-                      buyBusy ||
-                      row.planItems.length === 0 ||
-                      !row.exact ||
-                      row.planItems.reduce((sum, item) => sum + item.priceCredits, 0) >
-                        balance.CREDITS
-                    }
-                    onClick={() => onRunCheckoutForPlan(row.planItems, "CREDITS")}
-                  >
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <Image src={credits_icon_url} alt="Credits" width={14} height={14} />
-                      <Typography variant="caption">{row.credits.toFixed(0)}</Typography>
-                    </Stack>
-                  </Button>
+                  {row.isTargetable && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      disabled={!canPurchaseRow}
+                      onClick={() => onAddToPurchasePlan(row.planItems)}
+                    >
+                      Add
+                    </Button>
+                  )}
                 </TableCell>
                 <TableCell>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    disabled={
-                      !canBuy ||
-                      buyBusy ||
-                      row.planItems.length === 0 ||
-                      !row.exact ||
-                      row.planItems.reduce((sum, item) => sum + item.priceDec, 0) > balance.DEC
-                    }
-                    onClick={() => onRunCheckoutForPlan(row.planItems, "DEC")}
-                  >
-                    <Stack direction="row" spacing={0.5} alignItems="center">
-                      <Image src={dec_icon_url} alt="DEC" width={14} height={14} />
-                      <Typography variant="caption">{row.dec.toFixed(3)}</Typography>
-                    </Stack>
-                  </Button>
+                  {row.isTargetable && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      disabled={
+                        !canPurchaseRow ||
+                        buyBusy ||
+                        row.planItems.reduce((sum, item) => sum + item.priceCredits, 0) >
+                          balance.CREDITS
+                      }
+                      onClick={() => onRunCheckoutForPlan(row.planItems, "CREDITS")}
+                    >
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <Image src={credits_icon_url} alt="Credits" width={14} height={14} />
+                        <Typography variant="caption">{row.credits.toFixed(0)}</Typography>
+                      </Stack>
+                    </Button>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {row.isTargetable && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      disabled={
+                        !canPurchaseRow ||
+                        buyBusy ||
+                        row.planItems.reduce((sum, item) => sum + item.priceDec, 0) > balance.DEC
+                      }
+                      onClick={() => onRunCheckoutForPlan(row.planItems, "DEC")}
+                    >
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <Image src={dec_icon_url} alt="DEC" width={14} height={14} />
+                        <Typography variant="caption">{row.dec.toFixed(3)}</Typography>
+                      </Stack>
+                    </Button>
+                  )}
                 </TableCell>
               </TableRow>
             );

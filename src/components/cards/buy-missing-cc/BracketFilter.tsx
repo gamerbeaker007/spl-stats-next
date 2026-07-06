@@ -1,7 +1,7 @@
 import { LEAGUE_BRACKETS } from "@/lib/shared/league-brackets";
 import { findLeagueLogoUrl } from "@/lib/utils";
 import { LeagueBracket } from "@/types/buy-missing-cc";
-import { Stack, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from "@mui/material";
+import { Box, ToggleButton, ToggleButtonGroup, Tooltip, Typography } from "@mui/material";
 import Image from "next/image";
 
 const BRACKET_LEAGUE_LOGO: Record<LeagueBracket, number> = {
@@ -16,12 +16,12 @@ const BRACKET_LEAGUE_LOGO: Record<LeagueBracket, number> = {
 export default function BracketFilter({
   selectedBracket,
   setSelectedBracket,
-}: {
+}: Readonly<{
   selectedBracket: LeagueBracket | "";
   setSelectedBracket: (bracket: LeagueBracket) => void;
-}) {
+}>) {
   return (
-    <Stack direction="row" alignItems="center" spacing={1}>
+    <Box display={"flex"} flexWrap={"wrap"} alignItems={"center"} gap={1}>
       <Typography variant="body2" sx={{ mr: 1 }}>
         Bracket Filter
       </Typography>
@@ -47,6 +47,6 @@ export default function BracketFilter({
           );
         })}
       </ToggleButtonGroup>
-    </Stack>
+    </Box>
   );
 }

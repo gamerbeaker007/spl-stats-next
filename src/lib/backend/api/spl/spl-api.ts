@@ -38,6 +38,7 @@ import { SplSeasonInfo, SplSettings } from "@/types/spl/season";
 import { SPLSeasonRewards } from "@/types/spl/seasonRewards";
 import axios from "axios";
 import * as rax from "retry-axios";
+import { toCardFoilInt } from "@/lib/shared/card-utils";
 
 const SPL_BASE_URL = `${splApiConfig.publicBaseUrl}/`;
 
@@ -372,7 +373,11 @@ export async function fetchListingPrices(): Promise<SplCardListingPriceEntry[]> 
   return fetchMarketForSaleGrouped();
 }
 
-/** Fetch exact market listings for a single card target. */
+/** Fetch exact market listings for a single card target.
+ * you can either use foil 0-4 directly in the api or use
+ * gold will return foil 1 and foil 2
+ * black will return foil 3 and foil 4
+ * */
 export async function fetchMarketListingsByCard({
   cardDetailId,
   foil,
@@ -380,7 +385,8 @@ export async function fetchMarketListingsByCard({
   type = "buy",
   level,
 }: FetchMarketListingsByCardParams): Promise<SplMarketListing[]> {
-  const apiFoil = foil === 1 || foil === 2 ? "gold" : foil === 3 || foil === 4 ? "black" : foil;
+  const apiFoil = toCardFoilInt(foil);
+
   const params: Record<string, string | number> = {
     card_detail_id: cardDetailId,
     foil: apiFoil,
@@ -396,13 +402,11 @@ export async function fetchMarketListingsByCard({
     throw new Error("Invalid response from Splinterlands API");
   }
 
-  return listings
-    .filter((listing) => listing.foil === foil)
-    .sort((a, b) => {
-      const aPricePerCc = a.buy_price / Math.max(1, a.bcx);
-      const bPricePerCc = b.buy_price / Math.max(1, b.bcx);
-      return aPricePerCc - bPricePerCc;
-    });
+  return listings.sort((a, b) => {
+    const aPricePerCc = a.buy_price / Math.max(1, a.bcx);
+    const bPricePerCc = b.buy_price / Math.max(1, b.bcx);
+    return aPricePerCc - bPricePerCc;
+  });
 }
 
 /**

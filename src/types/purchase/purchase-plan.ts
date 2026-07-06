@@ -1,3 +1,5 @@
+import { CardFoil } from "@/types/card";
+
 export type PurchaseCurrency = "DEC" | "CREDITS";
 
 export interface PurchasePlanItem {
@@ -7,7 +9,7 @@ export interface PurchasePlanItem {
   cardDetailId: number;
   cardName: string;
   edition: number;
-  foil: number;
+  foil: CardFoil;
   level: number;
   cc: number;
   priceUsd: number;
@@ -47,7 +49,7 @@ export interface SplMarketListingsResponse {
 
 export interface FetchMarketListingsByCardParams {
   cardDetailId: number;
-  foil: number;
+  foil: CardFoil;
   edition: number;
   type?: "buy";
   level?: number;

@@ -10,24 +10,28 @@ import { checkoutItems } from "@/lib/frontend/purchase/checkout";
 import {
   buildPurchasePlan,
   calculateUpgradeRequirements,
+  getCardFirstPlayableLevel,
   getCombineRatesForCard,
   selectCheapestListings,
 } from "@/lib/shared/buy-missing-cc";
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
+import { getFoilLabel } from "@/lib/shared/card-utils";
 import { getBracketLevelRange, LEAGUE_BRACKETS } from "@/lib/shared/league-brackets";
 import type { LeagueBracket } from "@/types/buy-missing-cc";
-import { CardFoil } from "@/types/card";
+import { CardFoil, cardFoilOptions } from "@/types/card";
 import type { PurchaseCurrency, PurchasePlanItem } from "@/types/purchase/purchase-plan";
 import type { CardStats } from "@/types/spl/cardDetails";
 import type { SplSettings } from "@/types/spl/season";
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   FormControl,
   InputLabel,
   MenuItem,
@@ -43,7 +47,9 @@ import { useEffect, useMemo, useState } from "react";
 import BracketFilter from "../buy-missing-cc/BracketFilter";
 import ManualListingsTabContent from "./ManualListingsTabContent";
 import PurchaseTxProgressPanel from "./PurchaseTxProgressPanel";
-import TargetLevelTabContent from "./TargetLevelTabContent";
+import TargetLevelTabContent, { type TargetLevelRow } from "./TargetLevelTabContent";
+import { credits_icon_url, dec_icon_url } from "@/lib/staticsIconUrls";
+import { largeNumberFormat } from "@/lib/utils";
 
 export type BuyCardDialogMode = "manual-listings" | "target-level";
 
@@ -60,7 +66,7 @@ export interface BuyCardDialogProps {
   cardDetailId: number;
   cardName: string;
   edition: number;
-  foil: number;
+  foil: CardFoil;
   currentLevel?: number;
   currentCc?: number;
   cardRarity?: number;
@@ -79,23 +85,15 @@ export interface BuyCardDialogProps {
 const PAGE_OPTIONS = [20, 50, 100] as const;
 const BRACKET_ORDER: LeagueBracket[] = ["wood", "bronze", "silver", "gold", "diamond", "champion"];
 
-function levelBracket(level: number, rarity: number): LeagueBracket {
-  for (const bracket of BRACKET_ORDER) {
-    const [, max] = getBracketLevelRange(bracket, rarity);
-    if (level <= max) return bracket;
-  }
-  return "champion";
-}
-
-function playableBrackets(level: number, rarity: number): LeagueBracket[] {
+function getPlayableBrackets(level: number, rarity: number): LeagueBracket[] {
   return BRACKET_ORDER.filter((bracket) => {
     const [min, max] = getBracketLevelRange(bracket, rarity);
     return level >= min && level <= max;
   });
 }
 
-function isMaxOnlyFoil(foil: number): boolean {
-  return foil === 2 || foil === 3 || foil === 4;
+function isMaxOnlyFoil(foil: CardFoil): boolean {
+  return foil === "gold arcane" || foil === "black" || foil === "black arcane";
 }
 
 function cumulativeAbilities(abilitiesByLevel: string[] | string[][], level: number): string[] {
@@ -151,7 +149,7 @@ export default function BuyCardDialog({
     initialTargetBracket || ""
   );
   const [selectedAccount, setSelectedAccount] = useState(account.toLowerCase());
-  const [selectedFoil, setSelectedFoil] = useState(foil);
+  const [selectedFoil, setSelectedFoil] = useState<CardFoil>(foil);
   const [levelFilter, setLevelFilter] = useState<number | "all">("all");
   const [pageSize, setPageSize] = useState<(typeof PAGE_OPTIONS)[number]>(20);
   const [page, setPage] = useState(1);
@@ -184,6 +182,7 @@ export default function BuyCardDialog({
   useEffect(() => {
     if (!open) return;
     setSelectedAccount(account.toLowerCase());
+    setSelectedFoil(foil);
     setActiveMode(mode);
     setTargetBracket(initialTargetBracket || "");
     setContextError(null);
@@ -200,6 +199,7 @@ export default function BuyCardDialog({
     cardRarity,
     cardStats,
     cardTier,
+    foil,
     initialTargetBracket,
     mode,
     open,
@@ -464,17 +464,6 @@ export default function BuyCardDialog({
 
   const selectedItems: PurchasePlanItem[] = selectedRows.map(toPurchaseItem);
 
-  const selectedFoilName: CardFoil =
-    selectedFoil === 0
-      ? "regular"
-      : selectedFoil === 1
-        ? "gold"
-        : selectedFoil === 2
-          ? "gold arcane"
-          : selectedFoil === 3
-            ? "black"
-            : "black arcane";
-
   const accountState = dynamicAccountStates[selectedAccount] ?? {
     highestLevel: Math.max(0, currentLevel ?? 0),
     highestCc: Math.max(0, currentCc ?? 0),
@@ -503,7 +492,7 @@ export default function BuyCardDialog({
     accountState.highestLevel > 0 && accountState.highestLevel >= numberOfLevels;
 
   const dynamicStats = useMemo(() => {
-    if (!cardStats) return [] as Array<{ key: keyof CardStats; label: string }>;
+    if (!resolvedCardStats) return [] as Array<{ key: keyof CardStats; label: string }>;
     const candidates: Array<{ key: keyof CardStats; label: string }> = [
       { key: "health", label: "Health" },
       { key: "armor", label: "Armor" },
@@ -513,38 +502,42 @@ export default function BuyCardDialog({
       { key: "magic", label: "Magic" },
     ];
     return candidates.filter((row) => {
-      const values = cardStats[row.key];
+      const values = resolvedCardStats[row.key];
       return Array.isArray(values) && values.some((value) => Number(value) > 0);
     });
-  }, [cardStats]);
+  }, [resolvedCardStats]);
 
   const targetRows = useMemo(() => {
-    if (!combineRates || !cardStats || !cardRarity)
-      return [] as Array<{
-        level: number;
-        bracket: LeagueBracket;
-        bracketLabel: string;
-        playableBrackets: LeagueBracket[];
-        targetCc: number;
-        ownedBcx: number;
-        neededBcx: number;
-        dec: number;
-        credits: number;
-        usd: number;
-        planItems: PurchasePlanItem[];
-        exact: boolean;
-        abilities: string[];
-        inTargetBracket: boolean;
-      }>;
+    if (!combineRates || !resolvedCardStats || !resolvedCardRarity) return [] as TargetLevelRow[];
 
-    const [targetMin, targetMax] =
-      targetBracket == "" ? [0, 0] : getBracketLevelRange(targetBracket, cardRarity);
     const maxOnlyFoil = isMaxOnlyFoil(selectedFoil);
     const numberOfLevels = combineRates.length;
-    const startLevel = maxOnlyFoil ? numberOfLevels - 1 : 1;
+    const firstPlayableLevel = getCardFirstPlayableLevel(combineRates);
+    const firstTargetableLevel = maxOnlyFoil ? numberOfLevels : firstPlayableLevel;
 
-    const rowsByLevel = Array.from({ length: numberOfLevels - startLevel + 1 }, (_, idx) => {
-      const level = startLevel + idx;
+    return Array.from({ length: numberOfLevels }, (_, idx): TargetLevelRow => {
+      const level = idx + 1;
+      const isTargetable = level >= firstTargetableLevel;
+      const statsLevel = isTargetable ? level : firstTargetableLevel;
+
+      if (!isTargetable) {
+        return {
+          level,
+          statsLevel,
+          playableBrackets: getPlayableBrackets(statsLevel, resolvedCardRarity),
+          targetCc: null,
+          ownedBcx: accountState.totalCc,
+          neededBcx: null,
+          dec: 0,
+          credits: 0,
+          usd: 0,
+          planItems: [],
+          fulfilled: false,
+          isTargetable: false,
+          abilities: cumulativeAbilities(resolvedCardStats.abilities ?? [], statsLevel),
+        };
+      }
+
       const req = calculateUpgradeRequirements(accountState.totalCc, level, combineRates);
       const selection = selectCheapestListings(rows, req.missingCc);
       const plan = buildPurchasePlan({
@@ -552,13 +545,11 @@ export default function BuyCardDialog({
         cardName,
         listings: selection.selected,
       });
-      const bracket = levelBracket(level, cardRarity);
 
       return {
         level,
-        bracket,
-        bracketLabel: LEAGUE_BRACKETS[bracket].label,
-        playableBrackets: playableBrackets(level, cardRarity),
+        statsLevel,
+        playableBrackets: getPlayableBrackets(statsLevel, resolvedCardRarity),
         targetCc: req.targetCc,
         ownedBcx: accountState.totalCc,
         neededBcx: req.missingCc,
@@ -566,23 +557,20 @@ export default function BuyCardDialog({
         credits: plan.items.reduce((sum, item) => sum + item.priceCredits, 0),
         usd: plan.totals.usd,
         planItems: plan.items,
-        exact: selection.exact || req.missingCc === 0,
-        abilities: cumulativeAbilities(cardStats.abilities ?? [], level),
-        inTargetBracket: level >= targetMin && level <= targetMax,
+        fulfilled: selection.fulfilled || req.missingCc === 0,
+        isTargetable: true,
+        abilities: cumulativeAbilities(resolvedCardStats.abilities ?? [], statsLevel),
       };
     });
-
-    return rowsByLevel;
   }, [
     accountState.totalCc,
     cardName,
-    cardRarity,
-    cardStats,
     combineRates,
+    resolvedCardRarity,
+    resolvedCardStats,
     rows,
     selectedAccount,
     selectedFoil,
-    targetBracket,
   ]);
 
   async function runCheckoutForPlan(items: PurchasePlanItem[], currency: PurchaseCurrency) {
@@ -637,7 +625,7 @@ export default function BuyCardDialog({
               src={getCardImageByLevel(
                 cardName,
                 edition,
-                selectedFoilName,
+                selectedFoil,
                 Math.max(1, accountState.highestLevel)
               )}
               alt={cardName}
@@ -656,17 +644,21 @@ export default function BuyCardDialog({
               >
                 Owned BCX: {accountState.highestCc}
               </Typography>
-              {activeMode === "target-level" && cardRarity && targetBracket !== "" && (
+              {activeMode === "target-level" && resolvedCardRarity && targetBracket !== "" && (
                 <Typography variant="body2" color="error.main">
                   Target: {LEAGUE_BRACKETS[targetBracket].label} (
-                  {getBracketLevelRange(targetBracket, cardRarity)[0]}-
-                  {getBracketLevelRange(targetBracket, cardRarity)[1]})
+                  {getBracketLevelRange(targetBracket, resolvedCardRarity)[0]}-
+                  {getBracketLevelRange(targetBracket, resolvedCardRarity)[1]})
                 </Typography>
               )}
-              <Typography variant="body2">
-                Balance: DEC {balance.DEC.toFixed(3)} / CREDITS {balance.CREDITS.toFixed(0)}
-              </Typography>
-
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap" }}>
+                <Typography variant="body2">Balance:</Typography>
+                <Avatar src={dec_icon_url} alt="DEC" sx={{ width: 16, height: 16 }} />
+                <Typography variant="body2">{largeNumberFormat(balance.DEC)}</Typography>
+                <Divider orientation="vertical" flexItem />
+                <Avatar src={credits_icon_url} alt="CREDITS" sx={{ width: 16, height: 16 }} />
+                <Typography variant="body2">{largeNumberFormat(balance.CREDITS)}</Typography>
+              </Stack>
               <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                 <FormControl size="small" sx={{ minWidth: 160 }}>
                   <InputLabel>Account</InputLabel>
@@ -691,17 +683,17 @@ export default function BuyCardDialog({
                   <Select
                     label="Foil"
                     value={selectedFoil}
-                    onChange={(e) => setSelectedFoil(Number(e.target.value))}
+                    onChange={(e) => setSelectedFoil(e.target.value as CardFoil)}
                   >
-                    <MenuItem value={0}>Regular</MenuItem>
-                    <MenuItem value={1}>Gold</MenuItem>
-                    <MenuItem value={2}>Gold Arcane</MenuItem>
-                    <MenuItem value={3}>Black</MenuItem>
-                    <MenuItem value={4}>Black Arcane</MenuItem>
+                    {cardFoilOptions.map((option) => (
+                      <MenuItem key={option} value={option}>
+                        {getFoilLabel(option)}
+                      </MenuItem>
+                    ))}
                   </Select>
                 </FormControl>
 
-                {activeMode === "target-level" && cardRarity && (
+                {activeMode === "target-level" && resolvedCardRarity && (
                   <BracketFilter
                     selectedBracket={targetBracket}
                     setSelectedBracket={setTargetBracket}

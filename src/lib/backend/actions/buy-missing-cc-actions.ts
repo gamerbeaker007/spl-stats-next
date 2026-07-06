@@ -11,6 +11,8 @@ import { SOULKEEP_EDITIONS } from "@/lib/shared/edition-utils";
 import type { BuyMissingCcAccountData, BuyMissingCcSnapshot } from "@/types/buy-missing-cc";
 import type { SplCardDetail } from "@/types/spl/cardDetails";
 import { cacheLife } from "next/cache";
+import { CardFoil } from "@/types/card";
+import { toCardFoilInt } from "@/lib/shared/card-utils";
 
 export async function getBuyMissingCcSharedDataAction() {
   "use cache";
@@ -38,6 +40,7 @@ export async function getBuyMissingCcAccountDataAction(
     throw new Error("Account is required");
   }
 
+  console.log("Fetching data for account", normalized);
   const [collection, groupedMarket, balances] = await Promise.all([
     fetchCardCollection(normalized),
     fetchMarketForSaleGrouped(),
@@ -48,6 +51,7 @@ export async function getBuyMissingCcAccountDataAction(
     (card) => !SOULKEEP_EDITIONS.has(Number(card.edition))
   );
 
+  console.log("Filtered cards:", collection.cards.length);
   return {
     account: normalized,
     collection,
@@ -85,7 +89,7 @@ export async function getBuyCardDialogAccountContextAction(
   account: string,
   cardDetailId: number,
   edition: number,
-  foil: number
+  foil: CardFoil
 ): Promise<{
   account: string;
   accountState: { highestLevel: number; highestCc: number; totalCc: number };
@@ -101,7 +105,7 @@ export async function getBuyCardDialogAccountContextAction(
     (card) =>
       card.card_detail_id === cardDetailId &&
       Number(card.edition) === edition &&
-      Number(card.foil) === foil
+      Number(card.foil) === toCardFoilInt(foil)
   );
 
   const accountState = cards.reduce(
@@ -126,9 +130,7 @@ export async function getBuyCardDialogAccountContextAction(
     account: normalized,
     accountState,
     balance: {
-      DEC:
-        (balances.find((entry) => entry.token === "DEC")?.balance ?? 0) +
-        (balances.find((entry) => entry.token === "DEC-B")?.balance ?? 0),
+      DEC: balances.find((entry) => entry.token === "DEC")?.balance ?? 0,
       CREDITS: balances.find((entry) => entry.token === "CREDITS")?.balance ?? 0,
     },
   };

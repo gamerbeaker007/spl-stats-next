@@ -1,11 +1,58 @@
 "use client";
 
 import { getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 interface UseAccountSelectorStateOptions {
   storageKey: string;
   loggedInUsername?: string;
+}
+
+type StoredAccountSelectorState = {
+  selectedAccount: string;
+  savedAccounts: string[];
+};
+
+const ACCOUNT_SELECTOR_STORAGE_EVENT = "account-selector-storage";
+
+function normalizeAccount(account: string | undefined): string {
+  return account?.trim().toLowerCase() ?? "";
+}
+
+function readStoredState(raw: string | null): StoredAccountSelectorState {
+  if (!raw) return { selectedAccount: "", savedAccounts: [] };
+
+  try {
+    const parsed = JSON.parse(raw) as {
+      selectedAccount?: string;
+      savedAccounts?: string[];
+    };
+
+    return {
+      selectedAccount: normalizeAccount(parsed.selectedAccount),
+      savedAccounts: Array.isArray(parsed.savedAccounts)
+        ? parsed.savedAccounts.map(normalizeAccount).filter(Boolean)
+        : [],
+    };
+  } catch {
+    return { selectedAccount: "", savedAccounts: [] };
+  }
+}
+
+function readStoredRaw(storageKey: string): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(storageKey);
+}
+
+function writeStoredState(storageKey: string, nextState: StoredAccountSelectorState) {
+  if (typeof window === "undefined") return;
+
+  localStorage.setItem(storageKey, JSON.stringify(nextState));
+  window.dispatchEvent(
+    new CustomEvent(ACCOUNT_SELECTOR_STORAGE_EVENT, {
+      detail: { storageKey },
+    })
+  );
 }
 
 export function useAccountSelectorState({
@@ -13,38 +60,56 @@ export function useAccountSelectorState({
   loggedInUsername,
 }: Readonly<UseAccountSelectorStateOptions>) {
   const [monitoredAccounts, setMonitoredAccounts] = useState<string[]>([]);
-  const [savedAccounts, setSavedAccounts] = useState<string[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState("");
+  const storedRaw = useSyncExternalStore(
+    useCallback(
+      (onStoreChange) => {
+        if (typeof window === "undefined") return () => {};
+
+        const handleStorage = (event: StorageEvent) => {
+          if (event.key === storageKey) onStoreChange();
+        };
+        const handleLocalStorage = (event: Event) => {
+          const customEvent = event as CustomEvent<{ storageKey?: string }>;
+          if (customEvent.detail?.storageKey === storageKey) onStoreChange();
+        };
+
+        window.addEventListener("storage", handleStorage);
+        window.addEventListener(ACCOUNT_SELECTOR_STORAGE_EVENT, handleLocalStorage);
+
+        return () => {
+          window.removeEventListener("storage", handleStorage);
+          window.removeEventListener(ACCOUNT_SELECTOR_STORAGE_EVENT, handleLocalStorage);
+        };
+      },
+      [storageKey]
+    ),
+    useCallback(() => readStoredRaw(storageKey), [storageKey]),
+    () => null
+  );
   const [addAccountInput, setAddAccountInput] = useState("");
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(storageKey);
-      if (!raw) return;
-      const parsed = JSON.parse(raw) as {
-        selectedAccount?: string;
-        savedAccounts?: string[];
-      };
-      if (typeof parsed.selectedAccount === "string") {
-        setSelectedAccount(parsed.selectedAccount.toLowerCase());
-      }
-      if (Array.isArray(parsed.savedAccounts)) {
-        setSavedAccounts(parsed.savedAccounts.map((entry) => entry.toLowerCase()));
-      }
-    } catch {
-      // ignore local-storage parse issues
-    }
-  }, [storageKey]);
+  const storedState = useMemo(() => readStoredState(storedRaw), [storedRaw]);
+  const savedAccounts = storedState.savedAccounts;
+  const storedSelectedAccount = storedState.selectedAccount;
+  const loggedInAccount = normalizeAccount(loggedInUsername);
 
-  useEffect(() => {
-    localStorage.setItem(
-      storageKey,
-      JSON.stringify({
-        selectedAccount,
-        savedAccounts,
-      })
-    );
-  }, [savedAccounts, selectedAccount, storageKey]);
+  const accountOptions = useMemo(
+    () =>
+      Array.from(
+        new Set([...monitoredAccounts, ...savedAccounts, loggedInAccount].filter(Boolean))
+      ),
+    [loggedInAccount, monitoredAccounts, savedAccounts]
+  );
+
+  const selectedAccount = useMemo(() => {
+    if (storedSelectedAccount && accountOptions.includes(storedSelectedAccount)) {
+      return storedSelectedAccount;
+    }
+    if (loggedInAccount && accountOptions.includes(loggedInAccount)) {
+      return loggedInAccount;
+    }
+    return accountOptions[0] ?? "";
+  }, [accountOptions, loggedInAccount, storedSelectedAccount]);
 
   useEffect(() => {
     let active = true;
@@ -64,36 +129,32 @@ export function useAccountSelectorState({
     };
   }, [loggedInUsername]);
 
-  useEffect(() => {
-    const normalized = loggedInUsername?.toLowerCase();
-    if (!normalized) return;
-
-    setSavedAccounts((prev) => (prev.includes(normalized) ? prev : [normalized, ...prev]));
-  }, [loggedInUsername]);
-
-  const accountOptions = useMemo(
-    () => Array.from(new Set([...monitoredAccounts, ...savedAccounts])),
-    [monitoredAccounts, savedAccounts]
+  const updateStoredState = useCallback(
+    (updater: (current: StoredAccountSelectorState) => StoredAccountSelectorState) => {
+      const currentState = readStoredState(readStoredRaw(storageKey));
+      writeStoredState(storageKey, updater(currentState));
+    },
+    [storageKey]
   );
 
-  useEffect(() => {
-    if (selectedAccount && accountOptions.includes(selectedAccount)) return;
-
-    const normalized = loggedInUsername?.toLowerCase();
-    if (normalized && accountOptions.includes(normalized)) {
-      setSelectedAccount(normalized);
-      return;
-    }
-
-    setSelectedAccount(accountOptions[0] ?? "");
-  }, [accountOptions, loggedInUsername, selectedAccount]);
+  const setSelectedAccount = useCallback(
+    (account: string) => {
+      updateStoredState((current) => ({
+        ...current,
+        selectedAccount: normalizeAccount(account),
+      }));
+    },
+    [updateStoredState]
+  );
 
   function addLocalAccount() {
     const normalized = addAccountInput.trim().toLowerCase();
     if (!normalized) return;
 
-    setSavedAccounts((prev) => Array.from(new Set([...prev, normalized])));
-    setSelectedAccount(normalized);
+    updateStoredState((current) => ({
+      selectedAccount: normalized,
+      savedAccounts: Array.from(new Set([...current.savedAccounts, normalized])),
+    }));
     setAddAccountInput("");
   }
 
@@ -105,11 +166,15 @@ export function useAccountSelectorState({
       return;
     }
 
-    setSavedAccounts((prev) => prev.filter((entry) => entry !== normalized));
-    setSelectedAccount((prev) => {
-      if (prev !== normalized) return prev;
-      const remaining = accountOptions.filter((entry) => entry !== normalized);
-      return remaining[0] ?? "";
+    updateStoredState((current) => {
+      const savedAccountsWithoutRemoved = current.savedAccounts.filter(
+        (entry) => entry !== normalized
+      );
+
+      return {
+        selectedAccount: current.selectedAccount === normalized ? "" : current.selectedAccount,
+        savedAccounts: savedAccountsWithoutRemoved,
+      };
     });
   }
 

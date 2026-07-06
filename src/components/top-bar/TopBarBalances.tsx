@@ -6,8 +6,9 @@ import { getBalancesForAccountsAction } from "@/lib/backend/actions/purchase-act
 import { useAuth } from "@/lib/frontend/context/AuthContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { SplBalance } from "@/types/spl/balances";
-import { Box, CircularProgress, Tooltip, Typography } from "@mui/material";
+import { Avatar, Box, CircularProgress, Stack, Tooltip, Typography } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import { credits_icon_url, dec_icon_url, sps_icon_url } from "@/lib/staticsIconUrls";
 
 interface AccountBalances {
   account: string;
@@ -42,7 +43,7 @@ export default function TopBarBalances() {
 
         const balances = await getBalancesForAccountsAction(accounts);
         if (active) {
-          setRows(balances as AccountBalances[]);
+          setRows(balances);
         }
       } finally {
         if (active) setLoading(false);
@@ -58,8 +59,8 @@ export default function TopBarBalances() {
   const totals = useMemo(
     () => ({
       credits: totalToken(rows, "CREDITS"),
-      dec: totalToken(rows, "DEC") + totalToken(rows, "DEC-B"),
-      sps: totalToken(rows, "SPS") + totalToken(rows, "SPSP"),
+      dec: totalToken(rows, "DEC"),
+      sps: totalToken(rows, "SPS"),
     }),
     [rows]
   );
@@ -68,18 +69,27 @@ export default function TopBarBalances() {
     <Box>
       {rows.map((row) => {
         const credits = row.balances.find((entry) => entry.token === "CREDITS")?.balance ?? 0;
-        const dec =
-          (row.balances.find((entry) => entry.token === "DEC")?.balance ?? 0) +
-          (row.balances.find((entry) => entry.token === "DEC-B")?.balance ?? 0);
-        const sps =
-          (row.balances.find((entry) => entry.token === "SPS")?.balance ?? 0) +
-          (row.balances.find((entry) => entry.token === "SPSP")?.balance ?? 0);
+        const dec = row.balances.find((entry) => entry.token === "DEC")?.balance ?? 0;
+        const sps = row.balances.find((entry) => entry.token === "SPS")?.balance ?? 0;
 
         return (
-          <Typography key={row.account} variant="body2">
-            {row.account}: CREDITS {credits.toFixed(0)} | DEC {dec.toFixed(3)} | SPS{" "}
-            {sps.toFixed(3)}
-          </Typography>
+          <Box key={row.account}>
+            <Typography variant="body2">{row.account}</Typography>
+            <Stack direction={"column"} gap={0.5}>
+              <Stack direction={"row"} gap={0.5}>
+                <Avatar src={credits_icon_url} alt={"CREDITS"} sx={{ width: 16, height: 16 }} />
+                <Typography variant="caption">{credits.toFixed(3)}</Typography>
+              </Stack>
+              <Stack direction={"row"} gap={0.5}>
+                <Avatar src={dec_icon_url} alt={"CREDITS"} sx={{ width: 16, height: 16 }} />
+                <Typography variant="caption">{dec.toFixed(3)}</Typography>
+              </Stack>
+              <Stack direction={"row"} gap={0.5}>
+                <Avatar src={sps_icon_url} alt={"CREDITS"} sx={{ width: 16, height: 16 }} />
+                <Typography variant="caption">{sps.toFixed(3)}</Typography>
+              </Stack>
+            </Stack>
+          </Box>
         );
       })}
       {rows.length === 0 && <Typography variant="body2">No monitored balances loaded.</Typography>}
@@ -88,7 +98,7 @@ export default function TopBarBalances() {
 
   return (
     <Tooltip title={tooltip} placement="bottom" arrow>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, px: 1 }}>
+      <Box display={"flex"} flexWrap={"wrap"} gap={1} sx={{ alignItems: "center", px: 1 }}>
         {loading && <CircularProgress size={14} />}
         <CurrencyAmountChip currency="CREDITS" value={totals.credits} />
         <CurrencyAmountChip currency="DEC" value={totals.dec} />

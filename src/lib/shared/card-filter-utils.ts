@@ -1,4 +1,4 @@
-import type { UnifiedCardFilter } from "@/types/card-filter";
+import { FILTER_STORAGE_KEYS, type UnifiedCardFilter } from "@/types/card-filter";
 import type { DetailedPlayerCardCollectionItem } from "@/types/card";
 import type { CardDistributionRow } from "@/types/card-stats";
 import { EDITION_OPTIONS, EDITION_SET_GROUPS } from "@/lib/shared/edition-utils";
@@ -36,9 +36,7 @@ export function getModernEditionPreset(): Pick<
 export function clearAllFilterStorage(): void {
   if (typeof window === "undefined") return;
   try {
-    localStorage.removeItem("card-filter");
-    localStorage.removeItem("card-stats-filter");
-    localStorage.removeItem("battle-filter");
+    Object.values(FILTER_STORAGE_KEYS).forEach((key) => localStorage.removeItem(key));
   } catch {
     // ignore
   }
@@ -81,10 +79,16 @@ function matchesEditionFilter(
 //   role    — CardRole ("archon")   → string ("Summoner") via mapping
 // ---------------------------------------------------------------------------
 
-export function matchesCardFilter(
-  card: DetailedPlayerCardCollectionItem,
-  filter: UnifiedCardFilter
-): boolean {
+export interface FilterableCard {
+  edition: DetailedPlayerCardCollectionItem["edition"];
+  tier?: number | null;
+  rarity: DetailedPlayerCardCollectionItem["rarity"];
+  color: string;
+  secondaryColor?: string;
+  role: DetailedPlayerCardCollectionItem["role"];
+}
+
+export function matchesCardFilter(card: FilterableCard, filter: UnifiedCardFilter): boolean {
   if (!matchesEditionFilter(card.edition, card.tier ?? null, filter)) return false;
 
   if (filter.rarities.length > 0) {

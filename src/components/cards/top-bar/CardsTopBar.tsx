@@ -3,7 +3,6 @@
 import PurchaseCartButton from "@/components/cards/top-bar/PurchaseCartButton";
 import TopBarBalances from "@/components/top-bar/TopBarBalances";
 import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
 
 export default function CardsTopBar() {
   return (
@@ -26,9 +25,6 @@ export default function CardsTopBar() {
         backgroundColor: "background.paper",
       }}
     >
-      <Typography variant="subtitle2" color="text.secondary" sx={{ mr: 1 }}>
-        Card Shopping
-      </Typography>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
         <TopBarBalances />
         <PurchaseCartButton />

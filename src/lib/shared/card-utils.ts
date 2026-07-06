@@ -17,7 +17,9 @@ export function abilityIconUrl(name: string): string {
 // ---------------------------------------------------------------------------
 
 /** Human-readable label for a numeric foil value (0=regular, 1-2=gold, 3-4=black). */
-export function getFoilLabel(foil: number): string {
+export function getFoilLabel(foil: number | CardFoil): string {
+  const idx = typeof foil === "string" ? toCardFoilInt(foil) : foil;
+
   const FOIL_LABELS: Record<number, string> = {
     0: "Regular",
     1: "Gold Foil",
@@ -25,9 +27,12 @@ export function getFoilLabel(foil: number): string {
     3: "Black Foil",
     4: "Black Foil Arcane",
   };
-  return FOIL_LABELS[foil] ?? `Foil ${foil}`;
+  return FOIL_LABELS[idx] ?? `Foil ${foil}`;
 }
 
 export function toCardFoil(foil: number): CardFoil {
   return cardFoilOptions[foil] ?? "regular";
+}
+export function toCardFoilInt(foil: CardFoil): number {
+  return cardFoilOptions.indexOf(foil);
 }

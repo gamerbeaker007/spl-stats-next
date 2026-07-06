@@ -3,13 +3,14 @@
 import { getMarketListingsByCardAction } from "@/lib/backend/actions/purchase-actions";
 import type { FetchMarketListingsByCardParams } from "@/types/purchase/purchase-plan";
 import { useCallback, useState } from "react";
+import { CardFoil } from "@/types/card";
 
 interface MarketListingRow {
   marketId: string;
   uid?: string;
   cardDetailId: number;
   edition: number;
-  foil: number;
+  foil: CardFoil;
   level: number;
   cc: number;
   priceUsd: number;

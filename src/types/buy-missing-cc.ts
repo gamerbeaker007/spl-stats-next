@@ -4,6 +4,7 @@ import type { SplCardCollection } from "@/types/spl/card";
 import type { CardStats, SplCardDetail } from "@/types/spl/cardDetails";
 import type { SplCardListingPriceEntry } from "@/types/spl/market";
 import type { SplSettings } from "@/types/spl/season";
+import { CardFoil } from "@/types/card";
 
 export type LeagueBracket = "wood" | "bronze" | "silver" | "gold" | "diamond" | "champion";
 
@@ -30,7 +31,7 @@ export interface BuyMissingCcListing {
   uid?: string;
   cardDetailId: number;
   edition: number;
-  foil: number;
+  foil: CardFoil;
   level: number;
   cc: number;
   priceUsd: number;
@@ -51,6 +52,7 @@ export interface ListingSelection {
   totalDec: number;
   totalUsd: number;
   exact: boolean;
+  fulfilled: boolean;
 }
 
 export interface BuildPurchasePlanInput {
@@ -85,5 +87,5 @@ export interface BuyMissingCcCardContext {
   rarity: number;
   stats: CardStats;
   edition: number;
-  foil: number;
+  foil: CardFoil;
 }

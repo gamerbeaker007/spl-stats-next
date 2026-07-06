@@ -28,7 +28,8 @@ export default function CurrencyAmountChip({
       variant="outlined"
       size={size}
       avatar={icon ? <Avatar src={icon} alt={currency} /> : undefined}
-      label={`${currency === "USD" ? "USD" : currency} ${largeNumberFormat(value)}`}
+      label={`${currency === "USD" ? "$" : ""} ${largeNumberFormat(value)}`}
+      sx={{ gap: 0.5 }}
     />
   );
 }

@@ -262,6 +262,7 @@ export default function UnifiedCardFilterDrawer({
               onRewardTiersChange={(v) => setFilter({ rewardTiers: v })}
               selectedExtraTiers={filter.extraTiers}
               onExtraTiersChange={(v) => setFilter({ extraTiers: v })}
+              onSelectionChange={(v) => setFilter(v)}
             />
           </FilterSection>
         )}

@@ -4,7 +4,7 @@ import { useCardFilter } from "@/lib/frontend/context/CardFilterContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { matchesCardFilter } from "@/lib/shared/card-filter-utils";
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
-import { CardFoil, DetailedPlayerCardCollection } from "@/types/card";
+import { CardFoil, cardFoilOptions, DetailedPlayerCardCollection } from "@/types/card";
 import { Alert, Box, Snackbar, Typography } from "@mui/material";
 import { useState } from "react";
 import { Card } from "./Card";
@@ -25,7 +25,7 @@ export const CardSection = ({ username, playerCards, selectableAccounts }: CardS
     cardDetailId: number;
     cardName: string;
     edition: number;
-    foil: number;
+    foil: CardFoil;
     currentCc: number;
   } | null>(null);
 
@@ -35,7 +35,7 @@ export const CardSection = ({ username, playerCards, selectableAccounts }: CardS
     cardDetailId: number;
     cardName: string;
     edition: number;
-    foil: number;
+    foil: CardFoil;
     currentCc: number;
   }) => {
     setDialogCard(card);
@@ -127,16 +127,7 @@ export const CardSection = ({ username, playerCards, selectableAccounts }: CardS
                       cardDetailId: cardItem.cardDetailId,
                       cardName: cardItem.name,
                       edition: cardGroup.edition,
-                      foil:
-                        cardGroup.foil === "regular"
-                          ? 0
-                          : cardGroup.foil === "gold"
-                            ? 1
-                            : cardGroup.foil === "gold arcane"
-                              ? 2
-                              : cardGroup.foil === "black"
-                                ? 3
-                                : 4,
+                      foil: cardGroup.foil,
                       currentCc: cardGroup.count,
                     })
                   }
@@ -174,7 +165,7 @@ export const CardSection = ({ username, playerCards, selectableAccounts }: CardS
                   cardDetailId: cardItem.cardDetailId,
                   cardName: cardItem.name,
                   edition: cardItem.edition,
-                  foil: 0,
+                  foil: cardFoilOptions[0],
                   currentCc:
                     cardItem.allCards?.filter(
                       (card) => card.owner.toLowerCase() === username.toLowerCase()

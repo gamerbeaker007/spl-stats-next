@@ -26,6 +26,7 @@ import {
 import { MdDelete } from "react-icons/md";
 import { MdCheckCircle, MdErrorOutline, MdRadioButtonUnchecked } from "react-icons/md";
 import { useEffect, useMemo, useState } from "react";
+import { getFoilLabel } from "@/lib/shared/card-utils";
 
 export default function PurchaseCartDialog() {
   const {
@@ -125,15 +126,13 @@ export default function PurchaseCartDialog() {
   async function runCheckout(currency: "DEC" | "CREDITS") {
     setSuccessMessage(null);
     try {
-      const { confirmations } = await checkout(currency, {
-        onBroadcast: ({ items: submittedItems }) => {
-          if (submittedItems.length > 0) {
-            removeMany(submittedItems);
-            notifyBalancesRefresh();
-          }
-        },
-      });
+      const { confirmations, successfulItems } = await checkout(currency);
       const failed = confirmations.filter((entry) => !entry.status.success);
+
+      if (successfulItems.length > 0) {
+        removeMany(successfulItems);
+        notifyBalancesRefresh();
+      }
 
       if (failed.length === 0) {
         setSuccessMessage("Purchase confirmed successfully.");
@@ -215,7 +214,7 @@ export default function PurchaseCartDialog() {
                     <TableCell>{item.account}</TableCell>
                     <TableCell>{item.cardName}</TableCell>
                     <TableCell>{item.edition}</TableCell>
-                    <TableCell>{item.foil === 1 ? "Gold" : "Regular"}</TableCell>
+                    <TableCell>{getFoilLabel(item.foil)}</TableCell>
                     <TableCell>{item.level}</TableCell>
                     <TableCell>{item.uid ?? "-"}</TableCell>
                     <TableCell>{item.cc}</TableCell>

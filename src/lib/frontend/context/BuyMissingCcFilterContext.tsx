@@ -15,7 +15,4 @@ const BUY_MISSING_CC_FILTER_DEFAULTS: UnifiedCardFilter = {
 };
 
 export const { Provider: BuyMissingCcFilterProvider, useFilter: useBuyMissingCcFilter } =
-  createFilterContext(
-    BUY_MISSING_CC_FILTER_DEFAULTS,
-    `${FILTER_STORAGE_KEYS.collection}-buy-missing-cc`
-  );
+  createFilterContext(BUY_MISSING_CC_FILTER_DEFAULTS, FILTER_STORAGE_KEYS.buyMissingCc);

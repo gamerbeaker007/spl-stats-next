@@ -13,10 +13,12 @@ import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import {
   calculateUpgradeCostEstimate,
   calculateUpgradeRequirements,
+  getCardFirstPlayableLevel,
+  getCardMaxCc,
   getCardMaxLevel,
   getCombineRatesForCard,
 } from "@/lib/shared/buy-missing-cc";
-import { matchesCardFilter } from "@/lib/shared/card-filter-utils";
+import { matchesCardFilter, type FilterableCard } from "@/lib/shared/card-filter-utils";
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 import { getFoilLabel, toCardFoil } from "@/lib/shared/card-utils";
 import { getEditionIconUrl, getSetIconUrl, getSetName } from "@/lib/shared/edition-utils";
@@ -73,7 +75,7 @@ type Row = {
   type: string;
   tier?: number;
   edition: number;
-  foil: number;
+  foil: CardFoil;
   availableFoils: CardFoil[];
   accountStates: Record<string, AccountCardState>;
   lowPricePerBcxUsd: number | null;
@@ -96,10 +98,10 @@ type DisplayRow = Row & {
 };
 
 const PAGE_SIZE_OPTIONS = [50, 100, 1000] as const;
-const LS_KEY = "buy-missing-cc-selection-v4";
+const LS_KEY = "buy-missing-cc-selection-v1";
 
-function isMaxOnlyFoil(foil: number): boolean {
-  return foil === 2 || foil === 3 || foil === 4;
+function isMaxOnlyFoil(foil: CardFoil): boolean {
+  return foil === "black" || foil === "gold arcane" || foil === "black arcane";
 }
 
 function bracketStatus(level: number, bracket: LeagueBracket, rarity: number) {
@@ -182,7 +184,8 @@ export default function BuyMissingCcPageClient() {
 
         const byKey: Record<string, AccountCardState> = {};
         for (const card of snapshot.collection.cards) {
-          const key = `${card.card_detail_id}-${card.edition}-${card.foil}`;
+          const foil = toCardFoil(card.foil);
+          const key = `${card.card_detail_id}-${card.edition}-${foil}`;
           const current = byKey[key] ?? { highestLevel: 0, highestCc: 0, totalCc: 0 };
           const level = card.level ?? 0;
           if (level > current.highestLevel) {
@@ -197,7 +200,7 @@ export default function BuyMissingCcPageClient() {
 
         const groupedPriceByKey = new Map<string, number>();
         for (const market of snapshot.groupedMarket) {
-          const foil = market.foil ?? (market.gold ? 1 : 0);
+          const foil = toCardFoil(market.foil ?? (market.gold ? 1 : 0));
           const key = `${market.card_detail_id}-${foil}`;
           const existing = groupedPriceByKey.get(key);
           const nextPrice = Number(market.low_price_bcx);
@@ -209,12 +212,14 @@ export default function BuyMissingCcPageClient() {
         const nextRows: Row[] = [];
         for (const detail of cardDetails) {
           const available = (detail.distribution ?? []).filter((entry) => entry.edition !== 16);
-          const variants = new Set(available.map((entry) => `${entry.edition}-${entry.foil}`));
+          const variants = new Map<string, { edition: number; foil: CardFoil }>();
 
-          for (const variant of variants) {
-            const [editionRaw, foilRaw] = variant.split("-");
-            const edition = Number(editionRaw);
-            const foil = Number(foilRaw);
+          for (const entry of available) {
+            const foil = toCardFoil(entry.foil ?? 0);
+            variants.set(`${entry.edition}-${foil}`, { edition: entry.edition, foil });
+          }
+
+          for (const { edition, foil } of variants.values()) {
             if (edition === 16) continue; // skip foundation soulbound edition
 
             const key = `${detail.id}-${edition}-${foil}`;
@@ -291,22 +296,16 @@ export default function BuyMissingCcPageClient() {
   const filteredRows = useMemo(() => {
     return displayRows
       .filter((row) => {
-        const pseudo = {
-          cardDetailId: row.cardDetailId,
-          name: row.name,
+        const pseudo: FilterableCard = {
           edition: row.edition,
           tier: row.tier,
           rarity: rarityNameById(row.rarity),
           color: (row.color ?? "gray").toLowerCase(),
           secondaryColor: row.secondaryColor?.toLowerCase(),
           role: row.type === "Summoner" ? "archon" : "unit",
-          availableFoils: row.availableFoils,
         };
-        if (!matchesCardFilter(pseudo as never, filter)) return false;
-        if (
-          filter.foilCategories.length > 0 &&
-          !filter.foilCategories.includes(toCardFoil(row.foil))
-        ) {
+        if (!matchesCardFilter(pseudo, filter)) return false;
+        if (filter.foilCategories.length > 0 && !filter.foilCategories.includes(row.foil)) {
           return false;
         }
         if (search && !row.name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -331,8 +330,16 @@ export default function BuyMissingCcPageClient() {
             : null;
           const maxLevelA = ratesA ? getCardMaxLevel(ratesA) : 1;
           const maxLevelB = ratesB ? getCardMaxLevel(ratesB) : 1;
-          const nextLevelA = Math.min((a.highestOwnedLevel || 0) + 1, maxLevelA);
-          const nextLevelB = Math.min((b.highestOwnedLevel || 0) + 1, maxLevelB);
+          const firstLevelA = ratesA ? getCardFirstPlayableLevel(ratesA) : 1;
+          const firstLevelB = ratesB ? getCardFirstPlayableLevel(ratesB) : 1;
+          const nextLevelA = Math.min(
+            Math.max(firstLevelA, (a.highestOwnedLevel || 0) + 1),
+            maxLevelA
+          );
+          const nextLevelB = Math.min(
+            Math.max(firstLevelB, (b.highestOwnedLevel || 0) + 1),
+            maxLevelB
+          );
 
           const reqA = ratesA
             ? calculateUpgradeRequirements(a.totalOwnedCc, nextLevelA, ratesA)
@@ -416,7 +423,7 @@ export default function BuyMissingCcPageClient() {
 
   return (
     <Box display="flex" gap={2}>
-      <Box flex={1}>
+      <Box flex={1} minWidth={0}>
         <Stack spacing={2} sx={{ mb: 2 }}>
           <Typography variant="h4">Buy Missing CC</Typography>
 
@@ -483,7 +490,7 @@ export default function BuyMissingCcPageClient() {
           </Typography>
         </Stack>
 
-        <ScrollableTableContainer>
+        <ScrollableTableContainer sx={{ maxWidth: "100%" }}>
           <Table size="small" stickyHeader>
             <TableHead>
               <TableRow>
@@ -564,11 +571,12 @@ export default function BuyMissingCcPageClient() {
                 const rates = settings
                   ? getCombineRatesForCard(settings, row.edition, row.foil, row.rarity, row.tier)
                   : null;
-                const maxLevelCC = rates ? getCardMaxLevel(rates) : 1;
-                const maxLevel = rates?.length ?? 1;
+                const maxLevel = rates ? getCardMaxLevel(rates) : 1;
+                const maxLevelCc = rates ? getCardMaxCc(rates) : 1;
+                const firstLevel = rates ? getCardFirstPlayableLevel(rates) : 1;
                 const nextTarget = maxOnlyFoil
-                  ? maxLevelCC
-                  : Math.min(Math.max(1, row.highestOwnedLevel + 1), maxLevelCC);
+                  ? maxLevel
+                  : Math.min(Math.max(firstLevel, row.highestOwnedLevel + 1), maxLevel);
 
                 const nextReq = rates
                   ? calculateUpgradeRequirements(row.totalOwnedCc, nextTarget, rates)
@@ -579,7 +587,7 @@ export default function BuyMissingCcPageClient() {
                 );
 
                 const maxReq = rates
-                  ? calculateUpgradeRequirements(row.totalOwnedCc, maxLevelCC, rates)
+                  ? calculateUpgradeRequirements(row.totalOwnedCc, maxLevel, rates)
                   : { targetCc: 0, missingCc: 0 };
                 const maxEst = calculateUpgradeCostEstimate(
                   maxReq.missingCc,
@@ -589,16 +597,15 @@ export default function BuyMissingCcPageClient() {
                 const bracketEst = (() => {
                   if (!selectedBracket || !rates) return null;
                   const [, bracketMax] = getBracketLevelRange(selectedBracket, row.rarity);
-                  const target = Math.min(bracketMax, maxLevelCC);
+                  const target = Math.min(bracketMax, maxLevel);
                   const req = calculateUpgradeRequirements(row.totalOwnedCc, target, rates);
                   return calculateUpgradeCostEstimate(req.missingCc, row.lowPricePerBcxUsd);
                 })();
 
                 const isHighestCcAtMaxLevel =
-                  row.highestOwnedCc > 0 && row.highestOwnedCc >= maxLevelCC ? true : false;
+                  row.highestOwnedCc > 0 && row.highestOwnedCc >= maxLevelCc;
 
-                const isLevelOnMax =
-                  row.highestOwnedLevel > 0 && row.highestOwnedLevel >= maxLevel ? true : false;
+                const isLevelOnMax = row.highestOwnedLevel > 0 && row.highestOwnedLevel >= maxLevel;
 
                 const status =
                   selectedBracket && rates
@@ -609,7 +616,7 @@ export default function BuyMissingCcPageClient() {
                 const tileSrc = getCardImageByLevel(
                   row.name,
                   row.edition,
-                  toCardFoil(row.foil),
+                  row.foil,
                   Math.max(1, row.highestOwnedLevel)
                 );
 
@@ -827,7 +834,6 @@ export default function BuyMissingCcPageClient() {
           onClose={() => setDialogRow(null)}
           onAddToPurchasePlan={(items) => {
             addItems(items);
-            setDialogRow(null);
           }}
         />
       )}
