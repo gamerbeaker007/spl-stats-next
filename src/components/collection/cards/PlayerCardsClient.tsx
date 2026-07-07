@@ -1,7 +1,7 @@
 "use client";
 
-import { CardFilterDrawer } from "@/components/multi-dashboard/dashboard/CardFilterDrawer";
-import { PlayerDashboardContent } from "@/components/multi-dashboard/dashboard/PlayerDashboardContent";
+import { CardFilterDrawer } from "@/components/collection/cards/CardFilterDrawer";
+import { PlayerCardsContent } from "@/components/collection/cards/PlayerCardsContent";
 import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
 import { useAccountSelectorState } from "@/hooks/useAccountSelectorState";
 import { useAuth } from "@/lib/frontend/context/AuthContext";
@@ -12,7 +12,7 @@ import { Suspense, useEffect, useMemo } from "react";
 
 const LS_KEY = "collection-cards-selection-v1";
 
-function PlayerDashboardSkeleton() {
+function PlayerCardsSkeleton() {
   return (
     <Box sx={{ width: "100%", p: 2 }}>
       <Skeleton
@@ -140,8 +140,8 @@ function DrawerAndContent({ selectedUsers }: Readonly<{ selectedUsers: string[] 
               p: multipleSelected ? 2 : 0,
             }}
           >
-            <Suspense fallback={<PlayerDashboardSkeleton />}>
-              <PlayerDashboardContent
+            <Suspense fallback={<PlayerCardsSkeleton />}>
+              <PlayerCardsContent
                 username={username}
                 showHeader={multipleSelected}
                 selectableAccounts={selectedUsers}
@@ -157,7 +157,7 @@ function DrawerAndContent({ selectedUsers }: Readonly<{ selectedUsers: string[] 
   );
 }
 
-export default function DashboardClient() {
+export default function PlayerCardsClient() {
   return (
     <Suspense
       fallback={

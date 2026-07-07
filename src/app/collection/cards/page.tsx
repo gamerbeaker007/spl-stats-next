@@ -1,6 +1,6 @@
 "use client";
 
-import DashboardClient from "@/components/multi-dashboard/dashboard/DashboardClient";
+import PlayerCardsClient from "@/components/collection/cards/PlayerCardsClient";
 import { Box, Container, Tooltip, Typography } from "@mui/material";
 import IconButton from "@mui/material/IconButton";
 import Link from "next/link";
@@ -25,7 +25,7 @@ export default function CardsCollectionPage() {
         </Typography>
       </Box>
 
-      <DashboardClient />
+      <PlayerCardsClient />
     </Container>
   );
 }

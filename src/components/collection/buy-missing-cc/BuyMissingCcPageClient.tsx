@@ -1,7 +1,7 @@
 "use client";
 
-import BuyCardDialog from "@/components/cards/buy-card-dialog/BuyCardDialog";
-import BuyMissingCcFilterDrawer from "@/components/cards/buy-missing-cc/BuyMissingCcFilterDrawer";
+import BuyCardDialog from "@/components/collection/buy-card-dialog/BuyCardDialog";
+import BuyMissingCcFilterDrawer from "@/components/collection/buy-missing-cc/BuyMissingCcFilterDrawer";
 import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
 import ScrollableTableContainer from "@/components/shared/ScrollableTableContainer";
 import { useBuyMissingCcSharedData } from "@/hooks/cards/useBuyMissingCcSharedData";
@@ -21,15 +21,16 @@ import {
 import { matchesCardFilter, type FilterableCard } from "@/lib/shared/card-filter-utils";
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 import { getFoilLabel, toCardFoil } from "@/lib/shared/card-utils";
-import { getEditionIconUrl, getSetIconUrl, getSetName } from "@/lib/shared/edition-utils";
+import { getCardSetIconUrl, getEditionIconUrl } from "@/lib/shared/edition-utils";
+import { getBracketLevelRange, LEAGUE_BRACKETS } from "@/lib/shared/league-brackets";
+import { CardRarity, getRarityIconUrl, toCardRarity } from "@/lib/shared/rarity-utils";
+import type { League } from "@/types/buy-missing-cc";
 import {
-  getBracketLevelRange,
-  LEAGUE_BRACKETS,
-  rarityNameById,
-} from "@/lib/shared/league-brackets";
-import { getRarityIconUrl } from "@/lib/shared/rarity-utils";
-import type { LeagueBracket } from "@/types/buy-missing-cc";
-import type { CardFoil } from "@/types/card";
+  toCardRole,
+  type CardFoil,
+  CardColor,
+  DetailedPlayerCardCollectionItem,
+} from "@/types/card";
 import {
   Alert,
   Box,
@@ -65,30 +66,11 @@ type AccountCardState = {
   totalCc: number;
 };
 
-type Row = {
+type Row = DetailedPlayerCardCollectionItem & {
   key: string;
-  cardDetailId: number;
-  name: string;
-  rarity: number;
-  color: string;
-  secondaryColor?: string;
-  type: string;
-  tier?: number;
-  edition: number;
   foil: CardFoil;
-  availableFoils: CardFoil[];
   accountStates: Record<string, AccountCardState>;
   lowPricePerBcxUsd: number | null;
-  stats: {
-    mana: number[];
-    attack: number[];
-    ranged: number[];
-    magic: number[];
-    armor: number[];
-    health: number[];
-    speed: number[];
-    abilities: string[][];
-  };
 };
 
 type DisplayRow = Row & {
@@ -104,7 +86,7 @@ function isMaxOnlyFoil(foil: CardFoil): boolean {
   return foil === "black" || foil === "gold arcane" || foil === "black arcane";
 }
 
-function bracketStatus(level: number, bracket: LeagueBracket, rarity: number) {
+function bracketStatus(level: number, bracket: League, rarity: CardRarity) {
   const [min, max] = getBracketLevelRange(bracket, rarity);
   if (level >= max) return "max" as const;
   if (level >= min) return "in-bracket" as const;
@@ -145,13 +127,11 @@ export default function BuyMissingCcPageClient() {
   const [sortBy, setSortBy] = useState<"name" | "owned" | "next" | "bracket" | "max">("name");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
-  const [selectedBracket, setSelectedBracket] = useState<LeagueBracket | "">("");
+  const [selectedBracket, setSelectedBracket] = useState<League | "">("");
   const [bracketStateFilter, setBracketStateFilter] = useState<BracketTableState>("all");
   const [search, setSearch] = useState("");
 
   const [dialogRow, setDialogRow] = useState<Row | null>(null);
-
-  const canBuy = selectedAccount.trim().length > 0;
 
   useEffect(() => {
     let active = true;
@@ -200,7 +180,7 @@ export default function BuyMissingCcPageClient() {
 
         const groupedPriceByKey = new Map<string, number>();
         for (const market of snapshot.groupedMarket) {
-          const foil = toCardFoil(market.foil ?? (market.gold ? 1 : 0));
+          const foil = toCardFoil(market.foil);
           const key = `${market.card_detail_id}-${foil}`;
           const existing = groupedPriceByKey.get(key);
           const nextPrice = Number(market.low_price_bcx);
@@ -240,21 +220,25 @@ export default function BuyMissingCcPageClient() {
               },
             };
 
-            nextRows.push({
-              key,
+            const cardDetails: DetailedPlayerCardCollectionItem = {
               cardDetailId: detail.id,
               name: detail.name,
-              rarity: detail.rarity,
-              color: detail.color,
-              secondaryColor: detail.secondary_color ?? undefined,
-              type: detail.type,
-              tier: detail.tier ?? undefined,
-              edition,
-              foil,
+              edition: edition,
+              tier: detail.tier ?? edition, // if tier is null, use edition as tier (this is only the case of alpha/beta)
+              rarity: toCardRarity(detail.rarity),
+              color: detail.color as CardColor,
+              secondaryColor: (detail.secondary_color as CardColor) ?? null,
+              role: toCardRole(detail.type),
               availableFoils: foilsForEdition.length > 0 ? foilsForEdition : ["regular"],
+              cardStats: detail.stats,
+            };
+
+            nextRows.push({
+              key,
+              ...cardDetails,
+              foil,
               accountStates,
               lowPricePerBcxUsd: groupedPriceByKey.get(priceKey) ?? null,
-              stats: detail.stats,
             });
           }
         }
@@ -299,10 +283,10 @@ export default function BuyMissingCcPageClient() {
         const pseudo: FilterableCard = {
           edition: row.edition,
           tier: row.tier,
-          rarity: rarityNameById(row.rarity),
+          rarity: row.rarity,
           color: (row.color ?? "gray").toLowerCase(),
           secondaryColor: row.secondaryColor?.toLowerCase(),
-          role: row.type === "Summoner" ? "archon" : "unit",
+          role: row.role,
         };
         if (!matchesCardFilter(pseudo, filter)) return false;
         if (filter.foilCategories.length > 0 && !filter.foilCategories.includes(row.foil)) {
@@ -471,8 +455,6 @@ export default function BuyMissingCcPageClient() {
             )}
           </Stack>
 
-          {!canBuy && <Alert severity="info">Select an account to enable purchasing.</Alert>}
-
           {error && <Alert severity="error">{error}</Alert>}
 
           <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
@@ -556,12 +538,9 @@ export default function BuyMissingCcPageClient() {
             </TableHead>
             <TableBody>
               {pagedRows.map((row) => {
-                const setName =
-                  row.tier !== undefined ? getSetName(row.tier) : getSetName(row.edition);
-
-                const setIcon = setName ? getSetIconUrl(setName) : undefined;
+                const setIcon = getCardSetIconUrl(row.edition, row.tier);
                 const editionIcon = getEditionIconUrl(row.edition);
-                const rarityIcon = getRarityIconUrl(rarityNameById(row.rarity));
+                const rarityIcon = getRarityIconUrl(row.rarity);
                 const maxOnlyFoil = isMaxOnlyFoil(row.foil);
 
                 const rates = settings
@@ -650,18 +629,14 @@ export default function BuyMissingCcPageClient() {
                     <TableCell>
                       <Tooltip
                         title={
-                          !canBuy
-                            ? "Select an account first"
-                            : maxOnlyFoil
-                              ? "This foil supports max-level purchases only"
-                              : "Buy CC"
+                          maxOnlyFoil ? "This foil supports max-level purchases only" : "Buy CC"
                         }
                       >
                         <span>
                           <Button
                             variant="outlined"
                             size="small"
-                            disabled={!canBuy || !settings || !selectedAccount}
+                            disabled={!settings || !selectedAccount}
                             onClick={() => setDialogRow(row)}
                             sx={{
                               display: "inline-flex",
@@ -816,16 +791,10 @@ export default function BuyMissingCcPageClient() {
           open={Boolean(dialogRow)}
           mode="target-level"
           account={selectedAccount}
-          cardDetailId={dialogRow.cardDetailId}
-          cardName={dialogRow.name}
-          edition={dialogRow.edition}
-          foil={dialogRow.foil}
-          cardRarity={dialogRow.rarity}
-          cardTier={dialogRow.tier}
-          cardStats={dialogRow.stats}
+          card={dialogRow}
+          initialFoilSelection={dialogRow.foil}
           settings={settings}
           initialTargetBracket={selectedBracket || undefined}
-          canBuy={canBuy}
           selectableAccounts={accountOptions}
           onClose={() => setDialogRow(null)}
           onAddToPurchasePlan={(items) => {

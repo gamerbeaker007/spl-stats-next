@@ -1,10 +1,14 @@
 "use client";
-import BuyCardDialog from "@/components/cards/buy-card-dialog/BuyCardDialog";
+import BuyCardDialog from "@/components/collection/buy-card-dialog/BuyCardDialog";
 import { useCardFilter } from "@/lib/frontend/context/CardFilterContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { matchesCardFilter } from "@/lib/shared/card-filter-utils";
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
-import { CardFoil, cardFoilOptions, DetailedPlayerCardCollection } from "@/types/card";
+import {
+  CardFoil,
+  type DetailedPlayerCardCollection,
+  DetailedPlayerCardCollectionItem,
+} from "@/types/card";
 import { Alert, Box, Snackbar, Typography } from "@mui/material";
 import { useState } from "react";
 import { Card } from "./Card";
@@ -15,29 +19,20 @@ interface CardSectionProps {
   selectableAccounts?: string[];
 }
 
+type DialogCard = DetailedPlayerCardCollectionItem & {
+  foil: CardFoil;
+  currentCc: number;
+};
+
 export const CardSection = ({ username, playerCards, selectableAccounts }: CardSectionProps) => {
   const { filter } = useCardFilter();
   const { addItems } = usePurchasePlan();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
-  const [dialogCard, setDialogCard] = useState<{
-    cardDetailId: number;
-    cardName: string;
-    edition: number;
-    foil: CardFoil;
-    currentCc: number;
-  } | null>(null);
+  const [dialogCard, setDialogCard] = useState<DialogCard | null>(null);
 
-  const canBuy = username.trim().length > 0;
-
-  const openBuyDialog = (card: {
-    cardDetailId: number;
-    cardName: string;
-    edition: number;
-    foil: CardFoil;
-    currentCc: number;
-  }) => {
+  const openBuyDialog = (card: DialogCard) => {
     setDialogCard(card);
     setDialogOpen(true);
   };
@@ -124,9 +119,7 @@ export const CardSection = ({ username, playerCards, selectableAccounts }: CardS
                   priority={cardIndex < 6 && groupIndex === 0}
                   onClick={() =>
                     openBuyDialog({
-                      cardDetailId: cardItem.cardDetailId,
-                      cardName: cardItem.name,
-                      edition: cardGroup.edition,
+                      ...cardItem,
                       foil: cardGroup.foil,
                       currentCc: cardGroup.count,
                     })
@@ -151,21 +144,21 @@ export const CardSection = ({ username, playerCards, selectableAccounts }: CardS
             return null;
           }
 
+          //when card is not in collection return missing with regular foil
+          const foil = "regular";
           return (
             <Card
               key={`${cardItem.cardDetailId}-missing-${cardItem.edition}`}
               player={username}
               name={cardItem.name}
-              imageUrl={getCardImageByLevel(cardItem.name, cardItem.edition, "regular")}
+              imageUrl={getCardImageByLevel(cardItem.name, cardItem.edition, foil)}
               subTitle="(Missing)"
               opacity={0.3}
               priority={cardIndex < 6}
               onClick={() =>
                 openBuyDialog({
-                  cardDetailId: cardItem.cardDetailId,
-                  cardName: cardItem.name,
-                  edition: cardItem.edition,
-                  foil: cardFoilOptions[0],
+                  ...cardItem,
+                  foil,
                   currentCc:
                     cardItem.allCards?.filter(
                       (card) => card.owner.toLowerCase() === username.toLowerCase()
@@ -182,12 +175,9 @@ export const CardSection = ({ username, playerCards, selectableAccounts }: CardS
           open={dialogOpen}
           mode="manual-listings"
           account={username}
-          cardDetailId={dialogCard.cardDetailId}
-          cardName={dialogCard.cardName}
-          edition={dialogCard.edition}
-          foil={dialogCard.foil}
+          card={dialogCard}
+          initialFoilSelection={dialogCard.foil}
           currentCc={dialogCard.currentCc}
-          canBuy={canBuy}
           selectableAccounts={selectableAccounts ?? [username]}
           onClose={() => setDialogOpen(false)}
           onAddToPurchasePlan={(items) => {

@@ -14,7 +14,6 @@ import {
 import {
   fetchBrawlDetails,
   fetchDailyProgress,
-  fetchPlayerHistory,
   fetchPlayerHistoryByDateRange,
 } from "@/lib/backend/api/spl/spl-authenticated-api";
 import { decryptToken } from "@/lib/backend/auth/encryption";
@@ -31,11 +30,11 @@ import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 import { CardSetName } from "@/lib/shared/edition-utils";
 import {
   CardDetail,
-  CardElement,
+  CardColor,
   CardFoil,
-  CardRarity,
   DetailedPlayerCardCollection,
   DetailedPlayerCardCollectionItem,
+  toCardRole,
 } from "@/types/card";
 import { ParsedHistory, ParsedPlayerRewardHistory, PurchaseResult } from "@/types/parsedHistory";
 import { PlayerCardCollectionData } from "@/types/playerCardCollection";
@@ -43,6 +42,8 @@ import { DailyProgressData } from "@/types/playerDailyProgress";
 import { SeasonBalanceHistory, TokenBalanceSummary } from "@/types/spl/balanceHistory";
 import { SplCardDetail } from "@/types/spl/cardDetails";
 import { getCurrentUser, getMonitoredAccounts } from "./auth-actions";
+import { toCardRarity } from "@/lib/shared/rarity-utils";
+import { toCardFoil } from "@/lib/shared/card-utils";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -80,14 +81,6 @@ export async function getPlayerSeasonRewards(username: string) {
 
 export async function getCardDetails() {
   return fetchCardDetails();
-}
-
-export async function getListingPrices() {
-  return fetchListingPrices();
-}
-
-export async function getPeakmonstersMarketPrices() {
-  return fetchPeakmonstersMarketPrices();
 }
 
 // ---------------------------------------------------------------------------
@@ -150,9 +143,6 @@ export async function getPlayersCardCollection(
   };
 }
 
-const FOIL_MAP: CardFoil[] = ["regular", "gold", "gold arcane", "black", "black arcane"];
-const RARITY_MAP: CardRarity[] = ["common", "rare", "epic", "legendary"];
-
 /**
  * Editions a card was printed in. A single card detail (one `card_detail_id`)
  * can exist in several editions — e.g. an Alpha card almost always also has a
@@ -182,7 +172,7 @@ function parseAvailableFoils(detail: SplCardDetail, edition: number): CardFoil[]
     new Set(
       (detail.distribution ?? [])
         .filter((d) => d.edition === edition)
-        .map((d) => FOIL_MAP[d.foil] ?? "regular")
+        .map((d) => toCardFoil(d.foil))
     )
   );
   return foils.length > 0 ? foils : ["regular"];
@@ -196,14 +186,13 @@ function buildCollectionItem(
     cardDetailId: detail.id,
     name: detail.name,
     edition,
-    tier: detail.tier ?? undefined,
-    rarity: RARITY_MAP[detail.rarity - 1] ?? "common",
-    color: (detail.color?.toLowerCase() ?? "gray") as CardElement,
-    secondaryColor: detail.secondary_color
-      ? (detail.secondary_color.toLowerCase() as CardElement)
-      : undefined,
-    role: detail.type === "Summoner" ? "archon" : "unit",
+    tier: detail.tier ?? edition, // if tier is null, use edition as tier (this is only the case of alpha/beta)
+    rarity: toCardRarity(detail.rarity),
+    color: detail.color as CardColor,
+    secondaryColor: detail.secondary_color as CardColor,
+    role: toCardRole(detail.type),
     availableFoils: parseAvailableFoils(detail, edition),
+    cardStats: detail.stats,
     allCards: [],
   };
 }
@@ -241,7 +230,7 @@ export async function getDetailedPlayerCardCollection(
       detailedMap[key] = item;
     }
 
-    const foil: CardFoil = FOIL_MAP[playerCard.foil] ?? "regular";
+    const foil: CardFoil = toCardFoil(playerCard.foil);
     const cardDetail: CardDetail = {
       id: playerCard.card_detail_id,
       uid: playerCard.uid,
@@ -252,9 +241,8 @@ export async function getDetailedPlayerCardCollection(
       cardSet: playerCard.card_set as CardSetName,
       collectionPower: playerCard.collection_power,
       bcx: playerCard.bcx,
-      setId: playerCard.set_id,
       bcxUnbound: playerCard.bcx_unbound,
-      foil,
+      foil: foil,
       mint: playerCard.mint,
       level: playerCard.level,
       imgUrl: getCardImageByLevel(item.name, playerCard.edition, foil, playerCard.level),
@@ -271,33 +259,8 @@ export async function getDetailedPlayerCardCollection(
 }
 
 // ---------------------------------------------------------------------------
-// Reward / purchase history (requires token)
-// ---------------------------------------------------------------------------
-
-export async function getPlayerHistory(username: string, types: string, beforeBlock?: number) {
-  const token = await getDecryptedJwt(username);
-  if (!token) return [];
-  return fetchPlayerHistory(username, token, types, beforeBlock);
-}
-
-export async function getPlayerHistoryByDateRange(
-  username: string,
-  types: string,
-  startDate: Date,
-  endDate: Date
-) {
-  const token = await getDecryptedJwt(username);
-  if (!token) return [];
-  return fetchPlayerHistoryByDateRange(username, token, types, startDate, endDate);
-}
-
-// ---------------------------------------------------------------------------
 // Season date lookup (reads from DB)
 // ---------------------------------------------------------------------------
-
-export async function getSeasonDates(seasonId: number) {
-  return getSeasonById(seasonId);
-}
 
 export async function getLatestSeasonAction() {
   return getLatestSeason();

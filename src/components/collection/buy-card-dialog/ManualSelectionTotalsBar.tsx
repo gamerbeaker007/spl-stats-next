@@ -1,4 +1,4 @@
-import CurrencyAmountChip from "@/components/cards/top-bar/CurrencyAmountChip";
+import CurrencyAmountChip from "@/components/collection/top-bar/CurrencyAmountChip";
 import { Box, Typography } from "@mui/material";
 
 interface ManualSelectionTotalsBarProps {

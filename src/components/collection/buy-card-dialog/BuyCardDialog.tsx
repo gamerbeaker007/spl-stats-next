@@ -16,9 +16,20 @@ import {
 } from "@/lib/shared/buy-missing-cc";
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 import { getFoilLabel } from "@/lib/shared/card-utils";
+import {
+  getCardSetIconUrl,
+  getCardSetLabel,
+  getEditionIconUrl,
+  getEditionLabel,
+} from "@/lib/shared/edition-utils";
 import { getBracketLevelRange, LEAGUE_BRACKETS } from "@/lib/shared/league-brackets";
-import type { LeagueBracket } from "@/types/buy-missing-cc";
-import { CardFoil, cardFoilOptions } from "@/types/card";
+import type { League } from "@/types/buy-missing-cc";
+import {
+  CardFoil,
+  cardFoilOptions,
+  CardRarity,
+  DetailedPlayerCardCollectionItem,
+} from "@/types/card";
 import type { PurchaseCurrency, PurchasePlanItem } from "@/types/purchase/purchase-plan";
 import type { CardStats } from "@/types/spl/cardDetails";
 import type { SplSettings } from "@/types/spl/season";
@@ -44,7 +55,8 @@ import {
 } from "@mui/material";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
-import BracketFilter from "../buy-missing-cc/BracketFilter";
+import CardDetailsSummary from "./CardDetailsSummary";
+import BracketFilter from "@/components/collection/buy-missing-cc/BracketFilter";
 import ManualListingsTabContent from "./ManualListingsTabContent";
 import PurchaseTxProgressPanel from "./PurchaseTxProgressPanel";
 import TargetLevelTabContent, { type TargetLevelRow } from "./TargetLevelTabContent";
@@ -63,29 +75,23 @@ export interface BuyCardDialogProps {
   open: boolean;
   mode: BuyCardDialogMode;
   account: string;
-  cardDetailId: number;
-  cardName: string;
-  edition: number;
-  foil: CardFoil;
+  card: DetailedPlayerCardCollectionItem;
+  initialFoilSelection: CardFoil;
   currentLevel?: number;
   currentCc?: number;
-  cardRarity?: number;
-  cardTier?: number | null;
-  cardStats?: CardStats;
   settings?: SplSettings;
-  initialTargetBracket?: LeagueBracket;
+  initialTargetBracket?: League;
   selectableAccounts?: string[];
   accountStates?: Record<string, AccountCardState>;
   accountBalances?: Record<string, { DEC: number; CREDITS: number }>;
-  canBuy: boolean;
   onClose: () => void;
   onAddToPurchasePlan: (items: PurchasePlanItem[]) => void;
 }
 
 const PAGE_OPTIONS = [20, 50, 100] as const;
-const BRACKET_ORDER: LeagueBracket[] = ["wood", "bronze", "silver", "gold", "diamond", "champion"];
+const BRACKET_ORDER: League[] = ["wood", "bronze", "silver", "gold", "diamond", "champion"];
 
-function getPlayableBrackets(level: number, rarity: number): LeagueBracket[] {
+function getPlayableBrackets(level: number, rarity: CardRarity): League[] {
   return BRACKET_ORDER.filter((bracket) => {
     const [min, max] = getBracketLevelRange(bracket, rarity);
     return level >= min && level <= max;
@@ -123,33 +129,26 @@ export default function BuyCardDialog({
   open,
   mode,
   account,
-  cardDetailId,
-  cardName,
-  edition,
-  foil,
+  card,
+  initialFoilSelection,
   currentLevel,
   currentCc,
-  cardRarity,
-  cardTier,
-  cardStats,
   settings,
   initialTargetBracket,
   selectableAccounts,
   accountStates,
   accountBalances,
-  canBuy,
   onClose,
   onAddToPurchasePlan,
 }: Readonly<BuyCardDialogProps>) {
+  const { cardDetailId, name, edition, rarity, tier, role, cardStats } = card;
   const { rows, loading, error, fetchRows } = useMarketListings();
   const { items: cartItems, removeItem, removeMany, notifyBalancesRefresh } = usePurchasePlan();
 
   const [activeMode, setActiveMode] = useState<BuyCardDialogMode>(mode);
-  const [targetBracket, setTargetBracket] = useState<LeagueBracket | "">(
-    initialTargetBracket || ""
-  );
+  const [targetBracket, setTargetBracket] = useState<League | "">(initialTargetBracket || "");
   const [selectedAccount, setSelectedAccount] = useState(account.toLowerCase());
-  const [selectedFoil, setSelectedFoil] = useState<CardFoil>(foil);
+  const [selectedFoil, setSelectedFoil] = useState<CardFoil>(initialFoilSelection);
   const [levelFilter, setLevelFilter] = useState<number | "all">("all");
   const [pageSize, setPageSize] = useState<(typeof PAGE_OPTIONS)[number]>(20);
   const [page, setPage] = useState(1);
@@ -163,9 +162,6 @@ export default function BuyCardDialog({
   const [contextLoading, setContextLoading] = useState(false);
   const [contextError, setContextError] = useState<string | null>(null);
   const [resolvedSettings, setResolvedSettings] = useState<SplSettings | null>(settings ?? null);
-  const [resolvedCardRarity, setResolvedCardRarity] = useState<number | undefined>(cardRarity);
-  const [resolvedCardTier, setResolvedCardTier] = useState<number | null | undefined>(cardTier);
-  const [resolvedCardStats, setResolvedCardStats] = useState<CardStats | undefined>(cardStats);
   const [dynamicAccountStates, setDynamicAccountStates] = useState<
     Record<string, AccountCardState>
   >(accountStates ?? {});
@@ -182,24 +178,18 @@ export default function BuyCardDialog({
   useEffect(() => {
     if (!open) return;
     setSelectedAccount(account.toLowerCase());
-    setSelectedFoil(foil);
+    setSelectedFoil(initialFoilSelection);
     setActiveMode(mode);
     setTargetBracket(initialTargetBracket || "");
     setContextError(null);
     setResolvedSettings(settings ?? null);
-    setResolvedCardRarity(cardRarity);
-    setResolvedCardTier(cardTier);
-    setResolvedCardStats(cardStats);
     setDynamicAccountStates(accountStates ?? {});
     setDynamicBalances(accountBalances ?? {});
   }, [
     account,
     accountBalances,
     accountStates,
-    cardRarity,
-    cardStats,
-    cardTier,
-    foil,
+    initialFoilSelection,
     initialTargetBracket,
     mode,
     open,
@@ -209,17 +199,14 @@ export default function BuyCardDialog({
   useEffect(() => {
     if (!open) return;
     if (settings) setResolvedSettings(settings);
-    if (typeof cardRarity === "number") setResolvedCardRarity(cardRarity);
-    if (typeof cardTier !== "undefined") setResolvedCardTier(cardTier);
-    if (cardStats) setResolvedCardStats(cardStats);
     if (accountStates) setDynamicAccountStates((prev) => ({ ...prev, ...accountStates }));
     if (accountBalances) setDynamicBalances((prev) => ({ ...prev, ...accountBalances }));
-  }, [accountBalances, accountStates, cardRarity, cardStats, cardTier, open, settings]);
+  }, [accountBalances, accountStates, rarity, role, cardStats, tier, open, settings]);
 
   useEffect(() => {
     if (!open) return;
 
-    if (resolvedSettings && resolvedCardStats && typeof resolvedCardRarity === "number") {
+    if (resolvedSettings) {
       return;
     }
 
@@ -231,9 +218,6 @@ export default function BuyCardDialog({
         if (!active) return;
 
         setResolvedSettings(context.settings);
-        setResolvedCardRarity(context.cardDetail.rarity);
-        setResolvedCardTier(context.cardDetail.tier ?? null);
-        setResolvedCardStats(context.cardDetail.stats);
       } catch (err) {
         if (!active) return;
         setContextError(
@@ -247,7 +231,7 @@ export default function BuyCardDialog({
     return () => {
       active = false;
     };
-  }, [cardDetailId, open, resolvedCardRarity, resolvedCardStats, resolvedSettings]);
+  }, [cardDetailId, open, resolvedSettings]);
 
   useEffect(() => {
     if (!open || !selectedAccount) return;
@@ -383,7 +367,7 @@ export default function BuyCardDialog({
       marketId: row.marketId,
       uid: row.uid,
       cardDetailId,
-      cardName,
+      cardName: name,
       edition: row.edition,
       foil: row.foil,
       level: row.level,
@@ -471,28 +455,20 @@ export default function BuyCardDialog({
   };
   const balance = dynamicBalances[selectedAccount] ?? { DEC: 0, CREDITS: 0 };
 
-  const canBuyResolved = canBuy && selectedAccount.trim().length > 0;
-
   const canAffordDec = selectionTotals.dec <= balance.DEC;
   const canAffordCredits = selectionTotals.credits <= balance.CREDITS;
 
   const combineRates = useMemo(() => {
-    if (!resolvedSettings || typeof resolvedCardRarity !== "number") return null;
-    return getCombineRatesForCard(
-      resolvedSettings,
-      edition,
-      selectedFoil,
-      resolvedCardRarity,
-      resolvedCardTier
-    );
-  }, [resolvedCardRarity, resolvedCardTier, resolvedSettings, edition, selectedFoil]);
+    if (!resolvedSettings) return null;
+    return getCombineRatesForCard(resolvedSettings, edition, selectedFoil, rarity, tier);
+  }, [resolvedSettings, edition, selectedFoil, rarity, tier]);
 
   const numberOfLevels = combineRates?.length ?? 0;
   const isHighestCcAtMaxLevel =
     accountState.highestLevel > 0 && accountState.highestLevel >= numberOfLevels;
 
   const dynamicStats = useMemo(() => {
-    if (!resolvedCardStats) return [] as Array<{ key: keyof CardStats; label: string }>;
+    if (!cardStats) return [] as Array<{ key: keyof CardStats; label: string }>;
     const candidates: Array<{ key: keyof CardStats; label: string }> = [
       { key: "health", label: "Health" },
       { key: "armor", label: "Armor" },
@@ -502,13 +478,13 @@ export default function BuyCardDialog({
       { key: "magic", label: "Magic" },
     ];
     return candidates.filter((row) => {
-      const values = resolvedCardStats[row.key];
+      const values = cardStats[row.key];
       return Array.isArray(values) && values.some((value) => Number(value) > 0);
     });
-  }, [resolvedCardStats]);
+  }, [cardStats]);
 
   const targetRows = useMemo(() => {
-    if (!combineRates || !resolvedCardStats || !resolvedCardRarity) return [] as TargetLevelRow[];
+    if (!combineRates || !cardStats) return [] as TargetLevelRow[];
 
     const maxOnlyFoil = isMaxOnlyFoil(selectedFoil);
     const numberOfLevels = combineRates.length;
@@ -524,7 +500,7 @@ export default function BuyCardDialog({
         return {
           level,
           statsLevel,
-          playableBrackets: getPlayableBrackets(statsLevel, resolvedCardRarity),
+          playableBrackets: getPlayableBrackets(statsLevel, rarity),
           targetCc: null,
           ownedBcx: accountState.totalCc,
           neededBcx: null,
@@ -534,7 +510,7 @@ export default function BuyCardDialog({
           planItems: [],
           fulfilled: false,
           isTargetable: false,
-          abilities: cumulativeAbilities(resolvedCardStats.abilities ?? [], statsLevel),
+          abilities: cumulativeAbilities(cardStats?.abilities ?? [], statsLevel),
         };
       }
 
@@ -542,14 +518,14 @@ export default function BuyCardDialog({
       const selection = selectCheapestListings(rows, req.missingCc);
       const plan = buildPurchasePlan({
         account: selectedAccount,
-        cardName,
+        cardName: name,
         listings: selection.selected,
       });
 
       return {
         level,
         statsLevel,
-        playableBrackets: getPlayableBrackets(statsLevel, resolvedCardRarity),
+        playableBrackets: getPlayableBrackets(statsLevel, rarity),
         targetCc: req.targetCc,
         ownedBcx: accountState.totalCc,
         neededBcx: req.missingCc,
@@ -559,15 +535,15 @@ export default function BuyCardDialog({
         planItems: plan.items,
         fulfilled: selection.fulfilled || req.missingCc === 0,
         isTargetable: true,
-        abilities: cumulativeAbilities(resolvedCardStats.abilities ?? [], statsLevel),
+        abilities: cumulativeAbilities(cardStats?.abilities ?? [], statsLevel),
       };
     });
   }, [
     accountState.totalCc,
-    cardName,
+    name,
     combineRates,
-    resolvedCardRarity,
-    resolvedCardStats,
+    rarity,
+    cardStats,
     rows,
     selectedAccount,
     selectedFoil,
@@ -607,9 +583,24 @@ export default function BuyCardDialog({
     await runCheckoutForPlan(selectedItems, currency);
   }
 
+  const titleSetIcon = getCardSetIconUrl(edition, tier);
+  const titleSetLabel = getCardSetLabel(edition, tier);
+  const titleEditionIcon = getEditionIconUrl(edition);
+  const titleEditionLabel = getEditionLabel(edition) ?? `Edition ${edition}`;
+
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="xl">
-      <DialogTitle>Buy CC - {cardName}</DialogTitle>
+      <DialogTitle>
+        <Stack direction="row" alignItems="center" spacing={2}>
+          <Typography variant="h6">CC - {name}</Typography>
+          {titleSetIcon && (
+            <Image src={titleSetIcon} alt={titleSetLabel ?? "Set"} width={24} height={24} />
+          )}
+          {titleEditionIcon && (
+            <Image src={titleEditionIcon} alt={titleEditionLabel} width={24} height={24} />
+          )}
+        </Stack>
+      </DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2}>
           <Tabs
@@ -623,20 +614,19 @@ export default function BuyCardDialog({
           <Box sx={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
             <Image
               src={getCardImageByLevel(
-                cardName,
+                name,
                 edition,
                 selectedFoil,
                 Math.max(1, accountState.highestLevel)
               )}
-              alt={cardName}
+              alt={name}
               width={100}
               height={160}
               style={{ objectFit: "contain" }}
             />
 
             <Stack spacing={1}>
-              <Typography variant="h6">{cardName}</Typography>
-              <Typography variant="body2">Edition: {edition}</Typography>
+              <CardDetailsSummary card={card} />
               <Typography variant="body2">Current Level: {accountState.highestLevel}</Typography>
               <Typography
                 variant="body2"
@@ -644,11 +634,11 @@ export default function BuyCardDialog({
               >
                 Owned BCX: {accountState.highestCc}
               </Typography>
-              {activeMode === "target-level" && resolvedCardRarity && targetBracket !== "" && (
+              {activeMode === "target-level" && rarity && targetBracket !== "" && (
                 <Typography variant="body2" color="error.main">
                   Target: {LEAGUE_BRACKETS[targetBracket].label} (
-                  {getBracketLevelRange(targetBracket, resolvedCardRarity)[0]}-
-                  {getBracketLevelRange(targetBracket, resolvedCardRarity)[1]})
+                  {getBracketLevelRange(targetBracket, rarity)[0]}-
+                  {getBracketLevelRange(targetBracket, rarity)[1]})
                 </Typography>
               )}
               <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap" }}>
@@ -683,7 +673,7 @@ export default function BuyCardDialog({
                   <Select
                     label="Foil"
                     value={selectedFoil}
-                    onChange={(e) => setSelectedFoil(e.target.value as CardFoil)}
+                    onChange={(e) => setSelectedFoil(e.target.value)}
                   >
                     {cardFoilOptions.map((option) => (
                       <MenuItem key={option} value={option}>
@@ -693,7 +683,7 @@ export default function BuyCardDialog({
                   </Select>
                 </FormControl>
 
-                {activeMode === "target-level" && resolvedCardRarity && (
+                {activeMode === "target-level" && rarity && (
                   <BracketFilter
                     selectedBracket={targetBracket}
                     setSelectedBracket={setTargetBracket}
@@ -713,14 +703,13 @@ export default function BuyCardDialog({
               combineRatesAvailable={Boolean(combineRates)}
               dynamicStats={dynamicStats}
               targetRows={targetRows}
-              cardStats={resolvedCardStats}
-              cardRarity={resolvedCardRarity}
+              cardStats={cardStats}
+              rarity={rarity}
               targetBracket={targetBracket}
               accountHighestLevel={accountState.highestLevel}
               accountHighestCc={accountState.highestCc}
               accountTotalCc={accountState.totalCc}
               isHighestCcAtMaxLevel={isHighestCcAtMaxLevel}
-              canBuy={canBuyResolved}
               buyBusy={buyBusy}
               balance={balance}
               onAddToPurchasePlan={onAddToPurchasePlan}
@@ -751,10 +740,6 @@ export default function BuyCardDialog({
           )}
 
           <PurchaseTxProgressPanel buyBusy={buyBusy} txProgress={txProgress} />
-
-          {!canBuyResolved && (
-            <Alert severity="warning">Select an account to enable buy actions.</Alert>
-          )}
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -764,7 +749,7 @@ export default function BuyCardDialog({
           <>
             <Tooltip
               title={
-                !canAffordDec && canBuyResolved && selectedItems.length > 0
+                !canAffordDec && selectedItems.length > 0
                   ? `Insufficient DEC (${selectionTotals.dec.toFixed(3)} required)`
                   : ""
               }
@@ -773,9 +758,7 @@ export default function BuyCardDialog({
                 <Button
                   variant="contained"
                   onClick={() => buySelected("DEC")}
-                  disabled={
-                    buyBusy || !canBuyResolved || selectedItems.length === 0 || !canAffordDec
-                  }
+                  disabled={buyBusy || selectedItems.length === 0 || !canAffordDec}
                 >
                   {buyBusy ? "Processing..." : "Buy with DEC"}
                 </Button>
@@ -783,7 +766,7 @@ export default function BuyCardDialog({
             </Tooltip>
             <Tooltip
               title={
-                !canAffordCredits && canBuyResolved && selectedItems.length > 0
+                !canAffordCredits && selectedItems.length > 0
                   ? `Insufficient Credits (${selectionTotals.credits.toFixed(0)} required)`
                   : ""
               }
@@ -792,9 +775,7 @@ export default function BuyCardDialog({
                 <Button
                   variant="contained"
                   onClick={() => buySelected("CREDITS")}
-                  disabled={
-                    buyBusy || !canBuyResolved || selectedItems.length === 0 || !canAffordCredits
-                  }
+                  disabled={buyBusy || selectedItems.length === 0 || !canAffordCredits}
                 >
                   {buyBusy ? "Processing..." : "Buy with Credits"}
                 </Button>

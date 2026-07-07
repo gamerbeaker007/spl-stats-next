@@ -15,8 +15,8 @@ import {
   speed_icon_url,
 } from "@/lib/staticsIconUrls";
 import { findLeagueLogoUrl } from "@/lib/utils";
-import type { LeagueBracket } from "@/types/buy-missing-cc";
-import type { CardFoil } from "@/types/card";
+import type { League } from "@/types/buy-missing-cc";
+import type { CardFoil, CardRarity } from "@/types/card";
 import type { CardStats } from "@/types/spl/cardDetails";
 import {
   Alert,
@@ -33,7 +33,7 @@ import {
 } from "@mui/material";
 import Image from "next/image";
 
-const BRACKET_LOGO_LEAGUE: Record<LeagueBracket, number> = {
+const BRACKET_LOGO_LEAGUE: Record<League, number> = {
   wood: 0,
   bronze: 3,
   silver: 6,
@@ -55,7 +55,7 @@ const STAT_ICON_URL: Record<Exclude<keyof CardStats, "abilities">, string> = {
 export type TargetLevelRow = {
   level: number;
   statsLevel: number;
-  playableBrackets: LeagueBracket[];
+  playableBrackets: League[];
   targetCc: number | null;
   ownedBcx: number;
   neededBcx: number | null;
@@ -86,14 +86,13 @@ interface TargetLevelTabContentProps {
   combineRatesAvailable: boolean;
   dynamicStats: Array<{ key: keyof CardStats; label: string }>;
   targetRows: TargetLevelRow[];
-  cardStats?: CardStats;
-  cardRarity?: number;
-  targetBracket: LeagueBracket | "";
+  cardStats: CardStats;
+  rarity: CardRarity;
+  targetBracket: League | "";
   accountHighestLevel: number;
   accountHighestCc: number;
   accountTotalCc: number;
   isHighestCcAtMaxLevel: boolean;
-  canBuy: boolean;
   buyBusy: boolean;
   balance: { DEC: number; CREDITS: number };
   onAddToPurchasePlan: (items: TargetLevelRow["planItems"]) => void;
@@ -105,13 +104,12 @@ export default function TargetLevelTabContent({
   dynamicStats,
   targetRows,
   cardStats,
-  cardRarity,
+  rarity,
   targetBracket,
   accountHighestLevel,
   accountHighestCc,
   accountTotalCc,
   isHighestCcAtMaxLevel,
-  canBuy,
   buyBusy,
   balance,
   onAddToPurchasePlan,
@@ -159,12 +157,11 @@ export default function TargetLevelTabContent({
         <TableBody>
           {targetRows.map((row) => {
             const highlighted = row.level === accountHighestLevel;
-            const canPurchaseRow =
-              row.isTargetable && row.planItems.length > 0 && row.fulfilled && canBuy;
+            const canPurchaseRow = row.isTargetable && row.planItems.length > 0 && row.fulfilled;
 
             const [targetMin, targetMax] =
-              cardRarity && targetBracket !== ""
-                ? getBracketLevelRange(targetBracket, cardRarity)
+              rarity && targetBracket !== ""
+                ? getBracketLevelRange(targetBracket, rarity)
                 : [null, null];
 
             const targetBottom = row.level === targetMin;

@@ -1,6 +1,6 @@
 "use client";
 
-import CurrencyAmountChip from "@/components/cards/top-bar/CurrencyAmountChip";
+import CurrencyAmountChip from "@/components/collection/top-bar/CurrencyAmountChip";
 import ScrollableTableContainer from "@/components/shared/ScrollableTableContainer";
 import { usePurchaseCheckout } from "@/hooks/cards/usePurchaseCheckout";
 import { getBalancesForAccountsAction } from "@/lib/backend/actions/purchase-actions";

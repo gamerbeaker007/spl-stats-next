@@ -1,4 +1,4 @@
-import BuyMissingCcPageClient from "@/components/cards/buy-missing-cc/BuyMissingCcPageClient";
+import BuyMissingCcPageClient from "@/components/collection/buy-missing-cc/BuyMissingCcPageClient";
 import { BuyMissingCcFilterProvider } from "@/lib/frontend/context/BuyMissingCcFilterContext";
 import { Box, Container } from "@mui/material";
 

@@ -8,7 +8,8 @@ import type {
 } from "@/types/buy-missing-cc";
 import type { CardStats } from "@/types/spl/cardDetails";
 import type { SplSettings } from "@/types/spl/season";
-import { CardFoil } from "@/types/card";
+import { CardFoil, CardRarity } from "@/types/card";
+import { getRarityId } from "@/lib/shared/rarity-utils";
 
 export function getCardFirstPlayableLevel(combineRates: number[]): number {
   const firstLevelIndex = combineRates.findIndex((cc) => cc > 0);
@@ -86,10 +87,10 @@ export function getCombineRatesForCard(
   settings: SplSettings,
   edition: number,
   foil: CardFoil,
-  rarity: number,
-  tier?: number | null
+  rarity: CardRarity,
+  tier: number
 ): number[] | null {
-  const rarityIdx = Math.max(0, Math.min(3, rarity - 1));
+  const rarityIdx = Math.max(0, Math.min(3, getRarityId(rarity)! - 1));
 
   // we only know "regular" and gold combine rates
   const normalizedFoil = normalizeFoilForRates(foil);

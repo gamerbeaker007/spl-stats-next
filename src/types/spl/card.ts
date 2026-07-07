@@ -15,7 +15,6 @@ export interface SplPlayerCard {
   collection_power: number;
   display_name: string;
   bcx: number;
-  set_id: string;
   bcx_unbound: number;
   foil: number;
   mint: string | null;

@@ -1,6 +1,6 @@
 "use client";
 
-import CurrencyAmountChip from "@/components/cards/top-bar/CurrencyAmountChip";
+import CurrencyAmountChip from "@/components/collection/top-bar/CurrencyAmountChip";
 import { getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
 import { getBalancesForAccountsAction } from "@/lib/backend/actions/purchase-actions";
 import { useAuth } from "@/lib/frontend/context/AuthContext";

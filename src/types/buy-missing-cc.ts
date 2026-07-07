@@ -6,9 +6,7 @@ import type { SplCardListingPriceEntry } from "@/types/spl/market";
 import type { SplSettings } from "@/types/spl/season";
 import { CardFoil } from "@/types/card";
 
-export type LeagueBracket = "wood" | "bronze" | "silver" | "gold" | "diamond" | "champion";
-
-export type BracketStatus = "max" | "in-bracket" | "below-bracket";
+export type League = "wood" | "bronze" | "silver" | "gold" | "diamond" | "champion";
 
 export interface BuyMissingCcSnapshot {
   account: string;

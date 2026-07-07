@@ -1,9 +1,10 @@
-import type { LeagueBracket } from "@/types/buy-missing-cc";
+import type { League } from "@/types/buy-missing-cc";
+import { CardRarity } from "@/lib/shared/rarity-utils";
 
 const SINGLE = (value: number): readonly [number, number] => [value, value] as const;
 
 export const LEAGUE_BRACKETS: Record<
-  LeagueBracket,
+  League,
   {
     label: string;
     byRarity: {
@@ -70,6 +71,7 @@ export const LEAGUE_BRACKETS: Record<
   },
 };
 
+//TODO REMOVE to rarity-utils
 export function rarityNameById(rarity: number): keyof (typeof LEAGUE_BRACKETS)["wood"]["byRarity"] {
   if (rarity === 2) return "rare";
   if (rarity === 3) return "epic";
@@ -78,9 +80,8 @@ export function rarityNameById(rarity: number): keyof (typeof LEAGUE_BRACKETS)["
 }
 
 export function getBracketLevelRange(
-  bracket: LeagueBracket,
-  rarity: number
+  bracket: League,
+  rarity: CardRarity
 ): readonly [number, number] {
-  const rarityName = rarityNameById(rarity);
-  return LEAGUE_BRACKETS[bracket].byRarity[rarityName];
+  return LEAGUE_BRACKETS[bracket].byRarity[rarity];
 }
