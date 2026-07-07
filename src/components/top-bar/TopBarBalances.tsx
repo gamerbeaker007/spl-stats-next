@@ -1,14 +1,14 @@
 "use client";
 
 import CurrencyAmountChip from "@/components/collection/top-bar/CurrencyAmountChip";
-import { getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
 import { getBalancesForAccountsAction } from "@/lib/backend/actions/purchase-actions";
-import { useAuth } from "@/lib/frontend/context/AuthContext";
+import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
+import { credits_icon_url, dec_icon_url, sps_icon_url } from "@/lib/staticsIconUrls";
 import { SplBalance } from "@/types/spl/balances";
 import { Avatar, Box, CircularProgress, Stack, Tooltip, Typography } from "@mui/material";
+import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { credits_icon_url, dec_icon_url, sps_icon_url } from "@/lib/staticsIconUrls";
 
 interface AccountBalances {
   account: string;
@@ -16,15 +16,40 @@ interface AccountBalances {
 }
 
 function totalToken(rows: AccountBalances[], token: string): number {
-  return rows.reduce(
-    (sum, row) => sum + (row.balances.find((entry) => entry.token === token)?.balance ?? 0),
-    0
-  );
+  return rows.reduce((sum, row) => {
+    if (token === "DEC") {
+      return (
+        sum +
+        (row.balances.find((entry) => entry.token === "DEC")?.balance ?? 0) +
+        (row.balances.find((entry) => entry.token === "DEC-B")?.balance ?? 0)
+      );
+    }
+    return sum + (row.balances.find((entry) => entry.token === token)?.balance ?? 0);
+  }, 0);
 }
 
 export default function TopBarBalances() {
   const { balanceRefreshVersion } = usePurchasePlan();
-  const { user, isAuthenticated } = useAuth();
+  const { selectedAccount, collectionSelectedAccounts } = useAccounts();
+  const pathname = usePathname();
+
+  const selectedAccounts = useMemo(() => {
+    if (pathname.startsWith("/collection/cards")) {
+      if (collectionSelectedAccounts.length > 0) {
+        return collectionSelectedAccounts;
+      }
+      if (selectedAccount) {
+        return [selectedAccount];
+      }
+    }
+
+    if (pathname.startsWith("/collection/buy-missing-cc") && selectedAccount) {
+      return [selectedAccount];
+    }
+
+    return [];
+  }, [collectionSelectedAccounts, pathname, selectedAccount]);
+
   const [rows, setRows] = useState<AccountBalances[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -34,14 +59,12 @@ export default function TopBarBalances() {
     async function load() {
       setLoading(true);
       try {
-        const monitored = await getMonitoredAccounts();
-        const accounts = monitored.map((entry) => entry.username);
-        if (accounts.length === 0) {
+        if (selectedAccounts.length === 0) {
           if (active) setRows([]);
           return;
         }
 
-        const balances = await getBalancesForAccountsAction(accounts);
+        const balances = await getBalancesForAccountsAction(selectedAccounts);
         if (active) {
           setRows(balances);
         }
@@ -54,7 +77,7 @@ export default function TopBarBalances() {
     return () => {
       active = false;
     };
-  }, [balanceRefreshVersion, isAuthenticated, user?.username]);
+  }, [balanceRefreshVersion, selectedAccounts]);
 
   const totals = useMemo(
     () => ({
@@ -69,7 +92,9 @@ export default function TopBarBalances() {
     <Box>
       {rows.map((row) => {
         const credits = row.balances.find((entry) => entry.token === "CREDITS")?.balance ?? 0;
-        const dec = row.balances.find((entry) => entry.token === "DEC")?.balance ?? 0;
+        const dec =
+          (row.balances.find((entry) => entry.token === "DEC")?.balance ?? 0) +
+          (row.balances.find((entry) => entry.token === "DEC-B")?.balance ?? 0);
         const sps = row.balances.find((entry) => entry.token === "SPS")?.balance ?? 0;
 
         return (
@@ -92,7 +117,9 @@ export default function TopBarBalances() {
           </Box>
         );
       })}
-      {rows.length === 0 && <Typography variant="body2">No monitored balances loaded.</Typography>}
+      {rows.length === 0 && (
+        <Typography variant="body2">No selected account balances loaded.</Typography>
+      )}
     </Box>
   );
 

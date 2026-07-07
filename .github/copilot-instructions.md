@@ -92,8 +92,10 @@ scripts/
 
 ### Caching
 
-- Use Next.js `unstable_cache` (from `next/cache`) to cache DB query results — wrap inside `lib/backend/db/` functions when appropriate.
+- `cacheComponents` is enabled and is the default caching model for this repository.
+- Prefer cache components primitives (`"use cache"`, `cacheLife`, `cacheTag`) for cacheable server reads.
 - Tag all cached queries with `revalidateTag`-compatible tags so mutations can invalidate precisely.
+- Centralize invalidation through `src/lib/backend/actions/cache-actions.ts` (`revalidateTagsAction`) instead of ad-hoc per-hook refresh policies.
 - Include the user ID in cache keys for user-specific data (e.g., monitored accounts).
 - Pages that call `cookies()` or `headers()` are always dynamic (per-request) — cache the underlying data queries separately, not the page render.
 - Aggressive caching is most valuable for external SPL API calls and shared game data (card catalogue, settings). User-specific data that mutates often can skip caching.

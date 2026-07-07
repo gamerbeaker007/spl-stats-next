@@ -5,9 +5,8 @@ import BuyMissingCcFilterDrawer from "@/components/collection/buy-missing-cc/Buy
 import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
 import ScrollableTableContainer from "@/components/shared/ScrollableTableContainer";
 import { useBuyMissingCcSharedData } from "@/hooks/cards/useBuyMissingCcSharedData";
-import { useAccountSelectorState } from "@/hooks/useAccountSelectorState";
-import { getBuyMissingCcAccountDataAction } from "@/lib/backend/actions/buy-missing-cc-actions";
-import { useAuth } from "@/lib/frontend/context/AuthContext";
+import { getBuyMissingCcDetailedCollectionAction } from "@/lib/backend/actions/buy-missing-cc-actions";
+import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import { useBuyMissingCcFilter } from "@/lib/frontend/context/BuyMissingCcFilterContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import {
@@ -23,14 +22,9 @@ import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 import { getFoilLabel, toCardFoil } from "@/lib/shared/card-utils";
 import { getCardSetIconUrl, getEditionIconUrl } from "@/lib/shared/edition-utils";
 import { getBracketLevelRange, LEAGUE_BRACKETS } from "@/lib/shared/league-brackets";
-import { CardRarity, getRarityIconUrl, toCardRarity } from "@/lib/shared/rarity-utils";
+import { CardRarity, getRarityIconUrl } from "@/lib/shared/rarity-utils";
 import type { League } from "@/types/buy-missing-cc";
-import {
-  toCardRole,
-  type CardFoil,
-  CardColor,
-  DetailedPlayerCardCollectionItem,
-} from "@/types/card";
+import { DetailedPlayerCardCollectionItem, type CardFoil } from "@/types/card";
 import {
   Alert,
   Box,
@@ -80,7 +74,6 @@ type DisplayRow = Row & {
 };
 
 const PAGE_SIZE_OPTIONS = [50, 100, 1000] as const;
-const LS_KEY = "buy-missing-cc-selection-v1";
 
 function isMaxOnlyFoil(foil: CardFoil): boolean {
   return foil === "black" || foil === "gold arcane" || foil === "black arcane";
@@ -96,7 +89,6 @@ function bracketStatus(level: number, bracket: League, rarity: CardRarity) {
 export default function BuyMissingCcPageClient() {
   const { addItems } = usePurchasePlan();
   const { filter } = useBuyMissingCcFilter();
-  const { user } = useAuth();
   const {
     cardDetails,
     settings,
@@ -108,15 +100,11 @@ export default function BuyMissingCcPageClient() {
     monitoredAccounts,
     selectedAccount,
     setSelectedAccount,
-    addAccountInput,
-    setAddAccountInput,
     accountOptions,
     addLocalAccount,
     removeLocalAccount,
-  } = useAccountSelectorState({
-    storageKey: LS_KEY,
-    loggedInUsername: user?.username,
-  });
+  } = useAccounts();
+  const [addAccountInput, setAddAccountInput] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -159,23 +147,26 @@ export default function BuyMissingCcPageClient() {
           return;
         }
 
-        const snapshot = await getBuyMissingCcAccountDataAction(selectedAccount);
+        const snapshot = await getBuyMissingCcDetailedCollectionAction(selectedAccount);
         if (!active) return;
 
+        const collectionItems = Object.values(snapshot.detailedCollection);
         const byKey: Record<string, AccountCardState> = {};
-        for (const card of snapshot.collection.cards) {
-          const foil = toCardFoil(card.foil);
-          const key = `${card.card_detail_id}-${card.edition}-${foil}`;
-          const current = byKey[key] ?? { highestLevel: 0, highestCc: 0, totalCc: 0 };
-          const level = card.level ?? 0;
-          if (level > current.highestLevel) {
-            current.highestLevel = level;
-            current.highestCc = card.bcx ?? 0;
-          } else if (level === current.highestLevel) {
-            current.highestCc = Math.max(current.highestCc, card.bcx ?? 0);
+        for (const item of collectionItems) {
+          for (const card of item.allCards ?? []) {
+            const foil = card.foil;
+            const key = `${card.id}-${card.edition}-${foil}`;
+            const current = byKey[key] ?? { highestLevel: 0, highestCc: 0, totalCc: 0 };
+            const level = card.level ?? 0;
+            if (level > current.highestLevel) {
+              current.highestLevel = level;
+              current.highestCc = card.bcx ?? 0;
+            } else if (level === current.highestLevel) {
+              current.highestCc = Math.max(current.highestCc, card.bcx ?? 0);
+            }
+            current.totalCc += card.bcx ?? 0;
+            byKey[key] = current;
           }
-          current.totalCc += card.bcx ?? 0;
-          byKey[key] = current;
         }
 
         const groupedPriceByKey = new Map<string, number>();
@@ -190,28 +181,11 @@ export default function BuyMissingCcPageClient() {
         }
 
         const nextRows: Row[] = [];
-        for (const detail of cardDetails) {
-          const available = (detail.distribution ?? []).filter((entry) => entry.edition !== 16);
-          const variants = new Map<string, { edition: number; foil: CardFoil }>();
-
-          for (const entry of available) {
-            const foil = toCardFoil(entry.foil ?? 0);
-            variants.set(`${entry.edition}-${foil}`, { edition: entry.edition, foil });
-          }
-
-          for (const { edition, foil } of variants.values()) {
-            if (edition === 16) continue; // skip foundation soulbound edition
-
-            const key = `${detail.id}-${edition}-${foil}`;
-            const priceKey = `${detail.id}-${foil}`;
-            const foilsForEdition = Array.from(
-              new Set(
-                available
-                  .filter((entry) => entry.edition === edition)
-                  .map((entry) => toCardFoil(entry.foil ?? 0))
-              )
-            );
-
+        for (const item of collectionItems) {
+          if (item.edition === 16) continue;
+          for (const foil of item.availableFoils) {
+            const key = `${item.cardDetailId}-${item.edition}-${foil}`;
+            const priceKey = `${item.cardDetailId}-${foil}`;
             const accountStates: Record<string, AccountCardState> = {
               [selectedAccount]: byKey[key] ?? {
                 highestLevel: 0,
@@ -221,16 +195,16 @@ export default function BuyMissingCcPageClient() {
             };
 
             const cardDetails: DetailedPlayerCardCollectionItem = {
-              cardDetailId: detail.id,
-              name: detail.name,
-              edition: edition,
-              tier: detail.tier ?? edition, // if tier is null, use edition as tier (this is only the case of alpha/beta)
-              rarity: toCardRarity(detail.rarity),
-              color: detail.color as CardColor,
-              secondaryColor: (detail.secondary_color as CardColor) ?? null,
-              role: toCardRole(detail.type),
-              availableFoils: foilsForEdition.length > 0 ? foilsForEdition : ["regular"],
-              cardStats: detail.stats,
+              cardDetailId: item.cardDetailId,
+              name: item.name,
+              edition: item.edition,
+              tier: item.tier,
+              rarity: item.rarity,
+              color: item.color,
+              secondaryColor: item.secondaryColor,
+              role: item.role,
+              availableFoils: item.availableFoils,
+              cardStats: item.cardStats,
             };
 
             nextRows.push({
@@ -417,7 +391,10 @@ export default function BuyMissingCcPageClient() {
             onSelectedAccountChange={setSelectedAccount}
             addAccountInput={addAccountInput}
             onAddAccountInputChange={setAddAccountInput}
-            onAddAccount={addLocalAccount}
+            onAddAccount={() => {
+              addLocalAccount(addAccountInput);
+              setAddAccountInput("");
+            }}
             onRemoveSelected={() => removeLocalAccount(selectedAccount)}
             removeDisabled={!selectedAccount || monitoredAccounts.includes(selectedAccount)}
             extraContent={

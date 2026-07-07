@@ -1,5 +1,6 @@
 import NavShell from "@/components/nav/NavShell";
 import TestModeChip from "@/components/test-mode/TestModeChip";
+import { AccountsProvider } from "@/lib/frontend/context/AccountsContext";
 import { AuthProvider } from "@/lib/frontend/context/AuthContext";
 import { PurchasePlanProvider } from "@/lib/frontend/context/PurchasePlanContext";
 import { ThemeSetup } from "@/lib/frontend/context/ThemeSetup";
@@ -23,9 +24,11 @@ export default function RootLayout({
         <AppRouterCacheProvider>
           <ThemeSetup>
             <AuthProvider>
-              <PurchasePlanProvider>
-                <NavShell>{children}</NavShell>
-              </PurchasePlanProvider>
+              <AccountsProvider>
+                <PurchasePlanProvider>
+                  <NavShell>{children}</NavShell>
+                </PurchasePlanProvider>
+              </AccountsProvider>
             </AuthProvider>
             <TestModeChip />
           </ThemeSetup>

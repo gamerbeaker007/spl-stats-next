@@ -1,6 +1,6 @@
 "use server";
 
-import { fetchCardDetails, fetchSettings } from "@/lib/backend/api/spl/spl-api";
+import { getCachedSplCardDetails, getCachedSplSettings } from "@/lib/backend/cache/spl-cache";
 import { getEditionId, getEditionLabel, getTier, isSoulbound } from "@/lib/shared/edition-utils";
 import { getRarityById } from "@/lib/shared/rarity-utils";
 import { CardFoil, cardFoilOptions, CardRarity, type CardOption } from "@/types/card";
@@ -256,7 +256,7 @@ export async function getCardStatsRows(): Promise<CardDistributionRow[]> {
   "use cache";
   cacheLife("hours");
 
-  const [cards, settings] = await Promise.all([fetchCardDetails(), fetchSettings()]);
+  const [cards, settings] = await Promise.all([getCachedSplCardDetails(), getCachedSplSettings()]);
   return flattenAndCompute(cards, settings);
 }
 
@@ -265,7 +265,7 @@ export async function getCardNamesAction(): Promise<CardOption[]> {
   "use cache";
   cacheLife("hours");
 
-  const cards = await fetchCardDetails();
+  const cards = await getCachedSplCardDetails();
   const seen = new Set<number>();
   const result: CardOption[] = [];
   for (const c of cards) {

@@ -3,6 +3,7 @@
 import PurchaseCartButton from "@/components/collection/top-bar/PurchaseCartButton";
 import TopBarBalances from "@/components/top-bar/TopBarBalances";
 import Box from "@mui/material/Box";
+import { Suspense } from "react";
 
 export default function CardsTopBar() {
   return (
@@ -26,7 +27,9 @@ export default function CardsTopBar() {
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-        <TopBarBalances />
+        <Suspense fallback={<Box sx={{ width: 120, height: 24 }} />}>
+          <TopBarBalances />
+        </Suspense>
         <PurchaseCartButton />
       </Box>
     </Box>

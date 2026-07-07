@@ -1,6 +1,7 @@
 "use server";
 
-import { fetchBattleResult, fetchCardDetails } from "@/lib/backend/api/spl/spl-api";
+import { fetchBattleResult } from "@/lib/backend/api/spl/spl-api";
+import { getCachedSplCardDetails } from "@/lib/backend/cache/spl-cache";
 import {
   getBattleTeams,
   getBestCardStats,
@@ -453,7 +454,7 @@ export async function getBattleEntriesAction(
 
   const [results, cardDetailList] = await Promise.all([
     Promise.allSettled(battleIds.map((id) => fetchBattleResult(id))),
-    fetchCardDetails(),
+    getCachedSplCardDetails(),
   ]);
   const cardMap = new Map(cardDetailList.map((c) => [c.id, c]));
 

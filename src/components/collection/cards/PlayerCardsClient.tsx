@@ -3,14 +3,11 @@
 import { CardFilterDrawer } from "@/components/collection/cards/CardFilterDrawer";
 import { PlayerCardsContent } from "@/components/collection/cards/PlayerCardsContent";
 import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
-import { useAccountSelectorState } from "@/hooks/useAccountSelectorState";
-import { useAuth } from "@/lib/frontend/context/AuthContext";
+import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import { CardFilterProvider } from "@/lib/frontend/context/CardFilterContext";
 import { Box, Skeleton, Typography } from "@mui/material";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo } from "react";
-
-const LS_KEY = "collection-cards-selection-v1";
+import { Suspense, useEffect, useMemo, useState } from "react";
 
 function PlayerCardsSkeleton() {
   return (
@@ -33,24 +30,20 @@ function PlayerCardsSkeleton() {
 }
 
 function DashboardContent() {
-  const { user } = useAuth();
   const searchParams = useSearchParams();
   const userParam = searchParams.get("users");
   const router = useRouter();
   const pathname = usePathname();
   const {
     monitoredAccounts,
+    collectionSelectedAccounts,
+    setCollectionSelectedAccounts,
     selectedAccount,
-    setSelectedAccount,
-    addAccountInput,
-    setAddAccountInput,
     accountOptions,
     addLocalAccount,
     removeLocalAccount,
-  } = useAccountSelectorState({
-    storageKey: LS_KEY,
-    loggedInUsername: user?.username,
-  });
+  } = useAccounts();
+  const [addAccountInput, setAddAccountInput] = useState("");
 
   const selectedUsersFromUrl = useMemo(() => {
     if (!userParam) return [];
@@ -62,6 +55,9 @@ function DashboardContent() {
 
   const selectedUsers = useMemo(() => {
     if (selectedUsersFromUrl.length > 0) return selectedUsersFromUrl;
+    if (collectionSelectedAccounts.length > 0) {
+      return collectionSelectedAccounts;
+    }
     if (selectedAccount && accountOptions.includes(selectedAccount)) {
       return [selectedAccount];
     }
@@ -69,7 +65,12 @@ function DashboardContent() {
       return [accountOptions[0]];
     }
     return [];
-  }, [accountOptions, selectedAccount, selectedUsersFromUrl]);
+  }, [accountOptions, collectionSelectedAccounts, selectedAccount, selectedUsersFromUrl]);
+
+  useEffect(() => {
+    if (selectedUsersFromUrl.length === 0) return;
+    setCollectionSelectedAccounts(selectedUsersFromUrl);
+  }, [selectedUsersFromUrl, setCollectionSelectedAccounts]);
 
   useEffect(() => {
     if (selectedUsers.length === 0) return;
@@ -97,12 +98,15 @@ function DashboardContent() {
           selectedAccounts={selectedUsers}
           onSelectedAccountsChange={(nextUsers) => {
             if (nextUsers.length === 0) return;
-            setSelectedAccount(nextUsers[0]);
+            setCollectionSelectedAccounts(nextUsers);
             router.replace(`${pathname}?users=${encodeURIComponent(nextUsers.join(","))}`);
           }}
           addAccountInput={addAccountInput}
           onAddAccountInputChange={setAddAccountInput}
-          onAddAccount={addLocalAccount}
+          onAddAccount={() => {
+            addLocalAccount(addAccountInput);
+            setAddAccountInput("");
+          }}
           onRemoveSelected={() => removeLocalAccount(selectedUsers[0] ?? "")}
           removeDisabled={!selectedUsers[0] || monitoredAccounts.includes(selectedUsers[0])}
         />

@@ -1,5 +1,6 @@
 "use client";
 
+import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { getBalancesForAccountsAction } from "@/lib/backend/actions/purchase-actions";
 import { broadcastMarketPurchase, waitForTransactions } from "@/lib/frontend/purchase/splBroadcast";
 import type { PurchaseCurrency, PurchasePlanItem } from "@/types/purchase/purchase-plan";
@@ -101,6 +102,17 @@ export async function checkoutItems(
         ...txRow.items.map((item) => ({ account: item.account, marketId: item.marketId }))
       );
     }
+  }
+
+  if (successfulItems.length > 0) {
+    const affectedAccounts = Array.from(
+      new Set(successfulItems.map((item) => item.account.toLowerCase()))
+    );
+    await revalidateTagsAction([
+      { type: "collection", usernames: affectedAccounts },
+      { type: "balances", usernames: affectedAccounts },
+      { type: "grouped-market" },
+    ]);
   }
 
   return { successfulItems };

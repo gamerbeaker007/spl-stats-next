@@ -33,6 +33,8 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
 
 - DB logger (`Log` Prisma table), controlled by `LOG_DB` env var. Echoes to console as fallback.
 - Hive Keychain is the sole auth mechanism — cookie-based sessions, no NextAuth.
+- `cacheComponents` is the default caching approach for new server-side reads.
+- Prefer `"use cache"` + `cacheLife` + `cacheTag` for cached data, with invalidation centralized through `revalidateTagsAction` in `lib/backend/actions/cache-actions.ts`.
 
 ### Admin
 
