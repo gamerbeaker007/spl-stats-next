@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import type { UnifiedCardFilter } from "@/types/card-filter";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 
 export interface FilterContextValue<F extends UnifiedCardFilter> {
   filter: F;

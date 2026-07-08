@@ -30,6 +30,10 @@ export interface CheckoutResult {
   successfulItems: Array<{ account: string; marketId: string }>;
 }
 
+// Keep market purchase payloads within SPL transaction limits by splitting
+// large per-account plans into multiple broadcasts.
+const MAX_MARKET_ITEMS_PER_TX = 100;
+
 function groupByAccount(items: PurchasePlanItem[]): Map<string, PurchasePlanItem[]> {
   const grouped = new Map<string, PurchasePlanItem[]>();
   for (const item of items) {
@@ -46,6 +50,16 @@ function accountTotal(items: PurchasePlanItem[], currency: PurchaseCurrency): nu
     (sum, item) => sum + (currency === "DEC" ? item.priceDec : item.priceCredits),
     0
   );
+}
+
+function chunkItems(items: PurchasePlanItem[], size: number): PurchasePlanItem[][] {
+  if (size <= 0) return [items];
+
+  const chunks: PurchasePlanItem[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
 }
 
 export function availableBalance(
@@ -92,38 +106,41 @@ export async function checkoutItems(
   const txRows: Array<{ account: string; txId: string; items: PurchasePlanItem[] }> = [];
   const broadcastFailures: WaitForTransactionsResult[] = [];
   for (const [account, accountItems] of grouped) {
-    try {
-      const txId = await broadcastMarketPurchase({
-        account,
-        marketIds: accountItems.map((item) => item.marketId),
-        currency,
-        totalPrice: accountTotal(accountItems, currency),
-      });
+    const purchaseChunks = chunkItems(accountItems, MAX_MARKET_ITEMS_PER_TX);
+    for (const purchaseChunk of purchaseChunks) {
+      try {
+        const txId = await broadcastMarketPurchase({
+          account,
+          marketIds: purchaseChunk.map((item) => item.marketId),
+          currency,
+          totalPrice: accountTotal(purchaseChunk, currency),
+        });
 
-      txRows.push({ account, txId, items: accountItems });
-      callbacks?.onBroadcast?.({
-        account,
-        txId,
-        items: accountItems.map((item) => ({ account: item.account, marketId: item.marketId })),
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Market purchase broadcast failed";
-      const failureTxId = `broadcast:${account}`;
-      broadcastFailures.push({
-        txId: failureTxId,
-        status: {
-          ok: false,
-          resolved: true,
+        txRows.push({ account, txId, items: purchaseChunk });
+        callbacks?.onBroadcast?.({
+          account,
+          txId,
+          items: purchaseChunk.map((item) => ({ account: item.account, marketId: item.marketId })),
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Market purchase broadcast failed";
+        const failureTxId = `broadcast:${account}`;
+        broadcastFailures.push({
+          txId: failureTxId,
+          status: {
+            ok: false,
+            resolved: true,
+            success: false,
+            message,
+          },
+        });
+        callbacks?.onVerified?.({
+          account,
+          txId: failureTxId,
           success: false,
           message,
-        },
-      });
-      callbacks?.onVerified?.({
-        account,
-        txId: failureTxId,
-        success: false,
-        message,
-      });
+        });
+      }
     }
   }
 
