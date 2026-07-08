@@ -1,14 +1,14 @@
 import { CardSetName } from "@/lib/shared/edition-utils";
-import { CardElement, CardRarity, CardRole } from "@/types/card";
+import { CardColor, CardRarity, CardRole } from "@/types/card";
 import { Box, Typography } from "@mui/material";
 import Image from "next/image";
 
 interface Props {
   title: string;
-  options: CardSetName[] | CardRarity[] | CardElement[] | CardRole[];
-  iconMap: Record<CardSetName | CardRarity | CardElement | CardRole, string>;
-  handleToggle: (option: CardSetName | CardRarity | CardElement | CardRole) => void;
-  isSelected: (set: CardSetName | CardRarity | CardElement | CardRole) => boolean;
+  options: CardSetName[] | CardRarity[] | CardColor[] | CardRole[];
+  iconMap: Record<CardSetName | CardRarity | CardColor | CardRole, string>;
+  handleToggle: (option: CardSetName | CardRarity | CardColor | CardRole) => void;
+  isSelected: (set: CardSetName | CardRarity | CardColor | CardRole) => boolean;
 }
 
 const iconSize = 25;

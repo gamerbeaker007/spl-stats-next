@@ -91,15 +91,10 @@ export function getRarityLabel(name: string): string | undefined {
   return RARITY_DEFS.find((r) => r.name === name)?.label;
 }
 
-/** Hex color for a capitalized rarity label, e.g. `getRarityColor("Rare")` → `"#2196F3"`. */
-export function getRarityColor(label: string): string | undefined {
-  return RARITY_DEFS.find((r) => r.label === label)?.color;
-}
-
 /** Icon URL for a rarity name or label (case-insensitive). */
-export function getRarityIconUrl(nameOrLabel: string): string | undefined {
-  const lower = nameOrLabel.toLowerCase();
-  return RARITY_DEFS.find((r) => r.name === lower || r.label.toLowerCase() === lower)?.iconUrl;
+export function getRarityIconUrl(cardRarity: CardRarity): string | undefined {
+  return RARITY_DEFS.find((r) => r.name === cardRarity || r.label.toLowerCase() === cardRarity)
+    ?.iconUrl;
 }
 
 /** Rarity ID for a rarity name, e.g. `getRarityId("legendary")` → `4`. */
@@ -113,4 +108,8 @@ export function getRarityId(name: string): number | undefined {
  */
 export function getRarityById(apiId: number): RarityDef | undefined {
   return RARITY_DEFS.find((r) => r.id === apiId);
+}
+
+export function toCardRarity(cardRarity: number): CardRarity {
+  return getRarityById(cardRarity)?.name as CardRarity;
 }

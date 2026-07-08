@@ -1,6 +1,7 @@
 "use client";
 
 import Box from "@mui/material/Box";
+import NoSsr from "@mui/material/NoSsr";
 import Stack from "@mui/material/Stack";
 import Tooltip from "@mui/material/Tooltip";
 import Image from "next/image";
@@ -27,41 +28,43 @@ export default function IconFilterGroup<T extends string | number>({
   };
 
   return (
-    <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 0.5 }}>
-      {options.map(({ value, label, iconUrl }) => {
-        const active = selected.includes(value);
-        return (
-          <Tooltip key={String(value)} title={label} placement="top" arrow>
-            <Box
-              onClick={() => toggle(value)}
-              sx={{
-                width: 36,
-                height: 36,
-                p: 0.5,
-                cursor: "pointer",
-                borderRadius: 1,
-                border: 2,
-                borderColor: active ? "primary.main" : "divider",
-                bgcolor: active ? "action.selected" : "transparent",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                opacity: active ? 1 : 0.5,
-                transition: "all 0.15s",
-                "&:hover": { bgcolor: "action.hover", opacity: 1 },
-              }}
-            >
-              <Image
-                src={iconUrl}
-                alt={label}
-                width={24}
-                height={24}
-                style={{ objectFit: "contain" }}
-              />
-            </Box>
-          </Tooltip>
-        );
-      })}
-    </Stack>
+    <NoSsr>
+      <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 0.5 }}>
+        {options.map(({ value, label, iconUrl }) => {
+          const active = selected.includes(value);
+          return (
+            <Tooltip key={String(value)} title={label} placement="top" arrow>
+              <Box
+                onClick={() => toggle(value)}
+                sx={{
+                  width: 36,
+                  height: 36,
+                  p: 0.5,
+                  cursor: "pointer",
+                  borderRadius: 1,
+                  border: 2,
+                  borderColor: active ? "primary.main" : "divider",
+                  bgcolor: active ? "action.selected" : "transparent",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity: active ? 1 : 0.5,
+                  transition: "all 0.15s",
+                  "&:hover": { bgcolor: "action.hover", opacity: 1 },
+                }}
+              >
+                <Image
+                  src={iconUrl}
+                  alt={label}
+                  width={24}
+                  height={24}
+                  style={{ objectFit: "contain" }}
+                />
+              </Box>
+            </Tooltip>
+          );
+        })}
+      </Stack>
+    </NoSsr>
   );
 }

@@ -1,17 +1,17 @@
 "use server";
 
-import { fetchCardDetails } from "@/lib/backend/api/spl/spl-api";
-import { decryptToken } from "@/lib/backend/auth/encryption";
 import { getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
+import { decryptToken } from "@/lib/backend/auth/encryption";
+import { getCachedSplCardDetails } from "@/lib/backend/cache/spl-cache";
 import { getPlayerLeaderboardForSeason } from "@/lib/backend/db/player-leaderboard";
 import { getSeasonBalances } from "@/lib/backend/db/season-balances";
-import { getSeasonById, getLatestSeason } from "@/lib/backend/db/seasons";
+import { getLatestSeason, getSeasonById } from "@/lib/backend/db/seasons";
 import { getSplAccountCredentials } from "@/lib/backend/db/spl-accounts";
-import { buildMarketData } from "@/lib/backend/services/hive-blog-market";
 import { buildDetailedEarnings } from "@/lib/backend/services/hive-blog-earnings";
+import { buildMarkdown } from "@/lib/backend/services/hive-blog-markdown";
+import { buildMarketData } from "@/lib/backend/services/hive-blog-market";
 import { buildRewardSummary } from "@/lib/backend/services/hive-blog-rewards";
 import { buildTournaments } from "@/lib/backend/services/hive-blog-tournaments";
-import { buildMarkdown } from "@/lib/backend/services/hive-blog-markdown";
 import { leagueNames } from "@/lib/utils";
 import type { HiveBlogAccountData, HiveBlogPost, HiveBlogResult } from "@/types/hive-blog";
 
@@ -54,7 +54,7 @@ export async function generateHiveBlogAction(
 
   let cardDetailsMap: Map<number, string> = new Map();
   try {
-    const allCards = await fetchCardDetails();
+    const allCards = await getCachedSplCardDetails();
     cardDetailsMap = new Map(allCards.map((c) => [c.id, c.name]));
   } catch {
     // non-fatal — cards will fall back to "Card #<id>"

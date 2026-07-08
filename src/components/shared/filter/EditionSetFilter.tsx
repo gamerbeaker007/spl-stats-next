@@ -34,6 +34,7 @@ function SubIcon({
   return (
     <Tooltip title={label} placement="top" arrow>
       <Box
+        suppressHydrationWarning
         onClick={onClick}
         sx={{
           width: 28,
@@ -67,6 +68,14 @@ export interface EditionSetFilterProps {
   onRewardTiersChange: (v: number[]) => void;
   selectedExtraTiers: number[];
   onExtraTiersChange: (v: number[]) => void;
+  onSelectionChange?: (selection: EditionFilterSelection) => void;
+}
+
+export interface EditionFilterSelection {
+  editions: number[];
+  promoTiers: number[];
+  rewardTiers: number[];
+  extraTiers: number[];
 }
 
 export default function EditionSetFilter({
@@ -78,25 +87,37 @@ export default function EditionSetFilter({
   onRewardTiersChange,
   selectedExtraTiers,
   onExtraTiersChange,
+  onSelectionChange,
 }: EditionSetFilterProps) {
   const validIds = (group: (typeof EDITION_SET_GROUPS)[number]) =>
     group.editions.filter((id) => EDITION_OPTIONS.some((e) => e.value === id));
+
+  const applySelection = (selection: EditionFilterSelection) => {
+    if (onSelectionChange) {
+      onSelectionChange(selection);
+      return;
+    }
+
+    onEditionsChange(selection.editions);
+    onPromoTiersChange(selection.promoTiers);
+    onRewardTiersChange(selection.rewardTiers);
+    onExtraTiersChange(selection.extraTiers);
+  };
 
   const handleModern = () => {
     const groups = EDITION_SET_GROUPS.filter((g) =>
       (MODERN_SET_NAMES as readonly string[]).includes(g.setName)
     );
-    onEditionsChange(groups.flatMap((g) => validIds(g)));
-    onPromoTiersChange(groups.filter((g) => g.hasPromo && g.tier !== null).map((g) => g.tier!));
-    onRewardTiersChange(groups.filter((g) => g.hasReward && g.tier !== null).map((g) => g.tier!));
-    onExtraTiersChange(groups.filter((g) => g.hasExtra && g.tier !== null).map((g) => g.tier!));
+    applySelection({
+      editions: groups.flatMap((g) => validIds(g)),
+      promoTiers: groups.filter((g) => g.hasPromo && g.tier !== null).map((g) => g.tier!),
+      rewardTiers: groups.filter((g) => g.hasReward && g.tier !== null).map((g) => g.tier!),
+      extraTiers: groups.filter((g) => g.hasExtra && g.tier !== null).map((g) => g.tier!),
+    });
   };
 
   const handleWild = () => {
-    onEditionsChange([]);
-    onPromoTiersChange([]);
-    onRewardTiersChange([]);
-    onExtraTiersChange([]);
+    applySelection({ editions: [], promoTiers: [], rewardTiers: [], extraTiers: [] });
   };
 
   const toggleEdition = (id: number) => {
@@ -177,21 +198,37 @@ export default function EditionSetFilter({
 
         const toggleSet = () => {
           if (full) {
-            onEditionsChange(selectedEditions.filter((id) => !ids.includes(id)));
-            if (group.hasPromo && group.tier !== null)
-              onPromoTiersChange(selectedPromoTiers.filter((t) => t !== group.tier));
-            if (group.hasReward && group.tier !== null)
-              onRewardTiersChange(selectedRewardTiers.filter((t) => t !== group.tier));
-            if (group.hasExtra && group.tier !== null)
-              onExtraTiersChange(selectedExtraTiers.filter((t) => t !== group.tier));
+            applySelection({
+              editions: selectedEditions.filter((id) => !ids.includes(id)),
+              promoTiers:
+                group.hasPromo && group.tier !== null
+                  ? selectedPromoTiers.filter((t) => t !== group.tier)
+                  : selectedPromoTiers,
+              rewardTiers:
+                group.hasReward && group.tier !== null
+                  ? selectedRewardTiers.filter((t) => t !== group.tier)
+                  : selectedRewardTiers,
+              extraTiers:
+                group.hasExtra && group.tier !== null
+                  ? selectedExtraTiers.filter((t) => t !== group.tier)
+                  : selectedExtraTiers,
+            });
           } else {
-            onEditionsChange([...new Set([...selectedEditions, ...ids])]);
-            if (group.hasPromo && group.tier !== null)
-              onPromoTiersChange([...new Set([...selectedPromoTiers, group.tier])]);
-            if (group.hasReward && group.tier !== null)
-              onRewardTiersChange([...new Set([...selectedRewardTiers, group.tier])]);
-            if (group.hasExtra && group.tier !== null)
-              onExtraTiersChange([...new Set([...selectedExtraTiers, group.tier])]);
+            applySelection({
+              editions: [...new Set([...selectedEditions, ...ids])],
+              promoTiers:
+                group.hasPromo && group.tier !== null
+                  ? [...new Set([...selectedPromoTiers, group.tier])]
+                  : selectedPromoTiers,
+              rewardTiers:
+                group.hasReward && group.tier !== null
+                  ? [...new Set([...selectedRewardTiers, group.tier])]
+                  : selectedRewardTiers,
+              extraTiers:
+                group.hasExtra && group.tier !== null
+                  ? [...new Set([...selectedExtraTiers, group.tier])]
+                  : selectedExtraTiers,
+            });
           }
         };
 
@@ -203,6 +240,7 @@ export default function EditionSetFilter({
               arrow
             >
               <Box
+                suppressHydrationWarning
                 onClick={toggleSet}
                 sx={{
                   width: 36,

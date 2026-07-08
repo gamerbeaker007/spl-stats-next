@@ -12,6 +12,7 @@ interface Props {
   allCards?: CardDetail[];
   opacity?: number;
   priority?: boolean;
+  onClick?: () => void;
 }
 
 // Fixed dimensions for card images to prevent layout shift
@@ -28,6 +29,7 @@ export const Card = ({
   allCards,
   opacity = 1,
   priority = false,
+  onClick,
 }: Props) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -110,7 +112,13 @@ export const Card = ({
         flexDirection="column"
         alignItems="center"
         mb={1}
-        sx={{ opacity: opacity }}
+        onClick={onClick}
+        sx={{
+          opacity: opacity,
+          cursor: onClick ? "pointer" : "default",
+          transition: "transform 120ms ease",
+          "&:hover": onClick ? { transform: "translateY(-2px)" } : undefined,
+        }}
       >
         <Box
           sx={{

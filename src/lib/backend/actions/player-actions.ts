@@ -2,14 +2,7 @@
 
 import { fetchPeakmonstersMarketPrices } from "@/lib/backend/api/peakmonsters/peakmonsters-api";
 import {
-  fetchBrawlDetails,
-  fetchDailyProgress,
-  fetchPlayerHistory,
-  fetchPlayerHistoryByDateRange,
-} from "@/lib/backend/api/spl/spl-authenticated-api";
-import {
   fetchCardCollection,
-  fetchCardDetails,
   fetchCurrentRewards,
   fetchFrontierDraws,
   fetchListingPrices,
@@ -17,30 +10,28 @@ import {
   fetchPlayerDetails,
   fetchRankedDraws,
 } from "@/lib/backend/api/spl/spl-api";
+import {
+  fetchBrawlDetails,
+  fetchDailyProgress,
+  fetchPlayerHistoryByDateRange,
+} from "@/lib/backend/api/spl/spl-authenticated-api";
 import { decryptToken } from "@/lib/backend/auth/encryption";
+import { getCachedSplCardDetails } from "@/lib/backend/cache/spl-cache";
 import { getSeasonBalances } from "@/lib/backend/db/season-balances";
 import { getAllSeasons, getLatestSeason, getSeasonById } from "@/lib/backend/db/seasons";
 import { getSplAccountCredentials } from "@/lib/backend/db/spl-accounts";
-import { getCardImg, getPlayerCollectionValue } from "@/lib/collectionUtils";
+import { getDetailedPlayerCardCollectionCached } from "@/lib/backend/services/collection-detailed";
+import { getPlayerCollectionValue } from "@/lib/collectionUtils";
 import {
   aggregatePurchaseRewards,
   aggregateRewards,
   mergeRewardSummaries,
 } from "@/lib/rewardAggregator";
-import { CardSetName } from "@/lib/shared/edition-utils";
-import {
-  CardDetail,
-  CardElement,
-  CardFoil,
-  CardRarity,
-  DetailedPlayerCardCollection,
-  DetailedPlayerCardCollectionItem,
-} from "@/types/card";
+import { DetailedPlayerCardCollection } from "@/types/card";
 import { ParsedHistory, ParsedPlayerRewardHistory, PurchaseResult } from "@/types/parsedHistory";
 import { PlayerCardCollectionData } from "@/types/playerCardCollection";
 import { DailyProgressData } from "@/types/playerDailyProgress";
 import { SeasonBalanceHistory, TokenBalanceSummary } from "@/types/spl/balanceHistory";
-import { SplCardDetail } from "@/types/spl/cardDetails";
 import { getCurrentUser, getMonitoredAccounts } from "./auth-actions";
 
 // ---------------------------------------------------------------------------
@@ -78,15 +69,7 @@ export async function getPlayerSeasonRewards(username: string) {
 }
 
 export async function getCardDetails() {
-  return fetchCardDetails();
-}
-
-export async function getListingPrices() {
-  return fetchListingPrices();
-}
-
-export async function getPeakmonstersMarketPrices() {
-  return fetchPeakmonstersMarketPrices();
+  return getCachedSplCardDetails();
 }
 
 // ---------------------------------------------------------------------------
@@ -149,154 +132,15 @@ export async function getPlayersCardCollection(
   };
 }
 
-const FOIL_MAP: CardFoil[] = ["regular", "gold", "gold arcane", "black", "black arcane"];
-const RARITY_MAP: CardRarity[] = ["common", "rare", "epic", "legendary"];
-
-/**
- * Editions a card was printed in. A single card detail (one `card_detail_id`)
- * can exist in several editions — e.g. an Alpha card almost always also has a
- * Beta variant, encoded in the `editions` field as a comma-separated list
- * ("0,1"). Each edition is a distinct collectible, so we expand the card into
- * one entry per edition. Falls back to the distribution's first edition.
- */
-function parseCardEditions(detail: SplCardDetail): number[] {
-  const fromList = (detail.editions ?? "")
-    .split(",")
-    .map((e) => Number.parseInt(e.trim(), 10))
-    .filter((n) => Number.isInteger(n));
-
-  if (fromList.length > 0) return Array.from(new Set(fromList));
-
-  return [detail.distribution?.[0]?.edition ?? 0];
-}
-
-/**
- * Foils this card was printed in for a given edition (e.g. Alpha has no black
- * foil while Beta does). Derived from the distribution rows for that edition;
- * used to decide whether a "missing" placeholder makes sense for a selected
- * foil. Falls back to "regular" when the edition has no distribution rows.
- */
-function parseAvailableFoils(detail: SplCardDetail, edition: number): CardFoil[] {
-  const foils = Array.from(
-    new Set(
-      (detail.distribution ?? [])
-        .filter((d) => d.edition === edition)
-        .map((d) => FOIL_MAP[d.foil] ?? "regular")
-    )
-  );
-  return foils.length > 0 ? foils : ["regular"];
-}
-
-function buildCollectionItem(
-  detail: SplCardDetail,
-  edition: number
-): DetailedPlayerCardCollectionItem {
-  return {
-    cardDetailId: detail.id,
-    name: detail.name,
-    edition,
-    tier: detail.tier ?? undefined,
-    rarity: RARITY_MAP[detail.rarity - 1] ?? "common",
-    color: (detail.color?.toLowerCase() ?? "gray") as CardElement,
-    secondaryColor: detail.secondary_color
-      ? (detail.secondary_color.toLowerCase() as CardElement)
-      : undefined,
-    role: detail.type === "Summoner" ? "archon" : "unit",
-    availableFoils: parseAvailableFoils(detail, edition),
-    allCards: [],
-  };
-}
-
 export async function getDetailedPlayerCardCollection(
   username: string
 ): Promise<DetailedPlayerCardCollection> {
-  const [collection, cardDetails] = await Promise.all([
-    fetchCardCollection(username),
-    fetchCardDetails(),
-  ]);
-
-  const detailedMap: DetailedPlayerCardCollection = {};
-  const detailById = new Map<number, SplCardDetail>();
-
-  // One entry per (card, edition) so multi-edition cards (alpha + beta, …)
-  // each get their own slot, owned or missing.
-  for (const detail of cardDetails) {
-    detailById.set(detail.id, detail);
-    for (const edition of parseCardEditions(detail)) {
-      detailedMap[`${detail.id}-${edition}`] = buildCollectionItem(detail, edition);
-    }
-  }
-
-  for (const playerCard of collection.cards) {
-    const key = `${playerCard.card_detail_id}-${playerCard.edition}`;
-    let item = detailedMap[key];
-
-    // Owned in an edition not listed in card details — create its slot on the
-    // fly so the card is never dropped from the collection view.
-    if (!item) {
-      const detail = detailById.get(playerCard.card_detail_id);
-      if (!detail) continue;
-      item = buildCollectionItem(detail, playerCard.edition);
-      detailedMap[key] = item;
-    }
-
-    const foil: CardFoil = FOIL_MAP[playerCard.foil] ?? "regular";
-    const cardDetail: CardDetail = {
-      id: playerCard.card_detail_id,
-      uid: playerCard.uid,
-      name: playerCard.display_name,
-      owner: playerCard.player,
-      xp: playerCard.xp,
-      edition: playerCard.edition,
-      cardSet: playerCard.card_set as CardSetName,
-      collectionPower: playerCard.collection_power,
-      bcx: playerCard.bcx,
-      setId: playerCard.set_id,
-      bcxUnbound: playerCard.bcx_unbound,
-      foil,
-      mint: playerCard.mint,
-      level: playerCard.level,
-      imgUrl: getCardImg(item.name, playerCard.edition, foil, playerCard.level),
-    };
-
-    item.allCards!.push(cardDetail);
-
-    if (!item.highestLevelCard || cardDetail.level > item.highestLevelCard.level) {
-      item.highestLevelCard = cardDetail;
-    }
-  }
-
-  return detailedMap;
-}
-
-// ---------------------------------------------------------------------------
-// Reward / purchase history (requires token)
-// ---------------------------------------------------------------------------
-
-export async function getPlayerHistory(username: string, types: string, beforeBlock?: number) {
-  const token = await getDecryptedJwt(username);
-  if (!token) return [];
-  return fetchPlayerHistory(username, token, types, beforeBlock);
-}
-
-export async function getPlayerHistoryByDateRange(
-  username: string,
-  types: string,
-  startDate: Date,
-  endDate: Date
-) {
-  const token = await getDecryptedJwt(username);
-  if (!token) return [];
-  return fetchPlayerHistoryByDateRange(username, token, types, startDate, endDate);
+  return getDetailedPlayerCardCollectionCached(username);
 }
 
 // ---------------------------------------------------------------------------
 // Season date lookup (reads from DB)
 // ---------------------------------------------------------------------------
-
-export async function getSeasonDates(seasonId: number) {
-  return getSeasonById(seasonId);
-}
 
 export async function getLatestSeasonAction() {
   return getLatestSeason();

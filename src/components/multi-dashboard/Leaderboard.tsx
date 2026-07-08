@@ -1,8 +1,8 @@
 import { Avatar, Box, Card, Typography } from "@mui/material";
 
+import { findLeagueLogoUrl } from "@/lib/utils";
 import { SplLeagueInfo, SplPlayerDetails } from "@/types/spl/details";
 import { SplFormat } from "@/types/spl/format";
-import { findLeagueLogoUrl } from "@/lib/utils";
 
 interface Props {
   playerDetails?: SplPlayerDetails;
@@ -33,7 +33,7 @@ export default function Leaderboard({ playerDetails }: Props) {
         {leaderboardsArray.map(([format, leaderboard]) => {
           if ((leaderboard?.battles ?? 0) <= 0) return null;
 
-          const logoUrl = findLeagueLogoUrl(format, leaderboard?.league);
+          const logoUrl = findLeagueLogoUrl(format, leaderboard?.league ?? 0);
 
           return (
             <Card key={format} variant="outlined" sx={{ flex: 1, p: 1 }}>

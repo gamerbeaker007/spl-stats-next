@@ -38,5 +38,5 @@ export interface SplCardDetail {
   stake_type_id: number;
   game_type: string;
   distribution: CardDistribution[];
-  tier: number | null;
+  tier: number | null; // tier null are for the alpha and beta cards (alpha/beta promos/rewards have a tier)
 }

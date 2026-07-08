@@ -10,6 +10,7 @@
  */
 
 import logger from "@/lib/backend/log/logger.server";
+import { splApiConfig } from "@/lib/shared/config/splApiConfig";
 import {
   BalanceHistoryTokenType,
   SplBalanceHistoryItem,
@@ -39,11 +40,10 @@ import { SplHistory } from "@/types/spl/history";
 import axios, { AxiosRequestConfig } from "axios";
 import * as rax from "retry-axios";
 
-const SPL_BASE_URL = "https://api2.splinterlands.com/";
 const SPL_USER_AGENT = process.env.SPL_USER_AGENT ?? "spl-stats-instance/1.0";
 
 const splAuthClient = axios.create({
-  baseURL: SPL_BASE_URL,
+  baseURL: splApiConfig.publicBaseUrl,
   timeout: 60000,
   headers: {
     "Accept-Encoding": "gzip, deflate, br, zstd",

@@ -1,18 +1,41 @@
 "use client";
-import { getCardImg } from "@/lib/collectionUtils";
+import BuyCardDialog from "@/components/collection/buy-card-dialog/BuyCardDialog";
 import { useCardFilter } from "@/lib/frontend/context/CardFilterContext";
+import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { matchesCardFilter } from "@/lib/shared/card-filter-utils";
-import { CardFoil, DetailedPlayerCardCollection } from "@/types/card";
-import { Box, Typography } from "@mui/material";
+import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
+import {
+  CardFoil,
+  type DetailedPlayerCardCollection,
+  DetailedPlayerCardCollectionItem,
+} from "@/types/card";
+import { Alert, Box, Snackbar, Typography } from "@mui/material";
+import { useState } from "react";
 import { Card } from "./Card";
 
 interface CardSectionProps {
   username: string;
   playerCards: DetailedPlayerCardCollection;
+  selectableAccounts?: string[];
 }
 
-export const CardSection = ({ username, playerCards }: CardSectionProps) => {
+type DialogCard = DetailedPlayerCardCollectionItem & {
+  foil: CardFoil;
+  currentCc: number;
+};
+
+export const CardSection = ({ username, playerCards, selectableAccounts }: CardSectionProps) => {
   const { filter } = useCardFilter();
+  const { addItems } = usePurchasePlan();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [dialogCard, setDialogCard] = useState<DialogCard | null>(null);
+
+  const openBuyDialog = (card: DialogCard) => {
+    setDialogCard(card);
+    setDialogOpen(true);
+  };
 
   return (
     <Box display="flex" flex={1} flexDirection="column">
@@ -78,7 +101,7 @@ export const CardSection = ({ username, playerCards }: CardSectionProps) => {
           if (filteredGroups.length > 0) {
             // Render owned cards grouped by edition and foil
             return filteredGroups.map((cardGroup, groupIndex) => {
-              const imageUrl = getCardImg(
+              const imageUrl = getCardImageByLevel(
                 cardItem.name,
                 cardGroup.edition,
                 cardGroup.foil,
@@ -94,6 +117,13 @@ export const CardSection = ({ username, playerCards }: CardSectionProps) => {
                   subTitle={`(Lvl ${cardGroup.highest_level}) - x${cardGroup.count}`}
                   allCards={cardGroup.cards}
                   priority={cardIndex < 6 && groupIndex === 0}
+                  onClick={() =>
+                    openBuyDialog({
+                      ...cardItem,
+                      foil: cardGroup.foil,
+                      currentCc: cardGroup.count,
+                    })
+                  }
                 />
               );
             });
@@ -114,19 +144,61 @@ export const CardSection = ({ username, playerCards }: CardSectionProps) => {
             return null;
           }
 
+          //when card is not in collection return missing with regular foil
+          const foil = "regular";
           return (
             <Card
               key={`${cardItem.cardDetailId}-missing-${cardItem.edition}`}
               player={username}
               name={cardItem.name}
-              imageUrl={getCardImg(cardItem.name, cardItem.edition, "regular", 0)}
+              imageUrl={getCardImageByLevel(cardItem.name, cardItem.edition, foil)}
               subTitle="(Missing)"
               opacity={0.3}
               priority={cardIndex < 6}
+              onClick={() =>
+                openBuyDialog({
+                  ...cardItem,
+                  foil,
+                  currentCc:
+                    cardItem.allCards?.filter(
+                      (card) => card.owner.toLowerCase() === username.toLowerCase()
+                    ).length ?? 0,
+                })
+              }
             />
           );
         })}
       </Box>
+
+      {dialogCard && (
+        <BuyCardDialog
+          open={dialogOpen}
+          mode="manual-listings"
+          account={username}
+          card={dialogCard}
+          initialFoilSelection={dialogCard.foil}
+          currentCc={dialogCard.currentCc}
+          selectableAccounts={selectableAccounts ?? [username]}
+          onClose={() => setDialogOpen(false)}
+          onAddToPurchasePlan={(items) => {
+            addItems(items);
+            setFeedback(`Added ${items.length} listing(s) to cart.`);
+          }}
+        />
+      )}
+
+      {feedbackError && (
+        <Alert severity="error" sx={{ mt: 2 }} onClose={() => setFeedbackError(null)}>
+          {feedbackError}
+        </Alert>
+      )}
+
+      <Snackbar
+        open={Boolean(feedback)}
+        autoHideDuration={3000}
+        onClose={() => setFeedback(null)}
+        message={feedback}
+      />
     </Box>
   );
 };

@@ -9,6 +9,42 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.5.0] - 2026-07-06
+
+### Added
+
+- **Collection buying hub** with `/collection`, `/collection/cards`, and `/collection/buy-missing-cc` routes under the Cards navigation.
+- **Buy from collection flow (Feature A)** on `/collection/cards`, letting users open market listings for a collection card, select individual listings, add them to a purchase plan, or buy directly.
+- **Buy Missing CC planner (Feature B)** on `/collection/buy-missing-cc`, including account selection, shared card filters, bracket filters, owned/unowned card rows, bracket status, pagination, search, and estimated upgrade costs.
+- **Reusable `BuyCardDialog`** with `manual-listings` and `target-level` tabs. Manual mode supports listing fetch, foil + level filters, row/range selection, pagination, totals, and cart markers. Target-level mode previews target levels, missing CC, stats, abilities, and exact listing plans.
+- **Shared purchase plan/cart infrastructure** (`PurchasePlanContext`) with dedupe by `account + marketId`, multi-account grouping, global top-bar cart badge, removable cart rows, and checkout dialog.
+- **Direct account-signed market purchases** via Hive Keychain Active key using `sm_market_purchase` custom-json, with DEC and CREDITS support.
+- **Transaction verification polling** via the new `lookupTransaction` parser and `waitForTransactionsAction`, removing completed cart rows only after successful transaction confirmation.
+- **Top-bar balance summary** for CREDITS, DEC, and SPS with per-account hover details.
+- **Reusable account selector and scrollable table components** used by the collection-buying pages.
+- **Storybook setup and ability icon story** for the Buy Missing CC ability display.
+
+### Changed
+
+- Collection links now point to `/collection/cards` from multi-dashboard entry points.
+- SPL API clients now share centralized environment-aware config in `splApiConfig` (public/auth/vapi base URLs, app id, operation prefix).
+- Card foil handling in the collection-buying flow now uses the `CardFoil` domain type in app/UI code and converts to numeric `0-4` values only at SPL API boundaries.
+- Card image, foil label, and buy-missing-CC calculation helpers are centralized in shared utilities.
+- Buy Missing CC excludes SoulKeep cards from the playable purchase/upgrade list.
+
+### Fixed
+
+- Market transaction lookup handling now supports raw `/transactions/lookup` payload wrappers consistently (including existing hive-blog market lookup usage).
+- Buy Missing CC filter state now has its own storage key, and Modern/Wild/set toggles apply atomically so the first filter click works after page load.
+- Added accounts on Buy Missing CC now correctly match owned cards by `card_detail_id + edition + CardFoil` instead of treating all cards as missing.
+- `BuyCardDialog` target-level mode now uses resolved card stats/rarity consistently, handles max-only foil levels correctly, and enables purchase actions only when the target can be fulfilled.
+- Alpha/Beta gold combine-rate calculations now respect the first obtainable gold level from the settings XP tables.
+- Adding a listing from the dialog's manual-listings tab no longer closes the dialog unexpectedly.
+- Account selector local-storage hydration no longer causes React hydration mismatches.
+- Buy Missing CC table width now stays inside the page layout and scrolls inside `ScrollableTableContainer`.
+
+---
+
 ## [v1.4.1] - 2026-06-30
 
 ### Fix

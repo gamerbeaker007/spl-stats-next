@@ -1,5 +1,6 @@
 import { BucketCardEntry } from "@/lib/backend/actions/jackpot-prizes/accountBucket";
-import { getCardImageUrl, getFoilLabel } from "@/lib/shared/card-image-utils";
+import { getCardImageV2 } from "@/lib/shared/card-image-utils";
+import { getFoilLabel } from "@/lib/shared/card-utils";
 import { Box, Typography } from "@mui/material";
 import Image from "next/image";
 
@@ -26,7 +27,7 @@ interface CardTileProps {
 function CardTile({ entry }: CardTileProps) {
   // Use the first foil present for the display image
   const displayFoil = entry.foils[0]?.foil ?? 0;
-  const imageUrl = getCardImageUrl(entry.name, displayFoil);
+  const imageUrl = getCardImageV2(entry.name, displayFoil);
 
   return (
     <Box

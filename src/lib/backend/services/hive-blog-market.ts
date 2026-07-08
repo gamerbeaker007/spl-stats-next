@@ -3,6 +3,7 @@ import { fetchMarketHistoryByDateRange } from "@/lib/backend/api/spl/spl-authent
 import { fetchListingItem } from "@/lib/backend/api/spl/vapi-spl";
 import type { HiveBlogMarketCard, HiveBlogMarketItem } from "@/types/hive-blog";
 import { CardFoil } from "@/types/card";
+import type { SplTransactionLookupResponse } from "@/types/purchase/purchase-plan";
 
 export type ParsedCardUid = {
   foil: CardFoil;
@@ -39,9 +40,13 @@ export function parseCardUid(cardUid: string | null | undefined): ParsedCardUid 
  * Extract ordered card UIDs from a transaction lookup result.
  * Handles both market_list (data.cards array) and update_price (result.for_sale array).
  */
-function extractCardUids(trxInfo: { data: string; result: string | null }): string[] {
+function extractCardUids(rawLookup: SplTransactionLookupResponse): string[] {
+  const trxInfo = rawLookup.trx_info;
+  const dataRaw = typeof trxInfo.data === "string" ? trxInfo.data : "{}";
+  const resultRaw = typeof trxInfo.result === "string" ? trxInfo.result : null;
+
   try {
-    const d = JSON.parse(trxInfo.data) as Record<string, unknown>;
+    const d = JSON.parse(dataRaw) as Record<string, unknown>;
     if (Array.isArray(d.cards)) {
       return (d.cards as [string, number][]).map((c) => c[0]);
     }
@@ -49,8 +54,8 @@ function extractCardUids(trxInfo: { data: string; result: string | null }): stri
     // ignore
   }
   try {
-    if (trxInfo.result) {
-      const r = JSON.parse(trxInfo.result) as Record<string, unknown>;
+    if (resultRaw) {
+      const r = JSON.parse(resultRaw) as Record<string, unknown>;
       if (Array.isArray(r.for_sale)) return r.for_sale as string[];
     }
   } catch {

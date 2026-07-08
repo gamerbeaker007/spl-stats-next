@@ -1,18 +1,20 @@
 "use client";
 
-import { CardSection } from "@/components/multi-dashboard/dashboard/CardSection";
+import { CardSection } from "@/components/collection/cards/CardSection";
 import { useCardDetails } from "@/hooks/multi-account-dashboard/useCardDetails";
 import { getDetailedPlayerCardCollection } from "@/lib/backend/actions/player-actions";
 import { DetailedPlayerCardCollection } from "@/types/card";
 import { Alert, Box, CircularProgress, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 
-export function PlayerDashboardContent({
+export function PlayerCardsContent({
   username,
   showHeader = false,
+  selectableAccounts,
 }: Readonly<{
   username: string;
   showHeader?: boolean;
+  selectableAccounts?: string[];
 }>) {
   const [cardCollection, setCardCollection] = useState<DetailedPlayerCardCollection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -74,7 +76,11 @@ export function PlayerDashboardContent({
           {username}
         </Typography>
       )}
-      <CardSection username={username} playerCards={cardCollection} />
+      <CardSection
+        username={username}
+        playerCards={cardCollection}
+        selectableAccounts={selectableAccounts}
+      />
     </Box>
   );
 }

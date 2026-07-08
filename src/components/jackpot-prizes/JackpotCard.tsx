@@ -2,7 +2,7 @@ import { JackpotCardDetail } from "@/types/jackpot-prizes/card";
 import { Box, Card, CardContent, Typography } from "@mui/material";
 import Image from "next/image";
 
-import { getCardImageUrl, getFallbackImageUrl } from "@/lib/shared/card-image-utils";
+import { getCardImageV2, getFallbackImageUrl } from "@/lib/shared/card-image-utils";
 import { SplCardDetail } from "@/types/spl/cardDetails";
 
 interface Props {
@@ -40,7 +40,7 @@ export function JackpotCard({ item, cardDetails }: Props) {
   }
 
   const cleanCardName = cardName.trim();
-  const imageUrl = getCardImageUrl(cleanCardName, item.foil);
+  const imageUrl = getCardImageV2(cleanCardName, item.foil);
   const fallbackUrl = getFallbackImageUrl(cleanCardName);
 
   return (

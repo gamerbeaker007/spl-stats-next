@@ -62,7 +62,10 @@ export default function PlayerInfo({ username, playerDetails }: Props) {
   const avatarId = highestFormatDetails?.avatar_id || 0;
   const avatarUrl = avatar_icon_url.replace("_0.png", `_${avatarId}.png`);
 
-  const logoUrl = findLeagueLogoUrl(format, highestFormatDetails?.league || 0);
+  const logoUrl =
+    format && highestFormatDetails?.league
+      ? findLeagueLogoUrl(format, highestFormatDetails.league)
+      : null;
 
   return (
     <Box
@@ -141,7 +144,7 @@ export default function PlayerInfo({ username, playerDetails }: Props) {
       {/* Collection Link Icon */}
       <IconButton
         component={Link}
-        href={`/multi-dashboard/collection?users=${encodeURIComponent(username)}`}
+        href={`/collection/cards?users=${encodeURIComponent(username)}`}
         size="small"
         sx={{
           position: "absolute",

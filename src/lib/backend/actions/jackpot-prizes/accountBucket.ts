@@ -1,6 +1,7 @@
 "use server";
 
-import { fetchAccountCardCollection, fetchCardDetails } from "@/lib/backend/api/spl/spl-api";
+import { fetchAccountCardCollection } from "@/lib/backend/api/spl/spl-api";
+import { getCachedSplCardDetails } from "@/lib/backend/cache/spl-cache";
 import { cacheLife } from "next/cache";
 
 export interface BucketFoilCount {
@@ -25,7 +26,7 @@ export async function getAccountBucket(username: string): Promise<AccountBucketR
 
   const [cards, allCardDetails] = await Promise.all([
     fetchAccountCardCollection(username),
-    fetchCardDetails(),
+    getCachedSplCardDetails(),
   ]);
 
   const cardDetailMap = new Map(allCardDetails.map((c) => [c.id, c]));

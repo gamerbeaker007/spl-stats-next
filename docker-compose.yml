@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: ${POSTGRES_DB:-splstats}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -55,7 +55,7 @@ services:
       LOG_DB: ${LOG_DB:-true}
       SPL_USER_AGENT: ${SPL_USER_AGENT:-}
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
 
   worker:
     # To pin a specific release replace 'latest' with a version tag, e.g. gamerbeaker/spl-stats-next:v0.1.0

@@ -233,6 +233,7 @@ export const EDITION_DEFS: readonly EditionDef[] = [
   },
 ];
 
+export const SOULKEEP_EDITIONS = new Set([9, 11]);
 // ---------------------------------------------------------------------------
 // Canonical set definitions
 // ---------------------------------------------------------------------------
@@ -300,14 +301,15 @@ const _SET_DEF_INPUTS: readonly SetDefInput[] = [
     hasReward: true,
     hasExtra: false,
   },
-  {
-    setName: "soulkeep",
-    label: "Soulkeep",
-    iconUrl: edition_soulkeep_icon_url,
-    hasPromo: false,
-    hasReward: false,
-    hasExtra: false,
-  },
+  // Do not show the soulkeep
+  // {
+  //   setName: "soulkeep",
+  //   label: "Soulkeep",
+  //   iconUrl: edition_soulkeep_icon_url,
+  //   hasPromo: false,
+  //   hasReward: false,
+  //   hasExtra: false,
+  // },
   {
     setName: "rebellion",
     label: "Rebellion",
@@ -502,6 +504,39 @@ export function getSetForEdition(editionId: number): SetDef | undefined {
 /** Icon URL for a set name, e.g. `getSetIconUrl("chaos")` → `"…icon-edition-chaos.svg"`. */
 export function getSetIconUrl(setName: string): string | undefined {
   return _setByName.get(setName)?.iconUrl;
+}
+
+/** Display label for a set name, e.g. `getSetLabel("chaos")` → `"Chaos"`. */
+export function getSetLabel(setName: string): string | undefined {
+  return _setByName.get(setName)?.label;
+}
+
+/**
+ * Set name for a specific card print. Native editions resolve directly from
+ * `editionId`; cross-era editions (promo/reward/extra) resolve from `tier`.
+ */
+export function getCardSetName(editionId: number, tier?: number | null): CardSetName | undefined {
+  return getSetName(editionId) ?? (typeof tier === "number" ? getSetName(tier) : undefined);
+}
+
+/** Display label for the set a specific card print belongs to. */
+export function getCardSetLabel(editionId: number, tier?: number | null): string | undefined {
+  const setName = getCardSetName(editionId, tier);
+  return setName ? getSetLabel(setName) : undefined;
+}
+
+/** Icon URL for the set a specific card print belongs to. */
+export function getCardSetIconUrl(editionId: number, tier?: number | null): string | undefined {
+  const setName = getCardSetName(editionId, tier);
+  return setName ? getSetIconUrl(setName) : undefined;
+}
+
+/** Era tier for the set a specific card print belongs to. */
+export function getCardSetTier(editionId: number, tier?: number | null): number | null | undefined {
+  if (typeof tier === "number") return tier;
+
+  const setName = getCardSetName(editionId, tier);
+  return setName ? getTier(setName) : undefined;
 }
 
 /** Whether an edition is a soulbound edition. */

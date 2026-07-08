@@ -1,6 +1,7 @@
 "use client";
 
-import { getCardImageUrl, getFoilLabel } from "@/lib/shared/card-image-utils";
+import { getCardImageV2 } from "@/lib/shared/card-image-utils";
+import { getFoilLabel } from "@/lib/shared/card-utils";
 import { RecentWinner } from "@/types/jackpot-prizes/shared";
 import { SplCardDetail } from "@/types/spl/cardDetails";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
@@ -122,7 +123,7 @@ export function RecentWinnersCarousel({ winners, cardDetails }: Props) {
             const cardDetail = cardDetails.find((d) => d.id === winner.card_detail_id);
             const cardName = cardDetail?.name?.trim() ?? "";
             const isLandCard = cardDetail?.tier === 19;
-            const imageUrl = cardName ? getCardImageUrl(cardName, winner.foil, isLandCard) : "";
+            const imageUrl = cardName ? getCardImageV2(cardName, winner.foil, isLandCard) : "";
             const date = new Date(winner.mint_date ?? "").toLocaleDateString(undefined, {
               year: "numeric",
               month: "short",

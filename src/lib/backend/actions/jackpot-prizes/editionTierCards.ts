@@ -1,6 +1,7 @@
 "use server";
 
-import { fetchCardDetails, fetchMintHistory } from "@/lib/backend/api/spl/spl-api";
+import { fetchMintHistory } from "@/lib/backend/api/spl/spl-api";
+import { getCachedSplCardDetails } from "@/lib/backend/cache/spl-cache";
 import { CardPrizeData, FoilStats } from "@/types/jackpot-prizes/shared";
 import { SplCardDetail } from "@/types/spl/cardDetails";
 import { cacheLife } from "next/cache";
@@ -19,7 +20,7 @@ export async function getEditionTierCards(
   "use cache";
   cacheLife("hours");
 
-  const allCardDetails = await fetchCardDetails();
+  const allCardDetails = await getCachedSplCardDetails();
 
   const targetCards = allCardDetails.filter(
     (c) =>

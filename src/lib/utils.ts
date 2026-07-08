@@ -62,11 +62,7 @@ export const findPackIconUrl = (edition: number): string => {
   return packIconMap[edition];
 };
 
-export function findLeagueLogoUrl(
-  format: SplFormat | null,
-  league: number | undefined
-): string | null {
-  if (!format || !league) return null;
+export function findLeagueLogoUrl(format: SplFormat, league: number): string | null {
   const formatIconUrlMap: Record<SplFormat, string> = {
     foundation: foundation_league_icon_url,
     wild: wild_league_icon_url,

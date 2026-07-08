@@ -33,6 +33,8 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
 
 - DB logger (`Log` Prisma table), controlled by `LOG_DB` env var. Echoes to console as fallback.
 - Hive Keychain is the sole auth mechanism — cookie-based sessions, no NextAuth.
+- `cacheComponents` is the default caching approach for new server-side reads.
+- Prefer `"use cache"` + `cacheLife` + `cacheTag` for cached data, with invalidation centralized through `revalidateTagsAction` in `lib/backend/actions/cache-actions.ts`.
 
 ### Admin
 
@@ -63,6 +65,8 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
 - Public syncs (leaderboard, portfolio) run on a 30-min in-memory timer (`WORKER_INTERVAL_MS`), independent of the queue.
 - **Interruptible and resumable** via `AccountSyncState` (progress committed per season/token).
 - Graceful shutdown on SIGTERM/SIGINT: finishes current account, then exits.
+- **No Next.js `"use cache"` in the worker.** The worker is a standalone `tsx` process (`docker-entrypoint-worker.sh`), not the Next.js server, so the `getCachedSpl*` functions in `lib/backend/cache/spl-cache.ts` are unusable here — calling them throws `` `cacheLife()` is only available with the `cacheComponents` config `` (the Next compiler/runtime isn't active). The worker and web app are also separate processes with no shared `cacheHandler`, so neither can populate or invalidate the other's cache. The worker calls the raw `fetch*` API functions directly and any cache invalidation for the web app happens through the app itself (`revalidateTagsAction`), not the worker.
+- **Redundant per-cycle fetches are intentionally not cached.** `fetchCardDetails()` runs once per account in `syncBattleHistory`, but battle sync is limited to `BATTLE_SYNC_ACCOUNTS` (a few accounts). The three global price fetches (`fetchListingPrices`, `fetchSplPrices`, `fetchPeakmonstersMarketPrices`) run once per account in `syncPortfolio`, but portfolio snapshots are gated to once-per-UTC-day per account. Both are low-volume, so per-cycle memoization was judged not worth the added complexity. Revisit if account counts or sync frequency grow substantially.
 - Current flows: season balance collection + leaderboard sync (foundation/wild/modern) + battle history sync.
 - `SeasonBalance`: pre-aggregated per `(username, seasonId, token, type)`. Two amount fields: `earned` (sum of positive transactions) and `cost` (sum of absolute negative transactions). `count` = number of transactions aggregated.
 - Spillover transactions attributed to previous season.

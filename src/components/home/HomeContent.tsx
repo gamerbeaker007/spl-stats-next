@@ -18,6 +18,8 @@ const PAGE_DESCRIPTIONS: Record<string, string> = {
   "/portfolio": "Track the value of your Splinterlands portfolio over time.",
   "/hive-blog": "Generate and publish Splinterlands season reports to the Hive blockchain.",
   "/card-stats": "Detailed stats on card distribution, unbound percentages, burned bcx and more.",
+  "/collection":
+    "Manage your Splinterlands collection, view card details buy up to specific level, find missing cards, and more. ",
   "/spl-metrics":
     "Game-wide metrics: battles, market volume, daily active users, sign-ups, and more.",
   "/users": "Manage the accounts you are monitoring and check sync status.",

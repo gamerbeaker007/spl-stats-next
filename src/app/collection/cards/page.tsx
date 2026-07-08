@@ -1,12 +1,12 @@
 "use client";
 
-import DashboardClient from "@/components/multi-dashboard/dashboard/DashboardClient";
+import PlayerCardsClient from "@/components/collection/cards/PlayerCardsClient";
 import { Box, Container, Tooltip, Typography } from "@mui/material";
 import IconButton from "@mui/material/IconButton";
 import Link from "next/link";
 import { MdArrowBack } from "react-icons/md";
 
-export default function DashboardPage() {
+export default function CardsCollectionPage() {
   return (
     <Container maxWidth={false} sx={{ px: 4 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 4 }}>
@@ -21,11 +21,11 @@ export default function DashboardPage() {
           </IconButton>
         </Tooltip>
         <Typography variant="h4" gutterBottom sx={{ mb: 0, flex: 1 }}>
-          Player Dashboard
+          Card Collection
         </Typography>
       </Box>
 
-      <DashboardClient />
+      <PlayerCardsClient />
     </Container>
   );
 }

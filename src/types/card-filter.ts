@@ -89,6 +89,7 @@ export interface FilterDrawerConfig {
 // Storage keys — import these in auth logout to clear all filter state
 export const FILTER_STORAGE_KEYS = {
   collection: "card-filter",
+  buyMissingCc: "card-filter-buy-missing-cc",
   cardStats: "card-stats-filter",
   battles: "battle-filter",
 } as const;

@@ -1,7 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import type { UnifiedCardFilter } from "@/types/card-filter";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 
 export interface FilterContextValue<F extends UnifiedCardFilter> {
   filter: F;
@@ -25,7 +25,6 @@ export function createFilterContext<F extends UnifiedCardFilter>(defaults: F, st
   }
 
   function Provider({ children }: { children: ReactNode }) {
-    // Lazy init: server gets defaults, client gets localStorage (avoids hydration mismatch)
     const [filter, setFilterState] = useState<F>(() =>
       typeof window !== "undefined" ? loadFromStorage() : { ...defaults }
     );

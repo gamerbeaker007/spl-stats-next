@@ -4,11 +4,12 @@
  * All endpoints are public (no auth token required).
  */
 import logger from "@/lib/backend/log/logger.server";
+import { splApiConfig } from "@/lib/shared/config/splApiConfig";
 import axios from "axios";
 import * as rax from "retry-axios";
 
 const vapiClient = axios.create({
-  baseURL: "https://vapi.splinterlands.com",
+  baseURL: splApiConfig.vapiBaseUrl,
   timeout: 60000,
   headers: { "User-Agent": "SPL-Data/1.0" },
 });

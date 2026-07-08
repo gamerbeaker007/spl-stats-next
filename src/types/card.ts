@@ -13,9 +13,9 @@ import {
 // Edition / set definitions live in edition-utils — re-export for backward compat.
 import { CardSetName } from "@/lib/shared/edition-utils";
 import { CardRarity } from "@/lib/shared/rarity-utils";
+import type { CardStats } from "@/types/spl/cardDetails";
 export { cardSetIconMap } from "@/lib/shared/edition-utils";
 export {
-  cardRarityIconMap as cardIconMap,
   cardRarityOptions,
   RARITY_COLORS,
   RARITY_DEFS,
@@ -23,16 +23,8 @@ export {
 } from "@/lib/shared/rarity-utils";
 export type { CardRarity, RarityDef } from "@/lib/shared/rarity-utils";
 
-export const cardElementOptions = [
-  "red",
-  "blue",
-  "white",
-  "black",
-  "green",
-  "gold",
-  "gray",
-] as const;
-export type CardElement = (typeof cardElementOptions)[number];
+export const cardColorOptions = ["red", "blue", "white", "black", "green", "gold", "gray"] as const;
+export type CardColor = (typeof cardColorOptions)[number];
 
 export const cardElementIconMap: Record<string, string> = {
   red: fire_element_icon_url,
@@ -47,20 +39,23 @@ export const cardElementIconMap: Record<string, string> = {
 export const cardFoilOptions = ["regular", "gold", "gold arcane", "black", "black arcane"] as const;
 export type CardFoil = (typeof cardFoilOptions)[number];
 
-export const cardFoilSuffixMap: Record<CardFoil, string> = {
-  regular: "",
-  gold: "_gold",
-  "gold arcane": "_gold",
-  black: "_blk",
-  "black arcane": "_blk",
-};
-
 export const cardRoleOptions = ["archon", "unit"] as const;
 export type CardRole = (typeof cardRoleOptions)[number];
+
+export const cardRoleLabelMap: Record<CardRole, string> = {
+  archon: "Archon",
+  unit: "Unit",
+};
+
 export const cardRoleIconMap: Record<CardRole, string> = {
   archon: archon_filter_icon_url,
   unit: unit_filter_icon_url,
 };
+
+export function toCardRole(cardType?: string | null): CardRole {
+  const normalized = cardType?.trim().toLowerCase();
+  return normalized === "summoner" || normalized === "archon" ? "archon" : "unit";
+}
 
 export interface CardDetail {
   id: number;
@@ -72,7 +67,6 @@ export interface CardDetail {
   cardSet: CardSetName;
   collectionPower: number;
   bcx: number;
-  setId: string;
   bcxUnbound: number;
   foil: CardFoil;
   mint: string | null;
@@ -84,15 +78,16 @@ export interface DetailedPlayerCardCollectionItem {
   cardDetailId: number;
   name: string;
   edition: number;
-  tier?: number;
+  tier: number;
   rarity: CardRarity;
-  color: CardElement;
-  secondaryColor: CardElement | undefined;
+  color: CardColor;
+  secondaryColor: CardColor | undefined;
   role: CardRole;
   /** Foils this card was printed in for this edition (derived from the API distribution). */
   availableFoils: CardFoil[];
   highestLevelCard?: CardDetail;
-  allCards?: CardDetail[];
+  cardStats: CardStats;
+  allCards?: CardDetail[]; // list of all the card a player has
 }
 
 export type DetailedPlayerCardCollection = Record<string, DetailedPlayerCardCollectionItem>;

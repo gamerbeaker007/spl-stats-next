@@ -7,7 +7,7 @@ const logToDB = process.env.LOG_DB !== "false";
 
 export async function createLog(level: LogLevel, message: string, meta?: Record<string, unknown>) {
   if (!logToDB) return;
-  console.log(`[createLog] ${level.toUpperCase()}: ${message}`, meta || "");
+  console.log("[createLog] %s: %s", level.toUpperCase(), message, meta ?? "");
   return prisma.log.create({
     data: {
       level,

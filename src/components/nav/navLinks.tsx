@@ -1,7 +1,7 @@
 import { GiChest, GiCrossedSwords } from "react-icons/gi";
 import {
-  MdAdminPanelSettings,
   MdAccountBalance,
+  MdAdminPanelSettings,
   MdBarChart,
   MdDashboard,
   MdGridOn,
@@ -10,6 +10,7 @@ import {
   MdRssFeed,
   MdShowChart,
 } from "react-icons/md";
+import { TbCardsFilled } from "react-icons/tb";
 
 export interface NavLink {
   href: string;
@@ -21,6 +22,7 @@ export const navLinks: NavLink[] = [
   { href: "/", label: "Home", icon: <MdHome size={22} /> },
   { href: "/jackpot-prizes", label: "Jackpot Prizes", icon: <GiChest size={22} /> },
   { href: "/multi-dashboard", label: "Multi Dashboard", icon: <MdDashboard size={22} /> },
+  { href: "/collection", label: "Card Collection", icon: <TbCardsFilled size={22} /> },
   { href: "/season", label: "Season Overview", icon: <MdBarChart size={22} /> },
   { href: "/battles", label: "Battles", icon: <GiCrossedSwords size={22} /> },
   { href: "/card-stats", label: "Card Stats", icon: <MdGridOn size={22} /> },

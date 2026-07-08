@@ -4,14 +4,13 @@
  * Do not add new card-image URL builders elsewhere.
  *
  * Remaining duplicates (not yet migrated):
- *   - getCardImg()  in @/lib/collectionUtils.ts         — battle/stats (cards_by_level .png)
  *   - Card.tsx      in multi-dashboard/reward-history/  — local inline, custom edition-folder map
  *   - cardImageMd() in hive-blog-actions.ts             — markdown image string
  */
 
-import type { CardFoil } from "@/types/card";
-import { WEB_URL } from "@/lib/staticsIconUrls";
 import { getEditionUrlName } from "@/lib/shared/edition-utils";
+import { WEB_URL } from "@/lib/staticsIconUrls";
+import type { CardFoil } from "@/types/card";
 
 // ---------------------------------------------------------------------------
 // Foil suffix maps
@@ -103,29 +102,10 @@ export function getCardImageV2(name: string, foil = 0, isLandCard?: boolean): st
   return `${WEB_URL}${folder}/${safeName}${suffix}.jpg`;
 }
 
-/** Alias for getCardImageV2 — preferred name for jackpot/chest reward consumers. */
-export const getCardImageUrl = getCardImageV2;
-
 /** Fallback card image URL (regular foil, cards_v2.2 format). */
 export function getFallbackImageUrl(cardName: string): string {
   if (!cardName?.trim()) return `${WEB_URL}cards_v2.2/placeholder.jpg`;
   return getCardImageV2(cardName, 0);
-}
-
-// ---------------------------------------------------------------------------
-// Foil label — numeric foil (legacy API values)
-// ---------------------------------------------------------------------------
-
-/** Human-readable label for a numeric foil value (0=regular, 1-2=gold, 3-4=black). */
-export function getFoilLabel(foil: number): string {
-  const FOIL_LABELS: Record<number, string> = {
-    0: "Regular",
-    1: "Gold Foil",
-    2: "Gold Foil Arcane",
-    3: "Black Foil",
-    4: "Black Foil Arcane",
-  };
-  return FOIL_LABELS[foil] ?? `Foil ${foil}`;
 }
 
 // ---------------------------------------------------------------------------
