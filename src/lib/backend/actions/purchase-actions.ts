@@ -14,6 +14,11 @@ import type {
 } from "@/types/purchase/purchase-plan";
 import { toCardFoil } from "@/lib/shared/card-utils";
 
+const MIN_TIMEOUT_MS = 1000;
+const MAX_TIMEOUT_MS = 300000;
+const MIN_INTERVAL_MS = 200;
+const MAX_INTERVAL_MS = 10000;
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -79,11 +84,18 @@ export async function waitForTransactionsAction(
   timeoutMs = 120000,
   intervalMs = 2000
 ): Promise<WaitForTransactionsResult[]> {
+  const safeTimeoutMs = Number.isFinite(timeoutMs)
+    ? Math.min(Math.max(timeoutMs, MIN_TIMEOUT_MS), MAX_TIMEOUT_MS)
+    : 120000;
+  const safeIntervalMs = Number.isFinite(intervalMs)
+    ? Math.min(Math.max(intervalMs, MIN_INTERVAL_MS), MAX_INTERVAL_MS)
+    : 2000;
+
   const started = Date.now();
   const pending = new Set(txIds);
   const resolved = new Map<string, WaitForTransactionsResult>();
 
-  while (pending.size > 0 && Date.now() - started < timeoutMs) {
+  while (pending.size > 0 && Date.now() - started < safeTimeoutMs) {
     const checks = await Promise.all(
       Array.from(pending.values()).map(async (txId) => ({
         txId,
@@ -101,7 +113,7 @@ export async function waitForTransactionsAction(
     }
 
     if (pending.size > 0) {
-      await sleep(intervalMs);
+      await sleep(safeIntervalMs);
     }
   }
 
