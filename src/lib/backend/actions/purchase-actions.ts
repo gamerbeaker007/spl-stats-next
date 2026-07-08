@@ -20,7 +20,11 @@ const MIN_INTERVAL_MS = 200;
 const MAX_INTERVAL_MS = 10000;
 
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  const safeTimeoutMs = Number.isFinite(ms)
+    ? Math.min(Math.max(ms, MIN_TIMEOUT_MS), MAX_TIMEOUT_MS)
+    : 120000;
+
+  return new Promise((resolve) => setTimeout(resolve, safeTimeoutMs));
 }
 
 export async function getMarketListingsByCardAction(params: FetchMarketListingsByCardParams) {
@@ -84,9 +88,6 @@ export async function waitForTransactionsAction(
   timeoutMs = 120000,
   intervalMs = 2000
 ): Promise<WaitForTransactionsResult[]> {
-  const safeTimeoutMs = Number.isFinite(timeoutMs)
-    ? Math.min(Math.max(timeoutMs, MIN_TIMEOUT_MS), MAX_TIMEOUT_MS)
-    : 120000;
   const safeIntervalMs = Number.isFinite(intervalMs)
     ? Math.min(Math.max(intervalMs, MIN_INTERVAL_MS), MAX_INTERVAL_MS)
     : 2000;
@@ -95,7 +96,7 @@ export async function waitForTransactionsAction(
   const pending = new Set(txIds);
   const resolved = new Map<string, WaitForTransactionsResult>();
 
-  while (pending.size > 0 && Date.now() - started < safeTimeoutMs) {
+  while (pending.size > 0 && Date.now() - started < timeoutMs) {
     const checks = await Promise.all(
       Array.from(pending.values()).map(async (txId) => ({
         txId,
