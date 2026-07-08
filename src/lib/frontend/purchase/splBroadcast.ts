@@ -20,8 +20,6 @@ interface BroadcastResponse {
 }
 
 export const MARKET = "spl-stats.com";
-const VERIFY_POLL_MS = 3000;
-const VERIFY_TIMEOUT_MS = 120000;
 
 function getNonce(): number {
   return Date.now();
@@ -45,7 +43,7 @@ export interface BroadcastMarketPurchaseParams {
 export async function waitForTransactions(txIds: string[]): Promise<WaitForTransactionsResult[]> {
   if (txIds.length === 0) return [];
 
-  const confirmations = await waitForTransactionsAction(txIds, VERIFY_TIMEOUT_MS, VERIFY_POLL_MS);
+  const confirmations = await waitForTransactionsAction(txIds);
 
   // Any still-unresolved (timed-out) txs are returned as-is for the caller to surface.
   return confirmations;

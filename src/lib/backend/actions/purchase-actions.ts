@@ -15,27 +15,13 @@ import type {
 } from "@/types/purchase/purchase-plan";
 
 const DEFAULT_TIMEOUT_MS = 120_000;
-const MIN_TIMEOUT_MS = 1_000;
-const MAX_TIMEOUT_MS = 300_000;
+const DEFAULT_INTERVAL_MS = 3_000;
 
-const DEFAULT_INTERVAL_MS = 2_000;
-const MIN_INTERVAL_MS = 200;
-const MAX_INTERVAL_MS = 10_000;
 const MAX_TX_IDS_PER_WAIT = 100;
 
-function clampTimeout(ms: number): number {
-  if (!Number.isFinite(ms)) return DEFAULT_TIMEOUT_MS;
-  return Math.min(Math.max(Math.trunc(ms), MIN_TIMEOUT_MS), MAX_TIMEOUT_MS);
-}
-
-function clampInterval(ms: number): number {
-  if (!Number.isFinite(ms)) return DEFAULT_INTERVAL_MS;
-  return Math.min(Math.max(Math.trunc(ms), MIN_INTERVAL_MS), MAX_INTERVAL_MS);
-}
-
-function sleep(delayMs: number): Promise<void> {
+function sleep(): Promise<void> {
   return new Promise((resolve) => {
-    setTimeout(resolve, clampInterval(delayMs));
+    setTimeout(resolve, DEFAULT_INTERVAL_MS);
   });
 }
 
@@ -96,19 +82,15 @@ export async function lookupTransactionAction(txId: string): Promise<LookupTrans
 }
 
 export async function waitForTransactionsAction(
-  txIds: string[],
-  timeoutMs = DEFAULT_TIMEOUT_MS,
-  intervalMs = DEFAULT_INTERVAL_MS
+  txIds: string[]
 ): Promise<WaitForTransactionsResult[]> {
-  const safeTimeoutMs = clampTimeout(timeoutMs);
-  const safeIntervalMs = clampInterval(intervalMs);
   const safeTxIds = txIds.slice(0, MAX_TX_IDS_PER_WAIT);
 
   const started = Date.now();
   const pending = new Set(safeTxIds);
   const resolved = new Map<string, WaitForTransactionsResult>();
 
-  while (pending.size > 0 && Date.now() - started < safeTimeoutMs) {
+  while (pending.size > 0 && Date.now() - started < DEFAULT_TIMEOUT_MS) {
     const checks = await Promise.all(
       Array.from(pending.values()).map(async (txId) => ({
         txId,
@@ -126,7 +108,7 @@ export async function waitForTransactionsAction(
     }
 
     if (pending.size > 0) {
-      await sleep(safeIntervalMs);
+      await sleep();
     }
   }
 
