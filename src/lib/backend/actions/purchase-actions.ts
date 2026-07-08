@@ -7,12 +7,12 @@ import {
   fetchTransactionLookup,
 } from "@/lib/backend/api/spl/spl-api";
 import { lookupTransaction } from "@/lib/backend/api/spl/trxLookupParser";
+import { toCardFoil } from "@/lib/shared/card-utils";
 import type {
   FetchMarketListingsByCardParams,
   LookupTransactionStatus,
   WaitForTransactionsResult,
 } from "@/types/purchase/purchase-plan";
-import { toCardFoil } from "@/lib/shared/card-utils";
 
 const MIN_TIMEOUT_MS = 1000;
 const MAX_TIMEOUT_MS = 300000;
@@ -20,10 +20,7 @@ const MIN_INTERVAL_MS = 200;
 const MAX_INTERVAL_MS = 10000;
 
 function sleep(ms: number): Promise<void> {
-  const safeTimeoutMs = Number.isFinite(ms)
-    ? Math.min(Math.max(ms, MIN_TIMEOUT_MS), MAX_TIMEOUT_MS)
-    : 120000;
-
+  const safeTimeoutMs = Math.min(Math.max(ms, MIN_TIMEOUT_MS), MAX_TIMEOUT_MS);
   return new Promise((resolve) => setTimeout(resolve, safeTimeoutMs));
 }
 
@@ -88,9 +85,7 @@ export async function waitForTransactionsAction(
   timeoutMs = 120000,
   intervalMs = 2000
 ): Promise<WaitForTransactionsResult[]> {
-  const safeIntervalMs = Number.isFinite(intervalMs)
-    ? Math.min(Math.max(intervalMs, MIN_INTERVAL_MS), MAX_INTERVAL_MS)
-    : 2000;
+  const safeIntervalMs = Math.min(Math.max(intervalMs, MIN_INTERVAL_MS), MAX_INTERVAL_MS);
 
   const started = Date.now();
   const pending = new Set(txIds);
