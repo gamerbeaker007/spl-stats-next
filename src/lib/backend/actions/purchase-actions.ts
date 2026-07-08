@@ -14,14 +14,28 @@ import type {
   WaitForTransactionsResult,
 } from "@/types/purchase/purchase-plan";
 
-const MIN_TIMEOUT_MS = 1000;
-const MAX_TIMEOUT_MS = 300000;
-const MIN_INTERVAL_MS = 200;
-const MAX_INTERVAL_MS = 10000;
+const DEFAULT_TIMEOUT_MS = 120_000;
+const MIN_TIMEOUT_MS = 1_000;
+const MAX_TIMEOUT_MS = 300_000;
 
-function sleep(ms: number): Promise<void> {
-  const safeTimeoutMs = Math.min(Math.max(ms, MIN_TIMEOUT_MS), MAX_TIMEOUT_MS);
-  return new Promise((resolve) => setTimeout(resolve, safeTimeoutMs));
+const DEFAULT_INTERVAL_MS = 2_000;
+const MIN_INTERVAL_MS = 200;
+const MAX_INTERVAL_MS = 10_000;
+
+function clampTimeout(ms: number): number {
+  if (!Number.isFinite(ms)) return DEFAULT_TIMEOUT_MS;
+  return Math.min(Math.max(Math.trunc(ms), MIN_TIMEOUT_MS), MAX_TIMEOUT_MS);
+}
+
+function clampInterval(ms: number): number {
+  if (!Number.isFinite(ms)) return DEFAULT_INTERVAL_MS;
+  return Math.min(Math.max(Math.trunc(ms), MIN_INTERVAL_MS), MAX_INTERVAL_MS);
+}
+
+function sleep(delayMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, clampTimeout(delayMs));
+  });
 }
 
 export async function getMarketListingsByCardAction(params: FetchMarketListingsByCardParams) {
@@ -82,16 +96,17 @@ export async function lookupTransactionAction(txId: string): Promise<LookupTrans
 
 export async function waitForTransactionsAction(
   txIds: string[],
-  timeoutMs = 120000,
-  intervalMs = 2000
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+  intervalMs = DEFAULT_INTERVAL_MS
 ): Promise<WaitForTransactionsResult[]> {
-  const safeIntervalMs = Math.min(Math.max(intervalMs, MIN_INTERVAL_MS), MAX_INTERVAL_MS);
+  const safeTimeoutMs = clampTimeout(timeoutMs);
+  const safeIntervalMs = clampInterval(intervalMs);
 
   const started = Date.now();
   const pending = new Set(txIds);
   const resolved = new Map<string, WaitForTransactionsResult>();
 
-  while (pending.size > 0 && Date.now() - started < timeoutMs) {
+  while (pending.size > 0 && Date.now() - started < safeTimeoutMs) {
     const checks = await Promise.all(
       Array.from(pending.values()).map(async (txId) => ({
         txId,
