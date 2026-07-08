@@ -23,7 +23,7 @@ export default function BracketFilter({
   return (
     <Box display={"flex"} flexWrap={"wrap"} alignItems={"center"} gap={1}>
       <Typography variant="body2" sx={{ mr: 1 }}>
-        Bracket Filter
+        Targeted Bracket
       </Typography>
       <ToggleButtonGroup
         exclusive

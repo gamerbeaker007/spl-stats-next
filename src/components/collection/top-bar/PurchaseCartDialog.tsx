@@ -23,8 +23,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { MdDelete } from "react-icons/md";
-import { MdCheckCircle, MdErrorOutline, MdRadioButtonUnchecked } from "react-icons/md";
+import { MdDelete, MdCheckCircle, MdErrorOutline, MdRadioButtonUnchecked } from "react-icons/md";
 import { useEffect, useMemo, useState } from "react";
 import { getFoilLabel } from "@/lib/shared/card-utils";
 
@@ -57,9 +56,7 @@ export default function PurchaseCartDialog() {
       const mapped: Record<string, { DEC: number; CREDITS: number }> = {};
       for (const row of rows) {
         mapped[row.account] = {
-          DEC:
-            (row.balances.find((entry) => entry.token === "DEC")?.balance ?? 0) +
-            (row.balances.find((entry) => entry.token === "DEC-B")?.balance ?? 0),
+          DEC: row.balances.find((entry) => entry.token === "DEC")?.balance ?? 0,
           CREDITS: row.balances.find((entry) => entry.token === "CREDITS")?.balance ?? 0,
         };
       }
@@ -93,6 +90,7 @@ export default function PurchaseCartDialog() {
       string,
       {
         count: number;
+        cc: number;
         usd: number;
         dec: number;
         credits: number;
@@ -101,8 +99,9 @@ export default function PurchaseCartDialog() {
 
     for (const item of items) {
       const key = item.account.toLowerCase();
-      const current = byAccount.get(key) ?? { count: 0, usd: 0, dec: 0, credits: 0 };
+      const current = byAccount.get(key) ?? { count: 0, cc: 0, usd: 0, dec: 0, credits: 0 };
       current.count += 1;
+      current.cc += item.cc;
       current.usd += item.priceUsd;
       current.dec += item.priceDec;
       current.credits += item.priceCredits;
@@ -161,11 +160,25 @@ export default function PurchaseCartDialog() {
               Totals by account
             </Typography>
             {grouped.map(([account, summary]) => (
-              <Typography variant="body2" key={account}>
-                {account}: {summary.count} listings | USD {summary.usd.toFixed(3)} | DEC{" "}
-                {summary.dec.toFixed(3)} / {(balanceMap[account]?.DEC ?? 0).toFixed(3)} | CREDITS{" "}
-                {summary.credits.toFixed(0)} / {(balanceMap[account]?.CREDITS ?? 0).toFixed(0)}
-              </Typography>
+              <Stack key={account} direction={"row"} alignItems={"center"} gap={1} py={0.2}>
+                <Typography variant={"body2"} fontWeight={600}>
+                  {account}:
+                </Typography>
+                <Typography variant={"body2"}>
+                  #{summary.count} | CC {summary.cc}
+                </Typography>
+                <CurrencyAmountChip currency={"USD"} value={summary.usd} />
+                <CurrencyAmountChip
+                  currency={"CREDITS"}
+                  value={summary.credits}
+                  compareValue={balanceMap[account]?.CREDITS ?? 0}
+                />
+                <CurrencyAmountChip
+                  currency={"DEC"}
+                  value={summary.dec}
+                  compareValue={balanceMap[account]?.DEC ?? 0}
+                />
+              </Stack>
             ))}
           </Box>
 

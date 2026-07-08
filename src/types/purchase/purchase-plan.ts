@@ -75,6 +75,10 @@ export interface SplTransactionLookupInfo {
   player: string;
   data: string;
   result: string | null;
+  success?: boolean;
+  failed?: boolean;
+  error?: string | null;
+  message?: string | null;
 }
 
 export interface SplTransactionLookupResponse {

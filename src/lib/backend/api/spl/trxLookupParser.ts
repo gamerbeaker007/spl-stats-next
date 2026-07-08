@@ -37,6 +37,21 @@ function parseLookupResult(trxInfo: SplTransactionLookupInfo) {
   return parseJson(trxInfo.result);
 }
 
+function resolveTrxInfoFailure(trxInfo: SplTransactionLookupInfo): string | null {
+  if (typeof trxInfo.error === "string" && trxInfo.error.trim()) {
+    return trxInfo.error;
+  }
+
+  if (trxInfo.failed === true || trxInfo.success === false) {
+    if (typeof trxInfo.message === "string" && trxInfo.message.trim()) {
+      return trxInfo.message;
+    }
+    return "Transaction failed";
+  }
+
+  return null;
+}
+
 export function lookupTransaction(
   rawLookup: SplTransactionLookupResponse
 ): LookupTransactionStatus {
@@ -52,9 +67,31 @@ export function lookupTransaction(
 
   const trxInfo = rawLookup.trx_info;
   const type = trxInfo.type;
+  const directFailure = resolveTrxInfoFailure(trxInfo);
+  if (directFailure) {
+    return {
+      ok: true,
+      resolved: true,
+      success: false,
+      message: directFailure,
+      type,
+      raw: rawLookup,
+    };
+  }
+
   const parsedResult = parseLookupResult(trxInfo);
 
   if (parsedResult == null) {
+    if (trxInfo.success === true) {
+      return {
+        ok: true,
+        resolved: true,
+        success: true,
+        type,
+        raw: rawLookup,
+      };
+    }
+
     return {
       ok: true,
       resolved: false,

@@ -435,11 +435,11 @@ export default function BuyMissingCcPageClient() {
           {error && <Alert severity="error">{error}</Alert>}
 
           <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
-            <Chip label={`Estimated Max (USD): ${summary.toMaxUsd.toFixed(3)}`} />
+            <Chip label={`Estimated to Max: $${summary.toMaxUsd.toFixed(3)}`} />
             {selectedBracket && (
               <Chip
                 color="primary"
-                label={`Estimated ${LEAGUE_BRACKETS[selectedBracket].label} (USD): ${summary.toBracketUsd.toFixed(3)}`}
+                label={`Estimated ${LEAGUE_BRACKETS[selectedBracket].label}: $${summary.toBracketUsd.toFixed(3)}`}
               />
             )}
           </Stack>
@@ -508,7 +508,7 @@ export default function BuyMissingCcPageClient() {
                     direction={sortBy === "max" ? sortDir : "asc"}
                     onClick={() => toggleSort("max")}
                   >
-                    Estimated Max ($)
+                    Est. Max ($)
                   </TableSortLabel>
                 </TableCell>
               </TableRow>

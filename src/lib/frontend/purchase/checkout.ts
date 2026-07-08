@@ -3,7 +3,32 @@
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { getBalancesForAccountsAction } from "@/lib/backend/actions/purchase-actions";
 import { broadcastMarketPurchase, waitForTransactions } from "@/lib/frontend/purchase/splBroadcast";
-import type { PurchaseCurrency, PurchasePlanItem } from "@/types/purchase/purchase-plan";
+import type {
+  PurchaseCurrency,
+  PurchasePlanItem,
+  WaitForTransactionsResult,
+} from "@/types/purchase/purchase-plan";
+
+type BalancesByAccount = Awaited<ReturnType<typeof getBalancesForAccountsAction>>;
+
+export interface CheckoutCallbacks {
+  onBroadcast?: (entry: {
+    account: string;
+    txId: string;
+    items: Array<{ account: string; marketId: string }>;
+  }) => void;
+  onVerified?: (entry: {
+    account: string;
+    txId: string;
+    success: boolean;
+    message?: string;
+  }) => void;
+}
+
+export interface CheckoutResult {
+  confirmations: WaitForTransactionsResult[];
+  successfulItems: Array<{ account: string; marketId: string }>;
+}
 
 function groupByAccount(items: PurchasePlanItem[]): Map<string, PurchasePlanItem[]> {
   const grouped = new Map<string, PurchasePlanItem[]>();
@@ -16,81 +41,109 @@ function groupByAccount(items: PurchasePlanItem[]): Map<string, PurchasePlanItem
   return grouped;
 }
 
+function accountTotal(items: PurchasePlanItem[], currency: PurchaseCurrency): number {
+  return items.reduce(
+    (sum, item) => sum + (currency === "DEC" ? item.priceDec : item.priceCredits),
+    0
+  );
+}
+
+export function availableBalance(
+  balancesByAccount: BalancesByAccount,
+  account: string,
+  currency: PurchaseCurrency
+): number {
+  const row = balancesByAccount.find((entry) => entry.account === account.toLowerCase());
+  if (!row) return 0;
+
+  // Only the liquid balance can fund a purchase — staked DEC-B is not spendable.
+  return row.balances.find((entry) => entry.token === currency)?.balance ?? 0;
+}
+
+/**
+ * Broadcast one market-purchase transaction per account, wait for confirmation,
+ * then invalidate the affected collection/balance caches.
+ *
+ * Balances for every account are verified up front so a later insufficient-balance
+ * failure never leaves an earlier account already charged.
+ */
 export async function checkoutItems(
   items: PurchasePlanItem[],
   currency: PurchaseCurrency,
-  options?: {
-    onBroadcast?: (entry: {
-      account: string;
-      txId: string;
-      items: Array<{ account: string; marketId: string }>;
-    }) => void;
-    onVerified?: (entry: {
-      account: string;
-      txId: string;
-      success: boolean;
-      message?: string;
-    }) => void;
-  }
-): Promise<{ successfulItems: Array<{ account: string; marketId: string }> }> {
+  callbacks?: CheckoutCallbacks
+): Promise<CheckoutResult> {
   if (items.length === 0) {
-    return { successfulItems: [] };
+    return { confirmations: [], successfulItems: [] };
   }
 
-  const grouped = groupByAccount(items);
-  const accounts = Array.from(grouped.keys());
+  const grouped = Array.from(groupByAccount(items).entries());
+  const balances = await getBalancesForAccountsAction(grouped.map(([account]) => account));
 
-  const balances = await getBalancesForAccountsAction(accounts);
-
-  const txRows: Array<{ account: string; txId: string; items: PurchasePlanItem[] }> = [];
-
-  for (const [account, accountItems] of grouped.entries()) {
-    const total = accountItems.reduce(
-      (sum, item) => sum + (currency === "DEC" ? item.priceDec : item.priceCredits),
-      0
-    );
-
-    const available =
-      currency === "DEC"
-        ? (balances
-            .find((row) => row.account === account)
-            ?.balances.find((entry) => entry.token === "DEC")?.balance ?? 0) +
-          (balances
-            .find((row) => row.account === account)
-            ?.balances.find((entry) => entry.token === "DEC-B")?.balance ?? 0)
-        : (balances
-            .find((row) => row.account === account)
-            ?.balances.find((entry) => entry.token === currency)?.balance ?? 0);
-
+  for (const [account, accountItems] of grouped) {
+    const total = accountTotal(accountItems, currency);
+    const available = availableBalance(balances, account, currency);
     if (available < total) {
       throw new Error(
         `${account} has insufficient ${currency}. Needed ${total.toFixed(3)}, available ${available.toFixed(3)}.`
       );
     }
-
-    const txId = await broadcastMarketPurchase({
-      account,
-      marketIds: accountItems.map((item) => item.marketId),
-      currency,
-      totalPrice: total,
-    });
-
-    txRows.push({ account, txId, items: accountItems });
-    options?.onBroadcast?.({
-      account,
-      txId,
-      items: accountItems.map((item) => ({ account: item.account, marketId: item.marketId })),
-    });
   }
 
-  const confirmations = await waitForTransactions(txRows.map((row) => row.txId));
+  const txRows: Array<{ account: string; txId: string; items: PurchasePlanItem[] }> = [];
+  const broadcastFailures: WaitForTransactionsResult[] = [];
+  for (const [account, accountItems] of grouped) {
+    try {
+      const txId = await broadcastMarketPurchase({
+        account,
+        marketIds: accountItems.map((item) => item.marketId),
+        currency,
+        totalPrice: accountTotal(accountItems, currency),
+      });
+
+      txRows.push({ account, txId, items: accountItems });
+      callbacks?.onBroadcast?.({
+        account,
+        txId,
+        items: accountItems.map((item) => ({ account: item.account, marketId: item.marketId })),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Market purchase broadcast failed";
+      const failureTxId = `broadcast:${account}`;
+      broadcastFailures.push({
+        txId: failureTxId,
+        status: {
+          ok: false,
+          resolved: true,
+          success: false,
+          message,
+        },
+      });
+      callbacks?.onVerified?.({
+        account,
+        txId: failureTxId,
+        success: false,
+        message,
+      });
+    }
+  }
+
+  if (txRows.length === 0 && broadcastFailures.length > 0) {
+    throw new Error(
+      broadcastFailures
+        .map((entry) => entry.status.message ?? `${entry.txId}: broadcast failed`)
+        .join("\n")
+    );
+  }
+
+  const verifiedConfirmations =
+    txRows.length > 0 ? await waitForTransactions(txRows.map((row) => row.txId)) : [];
+  const confirmations = [...verifiedConfirmations, ...broadcastFailures];
 
   const successfulItems: Array<{ account: string; marketId: string }> = [];
-
   for (const txRow of txRows) {
-    const confirmation = confirmations.find((entry) => entry.txId === txRow.txId);
+    const confirmation = verifiedConfirmations.find((entry) => entry.txId === txRow.txId);
     const success = Boolean(confirmation?.status.success);
-    options?.onVerified?.({
+    callbacks?.onVerified?.({
       account: txRow.account,
       txId: txRow.txId,
       success,
@@ -115,5 +168,5 @@ export async function checkoutItems(
     ]);
   }
 
-  return { successfulItems };
+  return { confirmations, successfulItems };
 }

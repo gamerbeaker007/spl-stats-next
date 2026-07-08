@@ -707,7 +707,6 @@ export default function BuyCardDialog({
               rarity={rarity}
               targetBracket={targetBracket}
               accountHighestLevel={accountState.highestLevel}
-              accountHighestCc={accountState.highestCc}
               accountTotalCc={accountState.totalCc}
               isHighestCcAtMaxLevel={isHighestCcAtMaxLevel}
               buyBusy={buyBusy}

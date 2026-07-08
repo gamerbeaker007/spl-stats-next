@@ -90,7 +90,6 @@ interface TargetLevelTabContentProps {
   rarity: CardRarity;
   targetBracket: League | "";
   accountHighestLevel: number;
-  accountHighestCc: number;
   accountTotalCc: number;
   isHighestCcAtMaxLevel: boolean;
   buyBusy: boolean;
@@ -107,7 +106,6 @@ export default function TargetLevelTabContent({
   rarity,
   targetBracket,
   accountHighestLevel,
-  accountHighestCc,
   accountTotalCc,
   isHighestCcAtMaxLevel,
   buyBusy,
@@ -240,7 +238,7 @@ export default function TargetLevelTabContent({
                       : undefined
                   }
                 >
-                  {row.level === accountHighestLevel ? accountHighestCc : accountTotalCc}
+                  {accountTotalCc}
                 </TableCell>
                 <TableCell>{row.neededBcx ?? "N/A"}</TableCell>
                 <TableCell>

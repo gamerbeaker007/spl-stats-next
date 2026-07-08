@@ -47,20 +47,7 @@ export async function waitForTransactions(txIds: string[]): Promise<WaitForTrans
 
   const confirmations = await waitForTransactionsAction(txIds, VERIFY_TIMEOUT_MS, VERIFY_POLL_MS);
 
-  const failed = confirmations.filter((entry) => entry.status.resolved && !entry.status.success);
-  if (failed.length > 0) {
-    throw new Error(
-      failed
-        .map((entry) => `${entry.txId}: ${entry.status.message ?? "Transaction failed"}`)
-        .join("\n")
-    );
-  }
-
-  const unresolved = confirmations.filter((entry) => !entry.status.resolved);
-  if (unresolved.length > 0) {
-    return confirmations;
-  }
-
+  // Any still-unresolved (timed-out) txs are returned as-is for the caller to surface.
   return confirmations;
 }
 

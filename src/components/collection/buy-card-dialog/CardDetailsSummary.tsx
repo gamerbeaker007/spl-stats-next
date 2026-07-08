@@ -3,11 +3,10 @@
 import {
   getCardSetIconUrl,
   getCardSetLabel,
-  getCardSetTier,
   getEditionIconUrl,
   getEditionLabel,
 } from "@/lib/shared/edition-utils";
-import { getRarityIconUrl, getRarityId, getRarityLabel } from "@/lib/shared/rarity-utils";
+import { getRarityIconUrl, getRarityLabel } from "@/lib/shared/rarity-utils";
 import { cardRoleIconMap, cardRoleLabelMap, DetailedPlayerCardCollectionItem } from "@/types/card";
 import { Stack, Typography } from "@mui/material";
 import Image from "next/image";
@@ -50,14 +49,12 @@ export default function CardDetailsSummary({ card }: Readonly<CardDetailsSummary
   const resolvedTier = card.tier;
   const resolvedRole = card.role;
 
-  const rarityLabel = resolvedRarity ? getRarityLabel(resolvedRarity) : undefined;
-  const rarityId = resolvedRarity ? getRarityId(resolvedRarity) : undefined;
+  const rarityLabel = getRarityLabel(resolvedRarity) ?? "Unknown";
   const rarityIcon = resolvedRarity ? getRarityIconUrl(resolvedRarity) : undefined;
   const roleLabel = resolvedRole ? cardRoleLabelMap[resolvedRole] : "Unknown";
   const roleIcon = resolvedRole ? cardRoleIconMap[resolvedRole] : undefined;
 
   const setLabel = getCardSetLabel(card.edition, resolvedTier);
-  const setTier = getCardSetTier(card.edition, resolvedTier);
   const setIcon = getCardSetIconUrl(card.edition, resolvedTier);
   const editionLabel = getEditionLabel(card.edition) ?? `Edition ${card.edition}`;
   const editionIcon = getEditionIconUrl(card.edition);
@@ -65,22 +62,17 @@ export default function CardDetailsSummary({ card }: Readonly<CardDetailsSummary
   return (
     <Stack spacing={0.75}>
       <Typography variant="h6">{card.name}</Typography>
-      <DetailLine
-        label="Rarity"
-        value={rarityLabel && rarityId ? `${rarityLabel} (${rarityId})` : "Unknown"}
-        iconUrl={rarityIcon}
-        iconAlt={rarityLabel}
-      />
+      <DetailLine label="Rarity" value={rarityLabel} iconUrl={rarityIcon} iconAlt={rarityLabel} />
       <DetailLine label="Type" value={roleLabel} iconUrl={roleIcon} iconAlt={roleLabel} />
       <DetailLine
         label="Set"
-        value={`${setLabel ?? "Unknown"}${typeof setTier === "number" ? ` (${setTier})` : ""}`}
+        value={`${setLabel ?? "Unknown"}`}
         iconUrl={setIcon}
         iconAlt={setLabel}
       />
       <DetailLine
         label="Edition"
-        value={`${editionLabel} (${card.edition})`}
+        value={`${editionLabel}`}
         iconUrl={editionIcon}
         iconAlt={editionLabel}
       />

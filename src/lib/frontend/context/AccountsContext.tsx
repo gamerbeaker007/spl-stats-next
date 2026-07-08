@@ -99,7 +99,10 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
   const loggedInAccount = normalizeAccount(user?.username);
 
   useEffect(() => {
+    // Hydrate from localStorage after mount — reading it during render would
+    // cause an SSR/client hydration mismatch, so the sync must live in an effect.
     const stored = readStoredState();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSavedAccounts(stored.savedAccounts);
     setSelectedAccountState(stored.selectedAccount);
     setCollectionSelectedAccountsState(stored.collectionSelectedAccounts);
@@ -116,6 +119,9 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
   }, [loggedInAccount]);
 
   useEffect(() => {
+    // Loads server-side monitored accounts (and clears them on logout) — an
+    // external-data sync that necessarily updates state from within the effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshMonitoredAccounts();
   }, [refreshMonitoredAccounts]);
 
@@ -142,6 +148,9 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
   );
 
   useEffect(() => {
+    // Reconcile the persisted selection against the currently valid account
+    // options (which arrive asynchronously). Both writes are guarded by an
+    // equality check so this converges rather than looping.
     const safeSelected =
       selectedAccount && accountOptions.includes(selectedAccount)
         ? selectedAccount
@@ -157,6 +166,7 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
       safeCollection.length > 0 ? safeCollection : safeSelected ? [safeSelected] : [];
 
     if (safeSelected !== selectedAccount) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedAccountState(safeSelected);
     }
 

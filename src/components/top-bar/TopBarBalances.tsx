@@ -16,16 +16,10 @@ interface AccountBalances {
 }
 
 function totalToken(rows: AccountBalances[], token: string): number {
-  return rows.reduce((sum, row) => {
-    if (token === "DEC") {
-      return (
-        sum +
-        (row.balances.find((entry) => entry.token === "DEC")?.balance ?? 0) +
-        (row.balances.find((entry) => entry.token === "DEC-B")?.balance ?? 0)
-      );
-    }
-    return sum + (row.balances.find((entry) => entry.token === token)?.balance ?? 0);
-  }, 0);
+  return rows.reduce(
+    (sum, row) => sum + (row.balances.find((entry) => entry.token === token)?.balance ?? 0),
+    0
+  );
 }
 
 export default function TopBarBalances() {
@@ -92,9 +86,7 @@ export default function TopBarBalances() {
     <Box>
       {rows.map((row) => {
         const credits = row.balances.find((entry) => entry.token === "CREDITS")?.balance ?? 0;
-        const dec =
-          (row.balances.find((entry) => entry.token === "DEC")?.balance ?? 0) +
-          (row.balances.find((entry) => entry.token === "DEC-B")?.balance ?? 0);
+        const dec = row.balances.find((entry) => entry.token === "DEC")?.balance ?? 0;
         const sps = row.balances.find((entry) => entry.token === "SPS")?.balance ?? 0;
 
         return (
