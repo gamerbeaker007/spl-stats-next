@@ -13,6 +13,14 @@ interface CardTableIconProps {
   ownedCc: number;
 }
 
+const CARD_FOIL_COLORS: Record<CardFoil, string> = {
+  regular: "#9e9e9e",
+  gold: "#ffc107",
+  "gold arcane": "#ff8f00",
+  black: "#424242",
+  "black arcane": "#607d8b",
+};
+
 export default function CardTableIcon({
   name,
   edition,
@@ -21,6 +29,7 @@ export default function CardTableIcon({
   ownedCc,
 }: Readonly<CardTableIconProps>) {
   const tileSrc = getCardImageByLevel(name, edition, foil, Math.max(1, level));
+  const borderColor = CARD_FOIL_COLORS[foil] ?? "transparent";
 
   return (
     <Tooltip
@@ -34,6 +43,11 @@ export default function CardTableIcon({
         height={60}
         position="relative"
         sx={{
+          borderRadius: 1,
+          border: "3px solid",
+          borderColor: borderColor,
+          opacity: ownedCc > 0 ? 1 : 0.4,
+          filter: ownedCc > 0 ? "none" : "grayscale(60%)",
           overflow: "hidden",
           background: "#222",
         }}

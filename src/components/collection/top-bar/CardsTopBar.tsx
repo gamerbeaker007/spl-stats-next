@@ -6,7 +6,7 @@ import TopBarBalances from "@/components/top-bar/TopBarBalances";
 import Box from "@mui/material/Box";
 import { Suspense } from "react";
 
-export default function TopBarBalancesCart() {
+export default function TopBar() {
   return (
     <Box
       sx={{

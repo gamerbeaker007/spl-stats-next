@@ -3,10 +3,10 @@
 import BuyCardDialog from "@/components/collection/buy-card-dialog/BuyCardDialog";
 import BuyMissingCcFilterDrawer from "@/components/collection/buy-missing-cc/BuyMissingCcFilterDrawer";
 import BuyMissingCcTable from "@/components/collection/buy-missing-cc/BuyMissingCcTable";
-import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 import { useBuyMissingCcSharedData } from "@/hooks/cards/useBuyMissingCcSharedData";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { getBuyMissingCcDetailedCollectionAction } from "@/lib/backend/actions/buy-missing-cc-actions";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import { useBuyMissingCcFilter } from "@/lib/frontend/context/BuyMissingCcFilterContext";
@@ -26,13 +26,18 @@ import {
   Alert,
   Box,
   Chip,
+  FormControlLabel,
+  IconButton,
   Stack,
+  Switch,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
+import { MdInfoOutline } from "react-icons/md";
 import BracketFilter from "./BracketFilter";
 import type {
   AccountCardState,
@@ -44,6 +49,13 @@ import type {
 import { bracketStatus } from "./utils";
 
 const COLLECTION_STICKY_BAR_HEIGHT = 58;
+const FOIL_RANK: Record<Row["foil"], number> = {
+  regular: 1,
+  gold: 2,
+  "gold arcane": 3,
+  black: 4,
+  "black arcane": 5,
+};
 
 export default function BuyMissingCcPageClient() {
   const isMobile = useMediaQuery("(max-width:899px)");
@@ -75,6 +87,8 @@ export default function BuyMissingCcPageClient() {
 
   const [selectedBracket, setSelectedBracket] = useState<League | "">("");
   const [bracketStateFilters, setBracketStateFilters] = useState<BracketTableState[]>(["all"]);
+  const [combineFoils, setCombineFoils] = useState(false);
+  const [highestFoilOnly, setHighestFoilOnly] = useState(true);
   const [search, setSearch] = useState("");
   const [dialogRow, setDialogRow] = useState<Row | null>(null);
 
@@ -218,8 +232,58 @@ export default function BuyMissingCcPageClient() {
     });
   }, [rows, selectedAccount]);
 
+  const displayRowsWithCrossFoilProgress = useMemo<DisplayRow[]>(() => {
+    if (!combineFoils) {
+      return displayRows;
+    }
+
+    const grouped = new Map<string, DisplayRow[]>();
+    for (const row of displayRows) {
+      const key = `${row.cardDetailId}-${row.edition}-${row.tier}`;
+      const list = grouped.get(key) ?? [];
+      list.push(row);
+      grouped.set(key, list);
+    }
+
+    const mergedRows: DisplayRow[] = [];
+
+    for (const groupRows of grouped.values()) {
+      if (groupRows.length === 0) continue;
+      const ownedRows = groupRows.filter((row) => row.totalOwnedCc > 0);
+
+      if (ownedRows.length === 0) {
+        const fallbackRow =
+          groupRows.find((row) => filter.foilCategories.includes(row.foil)) ?? groupRows[0];
+        mergedRows.push({
+          ...fallbackRow,
+          key: `${fallbackRow.key}-cross-foil-missing`,
+        });
+        continue;
+      }
+
+      const sortedOwnedRows = [...ownedRows].sort((a, b) => FOIL_RANK[b.foil] - FOIL_RANK[a.foil]);
+      if (highestFoilOnly) {
+        const highestRow = sortedOwnedRows[0];
+        mergedRows.push({
+          ...highestRow,
+          key: `${highestRow.key}-cross-foil-highest`,
+        });
+        continue;
+      }
+
+      for (const ownedRow of sortedOwnedRows) {
+        mergedRows.push({
+          ...ownedRow,
+          key: `${ownedRow.key}-cross-foil-owned`,
+        });
+      }
+    }
+
+    return mergedRows;
+  }, [combineFoils, displayRows, filter.foilCategories, highestFoilOnly]);
+
   const filteredRows = useMemo(() => {
-    return displayRows.filter((row) => {
+    return displayRowsWithCrossFoilProgress.filter((row) => {
       const pseudo: FilterableCard = {
         edition: row.edition,
         tier: row.tier,
@@ -230,7 +294,13 @@ export default function BuyMissingCcPageClient() {
       };
 
       if (!matchesCardFilter(pseudo, filter)) return false;
-      if (filter.foilCategories.length > 0 && !filter.foilCategories.includes(row.foil)) {
+      const isOwnedCard = row.totalOwnedCc > 0;
+      const shouldApplyFoilFilter = !combineFoils || !isOwnedCard;
+      if (
+        shouldApplyFoilFilter &&
+        filter.foilCategories.length > 0 &&
+        !filter.foilCategories.includes(row.foil)
+      ) {
         return false;
       }
       if (search && !row.name.toLowerCase().includes(search.toLowerCase())) return false;
@@ -246,7 +316,14 @@ export default function BuyMissingCcPageClient() {
 
       return bracketStateFilters.includes(mapped);
     });
-  }, [displayRows, filter, search, selectedBracket, bracketStateFilters]);
+  }, [
+    displayRowsWithCrossFoilProgress,
+    filter,
+    search,
+    selectedBracket,
+    bracketStateFilters,
+    combineFoils,
+  ]);
 
   const summary = useMemo(() => {
     let toMaxUsd = 0;
@@ -351,6 +428,40 @@ export default function BuyMissingCcPageClient() {
                 <ToggleButton value="max">Max for Bracket</ToggleButton>
               </ToggleButtonGroup>
             )}
+          </Stack>
+
+          <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+            <Stack direction="row" alignItems="center" spacing={0.5}>
+              <FormControlLabel
+                sx={{ ml: 0 }}
+                control={
+                  <Switch
+                    size="small"
+                    checked={combineFoils}
+                    onChange={(_event, checked) => setCombineFoils(checked)}
+                  />
+                }
+                label="Cross-Foil Progress"
+              />
+              <Tooltip title="Cross-Foil Progress ignores foil filter for cards you own and evaluates progress using owned foil data. Unowned cards still follow your selected foil filter.">
+                <IconButton size="small" sx={{ p: 0.25 }}>
+                  <MdInfoOutline size={16} />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+
+            <FormControlLabel
+              sx={{ ml: 0 }}
+              disabled={!combineFoils}
+              control={
+                <Switch
+                  size="small"
+                  checked={highestFoilOnly}
+                  onChange={(_event, checked) => setHighestFoilOnly(checked)}
+                />
+              }
+              label="Highest Foil Only"
+            />
           </Stack>
 
           {error && <Alert severity="error">{error}</Alert>}
