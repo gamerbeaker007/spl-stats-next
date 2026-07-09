@@ -1,5 +1,6 @@
 "use client";
 
+import BracketFilter from "@/components/collection/buy-missing-cc/BracketFilter";
 import { useMarketListings } from "@/hooks/cards/useMarketListings";
 import {
   getBuyCardDialogAccountContextAction,
@@ -23,6 +24,8 @@ import {
   getEditionLabel,
 } from "@/lib/shared/edition-utils";
 import { getBracketLevelRange, LEAGUE_BRACKETS } from "@/lib/shared/league-brackets";
+import { credits_icon_url, dec_icon_url } from "@/lib/staticsIconUrls";
+import { largeNumberFormat } from "@/lib/utils";
 import type { League } from "@/types/buy-missing-cc";
 import {
   CardFoil,
@@ -56,12 +59,9 @@ import {
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import CardDetailsSummary from "./CardDetailsSummary";
-import BracketFilter from "@/components/collection/buy-missing-cc/BracketFilter";
 import ManualListingsTabContent from "./ManualListingsTabContent";
 import PurchaseTxProgressPanel from "./PurchaseTxProgressPanel";
 import TargetLevelTabContent, { type TargetLevelRow } from "./TargetLevelTabContent";
-import { credits_icon_url, dec_icon_url } from "@/lib/staticsIconUrls";
-import { largeNumberFormat } from "@/lib/utils";
 
 export type BuyCardDialogMode = "manual-listings" | "target-level";
 
@@ -84,6 +84,7 @@ export interface BuyCardDialogProps {
   selectableAccounts?: string[];
   accountStates?: Record<string, AccountCardState>;
   accountBalances?: Record<string, { DEC: number; CREDITS: number }>;
+  topOffsetPx?: number;
   onClose: () => void;
   onAddToPurchasePlan: (items: PurchasePlanItem[]) => void;
 }
@@ -138,6 +139,7 @@ export default function BuyCardDialog({
   selectableAccounts,
   accountStates,
   accountBalances,
+  topOffsetPx,
   onClose,
   onAddToPurchasePlan,
 }: Readonly<BuyCardDialogProps>) {
@@ -589,7 +591,15 @@ export default function BuyCardDialog({
   const titleEditionLabel = getEditionLabel(edition) ?? `Edition ${edition}`;
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="xl">
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="xl"
+      sx={{
+        mt: `${topOffsetPx ?? 0}px`,
+      }}
+    >
       <DialogTitle>
         <Stack direction="row" alignItems="center" spacing={2}>
           <Typography variant="h6">CC - {name}</Typography>
@@ -627,13 +637,17 @@ export default function BuyCardDialog({
 
             <Stack spacing={1}>
               <CardDetailsSummary card={card} />
-              <Typography variant="body2">Current Level: {accountState.highestLevel}</Typography>
-              <Typography
-                variant="body2"
-                sx={isHighestCcAtMaxLevel ? { color: "success.main", fontWeight: 700 } : undefined}
-              >
-                Owned BCX: {accountState.highestCc}
-              </Typography>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap" }}>
+                <Typography variant="body2">Current Level: {accountState.highestLevel}</Typography>
+                <Typography
+                  variant="body2"
+                  sx={
+                    isHighestCcAtMaxLevel ? { color: "success.main", fontWeight: 700 } : undefined
+                  }
+                >
+                  Owned BCX: {accountState.highestCc}
+                </Typography>
+              </Stack>
               {activeMode === "target-level" && rarity && targetBracket !== "" && (
                 <Typography variant="body2" color="error.main">
                   Target: {LEAGUE_BRACKETS[targetBracket].label} (
@@ -641,14 +655,6 @@ export default function BuyCardDialog({
                   {getBracketLevelRange(targetBracket, rarity)[1]})
                 </Typography>
               )}
-              <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap" }}>
-                <Typography variant="body2">Balance:</Typography>
-                <Avatar src={dec_icon_url} alt="DEC" sx={{ width: 16, height: 16 }} />
-                <Typography variant="body2">{largeNumberFormat(balance.DEC)}</Typography>
-                <Divider orientation="vertical" flexItem />
-                <Avatar src={credits_icon_url} alt="CREDITS" sx={{ width: 16, height: 16 }} />
-                <Typography variant="body2">{largeNumberFormat(balance.CREDITS)}</Typography>
-              </Stack>
               <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                 <FormControl size="small" sx={{ minWidth: 160 }}>
                   <InputLabel>Account</InputLabel>
@@ -742,6 +748,15 @@ export default function BuyCardDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", mr: 2 }}>
+          <Typography variant="body2">Balance ({account}):</Typography>
+          <Avatar src={dec_icon_url} alt="DEC" sx={{ width: 16, height: 16 }} />
+          <Typography variant="body2">{largeNumberFormat(balance.DEC)}</Typography>
+          <Divider orientation="vertical" flexItem />
+          <Avatar src={credits_icon_url} alt="CREDITS" sx={{ width: 16, height: 16 }} />
+          <Typography variant="body2">{largeNumberFormat(balance.CREDITS)}</Typography>
+        </Stack>
+
         <Button onClick={onClose}>Close</Button>
 
         {activeMode === "manual-listings" && (

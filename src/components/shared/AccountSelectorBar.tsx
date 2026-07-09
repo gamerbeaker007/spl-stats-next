@@ -78,6 +78,12 @@ export default function AccountSelectorBar(props: Readonly<AccountSelectorBarPro
         label="Add Account"
         value={addAccountInput}
         onChange={(event) => onAddAccountInputChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            onAddAccount();
+          }
+        }}
         sx={{ minWidth: 220 }}
       />
 
