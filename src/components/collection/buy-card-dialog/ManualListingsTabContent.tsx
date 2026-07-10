@@ -187,7 +187,16 @@ export default function ManualListingsTabContent({
 
               return (
                 <TableRow key={row.marketId} selected={selectedIds.includes(row.marketId)}>
-                  <TableCell>
+                  <TableCell
+                    onMouseDown={
+                      cannotAddBecauseReserved ? undefined : (event) => event.preventDefault()
+                    }
+                    onClick={
+                      cannotAddBecauseReserved
+                        ? undefined
+                        : (event) => toggleCartByButton(globalIndex, event.shiftKey)
+                    }
+                  >
                     <Tooltip title={cartButtonTooltip}>
                       <span>
                         <Button
@@ -195,8 +204,6 @@ export default function ManualListingsTabContent({
                           variant="outlined"
                           color={inCart ? "error" : "success"}
                           disabled={cannotAddBecauseReserved}
-                          onMouseDown={(event) => event.preventDefault()}
-                          onClick={(event) => toggleCartByButton(globalIndex, event.shiftKey)}
                           sx={{
                             minWidth: 36,
                             px: 1,

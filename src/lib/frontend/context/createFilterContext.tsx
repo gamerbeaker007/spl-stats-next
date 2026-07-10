@@ -25,18 +25,29 @@ export function createFilterContext<F extends UnifiedCardFilter>(defaults: F, st
   }
 
   function Provider({ children }: { children: ReactNode }) {
-    const [filter, setFilterState] = useState<F>(() =>
-      typeof window !== "undefined" ? loadFromStorage() : { ...defaults }
-    );
+    // Start from defaults so the first client render matches the server-rendered
+    // HTML. Persisted state is loaded after mount to avoid a hydration mismatch.
+    const [filter, setFilterState] = useState<F>(() => ({ ...defaults }));
+    const [hydrated, setHydrated] = useState(false);
 
     useEffect(() => {
-      if (!storageKey) return;
+      // Hydrate from localStorage after mount — reading it during render would
+      // cause an SSR/client hydration mismatch, so the sync must live in an effect.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setFilterState(loadFromStorage());
+      setHydrated(true);
+    }, []);
+
+    useEffect(() => {
+      // Don't persist until the stored value has been loaded, otherwise the
+      // initial defaults would clobber it before hydration completes.
+      if (!storageKey || !hydrated) return;
       try {
         localStorage.setItem(storageKey, JSON.stringify(filter));
       } catch {
         // ignore storage errors
       }
-    }, [filter]);
+    }, [filter, hydrated]);
 
     const setFilter = useCallback((updates: Partial<F>) => {
       setFilterState((prev) => ({ ...prev, ...updates }));

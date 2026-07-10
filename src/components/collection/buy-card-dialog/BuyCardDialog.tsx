@@ -145,7 +145,14 @@ export default function BuyCardDialog({
 }: Readonly<BuyCardDialogProps>) {
   const { cardDetailId, name, edition, rarity, tier, role, cardStats } = card;
   const { rows, loading, error, fetchRows } = useMarketListings();
-  const { items: cartItems, removeItem, removeMany, notifyBalancesRefresh } = usePurchasePlan();
+  const {
+    items: cartItems,
+    removeItem,
+    removeMany,
+    notifyBalancesRefresh,
+    notifyCollectionRefresh,
+    collectionRefreshVersion,
+  } = usePurchasePlan();
 
   const [activeMode, setActiveMode] = useState<BuyCardDialogMode>(mode);
   const [targetBracket, setTargetBracket] = useState<League | "">(initialTargetBracket || "");
@@ -278,7 +285,7 @@ export default function BuyCardDialog({
     return () => {
       active = false;
     };
-  }, [cardDetailId, edition, open, selectedAccount, selectedFoil]);
+  }, [cardDetailId, edition, open, selectedAccount, selectedFoil, collectionRefreshVersion]);
 
   useEffect(() => {
     if (!open) return;
@@ -288,7 +295,7 @@ export default function BuyCardDialog({
       foil: selectedFoil,
       type: "buy",
     });
-  }, [cardDetailId, edition, fetchRows, open, selectedFoil]);
+  }, [cardDetailId, edition, fetchRows, open, selectedFoil, collectionRefreshVersion]);
 
   useEffect(() => {
     setSelectedIds([]);
@@ -572,6 +579,7 @@ export default function BuyCardDialog({
       if (result.successfulItems.length > 0) {
         removeMany(result.successfulItems);
         notifyBalancesRefresh();
+        notifyCollectionRefresh();
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Purchase failed";

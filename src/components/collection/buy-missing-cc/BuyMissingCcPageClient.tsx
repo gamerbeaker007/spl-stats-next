@@ -49,6 +49,9 @@ import type {
 import { bracketStatus } from "./utils";
 
 const COLLECTION_STICKY_BAR_HEIGHT = 58;
+// Vertical chrome above the page content on desktop: app bar (paddingTop) +
+// collection sticky sub-bar + <main> margins (10 top / 10 bottom) + page Box pb:3 (24).
+const FILL_HEIGHT_OFFSET_PX = APP_BAR_HEIGHT + COLLECTION_STICKY_BAR_HEIGHT + 44;
 const FOIL_RANK: Record<Row["foil"], number> = {
   regular: 1,
   gold: 2,
@@ -59,7 +62,7 @@ const FOIL_RANK: Record<Row["foil"], number> = {
 
 export default function BuyMissingCcPageClient() {
   const isMobile = useMediaQuery("(max-width:899px)");
-  const { addItems } = usePurchasePlan();
+  const { addItems, collectionRefreshVersion } = usePurchasePlan();
   const { filter } = useBuyMissingCcFilter();
   const {
     cardDetails,
@@ -88,7 +91,7 @@ export default function BuyMissingCcPageClient() {
   const [selectedBracket, setSelectedBracket] = useState<League | "">("");
   const [bracketStateFilters, setBracketStateFilters] = useState<BracketTableState[]>(["all"]);
   const [combineFoils, setCombineFoils] = useState(false);
-  const [highestFoilOnly, setHighestFoilOnly] = useState(true);
+  const [highestLevelOnly, setHighestLevelOnly] = useState(true);
   const [search, setSearch] = useState("");
   const [dialogRow, setDialogRow] = useState<Row | null>(null);
 
@@ -211,7 +214,14 @@ export default function BuyMissingCcPageClient() {
     return () => {
       active = false;
     };
-  }, [cardDetails, selectedAccount, settings, sharedError, sharedLoading]);
+  }, [
+    cardDetails,
+    selectedAccount,
+    settings,
+    sharedError,
+    sharedLoading,
+    collectionRefreshVersion,
+  ]);
 
   const isLoading = loading || sharedLoading;
 
@@ -262,8 +272,18 @@ export default function BuyMissingCcPageClient() {
       }
 
       const sortedOwnedRows = [...ownedRows].sort((a, b) => FOIL_RANK[b.foil] - FOIL_RANK[a.foil]);
-      if (highestFoilOnly) {
-        const highestRow = sortedOwnedRows[0];
+      if (highestLevelOnly) {
+        // Pick the foil whose highest owned copy has the highest level.
+        // Tie-break by highest owned CC, then by foil rank.
+        const highestRow = [...ownedRows].sort((a, b) => {
+          if (b.highestOwnedLevel !== a.highestOwnedLevel) {
+            return b.highestOwnedLevel - a.highestOwnedLevel;
+          }
+          if (b.highestOwnedCc !== a.highestOwnedCc) {
+            return b.highestOwnedCc - a.highestOwnedCc;
+          }
+          return FOIL_RANK[b.foil] - FOIL_RANK[a.foil];
+        })[0];
         mergedRows.push({
           ...highestRow,
           key: `${highestRow.key}-cross-foil-highest`,
@@ -280,7 +300,7 @@ export default function BuyMissingCcPageClient() {
     }
 
     return mergedRows;
-  }, [combineFoils, displayRows, filter.foilCategories, highestFoilOnly]);
+  }, [combineFoils, displayRows, filter.foilCategories, highestLevelOnly]);
 
   const filteredRows = useMemo(() => {
     return displayRowsWithCrossFoilProgress.filter((row) => {
@@ -369,11 +389,14 @@ export default function BuyMissingCcPageClient() {
       return;
     }
 
-    let normalized = next;
-    if (next.includes("all") && next.length > 1) {
-      normalized = next.filter((entry) => entry !== "all");
+    // User just clicked "All" (it wasn't selected before) → collapse to only "all".
+    if (next.includes("all") && !bracketStateFilters.includes("all")) {
+      setBracketStateFilters(["all"]);
+      return;
     }
 
+    // Otherwise a specific bracket is active — drop "all" if it lingers.
+    const normalized = next.filter((entry) => entry !== "all");
     setBracketStateFilters(normalized.length > 0 ? normalized : ["all"]);
   }
 
@@ -385,9 +408,18 @@ export default function BuyMissingCcPageClient() {
   }
 
   return (
-    <Box display="flex" gap={2}>
-      <Box flex={1} minWidth={0}>
-        <Stack spacing={2} sx={{ mb: 2 }}>
+    <Box display="flex" gap={2} alignItems="flex-start">
+      <Box
+        flex={1}
+        minWidth={0}
+        sx={{
+          display: { md: "flex" },
+          flexDirection: { md: "column" },
+          height: { md: `calc(100vh - ${FILL_HEIGHT_OFFSET_PX}px)` },
+          minHeight: { md: 0 },
+        }}
+      >
+        <Stack spacing={2} sx={{ mb: 2, flexShrink: 0 }}>
           <Typography variant="h4">Buy Missing CC</Typography>
 
           <AccountSelectorBar
@@ -456,11 +488,11 @@ export default function BuyMissingCcPageClient() {
               control={
                 <Switch
                   size="small"
-                  checked={highestFoilOnly}
-                  onChange={(_event, checked) => setHighestFoilOnly(checked)}
+                  checked={highestLevelOnly}
+                  onChange={(_event, checked) => setHighestLevelOnly(checked)}
                 />
               }
-              label="Highest Foil Only"
+              label="Highest Level Only"
             />
           </Stack>
 
@@ -489,8 +521,8 @@ export default function BuyMissingCcPageClient() {
           sortDir={sortDir}
           toggleSort={toggleSort}
           isLoading={isLoading}
-          canBuy={Boolean(selectedAccount)}
           onOpenBuyDialog={(row) => setDialogRow(row)}
+          fillHeight
         />
       </Box>
 

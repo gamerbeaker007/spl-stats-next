@@ -36,6 +36,7 @@ export default function PurchaseCartDialog() {
     removeMany,
     clear,
     notifyBalancesRefresh,
+    notifyCollectionRefresh,
   } = usePurchasePlan();
   const { checkout, busy, error, progress, reset } = usePurchaseCheckout(items);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -131,6 +132,7 @@ export default function PurchaseCartDialog() {
       if (successfulItems.length > 0) {
         removeMany(successfulItems);
         notifyBalancesRefresh();
+        notifyCollectionRefresh();
       }
 
       if (failed.length === 0) {

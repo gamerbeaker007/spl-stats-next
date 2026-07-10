@@ -49,8 +49,13 @@ interface BuyMissingCcTableProps {
   sortDir: "asc" | "desc";
   toggleSort: (field: BuyMissingCcSortField) => void;
   isLoading: boolean;
-  canBuy: boolean;
   onOpenBuyDialog: (row: Row) => void;
+  /**
+   * When true, the table grows to fill the available height of a flex-column
+   * parent (scrolling internally) instead of capping at a fixed maxHeight, so
+   * the page fits the viewport without a second scrollbar on the parent.
+   */
+  fillHeight?: boolean;
 }
 
 export default function BuyMissingCcTable({
@@ -61,8 +66,8 @@ export default function BuyMissingCcTable({
   sortDir,
   toggleSort,
   isLoading,
-  canBuy,
   onOpenBuyDialog,
+  fillHeight = false,
 }: Readonly<BuyMissingCcTableProps>) {
   const sortedRows = [...rows].sort((a, b) => {
     const compare = (() => {
@@ -134,7 +139,13 @@ export default function BuyMissingCcTable({
 
   return (
     <>
-      <ScrollableTableContainer sx={{ maxWidth: "100%" }}>
+      <ScrollableTableContainer
+        maxHeight={fillHeight ? { xs: "70vh", md: "none" } : "70vh"}
+        sx={{
+          maxWidth: "100%",
+          ...(fillHeight && { flex: { md: 1 }, minHeight: { md: 0 } }),
+        }}
+      >
         <Table
           size="small"
           stickyHeader
@@ -284,7 +295,10 @@ export default function BuyMissingCcTable({
 
               return (
                 <TableRow key={row.key} hover>
-                  <TableCell sx={{ minWidth: 70, maxWidth: 70, px: 0.5 }}>
+                  <TableCell
+                    sx={{ minWidth: 70, maxWidth: 70, px: 0.5 }}
+                    onClick={settings ? () => onOpenBuyDialog(row) : undefined}
+                  >
                     <CardTableIcon
                       name={row.name}
                       edition={row.edition}
@@ -293,7 +307,10 @@ export default function BuyMissingCcTable({
                       ownedCc={row.totalOwnedCc}
                     />
                   </TableCell>
-                  <TableCell align="center">
+                  <TableCell
+                    align="center"
+                    onClick={settings ? () => onOpenBuyDialog(row) : undefined}
+                  >
                     <Tooltip
                       title={maxOnlyFoil ? "This foil supports max-level purchases only" : "Buy CC"}
                     >
@@ -301,9 +318,8 @@ export default function BuyMissingCcTable({
                         <Button
                           variant="outlined"
                           size="small"
-                          disabled={!settings || !canBuy}
-                          onClick={() => onOpenBuyDialog(row)}
-                          sx={{ minWidth: 30, px: 0.5 }}
+                          disabled={!settings}
+                          sx={{ minWidth: 30, p: 0.5 }}
                         >
                           <MdLocalOffer size={15} />
                         </Button>
@@ -319,7 +335,7 @@ export default function BuyMissingCcTable({
                           disabled
                           sx={{ minWidth: 30, px: 0.5 }}
                         >
-                          <TbCopyPlusFilled size={13} />
+                          <TbCopyPlusFilled size={15} />
                         </Button>
                       </span>
                     </Tooltip>
@@ -405,7 +421,12 @@ export default function BuyMissingCcTable({
         </Table>
       </ScrollableTableContainer>
 
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1 }}>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        sx={{ mt: 1, flexShrink: 0 }}
+      >
         <Stack direction="row" alignItems="center" spacing={1}>
           <Typography variant="body2">Rows</Typography>
           <Select
