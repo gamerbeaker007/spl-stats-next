@@ -3,6 +3,7 @@
 import { CardSection } from "@/components/collection/cards/CardSection";
 import { useCardDetails } from "@/hooks/multi-account-dashboard/useCardDetails";
 import { getDetailedPlayerCardCollection } from "@/lib/backend/actions/player-actions";
+import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { DetailedPlayerCardCollection } from "@/types/card";
 import { Alert, Box, CircularProgress, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
@@ -24,6 +25,7 @@ export function PlayerCardsContent({
     loading: cardDetailsLoading,
     error: cardDetailsError,
   } = useCardDetails({ autoFetch: true });
+  const { collectionRefreshVersion } = usePurchasePlan();
 
   useEffect(() => {
     const loadCards = async () => {
@@ -40,7 +42,7 @@ export function PlayerCardsContent({
     };
 
     loadCards();
-  }, [username]);
+  }, [username, collectionRefreshVersion]);
 
   const isLoading = loading || cardDetailsLoading;
   const hasError = error || cardDetailsError;

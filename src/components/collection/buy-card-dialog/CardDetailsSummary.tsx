@@ -10,36 +10,35 @@ import { getRarityIconUrl, getRarityLabel } from "@/lib/shared/rarity-utils";
 import { cardRoleIconMap, cardRoleLabelMap, DetailedPlayerCardCollectionItem } from "@/types/card";
 import { Stack, Typography } from "@mui/material";
 import Image from "next/image";
+import { RxDividerVertical } from "react-icons/rx";
 
 interface CardDetailsSummaryProps {
   card: DetailedPlayerCardCollectionItem;
 }
 
 interface DetailLineProps {
-  label: string;
-  value: string;
+  value?: string;
+  tooltip?: string;
   iconUrl?: string;
-  iconAlt?: string;
 }
 
-function DetailLine({ label, value, iconUrl, iconAlt }: Readonly<DetailLineProps>) {
+function DetailLine({ tooltip, value, iconUrl }: Readonly<DetailLineProps>) {
   return (
     <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap">
-      <Typography variant="body2" component="span" color="text.secondary" sx={{ minWidth: 52 }}>
-        {label}:
-      </Typography>
       {iconUrl && (
         <Image
           src={iconUrl}
-          alt={iconAlt ?? label}
+          alt={tooltip ?? ""}
           width={18}
           height={18}
           style={{ objectFit: "contain" }}
         />
       )}
-      <Typography variant="body2" component="span">
-        {value}
-      </Typography>
+      {value && (
+        <Typography variant="body2" component="span">
+          {value}
+        </Typography>
+      )}
     </Stack>
   );
 }
@@ -60,22 +59,17 @@ export default function CardDetailsSummary({ card }: Readonly<CardDetailsSummary
   const editionIcon = getEditionIconUrl(card.edition);
 
   return (
-    <Stack spacing={0.75}>
+    <Stack direction="column" spacing={0.75}>
       <Typography variant="h6">{card.name}</Typography>
-      <DetailLine label="Rarity" value={rarityLabel} iconUrl={rarityIcon} iconAlt={rarityLabel} />
-      <DetailLine label="Type" value={roleLabel} iconUrl={roleIcon} iconAlt={roleLabel} />
-      <DetailLine
-        label="Set"
-        value={`${setLabel ?? "Unknown"}`}
-        iconUrl={setIcon}
-        iconAlt={setLabel}
-      />
-      <DetailLine
-        label="Edition"
-        value={`${editionLabel}`}
-        iconUrl={editionIcon}
-        iconAlt={editionLabel}
-      />
+      <Stack direction="row" spacing={0.5} sx={{ ml: 1 }}>
+        <DetailLine iconUrl={rarityIcon} tooltip={rarityLabel} />
+        <RxDividerVertical />
+        <DetailLine iconUrl={roleIcon} tooltip={roleLabel} />
+        <RxDividerVertical />
+        <DetailLine iconUrl={setIcon} tooltip={setLabel} />
+        <RxDividerVertical />
+        <DetailLine iconUrl={editionIcon} tooltip={editionLabel} />
+      </Stack>
     </Stack>
   );
 }

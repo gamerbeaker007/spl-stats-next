@@ -9,6 +9,28 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.6.0] - 2026-07-10
+
+### Added
+
+- **Cross-Foil Progress** toggle on Buy Missing CC — combines foils of the same card and evaluates progress from owned-foil data, with a **Highest Level Only** option that keeps the foil whose highest owned copy has the highest level.
+- Sticky collection sub-bar (balances + cart) that pins below the app bar on desktop.
+
+### Changed
+
+- Buy Missing CC table extracted into its own component and now fills the viewport height on desktop, scrolling internally instead of adding a second scrollbar on the page.
+- `ScrollableTableContainer` now accepts a `minHeight` and responsive `maxHeight` to support fill-height layouts.
+- `BuyCardDialog` shows the per-account balance in the actions bar, offsets below the sticky bars, and renders a condensed icon+tooltip card details summary.
+- Active foil filter chip now shows a highlighted border.
+
+### Fixed
+
+- Bracket status **All** toggle now resets any specific-bracket selection instead of doing nothing.
+- Buy Missing CC layout fixes so the table stays within the page and the bracket filter can be cleared.
+- Card filters no longer cause a React hydration mismatch — persisted filter state (foil, edition, etc.) is now loaded after mount instead of during the first render, so server and client HTML match. Fixes all filter contexts (Battle, Card, Card Stats, Buy Missing CC).
+- Card collection and ownership now refresh after a successful purchase. `BuyCardDialog` (both target-level and manual-listings modes) and the cart checkout dialog now reload the dialog's own ownership/target-level rows plus the underlying pages (Buy Missing CC table and `/collection/cards` grid) once the transaction is verified, instead of showing stale data.
+
+---
 ## [v1.5.0] - 2026-07-06
 
 ### Added

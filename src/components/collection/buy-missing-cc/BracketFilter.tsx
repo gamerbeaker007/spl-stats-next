@@ -18,7 +18,7 @@ export default function BracketFilter({
   setSelectedBracket,
 }: Readonly<{
   selectedBracket: League | "";
-  setSelectedBracket: (bracket: League) => void;
+  setSelectedBracket: (bracket: League | "") => void;
 }>) {
   return (
     <Box display={"flex"} flexWrap={"wrap"} alignItems={"center"} gap={1}>
