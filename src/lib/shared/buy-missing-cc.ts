@@ -1,3 +1,4 @@
+import { getRarityId } from "@/lib/shared/rarity-utils";
 import type {
   BuildPurchasePlanInput,
   BuildPurchasePlanOutput,
@@ -6,10 +7,9 @@ import type {
   TargetLevelPreview,
   UpgradeRequirements,
 } from "@/types/buy-missing-cc";
+import { CardFoil, CardRarity } from "@/types/card";
 import type { CardStats } from "@/types/spl/cardDetails";
 import type { SplSettings } from "@/types/spl/season";
-import { CardFoil, CardRarity } from "@/types/card";
-import { getRarityId } from "@/lib/shared/rarity-utils";
 
 export function getCardFirstPlayableLevel(combineRates: number[]): number {
   const firstLevelIndex = combineRates.findIndex((cc) => cc > 0);

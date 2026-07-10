@@ -1,8 +1,8 @@
+import CombineCardsDialog from "@/components/collection/buy-card-dialog/CombineCardsDialog";
+import type { CardDetail, DetailedPlayerCardCollectionItem } from "@/types/card";
+import type { CardStats } from "@/types/spl/cardDetails";
 import type { Meta, StoryObj } from "@storybook/react";
 import React from "react";
-import CombineCardsDialog from "@/components/collection/buy-card-dialog/CombineCardsDialog";
-import type { DetailedPlayerCardCollectionItem, CardDetail } from "@/types/card";
-import type { CardStats } from "@/types/spl/cardDetails";
 
 // Mock card data
 const mockCardStats: CardStats = {

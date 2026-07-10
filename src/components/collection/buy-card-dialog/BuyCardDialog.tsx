@@ -8,6 +8,7 @@ import {
 } from "@/lib/backend/actions/buy-missing-cc-actions";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { checkoutItems } from "@/lib/frontend/purchase/checkout";
+import { broadcastCombineCards } from "@/lib/frontend/purchase/splBroadcast";
 import {
   buildPurchasePlan,
   calculateUpgradeRequirements,
@@ -15,7 +16,6 @@ import {
   getCombineRatesForCard,
   selectCheapestListings,
 } from "@/lib/shared/buy-missing-cc";
-import { broadcastCombineCards } from "@/lib/frontend/purchase/splBroadcast";
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 import { getFoilLabel } from "@/lib/shared/card-utils";
 import {

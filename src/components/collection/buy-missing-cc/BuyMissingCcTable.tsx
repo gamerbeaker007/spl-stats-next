@@ -15,6 +15,7 @@ import { getFoilLabel } from "@/lib/shared/card-utils";
 import { getCardSetLabel, getEditionIconUrl, getEditionLabel } from "@/lib/shared/edition-utils";
 import { getBracketLevelRange, LEAGUE_BRACKETS } from "@/lib/shared/league-brackets";
 import { getRarityIconUrl } from "@/lib/shared/rarity-utils";
+import { largeNumberFormat } from "@/lib/utils";
 import type { League } from "@/types/buy-missing-cc";
 import type { SplSettings } from "@/types/spl/season";
 import {
@@ -33,7 +34,6 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { largeNumberFormat } from "@/lib/utils";
 import Image from "next/image";
 import { useState } from "react";
 import { MdCheckCircle, MdErrorOutline, MdLocalOffer, MdWarningAmber } from "react-icons/md";
