@@ -96,6 +96,7 @@ export async function getBuyCardDialogAccountContextAction(
   account: string;
   accountState: { highestLevel: number; highestCc: number; totalCc: number };
   balance: { DEC: number; CREDITS: number };
+  cardUids: string[];
 }> {
   const normalized = normalizeAccount(account);
   const [collection, balances] = await Promise.all([
@@ -131,6 +132,7 @@ export async function getBuyCardDialogAccountContextAction(
   return {
     account: normalized,
     accountState,
+    cardUids: cards.map((card) => card.uid).filter(Boolean) as string[],
     balance: {
       DEC: balances.find((entry) => entry.token === "DEC")?.balance ?? 0,
       CREDITS: balances.find((entry) => entry.token === "CREDITS")?.balance ?? 0,

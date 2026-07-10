@@ -22,6 +22,7 @@ import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Stack,
   Table,
   TableBody,
@@ -32,6 +33,8 @@ import {
   Typography,
 } from "@mui/material";
 import Image from "next/image";
+import React from "react";
+import { MdAutoFixHigh } from "react-icons/md";
 
 const BRACKET_LOGO_LEAGUE: Record<League, number> = {
   wood: 0,
@@ -96,6 +99,7 @@ interface TargetLevelTabContentProps {
   balance: { DEC: number; CREDITS: number };
   onAddToPurchasePlan: (items: TargetLevelRow["planItems"]) => void;
   onRunCheckoutForPlan: (items: TargetLevelRow["planItems"], currency: "DEC" | "CREDITS") => void;
+  onCombineAtLevel?: (level: number) => Promise<void>;
 }
 
 export default function TargetLevelTabContent({
@@ -112,7 +116,9 @@ export default function TargetLevelTabContent({
   balance,
   onAddToPurchasePlan,
   onRunCheckoutForPlan,
+  onCombineAtLevel,
 }: Readonly<TargetLevelTabContentProps>) {
+  const [combiningLevel, setCombiningLevel] = React.useState<number | null>(null);
   if (!combineRatesAvailable) {
     return (
       <Alert severity="warning">
@@ -147,6 +153,7 @@ export default function TargetLevelTabContent({
             <TableCell>Owned BCX</TableCell>
             <TableCell>Needed BCX</TableCell>
             <TableCell>Upgrade Cost ($)</TableCell>
+            <TableCell>Combine</TableCell>
             <TableCell>Add to Cart</TableCell>
             <TableCell>Buy Credits</TableCell>
             <TableCell>Buy DEC</TableCell>
@@ -243,6 +250,36 @@ export default function TargetLevelTabContent({
                 <TableCell>{row.neededBcx ?? "N/A"}</TableCell>
                 <TableCell>
                   {row.isTargetable ? (row.usd > 0 ? row.usd.toFixed(3) : "-") : "N/A"}
+                </TableCell>
+                <TableCell>
+                  {onCombineAtLevel && row.level > accountHighestLevel && (
+                    <Tooltip title="Combine to this level">
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        disabled={
+                          combiningLevel !== null ||
+                          buyBusy ||
+                          row.neededBcx === null ||
+                          row.neededBcx > 0
+                        }
+                        onClick={async () => {
+                          setCombiningLevel(row.level);
+                          try {
+                            await onCombineAtLevel(row.level);
+                          } finally {
+                            setCombiningLevel(null);
+                          }
+                        }}
+                      >
+                        {combiningLevel === row.level ? (
+                          <CircularProgress size={16} />
+                        ) : (
+                          <MdAutoFixHigh size={15} />
+                        )}
+                      </Button>
+                    </Tooltip>
+                  )}
                 </TableCell>
                 <TableCell>
                   {row.isTargetable && (

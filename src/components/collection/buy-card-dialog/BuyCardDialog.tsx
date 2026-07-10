@@ -15,6 +15,7 @@ import {
   getCombineRatesForCard,
   selectCheapestListings,
 } from "@/lib/shared/buy-missing-cc";
+import { broadcastCombineCards } from "@/lib/frontend/purchase/splBroadcast";
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 import { getFoilLabel } from "@/lib/shared/card-utils";
 import {
@@ -183,6 +184,7 @@ export default function BuyCardDialog({
     txId?: string;
     error?: string;
   } | null>(null);
+  const [dynamicCardUids, setDynamicCardUids] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -268,6 +270,7 @@ export default function BuyCardDialog({
           ...prev,
           [context.account]: context.balance,
         }));
+        setDynamicCardUids(context.cardUids);
       } catch (err) {
         if (!active) return;
         setContextError(
@@ -558,6 +561,30 @@ export default function BuyCardDialog({
     selectedFoil,
   ]);
 
+  async function handleCombineAtLevel() {
+    if (dynamicCardUids.length === 0) {
+      setContextError("No card UIDs available for combine. Try refreshing.");
+      return;
+    }
+
+    setBuyBusy(true);
+    setTxProgress(null);
+    try {
+      const txId = await broadcastCombineCards({
+        account: selectedAccount,
+        cardUids: dynamicCardUids,
+      });
+      setTxProgress({ submitted: true, processed: true, txId });
+      notifyBalancesRefresh();
+      notifyCollectionRefresh();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Combine failed";
+      setTxProgress({ submitted: false, processed: false, error: message });
+    } finally {
+      setBuyBusy(false);
+    }
+  }
+
   async function runCheckoutForPlan(items: PurchasePlanItem[], currency: PurchaseCurrency) {
     if (items.length === 0) return;
 
@@ -727,6 +754,9 @@ export default function BuyCardDialog({
               balance={balance}
               onAddToPurchasePlan={onAddToPurchasePlan}
               onRunCheckoutForPlan={runCheckoutForPlan}
+              onCombineAtLevel={
+                dynamicCardUids.length > 0 && combineRates ? handleCombineAtLevel : undefined
+              }
             />
           ) : (
             <ManualListingsTabContent

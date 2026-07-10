@@ -310,3 +310,183 @@ export function buildTargetLevelPreview(
     newAbilities,
   };
 }
+
+export type CombineDisabledReason = "max-level" | "not-enough-copies" | "in-set" | null;
+
+export interface CombineStatus {
+  canCombine: boolean;
+  disabledReason: CombineDisabledReason;
+  currentLevel: number;
+  nextLevel: number;
+  currentCc: number;
+  nextLevelCcRequired: number;
+  copiesNeeded: number;
+  cardUids: string[];
+  /** Highest usable level due to wagon restrictions (null if no restriction) */
+  maxLevelDueToWagon?: number | null;
+}
+
+/**
+ * Check if a card can be combined and return the status with detailed info.
+ *
+ * A card can be combined if:
+ * - It's not at max level
+ * - It has enough total CC to reach the next level
+ * - At least the base (highest-level) card is available (not on wagon)
+ * - No copies are in a set (reward set, etc.)
+ *
+ * Wagon restrictions reduce available CC but don't prevent opening the dialog.
+ * Only cards beyond the highest-level card that are on wagons reduce CC.
+ */
+export function checkCombineStatus(
+  currentLevel: number,
+  totalOwnedCc: number,
+  combineRates: number[],
+  cardUids: string[],
+  onWagonCount: number = 0,
+  inSet: boolean = false
+): CombineStatus {
+  const maxLevel = getCardMaxLevel(combineRates);
+
+  // Check: already max level
+  if (currentLevel >= maxLevel) {
+    return {
+      canCombine: false,
+      disabledReason: "max-level",
+      currentLevel,
+      nextLevel: maxLevel,
+      currentCc: totalOwnedCc,
+      nextLevelCcRequired: combineRates[maxLevel - 1] ?? 0,
+      copiesNeeded: 0,
+      cardUids,
+      maxLevelDueToWagon: null,
+    };
+  }
+
+  // Check: in set (prevents combining)
+  if (inSet) {
+    return {
+      canCombine: false,
+      disabledReason: "in-set",
+      currentLevel,
+      nextLevel: currentLevel + 1,
+      currentCc: totalOwnedCc,
+      nextLevelCcRequired: combineRates[currentLevel] ?? 0,
+      copiesNeeded: 0,
+      cardUids,
+      maxLevelDueToWagon: null,
+    };
+  }
+
+  const nextLevel = currentLevel + 1;
+  const nextLevelCcRequired = combineRates[nextLevel - 1] ?? 0;
+
+  // Check: not enough total copies to reach the next level (ignoring wagon state)
+  if (totalOwnedCc < nextLevelCcRequired) {
+    return {
+      canCombine: false,
+      disabledReason: "not-enough-copies",
+      currentLevel,
+      nextLevel,
+      currentCc: totalOwnedCc,
+      nextLevelCcRequired,
+      copiesNeeded: nextLevelCcRequired - totalOwnedCc,
+      cardUids,
+      maxLevelDueToWagon: null,
+    };
+  }
+
+  // We have enough total CC. Apply wagon restriction: additional cards on wagons reduce usable CC.
+  // The highest-level card (base) is exempt — it stays usable even on a wagon.
+  const usableCC = Math.max(0, totalOwnedCc - onWagonCount);
+
+  // Determine max reachable level with usable (non-wagon) CC
+  let maxLevelReachable = currentLevel;
+  for (let level = currentLevel + 1; level <= maxLevel; level += 1) {
+    const requiredCc = combineRates[level - 1] ?? 0;
+    if (usableCC >= requiredCc) {
+      maxLevelReachable = level;
+    } else {
+      break;
+    }
+  }
+
+  // Wagons block even the next level — effectively not enough usable copies
+  if (maxLevelReachable === currentLevel) {
+    return {
+      canCombine: false,
+      disabledReason: "not-enough-copies",
+      currentLevel,
+      nextLevel,
+      currentCc: usableCC,
+      nextLevelCcRequired,
+      copiesNeeded: nextLevelCcRequired - usableCC,
+      cardUids,
+      maxLevelDueToWagon: null,
+    };
+  }
+
+  return {
+    canCombine: true,
+    disabledReason: null,
+    currentLevel,
+    nextLevel,
+    currentCc: usableCC,
+    nextLevelCcRequired,
+    copiesNeeded: 0,
+    cardUids,
+    // If wagons prevent reaching max level, note the ceiling
+    maxLevelDueToWagon: maxLevelReachable < maxLevel ? maxLevelReachable : null,
+  };
+}
+
+/**
+ * Get all levels that can currently be reached with the available CC.
+ * Returns levels that are higher than current level and achievable with totalOwnedCc.
+ * If onWagonCount is provided, reduces available CC accordingly.
+ */
+export function getCombinableLevels(
+  currentLevel: number,
+  totalOwnedCc: number,
+  combineRates: number[],
+  onWagonCount: number = 0
+): number[] {
+  const levels: number[] = [];
+  const maxLevel = getCardMaxLevel(combineRates);
+  const usableCC = Math.max(0, totalOwnedCc - onWagonCount);
+
+  for (let level = currentLevel + 1; level <= maxLevel; level += 1) {
+    const requiredCc = combineRates[level - 1] ?? 0;
+    if (usableCC >= requiredCc) {
+      levels.push(level);
+    } else {
+      break; // Can't reach higher levels if we can't reach this one
+    }
+  }
+
+  return levels;
+}
+
+/**
+ * Create the custom_json payload for combining cards.
+ * This is the format expected by the SPL blockchain.
+ */
+export interface CombinePayload {
+  cards: string[];
+  app: string;
+  n: string | number;
+}
+
+export function createCombinePayload(
+  cardUids: string[],
+  appVersion: string = "splinterlands/0.7.177"
+): CombinePayload {
+  // Generate a nonce to ensure uniqueness
+  const nonce = Math.random().toString(36).substring(2, 15);
+
+  return {
+    cards: cardUids,
+    app: appVersion,
+    n: nonce,
+  };
+}

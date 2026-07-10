@@ -5,6 +5,7 @@ import ScrollableTableContainer from "@/components/shared/ScrollableTableContain
 import {
   calculateUpgradeCostEstimate,
   calculateUpgradeRequirements,
+  checkCombineStatus,
   getCardFirstPlayableLevel,
   getCardMaxCc,
   getCardMaxLevel,
@@ -32,11 +33,12 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import { largeNumberFormat } from "@/lib/utils";
 import Image from "next/image";
 import { useState } from "react";
 import { MdCheckCircle, MdErrorOutline, MdLocalOffer, MdWarningAmber } from "react-icons/md";
 import { TbCopyPlusFilled } from "react-icons/tb";
-import type { BuyMissingCcSortField, DisplayRow, Row } from "./types";
+import type { BuyMissingCcSortField, DisplayRow } from "./types";
 import { bracketStatus, getShortFoilLabel, isMaxOnlyFoil } from "./utils";
 
 const PAGE_SIZE_OPTIONS = [50, 100, 1000] as const;
@@ -49,7 +51,8 @@ interface BuyMissingCcTableProps {
   sortDir: "asc" | "desc";
   toggleSort: (field: BuyMissingCcSortField) => void;
   isLoading: boolean;
-  onOpenBuyDialog: (row: Row) => void;
+  onOpenBuyDialog: (row: DisplayRow) => void;
+  onOpenCombineDialog: (row: DisplayRow) => void;
   /**
    * When true, the table grows to fill the available height of a flex-column
    * parent (scrolling internally) instead of capping at a fixed maxHeight, so
@@ -67,6 +70,7 @@ export default function BuyMissingCcTable({
   toggleSort,
   isLoading,
   onOpenBuyDialog,
+  onOpenCombineDialog,
   fillHeight = false,
 }: Readonly<BuyMissingCcTableProps>) {
   const sortedRows = [...rows].sort((a, b) => {
@@ -327,18 +331,45 @@ export default function BuyMissingCcTable({
                     </Tooltip>
                   </TableCell>
                   <TableCell align="center">
-                    <Tooltip title="Coming in a future release.">
-                      <span>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          disabled
-                          sx={{ minWidth: 30, px: 0.5 }}
-                        >
-                          <TbCopyPlusFilled size={15} />
-                        </Button>
-                      </span>
-                    </Tooltip>
+                    {(() => {
+                      const combineStatus =
+                        settings && rates
+                          ? checkCombineStatus(row.highestOwnedLevel, row.totalOwnedCc, rates, [])
+                          : null;
+
+                      const disabledReasonText = {
+                        "max-level": "Already at maximum level",
+                        "not-enough-copies": `Need ${largeNumberFormat(
+                          combineStatus?.copiesNeeded ?? 0
+                        )} more BCX to level up`,
+                        "in-set": "Some cards are part of a set",
+                      };
+
+                      const tooltipText =
+                        !settings || !rates
+                          ? "Loading..."
+                          : combineStatus?.canCombine
+                            ? "Combine cards"
+                            : disabledReasonText[
+                                combineStatus?.disabledReason as keyof typeof disabledReasonText
+                              ] || "Cannot combine this card";
+
+                      return (
+                        <Tooltip title={tooltipText}>
+                          <span>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              disabled={!settings || !rates || !combineStatus?.canCombine}
+                              sx={{ minWidth: 30, px: 0.5 }}
+                              onClick={() => onOpenCombineDialog(row)}
+                            >
+                              <TbCopyPlusFilled size={15} />
+                            </Button>
+                          </span>
+                        </Tooltip>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>{row.name}</TableCell>
                   <TableCell>

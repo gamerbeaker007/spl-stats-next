@@ -3,6 +3,7 @@
 import BuyCardDialog from "@/components/collection/buy-card-dialog/BuyCardDialog";
 import BuyMissingCcFilterDrawer from "@/components/collection/buy-missing-cc/BuyMissingCcFilterDrawer";
 import BuyMissingCcTable from "@/components/collection/buy-missing-cc/BuyMissingCcTable";
+import CombineCardsDialog from "@/components/collection/buy-card-dialog/CombineCardsDialog";
 import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
 import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 import { useBuyMissingCcSharedData } from "@/hooks/cards/useBuyMissingCcSharedData";
@@ -14,6 +15,7 @@ import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import {
   calculateUpgradeCostEstimate,
   calculateUpgradeRequirements,
+  checkCombineStatus,
   getCardMaxLevel,
   getCombineRatesForCard,
 } from "@/lib/shared/buy-missing-cc";
@@ -93,7 +95,9 @@ export default function BuyMissingCcPageClient() {
   const [combineFoils, setCombineFoils] = useState(false);
   const [highestLevelOnly, setHighestLevelOnly] = useState(true);
   const [search, setSearch] = useState("");
-  const [dialogRow, setDialogRow] = useState<Row | null>(null);
+  const [dialogRow, setDialogRow] = useState<DisplayRow | null>(null);
+  const [combineDialogRow, setCombineDialogRow] = useState<DisplayRow | null>(null);
+  const [showUpgradeableOnly, setShowUpgradeableOnly] = useState(false);
 
   useEffect(() => {
     if (!selectedBracket) {
@@ -345,11 +349,24 @@ export default function BuyMissingCcPageClient() {
     combineFoils,
   ]);
 
+  const upgradeableFilteredRows = useMemo(() => {
+    if (!showUpgradeableOnly || !settings) return filteredRows;
+
+    return filteredRows.filter((row) => {
+      const rates = getCombineRatesForCard(settings, row.edition, row.foil, row.rarity, row.tier);
+      if (!rates) return false;
+
+      // Card is upgradeable if it's not at max level and has enough CC
+      const combineStatus = checkCombineStatus(row.highestOwnedLevel, row.totalOwnedCc, rates, []);
+      return combineStatus.canCombine;
+    });
+  }, [filteredRows, settings, showUpgradeableOnly]);
+
   const summary = useMemo(() => {
     let toMaxUsd = 0;
     let toBracketUsd = 0;
 
-    for (const row of filteredRows) {
+    for (const row of upgradeableFilteredRows) {
       if (!settings) continue;
       const rates = getCombineRatesForCard(settings, row.edition, row.foil, row.rarity, row.tier);
       if (!rates) continue;
@@ -494,6 +511,18 @@ export default function BuyMissingCcPageClient() {
               }
               label="Highest Level Only"
             />
+
+            <FormControlLabel
+              sx={{ ml: 0 }}
+              control={
+                <Switch
+                  size="small"
+                  checked={showUpgradeableOnly}
+                  onChange={(_event, checked) => setShowUpgradeableOnly(checked)}
+                />
+              }
+              label="Upgradeable Cards"
+            />
           </Stack>
 
           {error && <Alert severity="error">{error}</Alert>}
@@ -514,7 +543,7 @@ export default function BuyMissingCcPageClient() {
         </Stack>
 
         <BuyMissingCcTable
-          rows={filteredRows}
+          rows={upgradeableFilteredRows}
           settings={settings ?? null}
           selectedBracket={selectedBracket}
           sortBy={sortBy}
@@ -522,6 +551,7 @@ export default function BuyMissingCcPageClient() {
           toggleSort={toggleSort}
           isLoading={isLoading}
           onOpenBuyDialog={(row) => setDialogRow(row)}
+          onOpenCombineDialog={(row) => setCombineDialogRow(row)}
           fillHeight
         />
       </Box>
@@ -542,6 +572,39 @@ export default function BuyMissingCcPageClient() {
           onClose={() => setDialogRow(null)}
           onAddToPurchasePlan={(items) => {
             addItems(items);
+          }}
+        />
+      )}
+
+      {combineDialogRow && settings && selectedAccount && (
+        <CombineCardsDialog
+          open={Boolean(combineDialogRow)}
+          account={selectedAccount}
+          card={combineDialogRow}
+          currentLevel={combineDialogRow.highestOwnedLevel}
+          currentCc={combineDialogRow.highestOwnedCc}
+          totalOwnedCc={combineDialogRow.totalOwnedCc}
+          allCards={combineDialogRow.allCards}
+          combineRates={
+            getCombineRatesForCard(
+              settings,
+              combineDialogRow.edition,
+              combineDialogRow.foil,
+              combineDialogRow.rarity,
+              combineDialogRow.tier
+            ) ?? undefined
+          }
+          topOffsetPx={isMobile ? undefined : APP_BAR_HEIGHT + COLLECTION_STICKY_BAR_HEIGHT}
+          onClose={() => setCombineDialogRow(null)}
+          onSuccess={async () => {
+            // Refresh collection data
+            if (selectedAccount) {
+              try {
+                await getBuyMissingCcDetailedCollectionAction(selectedAccount);
+              } catch (err) {
+                console.error("Failed to refresh collection after combine:", err);
+              }
+            }
           }}
         />
       )}
