@@ -156,20 +156,37 @@ export default function BuyMissingCcPageClient() {
           }
         }
 
-        const groupedPriceByKey = new Map<string, number>();
+        const groupedPriceByKey = new Map<string, { lowPrice: number; lowPriceBcx: number }>();
         for (const market of snapshot.groupedMarket) {
-          const foil = toCardFoil(market.foil);
-          const key = `${market.card_detail_id}-${foil}`;
-          const existing = groupedPriceByKey.get(key);
-          const nextPrice = Number(market.low_price_bcx);
-          if (Number.isFinite(nextPrice) && nextPrice > 0) {
-            groupedPriceByKey.set(key, existing ? Math.min(existing, nextPrice) : nextPrice);
+          const key = `${market.card_detail_id}-${toCardFoil(market.foil)}`;
+
+          const prices = groupedPriceByKey.get(key) ?? {
+            lowPrice: Number.POSITIVE_INFINITY,
+            lowPriceBcx: Number.POSITIVE_INFINITY,
+          };
+
+          const lowPriceBcx = Number(market.low_price_bcx);
+          if (Number.isFinite(lowPriceBcx) && lowPriceBcx > 0) {
+            prices.lowPriceBcx = Math.min(prices.lowPriceBcx, lowPriceBcx);
           }
+
+          const lowPrice = Number(market.low_price);
+          if (Number.isFinite(lowPrice) && lowPrice > 0) {
+            prices.lowPrice = Math.min(prices.lowPrice, lowPrice);
+          }
+
+          groupedPriceByKey.set(key, prices);
+        }
+
+        // Optional: convert "not found" values back to 0 if needed
+        for (const prices of groupedPriceByKey.values()) {
+          if (!Number.isFinite(prices.lowPrice)) prices.lowPrice = 0;
+          if (!Number.isFinite(prices.lowPriceBcx)) prices.lowPriceBcx = 0;
         }
 
         const nextRows: Row[] = [];
         for (const item of collectionItems) {
-          if (item.edition === 16) continue;
+          if (item.edition === 16) continue; //skip soulbound foundation
 
           for (const foil of item.availableFoils) {
             const key = `${item.cardDetailId}-${item.edition}-${foil}`;
@@ -200,7 +217,8 @@ export default function BuyMissingCcPageClient() {
               ...card,
               foil,
               accountStates,
-              lowPricePerBcxUsd: groupedPriceByKey.get(priceKey) ?? null,
+              lowPricePerBcxUsd: groupedPriceByKey.get(priceKey)?.lowPriceBcx ?? null,
+              lowPriceUsd: groupedPriceByKey.get(priceKey)?.lowPrice ?? null,
             });
           }
         }
@@ -373,23 +391,20 @@ export default function BuyMissingCcPageClient() {
 
       const maxLevel = getCardMaxLevel(rates);
       const maxReq = calculateUpgradeRequirements(row.totalOwnedCc, maxLevel, rates);
-      const maxCost = calculateUpgradeCostEstimate(maxReq.missingCc, row.lowPricePerBcxUsd);
+      const maxCost = calculateUpgradeCostEstimate(maxReq.missingCc, row.lowPriceUsd);
       toMaxUsd += maxCost.usd;
 
       if (selectedBracket) {
         const [, bracketMax] = getBracketLevelRange(selectedBracket, row.rarity);
         const targetLevel = Math.min(bracketMax, maxLevel);
         const bracketReq = calculateUpgradeRequirements(row.totalOwnedCc, targetLevel, rates);
-        const bracketCost = calculateUpgradeCostEstimate(
-          bracketReq.missingCc,
-          row.lowPricePerBcxUsd
-        );
+        const bracketCost = calculateUpgradeCostEstimate(bracketReq.missingCc, row.lowPriceUsd);
         toBracketUsd += bracketCost.usd;
       }
     }
 
     return { toMaxUsd, toBracketUsd };
-  }, [filteredRows, selectedBracket, settings]);
+  }, [selectedBracket, settings, upgradeableFilteredRows]);
 
   function toggleSort(field: BuyMissingCcSortField) {
     if (sortBy === field) {
@@ -538,7 +553,7 @@ export default function BuyMissingCcPageClient() {
           </Stack>
 
           <Typography variant="caption" color="text.secondary">
-            Estimate formula: (Required CC - Current CC) x Lowest $/CC.
+            Estimate formula: (Required CC - Current CC) x Lowest Price for 1 CC.
           </Typography>
         </Stack>
 

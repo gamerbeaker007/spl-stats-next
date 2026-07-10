@@ -104,7 +104,14 @@ export default function BuyMissingCcTable({
       const costA = reqA.missingCc * priceA;
       const costB = reqB.missingCc * priceB;
 
+      const lowPriceA = a.lowPriceUsd ?? Number.MAX_SAFE_INTEGER;
+      const lowPriceB = b.lowPriceUsd ?? Number.MAX_SAFE_INTEGER;
+      const lowPriceCostA = reqA.missingCc * lowPriceA;
+      const lowPriceCostB = reqB.missingCc * lowPriceB;
+
       if (sortBy === "next") return costA - costB;
+      if (sortBy === "cc") return priceA - priceB;
+      if (sortBy === "1bcx") return lowPriceCostA - lowPriceCostB;
       if (sortBy === "bracket") {
         if (!selectedBracket || !ratesA || !ratesB) return 0;
         const [, bracketMaxA] = getBracketLevelRange(selectedBracket, a.rarity);
@@ -206,7 +213,9 @@ export default function BuyMissingCcTable({
                   direction={sortBy === "owned" ? sortDir : "asc"}
                   onClick={() => toggleSort("owned")}
                 >
-                  Tot CC
+                  <Tooltip title="Total CC owned across all copies">
+                    <span>Tot CC</span>
+                  </Tooltip>
                 </TableSortLabel>
               </TableCell>
               <TableCell>
@@ -215,9 +224,26 @@ export default function BuyMissingCcTable({
                 </Tooltip>
               </TableCell>
               <TableCell>
-                <Tooltip title="Price per CC (USD)">
-                  <span>$/CC</span>
-                </Tooltip>
+                <TableSortLabel
+                  active={sortBy === "cc"}
+                  direction={sortBy === "cc" ? sortDir : "asc"}
+                  onClick={() => toggleSort("cc")}
+                >
+                  <Tooltip title="Lowest Price per BCX (USD)">
+                    <span>Price CC $</span>
+                  </Tooltip>
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={sortBy === "1bcx"}
+                  direction={sortBy === "1bcx" ? sortDir : "asc"}
+                  onClick={() => toggleSort("1bcx")}
+                >
+                  <Tooltip title="Lowest Price for 1 CC (USD)">
+                    <span>1 CC $</span>
+                  </Tooltip>
+                </TableSortLabel>
               </TableCell>
               <TableCell>
                 <TableSortLabel
@@ -225,7 +251,9 @@ export default function BuyMissingCcTable({
                   direction={sortBy === "next" ? sortDir : "asc"}
                   onClick={() => toggleSort("next")}
                 >
-                  Next $
+                  <Tooltip title="Estimate to reach next level">
+                    <span>Next $</span>
+                  </Tooltip>
                 </TableSortLabel>
               </TableCell>
               {selectedBracket && (
@@ -235,7 +263,11 @@ export default function BuyMissingCcTable({
                     direction={sortBy === "bracket" ? sortDir : "asc"}
                     onClick={() => toggleSort("bracket")}
                   >
-                    Bracket $
+                    <Tooltip
+                      title={`Estimate to reach MAX ${LEAGUE_BRACKETS[selectedBracket].label}`}
+                    >
+                      <span>Bracket $</span>
+                    </Tooltip>
                   </TableSortLabel>
                 </TableCell>
               )}
@@ -245,7 +277,9 @@ export default function BuyMissingCcTable({
                   direction={sortBy === "max" ? sortDir : "asc"}
                   onClick={() => toggleSort("max")}
                 >
-                  Max $
+                  <Tooltip title="Estimate to reach max level">
+                    <span>Max $</span>
+                  </Tooltip>
                 </TableSortLabel>
               </TableCell>
             </TableRow>
@@ -269,22 +303,19 @@ export default function BuyMissingCcTable({
               const nextReq = rates
                 ? calculateUpgradeRequirements(row.totalOwnedCc, nextTarget, rates)
                 : { targetCc: 0, missingCc: 0 };
-              const nextEst = calculateUpgradeCostEstimate(
-                nextReq.missingCc,
-                row.lowPricePerBcxUsd
-              );
+              const nextEst = calculateUpgradeCostEstimate(nextReq.missingCc, row.lowPriceUsd);
 
               const maxReq = rates
                 ? calculateUpgradeRequirements(row.totalOwnedCc, maxLevel, rates)
                 : { targetCc: 0, missingCc: 0 };
-              const maxEst = calculateUpgradeCostEstimate(maxReq.missingCc, row.lowPricePerBcxUsd);
+              const maxEst = calculateUpgradeCostEstimate(maxReq.missingCc, row.lowPriceUsd);
 
               const bracketEst = (() => {
                 if (!selectedBracket || !rates) return null;
                 const [, bracketMax] = getBracketLevelRange(selectedBracket, row.rarity);
                 const target = Math.min(bracketMax, maxLevel);
                 const req = calculateUpgradeRequirements(row.totalOwnedCc, target, rates);
-                return calculateUpgradeCostEstimate(req.missingCc, row.lowPricePerBcxUsd);
+                return calculateUpgradeCostEstimate(req.missingCc, row.lowPriceUsd);
               })();
 
               const isHighestCcAtMaxLevel =
@@ -432,6 +463,7 @@ export default function BuyMissingCcTable({
                   <TableCell>
                     {row.lowPricePerBcxUsd ? row.lowPricePerBcxUsd.toFixed(2) : "-"}
                   </TableCell>
+                  <TableCell>{row.lowPriceUsd ? row.lowPriceUsd.toFixed(2) : "-"}</TableCell>
                   <TableCell>{nextEst.usd > 0 ? nextEst.usd.toFixed(2) : "-"}</TableCell>
                   {selectedBracket && (
                     <TableCell>{bracketEst ? bracketEst.usd.toFixed(2) : "-"}</TableCell>

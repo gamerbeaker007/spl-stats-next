@@ -34,13 +34,13 @@ export function calculateUpgradeRequirements(
 
 export function calculateUpgradeCostEstimate(
   missingCc: number,
-  lowPricePerBcxUsd: number | null
+  pricePerBcx: number | null
 ): { usd: number } {
-  if (missingCc <= 0 || !lowPricePerBcxUsd || lowPricePerBcxUsd <= 0) {
+  if (missingCc <= 0 || !pricePerBcx || pricePerBcx <= 0) {
     return { usd: 0 };
   }
 
-  return { usd: missingCc * lowPricePerBcxUsd };
+  return { usd: missingCc * pricePerBcx };
 }
 
 function normalizeFoilForRates(foil: CardFoil): CardFoil {
