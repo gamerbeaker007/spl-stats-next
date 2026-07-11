@@ -8,6 +8,7 @@ import {
   getCachedSplSettings,
 } from "@/lib/backend/cache/spl-cache";
 import { getDetailedPlayerCardCollectionCached } from "@/lib/backend/services/collection-detailed";
+import type { CombineCardState } from "@/lib/shared/buy-missing-cc";
 import { toCardFoilInt } from "@/lib/shared/card-utils";
 import { SOULKEEP_EDITIONS } from "@/lib/shared/edition-utils";
 import type { BuyMissingCcAccountData, BuyMissingCcSnapshot } from "@/types/buy-missing-cc";
@@ -97,6 +98,7 @@ export async function getBuyCardDialogAccountContextAction(
   accountState: { highestLevel: number; highestCc: number; totalCc: number };
   balance: { DEC: number; CREDITS: number };
   cardUids: string[];
+  combineCards: CombineCardState[];
 }> {
   const normalized = normalizeAccount(account);
   const [collection, balances] = await Promise.all([
@@ -129,10 +131,19 @@ export async function getBuyCardDialogAccountContextAction(
     { highestLevel: 0, highestCc: 0, totalCc: 0 }
   );
 
+  const combineCards: CombineCardState[] = cards.map((card) => ({
+    uid: card.uid,
+    level: card.level,
+    bcx: card.bcx,
+    onWagon: card.wagon_uid !== null,
+    inSet: card.set_id !== null,
+  }));
+
   return {
     account: normalized,
     accountState,
-    cardUids: cards.map((card) => card.uid).filter(Boolean) as string[],
+    cardUids: combineCards.map((card) => card.uid).filter(Boolean),
+    combineCards,
     balance: {
       DEC: balances.find((entry) => entry.token === "DEC")?.balance ?? 0,
       CREDITS: balances.find((entry) => entry.token === "CREDITS")?.balance ?? 0,

@@ -60,7 +60,6 @@ export function toCardRole(cardType?: string | null): CardRole {
 export interface CardDetail {
   id: number;
   uid: string;
-  name: string;
   owner: string;
   xp: number;
   edition: number;
@@ -71,6 +70,8 @@ export interface CardDetail {
   foil: CardFoil;
   mint: string | null;
   level: number;
+  onWagon: boolean;
+  inSet: boolean;
   imgUrl: string;
 }
 

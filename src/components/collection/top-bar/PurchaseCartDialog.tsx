@@ -1,10 +1,12 @@
 "use client";
 
+import PurchaseTxProgressPanel from "@/components/collection/buy-card-dialog/PurchaseTxProgressPanel";
 import CurrencyAmountChip from "@/components/collection/top-bar/CurrencyAmountChip";
 import ScrollableTableContainer from "@/components/shared/ScrollableTableContainer";
 import { usePurchaseCheckout } from "@/hooks/cards/usePurchaseCheckout";
 import { getBalancesForAccountsAction } from "@/lib/backend/actions/purchase-actions";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
+import { getFoilLabel } from "@/lib/shared/card-utils";
 import {
   Alert,
   Box,
@@ -23,9 +25,8 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { MdDelete, MdCheckCircle, MdErrorOutline, MdRadioButtonUnchecked } from "react-icons/md";
 import { useEffect, useMemo, useState } from "react";
-import { getFoilLabel } from "@/lib/shared/card-utils";
+import { MdDelete } from "react-icons/md";
 
 export default function PurchaseCartDialog() {
   const {
@@ -123,6 +124,11 @@ export default function PurchaseCartDialog() {
     [balanceMap, grouped]
   );
 
+  const hasProgressError = useMemo(
+    () => progress.some((entry) => entry.stage === "error"),
+    [progress]
+  );
+
   async function runCheckout(currency: "DEC" | "CREDITS") {
     setSuccessMessage(null);
     try {
@@ -154,7 +160,7 @@ export default function PurchaseCartDialog() {
       <DialogTitle>Purchase Plan Checkout</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2}>
-          {error && <Alert severity="error">{error}</Alert>}
+          {error && !hasProgressError && <Alert severity="error">{error}</Alert>}
           {successMessage && <Alert severity="success">{successMessage}</Alert>}
 
           <Box>
@@ -275,53 +281,34 @@ export default function PurchaseCartDialog() {
             <CurrencyAmountChip currency="DEC" value={totals.dec} />
             <CurrencyAmountChip currency="CREDITS" value={totals.credits} />
           </Box>
-
-          <Box>
-            {progress.map((entry) => (
-              <Box
-                key={entry.account}
-                sx={{
-                  border: 1,
-                  borderColor: "divider",
-                  borderRadius: 1,
-                  p: 1,
-                  mb: 1,
-                }}
-              >
-                <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                  {entry.account}
-                </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  {["verifying", "success", "error"].includes(entry.stage) ? (
-                    <MdCheckCircle color="#2e7d32" />
-                  ) : (
-                    <MdRadioButtonUnchecked color="#9e9e9e" />
-                  )}
-                  <Typography variant="body2">
-                    Transaction submitted (broadcast accepted)
-                  </Typography>
-                </Box>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  {entry.stage === "success" ? (
-                    <MdCheckCircle color="#2e7d32" />
-                  ) : entry.stage === "error" ? (
-                    <MdErrorOutline color="#d32f2f" />
-                  ) : (
-                    <MdRadioButtonUnchecked color="#9e9e9e" />
-                  )}
-                  <Typography variant="body2">Transaction processed by Splinterlands</Typography>
-                </Box>
-                {entry.message && (
-                  <Typography variant="caption" color="text.secondary">
-                    {entry.message}
-                  </Typography>
-                )}
-              </Box>
-            ))}
-          </Box>
         </Stack>
       </DialogContent>
       <DialogActions>
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          flexWrap="wrap"
+          sx={{ width: "100%", justifyContent: "space-between" }}
+        >
+          {progress.map((entry) => (
+            <PurchaseTxProgressPanel
+              key={entry.account}
+              txProgress={{
+                label: entry.account,
+                status:
+                  entry.stage === "success"
+                    ? "verified"
+                    : entry.stage === "error"
+                      ? "error"
+                      : "processing",
+                txId: entry.txId,
+                error: entry.stage === "error" ? entry.message : undefined,
+                message: entry.stage !== "error" ? entry.message : undefined,
+              }}
+            />
+          ))}
+        </Stack>
         <Button onClick={handleClose}>Close</Button>
         <Tooltip
           title={

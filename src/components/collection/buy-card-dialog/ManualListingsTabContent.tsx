@@ -24,16 +24,13 @@ import ManualSelectionTotalsBar from "./ManualSelectionTotalsBar";
 
 type SortBy = "level" | "cc" | "priceUsd" | "priceDec" | "priceCredits" | "pricePerCcDec";
 
-interface ManualListingsTabContentProps {
+interface ManualListingsTabContentView {
   listingLevels: number[];
   levelFilter: number | "all";
-  setLevelFilter: (value: number | "all") => void;
   pageSize: number;
-  setPageSize: (value: 20 | 50 | 100) => void;
   pageOptions: readonly [20, 50, 100];
   sortBy: SortBy;
   sortDir: "asc" | "desc";
-  toggleSort: (value: SortBy) => void;
   pagedRows: BuyMissingCcListing[];
   loading: boolean;
   selectedIds: string[];
@@ -41,8 +38,6 @@ interface ManualListingsTabContentProps {
   reservedByOtherAccountSet: Set<string>;
   page: number;
   pageCount: number;
-  setPage: (value: number) => void;
-  toggleCartByButton: (clickedGlobalIndex: number, shiftKey: boolean) => void;
   selectionTotals: {
     count: number;
     cc: number;
@@ -52,27 +47,40 @@ interface ManualListingsTabContentProps {
   };
 }
 
+interface ManualListingsTabContentActions {
+  setLevelFilter: (value: number | "all") => void;
+  setPageSize: (value: 20 | 50 | 100) => void;
+  toggleSort: (value: SortBy) => void;
+  setPage: (value: number) => void;
+  toggleCartByButton: (clickedGlobalIndex: number, shiftKey: boolean) => void;
+}
+
+interface ManualListingsTabContentProps {
+  view: ManualListingsTabContentView;
+  actions: ManualListingsTabContentActions;
+}
+
 export default function ManualListingsTabContent({
-  listingLevels,
-  levelFilter,
-  setLevelFilter,
-  pageSize,
-  setPageSize,
-  pageOptions,
-  sortBy,
-  sortDir,
-  toggleSort,
-  pagedRows,
-  loading,
-  selectedIds,
-  inCartSet,
-  reservedByOtherAccountSet,
-  page,
-  pageCount,
-  setPage,
-  toggleCartByButton,
-  selectionTotals,
+  view,
+  actions,
 }: Readonly<ManualListingsTabContentProps>) {
+  const {
+    listingLevels,
+    levelFilter,
+    pageSize,
+    pageOptions,
+    sortBy,
+    sortDir,
+    pagedRows,
+    loading,
+    selectedIds,
+    inCartSet,
+    reservedByOtherAccountSet,
+    page,
+    pageCount,
+    selectionTotals,
+  } = view;
+
   return (
     <>
       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
@@ -83,7 +91,7 @@ export default function ManualListingsTabContent({
             value={levelFilter}
             onChange={(e) => {
               const v = e.target.value;
-              setLevelFilter(v === "all" ? "all" : Number(v));
+              actions.setLevelFilter(v === "all" ? "all" : Number(v));
             }}
           >
             <MenuItem value="all">All levels</MenuItem>
@@ -100,7 +108,7 @@ export default function ManualListingsTabContent({
           <Select
             label="Rows"
             value={pageSize}
-            onChange={(e) => setPageSize(Number(e.target.value) as 20 | 50 | 100)}
+            onChange={(e) => actions.setPageSize(Number(e.target.value) as 20 | 50 | 100)}
           >
             {pageOptions.map((option) => (
               <MenuItem key={option} value={option}>
@@ -120,7 +128,7 @@ export default function ManualListingsTabContent({
                 <TableSortLabel
                   active={sortBy === "level"}
                   direction={sortBy === "level" ? sortDir : "asc"}
-                  onClick={() => toggleSort("level")}
+                  onClick={() => actions.toggleSort("level")}
                 >
                   Level
                 </TableSortLabel>
@@ -129,7 +137,7 @@ export default function ManualListingsTabContent({
                 <TableSortLabel
                   active={sortBy === "cc"}
                   direction={sortBy === "cc" ? sortDir : "asc"}
-                  onClick={() => toggleSort("cc")}
+                  onClick={() => actions.toggleSort("cc")}
                 >
                   CC
                 </TableSortLabel>
@@ -138,7 +146,7 @@ export default function ManualListingsTabContent({
                 <TableSortLabel
                   active={sortBy === "priceUsd"}
                   direction={sortBy === "priceUsd" ? sortDir : "asc"}
-                  onClick={() => toggleSort("priceUsd")}
+                  onClick={() => actions.toggleSort("priceUsd")}
                 >
                   USD
                 </TableSortLabel>
@@ -147,7 +155,7 @@ export default function ManualListingsTabContent({
                 <TableSortLabel
                   active={sortBy === "priceDec"}
                   direction={sortBy === "priceDec" ? sortDir : "asc"}
-                  onClick={() => toggleSort("priceDec")}
+                  onClick={() => actions.toggleSort("priceDec")}
                 >
                   DEC
                 </TableSortLabel>
@@ -156,7 +164,7 @@ export default function ManualListingsTabContent({
                 <TableSortLabel
                   active={sortBy === "priceCredits"}
                   direction={sortBy === "priceCredits" ? sortDir : "asc"}
-                  onClick={() => toggleSort("priceCredits")}
+                  onClick={() => actions.toggleSort("priceCredits")}
                 >
                   Credits
                 </TableSortLabel>
@@ -165,7 +173,7 @@ export default function ManualListingsTabContent({
                 <TableSortLabel
                   active={sortBy === "pricePerCcDec"}
                   direction={sortBy === "pricePerCcDec" ? sortDir : "asc"}
-                  onClick={() => toggleSort("pricePerCcDec")}
+                  onClick={() => actions.toggleSort("pricePerCcDec")}
                 >
                   DEC/CC
                 </TableSortLabel>
@@ -194,7 +202,7 @@ export default function ManualListingsTabContent({
                     onClick={
                       cannotAddBecauseReserved
                         ? undefined
-                        : (event) => toggleCartByButton(globalIndex, event.shiftKey)
+                        : (event) => actions.toggleCartByButton(globalIndex, event.shiftKey)
                     }
                   >
                     <Tooltip title={cartButtonTooltip}>
@@ -245,7 +253,7 @@ export default function ManualListingsTabContent({
         <Typography variant="body2" color="text.secondary">
           Shift-click on +/- applies add/remove to a row range.
         </Typography>
-        <Pagination page={page} count={pageCount} onChange={(_e, p) => setPage(p)} />
+        <Pagination page={page} count={pageCount} onChange={(_e, p) => actions.setPage(p)} />
       </Box>
 
       <ManualSelectionTotalsBar selectionTotals={selectionTotals} />

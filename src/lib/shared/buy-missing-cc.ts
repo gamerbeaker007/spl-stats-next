@@ -7,7 +7,7 @@ import type {
   TargetLevelPreview,
   UpgradeRequirements,
 } from "@/types/buy-missing-cc";
-import { CardFoil, CardRarity } from "@/types/card";
+import { CardDetail, CardFoil, CardRarity } from "@/types/card";
 import type { CardStats } from "@/types/spl/cardDetails";
 import type { SplSettings } from "@/types/spl/season";
 
@@ -311,157 +311,231 @@ export function buildTargetLevelPreview(
   };
 }
 
-export type CombineDisabledReason = "max-level" | "not-enough-copies" | "in-set" | null;
+export type CombineDisabledReason = "max-level" | "not-enough-copies" | "in-set" | "on-wagon";
+
+export type CombineCardState = Pick<CardDetail, "uid" | "level" | "bcx" | "onWagon" | "inSet">;
 
 export interface CombineStatus {
   canCombine: boolean;
-  disabledReason: CombineDisabledReason;
+  canOpenDialog: boolean;
+  disabledReason: CombineDisabledReason | null;
   currentLevel: number;
+  targetLevel: number;
   nextLevel: number;
+  maxReachableLevel: number;
   currentCc: number;
   nextLevelCcRequired: number;
   copiesNeeded: number;
   cardUids: string[];
   /** Highest usable level due to wagon restrictions (null if no restriction) */
   maxLevelDueToWagon?: number | null;
+  onWagonCount: number;
+}
+
+type CombineTooltipStatus = Pick<
+  CombineStatus,
+  "canCombine" | "disabledReason" | "copiesNeeded" | "onWagonCount"
+>;
+
+export function getCombineTooltipText(options: {
+  isLoading: boolean;
+  combineStatus: CombineTooltipStatus | null;
+}): string {
+  const { isLoading, combineStatus } = options;
+
+  if (isLoading) {
+    return "Loading...";
+  }
+
+  if (combineStatus?.canCombine) {
+    return "Combine cards";
+  }
+
+  const disabledReasonText = {
+    "max-level": "Already at maximum level",
+    "not-enough-copies": `Need ${combineStatus?.copiesNeeded ?? 0} more BCX to level up`,
+    "in-set": "Some cards are part of a set",
+    "on-wagon": `Too many cards on wagon (${combineStatus?.onWagonCount ?? 0} BCX on wagons)`,
+  };
+
+  return (
+    disabledReasonText[combineStatus?.disabledReason as keyof typeof disabledReasonText] ||
+    "Cannot combine this card"
+  );
+}
+
+function buildCombineContext(allCards: CombineCardState[]) {
+  const sortedByBasePriority = [...allCards].sort((a, b) => {
+    const levelDelta = (b.level ?? 0) - (a.level ?? 0);
+    if (levelDelta !== 0) return levelDelta;
+    return (b.bcx ?? 0) - (a.bcx ?? 0);
+  });
+
+  const baseUid = sortedByBasePriority[0]?.uid;
+  const onWagonCount = allCards.reduce((sum, card) => {
+    if (!card.onWagon || card.uid === baseUid) return sum;
+    return sum + Math.max(0, card.bcx ?? 0);
+  }, 0);
+
+  return {
+    cardUids: allCards.map((card) => card.uid),
+    inSet: allCards.some((card) => card.inSet),
+    onWagonCount,
+  };
 }
 
 /**
- * Check if a card can be combined and return the status with detailed info.
- *
- * A card can be combined if:
- * - It's not at max level
- * - It has enough total CC to reach the next level
- * - At least the base (highest-level) card is available (not on wagon)
- * - No copies are in a set (reward set, etc.)
- *
- * Wagon restrictions reduce available CC but don't prevent opening the dialog.
- * Only cards beyond the highest-level card that are on wagons reduce CC.
+ * Single source of truth for combine validation.
+ * - Without `targetLevel`, validates dialog/open + next-level combine.
+ * - With `targetLevel`, validates that specific target level.
  */
-export function checkCombineStatus(
-  currentLevel: number,
-  totalOwnedCc: number,
-  combineRates: number[],
-  cardUids: string[],
-  onWagonCount: number = 0,
-  inSet: boolean = false
-): CombineStatus {
+export function checkCombineStatus(options: {
+  combineRates: number[];
+  currentLevel: number;
+  totalOwnedCc: number;
+  allCards: CombineCardState[];
+  targetLevel?: number;
+}): CombineStatus {
+  const { combineRates, currentLevel, totalOwnedCc, allCards, targetLevel } = options;
   const maxLevel = getCardMaxLevel(combineRates);
+  const { cardUids, inSet, onWagonCount } = buildCombineContext(allCards);
 
-  // Check: already max level
-  if (currentLevel >= maxLevel) {
-    return {
-      canCombine: false,
-      disabledReason: "max-level",
-      currentLevel,
-      nextLevel: maxLevel,
-      currentCc: totalOwnedCc,
-      nextLevelCcRequired: combineRates[maxLevel - 1] ?? 0,
-      copiesNeeded: 0,
-      cardUids,
-      maxLevelDueToWagon: null,
-    };
-  }
+  const nextLevel = Math.min(currentLevel + 1, maxLevel);
+  const desiredTargetLevel = targetLevel ?? nextLevel;
+  const safeTargetLevel = Math.min(Math.max(nextLevel, desiredTargetLevel), maxLevel);
 
-  // Check: in set (prevents combining)
-  if (inSet) {
-    return {
-      canCombine: false,
-      disabledReason: "in-set",
-      currentLevel,
-      nextLevel: currentLevel + 1,
-      currentCc: totalOwnedCc,
-      nextLevelCcRequired: combineRates[currentLevel] ?? 0,
-      copiesNeeded: 0,
-      cardUids,
-      maxLevelDueToWagon: null,
-    };
-  }
-
-  const nextLevel = currentLevel + 1;
-  const nextLevelCcRequired = combineRates[nextLevel - 1] ?? 0;
-
-  // Check: not enough total copies to reach the next level (ignoring wagon state)
-  if (totalOwnedCc < nextLevelCcRequired) {
-    return {
-      canCombine: false,
-      disabledReason: "not-enough-copies",
-      currentLevel,
-      nextLevel,
-      currentCc: totalOwnedCc,
-      nextLevelCcRequired,
-      copiesNeeded: nextLevelCcRequired - totalOwnedCc,
-      cardUids,
-      maxLevelDueToWagon: null,
-    };
-  }
-
-  // We have enough total CC. Apply wagon restriction: additional cards on wagons reduce usable CC.
   // The highest-level card (base) is exempt — it stays usable even on a wagon.
   const usableCC = Math.max(0, totalOwnedCc - onWagonCount);
 
-  // Determine max reachable level with usable (non-wagon) CC
   let maxLevelReachable = currentLevel;
+  let maxLevelReachableDueToWagon = currentLevel;
+
   for (let level = currentLevel + 1; level <= maxLevel; level += 1) {
     const requiredCc = combineRates[level - 1] ?? 0;
-    if (usableCC >= requiredCc) {
+    if (totalOwnedCc >= requiredCc) {
       maxLevelReachable = level;
+    } else {
+      break;
+    }
+
+    if (usableCC >= requiredCc) {
+      maxLevelReachableDueToWagon = level;
     } else {
       break;
     }
   }
 
-  // Wagons block even the next level — effectively not enough usable copies
-  if (maxLevelReachable === currentLevel) {
+  const canOpenDialog = currentLevel < maxLevel && !inSet && maxLevelReachable > currentLevel;
+  const targetLevelCcRequired = combineRates[safeTargetLevel - 1] ?? 0;
+  const nextLevelCcRequired = combineRates[nextLevel - 1] ?? 0;
+
+  if (currentLevel >= maxLevel) {
     return {
       canCombine: false,
-      disabledReason: "not-enough-copies",
+      canOpenDialog: false,
+      disabledReason: "max-level",
       currentLevel,
+      targetLevel: maxLevel,
       nextLevel,
-      currentCc: usableCC,
+      maxReachableLevel: maxLevel,
+      currentCc: totalOwnedCc,
       nextLevelCcRequired,
-      copiesNeeded: nextLevelCcRequired - usableCC,
+      copiesNeeded: 0,
       cardUids,
       maxLevelDueToWagon: null,
+      onWagonCount,
+    };
+  }
+
+  if (inSet) {
+    return {
+      canCombine: false,
+      canOpenDialog: false,
+      disabledReason: "in-set",
+      currentLevel,
+      targetLevel: safeTargetLevel,
+      nextLevel,
+      maxReachableLevel: maxLevelReachable,
+      currentCc: totalOwnedCc,
+      nextLevelCcRequired,
+      copiesNeeded: 0,
+      cardUids,
+      maxLevelDueToWagon: null,
+      onWagonCount,
+    };
+  }
+
+  if (totalOwnedCc < targetLevelCcRequired) {
+    return {
+      canCombine: false,
+      canOpenDialog,
+      disabledReason: "not-enough-copies",
+      currentLevel,
+      targetLevel: safeTargetLevel,
+      nextLevel,
+      maxReachableLevel: maxLevelReachable,
+      currentCc: totalOwnedCc,
+      nextLevelCcRequired,
+      copiesNeeded: targetLevelCcRequired - totalOwnedCc,
+      cardUids,
+      maxLevelDueToWagon: null,
+      onWagonCount,
+    };
+  }
+
+  if (usableCC < targetLevelCcRequired) {
+    return {
+      canCombine: false,
+      canOpenDialog,
+      disabledReason: "on-wagon",
+      currentLevel,
+      targetLevel: safeTargetLevel,
+      nextLevel,
+      maxReachableLevel: maxLevelReachable,
+      currentCc: usableCC,
+      nextLevelCcRequired,
+      copiesNeeded: targetLevelCcRequired - usableCC,
+      cardUids,
+      maxLevelDueToWagon: null,
+      onWagonCount,
     };
   }
 
   return {
     canCombine: true,
+    canOpenDialog,
     disabledReason: null,
     currentLevel,
+    targetLevel: safeTargetLevel,
     nextLevel,
+    maxReachableLevel: maxLevelReachable,
     currentCc: usableCC,
     nextLevelCcRequired,
     copiesNeeded: 0,
     cardUids,
-    // If wagons prevent reaching max level, note the ceiling
-    maxLevelDueToWagon: maxLevelReachable < maxLevel ? maxLevelReachable : null,
+    maxLevelDueToWagon: maxLevelReachableDueToWagon,
+    onWagonCount,
   };
 }
 
 /**
- * Get all levels that can currently be reached with the available CC.
- * Returns levels that are higher than current level and achievable with totalOwnedCc.
- * If onWagonCount is provided, reduces available CC accordingly.
+ * Get all levels that can currently be reached by combine validation rules.
  */
-export function getCombinableLevels(
-  currentLevel: number,
-  totalOwnedCc: number,
-  combineRates: number[],
-  onWagonCount: number = 0
-): number[] {
-  const levels: number[] = [];
-  const maxLevel = getCardMaxLevel(combineRates);
-  const usableCC = Math.max(0, totalOwnedCc - onWagonCount);
+export function getCombinableLevels(options: {
+  combineRates: number[];
+  currentLevel: number;
+  totalOwnedCc: number;
+  allCards: CombineCardState[];
+}): number[] {
+  const { combineRates, currentLevel, totalOwnedCc, allCards } = options;
+  const status = checkCombineStatus({ combineRates, currentLevel, totalOwnedCc, allCards });
+  if (!status.canOpenDialog) return [];
 
-  for (let level = currentLevel + 1; level <= maxLevel; level += 1) {
-    const requiredCc = combineRates[level - 1] ?? 0;
-    if (usableCC >= requiredCc) {
-      levels.push(level);
-    } else {
-      break; // Can't reach higher levels if we can't reach this one
-    }
+  const levels: number[] = [];
+  const maxReachableNow = status.maxLevelDueToWagon ?? status.maxReachableLevel;
+
+  for (let level = currentLevel + 1; level <= maxReachableNow; level += 1) {
+    levels.push(level);
   }
 
   return levels;

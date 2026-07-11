@@ -1,9 +1,9 @@
 "use client";
 
 import BuyCardDialog from "@/components/collection/buy-card-dialog/BuyCardDialog";
-import CombineCardsDialog from "@/components/collection/buy-card-dialog/CombineCardsDialog";
 import BuyMissingCcFilterDrawer from "@/components/collection/buy-missing-cc/BuyMissingCcFilterDrawer";
 import BuyMissingCcTable from "@/components/collection/buy-missing-cc/BuyMissingCcTable";
+import CombineCardsDialog from "@/components/collection/combine-card-dialog/CombineCardsDialog";
 import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
 import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 import { useBuyMissingCcSharedData } from "@/hooks/cards/useBuyMissingCcSharedData";
@@ -15,8 +15,8 @@ import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import {
   calculateUpgradeCostEstimate,
   calculateUpgradeRequirements,
-  checkCombineStatus,
   getCardMaxLevel,
+  getCombinableLevels,
   getCombineRatesForCard,
 } from "@/lib/shared/buy-missing-cc";
 import { matchesCardFilter, type FilterableCard } from "@/lib/shared/card-filter-utils";
@@ -210,6 +210,7 @@ export default function BuyMissingCcPageClient() {
               role: item.role,
               availableFoils: item.availableFoils,
               cardStats: item.cardStats,
+              allCards: item.allCards,
             };
 
             nextRows.push({
@@ -374,9 +375,17 @@ export default function BuyMissingCcPageClient() {
       const rates = getCombineRatesForCard(settings, row.edition, row.foil, row.rarity, row.tier);
       if (!rates) return false;
 
-      // Card is upgradeable if it's not at max level and has enough CC
-      const combineStatus = checkCombineStatus(row.highestOwnedLevel, row.totalOwnedCc, rates, []);
-      return combineStatus.canCombine;
+      // Upgradeable filter is BCX-based only: include cards that can reach at least
+      // one higher level, regardless of temporary combine restrictions.
+      const combinableLevels = getCombinableLevels({
+        combineRates: rates,
+        currentLevel: row.highestOwnedLevel,
+        totalOwnedCc: row.totalOwnedCc,
+        allCards:
+          row.allCards?.filter((card) => card.edition === row.edition && card.foil === row.foil) ??
+          [],
+      });
+      return combinableLevels.length > 0;
     });
   }, [filteredRows, settings, showUpgradeableOnly]);
 
@@ -596,10 +605,6 @@ export default function BuyMissingCcPageClient() {
           open={Boolean(combineDialogRow)}
           account={selectedAccount}
           card={combineDialogRow}
-          currentLevel={combineDialogRow.highestOwnedLevel}
-          currentCc={combineDialogRow.highestOwnedCc}
-          totalOwnedCc={combineDialogRow.totalOwnedCc}
-          allCards={combineDialogRow.allCards}
           combineRates={
             getCombineRatesForCard(
               settings,

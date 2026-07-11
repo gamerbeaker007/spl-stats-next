@@ -10,12 +10,12 @@ import {
   getCardMaxCc,
   getCardMaxLevel,
   getCombineRatesForCard,
+  getCombineTooltipText,
 } from "@/lib/shared/buy-missing-cc";
 import { getFoilLabel } from "@/lib/shared/card-utils";
 import { getCardSetLabel, getEditionIconUrl, getEditionLabel } from "@/lib/shared/edition-utils";
 import { getBracketLevelRange, LEAGUE_BRACKETS } from "@/lib/shared/league-brackets";
 import { getRarityIconUrl } from "@/lib/shared/rarity-utils";
-import { largeNumberFormat } from "@/lib/utils";
 import type { League } from "@/types/buy-missing-cc";
 import type { SplSettings } from "@/types/spl/season";
 import {
@@ -365,26 +365,22 @@ export default function BuyMissingCcTable({
                     {(() => {
                       const combineStatus =
                         settings && rates
-                          ? checkCombineStatus(row.highestOwnedLevel, row.totalOwnedCc, rates, [])
+                          ? checkCombineStatus({
+                              combineRates: rates,
+                              currentLevel: row.highestOwnedLevel,
+                              totalOwnedCc: row.totalOwnedCc,
+                              allCards:
+                                row.allCards?.filter(
+                                  (card) => card.edition === row.edition && card.foil === row.foil
+                                ) ?? [],
+                            })
                           : null;
+                      const tooltipText = getCombineTooltipText({
+                        isLoading: !settings || !rates,
+                        combineStatus,
+                      });
 
-                      const disabledReasonText = {
-                        "max-level": "Already at maximum level",
-                        "not-enough-copies": `Need ${largeNumberFormat(
-                          combineStatus?.copiesNeeded ?? 0
-                        )} more BCX to level up`,
-                        "in-set": "Some cards are part of a set",
-                      };
-
-                      const tooltipText =
-                        !settings || !rates
-                          ? "Loading..."
-                          : combineStatus?.canCombine
-                            ? "Combine cards"
-                            : disabledReasonText[
-                                combineStatus?.disabledReason as keyof typeof disabledReasonText
-                              ] || "Cannot combine this card";
-
+                      const color = combineStatus?.disabledReason === "on-wagon" ? "orange" : "";
                       return (
                         <Tooltip title={tooltipText}>
                           <span>
@@ -395,7 +391,7 @@ export default function BuyMissingCcTable({
                               sx={{ minWidth: 30, px: 0.5 }}
                               onClick={() => onOpenCombineDialog(row)}
                             >
-                              <TbCopyPlusFilled size={15} />
+                              <TbCopyPlusFilled size={15} color={color} />
                             </Button>
                           </span>
                         </Tooltip>

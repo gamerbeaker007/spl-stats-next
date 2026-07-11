@@ -8,13 +8,15 @@ import {
 } from "@/lib/backend/actions/buy-missing-cc-actions";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { checkoutItems } from "@/lib/frontend/purchase/checkout";
-import { broadcastCombineCards } from "@/lib/frontend/purchase/splBroadcast";
+import { broadcastCombineCards, waitForTransactions } from "@/lib/frontend/purchase/splBroadcast";
 import {
   buildPurchasePlan,
   calculateUpgradeRequirements,
+  checkCombineStatus,
   getCardFirstPlayableLevel,
   getCombineRatesForCard,
   selectCheapestListings,
+  type CombineCardState,
 } from "@/lib/shared/buy-missing-cc";
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 import { getFoilLabel } from "@/lib/shared/card-utils";
@@ -92,6 +94,23 @@ export interface BuyCardDialogProps {
 
 const PAGE_OPTIONS = [20, 50, 100] as const;
 const BRACKET_ORDER: League[] = ["wood", "bronze", "silver", "gold", "diamond", "champion"];
+
+function extractErrorMessage(error: unknown, fallback: string): string {
+  if (typeof error === "string" && error.trim()) return error;
+  if (error && typeof error === "object") {
+    const withMessage = error as { message?: unknown; error?: unknown; reason?: unknown };
+    if (typeof withMessage.message === "string" && withMessage.message.trim()) {
+      return withMessage.message;
+    }
+    if (typeof withMessage.error === "string" && withMessage.error.trim()) {
+      return withMessage.error;
+    }
+    if (typeof withMessage.reason === "string" && withMessage.reason.trim()) {
+      return withMessage.reason;
+    }
+  }
+  return fallback;
+}
 
 function getPlayableBrackets(level: number, rarity: CardRarity): League[] {
   return BRACKET_ORDER.filter((bracket) => {
@@ -178,11 +197,14 @@ export default function BuyCardDialog({
   const [dynamicBalances, setDynamicBalances] = useState<
     Record<string, { DEC: number; CREDITS: number }>
   >(accountBalances ?? {});
+  const [dynamicCombineCards, setDynamicCombineCards] = useState<
+    Record<string, CombineCardState[]>
+  >({});
   const [txProgress, setTxProgress] = useState<{
-    submitted: boolean;
-    processed: boolean;
+    status: "processing" | "verified" | "error";
     txId?: string;
     error?: string;
+    message?: string;
   } | null>(null);
   const [dynamicCardUids, setDynamicCardUids] = useState<string[]>([]);
 
@@ -269,6 +291,10 @@ export default function BuyCardDialog({
         setDynamicBalances((prev) => ({
           ...prev,
           [context.account]: context.balance,
+        }));
+        setDynamicCombineCards((prev) => ({
+          ...prev,
+          [context.account]: context.combineCards,
         }));
         setDynamicCardUids(context.cardUids);
       } catch (err) {
@@ -502,6 +528,13 @@ export default function BuyCardDialog({
     const numberOfLevels = combineRates.length;
     const firstPlayableLevel = getCardFirstPlayableLevel(combineRates);
     const firstTargetableLevel = maxOnlyFoil ? numberOfLevels : firstPlayableLevel;
+    const combineCards = dynamicCombineCards[selectedAccount] ?? [];
+    const baseCombineStatus = checkCombineStatus({
+      combineRates,
+      currentLevel: accountState.highestLevel,
+      totalOwnedCc: accountState.totalCc,
+      allCards: combineCards,
+    });
 
     return Array.from({ length: numberOfLevels }, (_, idx): TargetLevelRow => {
       const level = idx + 1;
@@ -516,6 +549,9 @@ export default function BuyCardDialog({
           targetCc: null,
           ownedBcx: accountState.totalCc,
           neededBcx: null,
+          combineMissingBcx: null,
+          combineDisabledReason: null,
+          combineOnWagonBcx: baseCombineStatus.onWagonCount,
           dec: 0,
           credits: 0,
           usd: 0,
@@ -533,6 +569,13 @@ export default function BuyCardDialog({
         cardName: name,
         listings: selection.selected,
       });
+      const combineStatus = checkCombineStatus({
+        combineRates,
+        currentLevel: accountState.highestLevel,
+        totalOwnedCc: accountState.totalCc,
+        allCards: combineCards,
+        targetLevel: level,
+      });
 
       return {
         level,
@@ -541,6 +584,9 @@ export default function BuyCardDialog({
         targetCc: req.targetCc,
         ownedBcx: accountState.totalCc,
         neededBcx: req.missingCc,
+        combineMissingBcx: combineStatus.copiesNeeded,
+        combineDisabledReason: combineStatus.disabledReason,
+        combineOnWagonBcx: combineStatus.onWagonCount,
         dec: plan.totals.dec,
         credits: plan.items.reduce((sum, item) => sum + item.priceCredits, 0),
         usd: plan.totals.usd,
@@ -551,7 +597,9 @@ export default function BuyCardDialog({
       };
     });
   }, [
+    dynamicCombineCards,
     accountState.totalCc,
+    accountState.highestLevel,
     name,
     combineRates,
     rarity,
@@ -561,25 +609,35 @@ export default function BuyCardDialog({
     selectedFoil,
   ]);
 
-  async function handleCombineAtLevel() {
+  async function handleCombineAtLevel(targetLevel: number) {
     if (dynamicCardUids.length === 0) {
       setContextError("No card UIDs available for combine. Try refreshing.");
       return;
     }
 
     setBuyBusy(true);
-    setTxProgress(null);
+    setTxProgress({ status: "processing", message: `Combining to level ${targetLevel}...` });
     try {
       const txId = await broadcastCombineCards({
         account: selectedAccount,
         cardUids: dynamicCardUids,
       });
-      setTxProgress({ submitted: true, processed: true, txId });
+
+      const [confirmation] = await waitForTransactions([txId]);
+      if (confirmation?.status.success) {
+        setTxProgress({ status: "verified", txId });
+      } else {
+        setTxProgress({
+          status: "error",
+          txId,
+          error: confirmation?.status.message ?? "Transaction was not verified.",
+        });
+      }
       notifyBalancesRefresh();
       notifyCollectionRefresh();
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Combine failed";
-      setTxProgress({ submitted: false, processed: false, error: message });
+      const message = extractErrorMessage(err, "Combine failed");
+      setTxProgress({ status: "error", error: message });
     } finally {
       setBuyBusy(false);
     }
@@ -589,16 +647,15 @@ export default function BuyCardDialog({
     if (items.length === 0) return;
 
     setBuyBusy(true);
-    setTxProgress(null);
+    setTxProgress({ status: "processing" });
     try {
       const result = await checkoutItems(items, currency, {
-        onBroadcast: ({ txId }) => setTxProgress({ submitted: true, processed: false, txId }),
+        onBroadcast: ({ txId }) => setTxProgress({ status: "processing", txId }),
         onVerified: ({ txId, success, message }) => {
           setTxProgress({
-            submitted: true,
-            processed: success,
+            status: success ? "verified" : "error",
             txId,
-            error: success ? undefined : message,
+            error: success ? undefined : (message ?? "Transaction failed"),
           });
         },
       });
@@ -609,8 +666,8 @@ export default function BuyCardDialog({
         notifyCollectionRefresh();
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Purchase failed";
-      setTxProgress({ submitted: false, processed: false, error: message });
+      const message = extractErrorMessage(err, "Purchase failed");
+      setTxProgress({ status: "error", error: message });
     } finally {
       setBuyBusy(false);
     }
@@ -741,100 +798,114 @@ export default function BuyCardDialog({
 
           {activeMode === "target-level" ? (
             <TargetLevelTabContent
-              combineRatesAvailable={Boolean(combineRates)}
-              dynamicStats={dynamicStats}
-              targetRows={targetRows}
-              cardStats={cardStats}
-              rarity={rarity}
-              targetBracket={targetBracket}
-              accountHighestLevel={accountState.highestLevel}
-              accountTotalCc={accountState.totalCc}
-              isHighestCcAtMaxLevel={isHighestCcAtMaxLevel}
-              buyBusy={buyBusy}
-              balance={balance}
-              onAddToPurchasePlan={onAddToPurchasePlan}
-              onRunCheckoutForPlan={runCheckoutForPlan}
-              onCombineAtLevel={
-                dynamicCardUids.length > 0 && combineRates ? handleCombineAtLevel : undefined
-              }
+              view={{
+                combineRatesAvailable: Boolean(combineRates),
+                dynamicStats,
+                targetRows,
+                cardStats,
+                rarity,
+                targetBracket,
+                accountHighestLevel: accountState.highestLevel,
+                accountTotalCc: accountState.totalCc,
+                isHighestCcAtMaxLevel,
+                buyBusy,
+                balance,
+              }}
+              actions={{
+                onAddToPurchasePlan,
+                onRunCheckoutForPlan: runCheckoutForPlan,
+                onCombineAtLevel:
+                  dynamicCardUids.length > 0 && combineRates ? handleCombineAtLevel : undefined,
+              }}
             />
           ) : (
             <ManualListingsTabContent
-              listingLevels={listingLevels}
-              levelFilter={levelFilter}
-              setLevelFilter={setLevelFilter}
-              pageSize={pageSize}
-              setPageSize={setPageSize}
-              pageOptions={PAGE_OPTIONS}
-              sortBy={sortBy}
-              sortDir={sortDir}
-              toggleSort={toggleSort}
-              pagedRows={pagedRows}
-              loading={loading}
-              selectedIds={selectedIds}
-              inCartSet={inCartSet}
-              reservedByOtherAccountSet={reservedByOtherAccountSet}
-              page={page}
-              pageCount={pageCount}
-              setPage={setPage}
-              toggleCartByButton={toggleCartByButton}
-              selectionTotals={selectionTotals}
+              view={{
+                listingLevels,
+                levelFilter,
+                pageSize,
+                pageOptions: PAGE_OPTIONS,
+                sortBy,
+                sortDir,
+                pagedRows,
+                loading,
+                selectedIds,
+                inCartSet,
+                reservedByOtherAccountSet,
+                page,
+                pageCount,
+                selectionTotals,
+              }}
+              actions={{
+                setLevelFilter,
+                setPageSize,
+                toggleSort,
+                setPage,
+                toggleCartByButton,
+              }}
             />
           )}
-
-          <PurchaseTxProgressPanel buyBusy={buyBusy} txProgress={txProgress} />
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", mr: 2 }}>
-          <Typography variant="body2">Balance ({account}):</Typography>
-          <Avatar src={dec_icon_url} alt="DEC" sx={{ width: 16, height: 16 }} />
-          <Typography variant="body2">{largeNumberFormat(balance.DEC)}</Typography>
-          <Divider orientation="vertical" flexItem />
-          <Avatar src={credits_icon_url} alt="CREDITS" sx={{ width: 16, height: 16 }} />
-          <Typography variant="body2">{largeNumberFormat(balance.CREDITS)}</Typography>
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          flexWrap="wrap"
+          sx={{ width: "100%", justifyContent: "right" }}
+        >
+          <PurchaseTxProgressPanel txProgress={txProgress} />
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", mr: 2 }}>
+            <Typography variant="body2">Balance ({account}):</Typography>
+            <Avatar src={dec_icon_url} alt="DEC" sx={{ width: 16, height: 16 }} />
+            <Typography variant="body2">{largeNumberFormat(balance.DEC)}</Typography>
+            <Divider orientation="vertical" flexItem />
+            <Avatar src={credits_icon_url} alt="CREDITS" sx={{ width: 16, height: 16 }} />
+            <Typography variant="body2">{largeNumberFormat(balance.CREDITS)}</Typography>
+          </Stack>
+
+          <Button onClick={onClose}>Close</Button>
+
+          {activeMode === "manual-listings" && (
+            <>
+              <Tooltip
+                title={
+                  !canAffordDec && selectedItems.length > 0
+                    ? `Insufficient DEC (${selectionTotals.dec.toFixed(3)} required)`
+                    : ""
+                }
+              >
+                <span>
+                  <Button
+                    variant="contained"
+                    onClick={() => buySelected("DEC")}
+                    disabled={buyBusy || selectedItems.length === 0 || !canAffordDec}
+                  >
+                    {buyBusy ? "Processing..." : "Buy with DEC"}
+                  </Button>
+                </span>
+              </Tooltip>
+              <Tooltip
+                title={
+                  !canAffordCredits && selectedItems.length > 0
+                    ? `Insufficient Credits (${selectionTotals.credits.toFixed(0)} required)`
+                    : ""
+                }
+              >
+                <span>
+                  <Button
+                    variant="contained"
+                    onClick={() => buySelected("CREDITS")}
+                    disabled={buyBusy || selectedItems.length === 0 || !canAffordCredits}
+                  >
+                    {buyBusy ? "Processing..." : "Buy with Credits"}
+                  </Button>
+                </span>
+              </Tooltip>
+            </>
+          )}
         </Stack>
-
-        <Button onClick={onClose}>Close</Button>
-
-        {activeMode === "manual-listings" && (
-          <>
-            <Tooltip
-              title={
-                !canAffordDec && selectedItems.length > 0
-                  ? `Insufficient DEC (${selectionTotals.dec.toFixed(3)} required)`
-                  : ""
-              }
-            >
-              <span>
-                <Button
-                  variant="contained"
-                  onClick={() => buySelected("DEC")}
-                  disabled={buyBusy || selectedItems.length === 0 || !canAffordDec}
-                >
-                  {buyBusy ? "Processing..." : "Buy with DEC"}
-                </Button>
-              </span>
-            </Tooltip>
-            <Tooltip
-              title={
-                !canAffordCredits && selectedItems.length > 0
-                  ? `Insufficient Credits (${selectionTotals.credits.toFixed(0)} required)`
-                  : ""
-              }
-            >
-              <span>
-                <Button
-                  variant="contained"
-                  onClick={() => buySelected("CREDITS")}
-                  disabled={buyBusy || selectedItems.length === 0 || !canAffordCredits}
-                >
-                  {buyBusy ? "Processing..." : "Buy with Credits"}
-                </Button>
-              </span>
-            </Tooltip>
-          </>
-        )}
       </DialogActions>
     </Dialog>
   );

@@ -1,55 +1,74 @@
-import { Alert, Box, Stack, Typography } from "@mui/material";
-import { MdCheckCircle, MdErrorOutline, MdRadioButtonUnchecked } from "react-icons/md";
+import { Alert, CircularProgress, Link, Stack, Typography } from "@mui/material";
+import { LuExternalLink } from "react-icons/lu";
+import { MdCheckCircle } from "react-icons/md";
 
-interface TxProgressState {
-  submitted: boolean;
-  processed: boolean;
+export interface TxProgressState {
+  status: "processing" | "verified" | "error";
+  label?: string;
+  message?: string;
   txId?: string;
   error?: string;
 }
 
 interface PurchaseTxProgressPanelProps {
-  buyBusy: boolean;
   txProgress: TxProgressState | null;
 }
 
+function txLink(txId: string): string {
+  return `https://hivehub.dev/tx/${encodeURIComponent(txId)}`;
+}
+
 export default function PurchaseTxProgressPanel({
-  buyBusy,
   txProgress,
 }: Readonly<PurchaseTxProgressPanelProps>) {
-  if (!txProgress && !buyBusy) return null;
+  if (!txProgress) return null;
 
   return (
-    <Box sx={{ border: 1, borderColor: "divider", borderRadius: 1, p: 1.5 }}>
-      <Stack spacing={1}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          {txProgress?.submitted ? (
-            <MdCheckCircle color="#2e7d32" />
-          ) : (
-            <MdRadioButtonUnchecked color="#9e9e9e" />
-          )}
-          <Typography variant="body2">Transaction submitted (broadcast accepted)</Typography>
-        </Box>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          {txProgress?.processed ? (
-            <MdCheckCircle color="#2e7d32" />
-          ) : txProgress?.error ? (
-            <MdErrorOutline color="#d32f2f" />
-          ) : (
-            <MdRadioButtonUnchecked color="#9e9e9e" />
-          )}
-          <Typography variant="body2">Transaction processed by Splinterlands</Typography>
-        </Box>
-        {txProgress?.txId && (
-          <Typography variant="caption" color="text.secondary">
-            Tx: {txProgress.txId}
+    <Stack spacing={0.75} sx={{ minWidth: 260 }}>
+      {txProgress.label && (
+        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700 }}>
+          {txProgress.label}
+        </Typography>
+      )}
+
+      {txProgress.status === "processing" && (
+        <Stack direction="row" spacing={1} alignItems="center">
+          <CircularProgress size={18} />
+          <Typography variant="body2">Processing transaction...</Typography>
+        </Stack>
+      )}
+
+      {txProgress.status === "verified" && (
+        <Stack spacing={0.5} direction="row" alignItems="center">
+          <MdCheckCircle color="#2e7d32" />
+          <Typography variant="body2" color="success.main" sx={{ fontWeight: 700 }}>
+            Transaction verified
           </Typography>
-        )}
-        {txProgress?.error && <Alert severity="error">{txProgress.error}</Alert>}
-        {txProgress?.submitted && txProgress?.processed && (
-          <Alert severity="success">Purchase confirmed successfully.</Alert>
-        )}
-      </Stack>
-    </Box>
+          {txProgress.txId && (
+            <Link href={txLink(txProgress.txId)} target="_blank" rel="noopener noreferrer">
+              <LuExternalLink />
+            </Link>
+          )}
+        </Stack>
+      )}
+
+      {txProgress.status === "error" && (
+        <Alert severity="error">
+          {txProgress.error ?? txProgress.message ?? "Transaction failed"}
+        </Alert>
+      )}
+
+      {txProgress.message && txProgress.status !== "error" && (
+        <Typography variant="caption" color="text.secondary">
+          {txProgress.message}
+        </Typography>
+      )}
+
+      {txProgress.txId && txProgress.status !== "verified" && (
+        <Typography variant="caption" color="text.secondary">
+          Tx: {txProgress.txId}
+        </Typography>
+      )}
+    </Stack>
   );
 }
