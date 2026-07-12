@@ -18,13 +18,14 @@ const BASE_CONFIG: FilterDrawerConfig = {
 
 interface CardFilterDrawerProps {
   showHideMissing?: boolean;
+  showFoils?: boolean;
 }
 
-export function CardFilterDrawer({ showHideMissing = true }: Readonly<CardFilterDrawerProps>) {
+export function CardFilterDrawer({ showFoils = true }: Readonly<CardFilterDrawerProps>) {
   const { filter, setFilter, resetFilter, toggleFilterOpen } = useCardFilter();
   const config: FilterDrawerConfig = {
     ...BASE_CONFIG,
-    showHideMissing,
+    showFoils,
   };
 
   return (

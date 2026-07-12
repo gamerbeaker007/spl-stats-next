@@ -23,14 +23,18 @@ import {
   CircularProgress,
   Divider,
   FormControlLabel,
-  IconButton,
+  MenuItem,
+  Select,
   Stack,
   Switch,
   Tooltip,
   Typography,
 } from "@mui/material";
 import { useMemo, useState } from "react";
-import { MdFilterList, MdInfoOutline } from "react-icons/md";
+import { FaTag } from "react-icons/fa";
+import { IoMdSend } from "react-icons/io";
+import { MdInfoOutline } from "react-icons/md";
+import { SiHomeassistantcommunitystore } from "react-icons/si";
 
 type DialogState = {
   mode: "buy" | "transfer" | "list";
@@ -92,16 +96,23 @@ export default function SkinsPageClient() {
     addLocalAccount,
     removeLocalAccount,
   } = useAccounts();
-  const { filter, toggleFilterOpen } = useCardFilter();
+  const { filter } = useCardFilter();
 
   const [addAccountInput, setAddAccountInput] = useState("");
   const [ownedOnly, setOwnedOnly] = useState(false);
+  const [selectedSkinSet, setSelectedSkinSet] = useState("");
   const [dialogState, setDialogState] = useState<DialogState>(null);
 
   const { data, loading, error } = useMarketplaceSkinsPageData(
     selectedAccount,
     collectionRefreshVersion
   );
+
+  const skinSets = useMemo(() => {
+    return Array.from(
+      new Set((data?.groups ?? []).flatMap((group) => group.skins.map((skin) => skin.skinSet)))
+    ).sort();
+  }, [data?.groups]);
 
   const rows = useMemo<SkinGroupViewModel[]>(() => {
     const detailedCollection = data?.detailedCollection ?? {};
@@ -129,12 +140,15 @@ export default function SkinsPageClient() {
 
     return groupedRows
       .filter((row) => {
-        if (ownedOnly && row.totalOwnedSkins < 1) return false;
+        if (selectedSkinSet && row.group.skins.every((skin) => skin.skinSet !== selectedSkinSet)) {
+          return false;
+        }
+
         if (!row.card) return true;
         return matchesCardFilter(row.card, filter);
       })
       .sort((left, right) => left.group.baseCardName.localeCompare(right.group.baseCardName));
-  }, [data?.detailedCollection, data?.groups, filter, ownedOnly]);
+  }, [data?.detailedCollection, data?.groups, filter, selectedSkinSet]);
 
   const handleCompleted = () => {
     notifyBalancesRefresh();
@@ -183,16 +197,31 @@ export default function SkinsPageClient() {
                   }
                   label="Owned skins only"
                 />
-                <Tooltip title="Only show cards where the selected account owns at least one skin. Cards that remain visible will still show which individual skins are owned or missing.">
+                <Tooltip title="Only show cards where the selected account owns at least one skin.">
                   <Box sx={{ display: "inline-flex" }}>
                     <MdInfoOutline size={18} />
                   </Box>
                 </Tooltip>
-                <Tooltip title={filter.filterOpen ? "Hide filters" : "Show filters"}>
-                  <IconButton size="small" onClick={toggleFilterOpen}>
-                    <MdFilterList size={20} />
-                  </IconButton>
-                </Tooltip>
+                <FormControlLabel
+                  control={
+                    <Select
+                      size="small"
+                      value={selectedSkinSet}
+                      onChange={(event) => setSelectedSkinSet(event.target.value)}
+                      sx={{ minWidth: 160 }}
+                    >
+                      <MenuItem value="">All skin sets</MenuItem>
+
+                      {skinSets.map((skinSet) => (
+                        <MenuItem key={skinSet} value={skinSet}>
+                          {skinSet}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  }
+                  label="Select skin group"
+                  labelPlacement="start"
+                />
               </Stack>
             </Stack>
           </Box>
@@ -222,6 +251,10 @@ export default function SkinsPageClient() {
               const cardFoil = row.card?.highestLevelCard?.foil ?? "regular";
               const cardLevel = row.card?.highestLevelCard?.level ?? 1;
               const cardHeight = 360;
+
+              if (filter.hideMissingCards && row.totalOwnedCards < 1) {
+                return null;
+              }
 
               return (
                 <Box key={`${row.group.cardDetailId}-${row.group.baseCardName}`}>
@@ -277,129 +310,137 @@ export default function SkinsPageClient() {
                       flexItem
                       sx={{ display: { xs: "none", lg: "block" }, borderColor: "divider" }}
                     />
-                    <Divider
-                      sx={{ display: { xs: "block", lg: "none" }, borderColor: "divider" }}
-                    />
+                    <Divider sx={{ display: { xs: "block", lg: "none" }, borderColor: "red" }} />
 
                     <Box
                       sx={{
-                        display: "grid",
-                        gridTemplateColumns: {
-                          xs: "1fr",
-                          sm: "repeat(2, minmax(0, 1fr))",
-                          xl: "repeat(3, minmax(0, 1fr))",
-                        },
+                        display: "flex",
+                        flexWrap: "wrap",
                         gap: 2,
-                        flex: 1,
                       }}
                     >
-                      {row.group.skins.map((skin) => (
-                        <Stack
-                          key={skin.detailId}
-                          spacing={1.25}
-                          alignItems="center"
-                          justifyContent="space-between"
-                          sx={{
-                            minHeight: cardHeight,
-                            maxWidth: 230,
-                            mx: "auto",
-                            width: "100%",
-                          }}
-                        >
-                          <Box sx={{ width: "100%" }}>
-                            <Typography variant="subtitle1" align="center" noWrap>
-                              {skin.displayName}
-                            </Typography>
-                          </Box>
+                      {row.group.skins.map((skin) => {
+                        // Do not show skins that are not part of the selected skin set (if one is selected)
+                        if (
+                          (selectedSkinSet && skin.skinSet !== selectedSkinSet) ||
+                          (ownedOnly && skin.numOwned < 1)
+                        ) {
+                          return null;
+                        }
 
-                          <Box
-                            component="img"
-                            src={skin.image ?? ""}
-                            alt={skin.displayName}
+                        return (
+                          <Stack
+                            key={skin.detailId}
+                            spacing={1.25}
+                            flex="1"
                             sx={{
+                              minHeight: cardHeight,
+                              maxWidth: 230,
                               width: "100%",
-                              maxWidth: 210,
-                              height: 220,
-                              objectFit: "contain",
-                              opacity: skin.numOwned > 0 ? 1 : 0.5,
                             }}
-                          />
+                          >
+                            <Box sx={{ width: "100%" }}>
+                              <Typography variant="subtitle1" align="center" noWrap>
+                                {skin.skinSet}
+                              </Typography>
+                            </Box>
 
-                          <Stack spacing={0.5} alignItems="center">
-                            <Stack
-                              direction="row"
-                              spacing={1}
-                              useFlexGap
-                              flexWrap="wrap"
-                              justifyContent="center"
-                            >
-                              <Chip
-                                label={skin.numOwned > 0 ? `Owned x${skin.numOwned}` : "Not owned"}
-                                color={skin.numOwned > 0 ? "success" : "default"}
-                                size="small"
-                              />
-                              <Chip
-                                label={
-                                  skin.numListed > 0 ? `Listed x${skin.numListed}` : "No listings"
-                                }
-                                color={skin.numListed > 0 ? "warning" : "default"}
-                                size="small"
-                              />
+                            <Box
+                              component="img"
+                              src={skin.image ?? ""}
+                              alt={skin.displayName}
+                              sx={{
+                                width: "100%",
+                                maxWidth: 210,
+                                height: 220,
+                                objectFit: "contain",
+                                opacity: skin.numOwned > 0 ? 1 : 0.5,
+                              }}
+                            />
+
+                            <Stack spacing={0.5} alignItems="center">
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                useFlexGap
+                                flexWrap="wrap"
+                                justifyContent="center"
+                              >
+                                <Chip
+                                  label={
+                                    skin.numOwned > 0 ? `Owned x${skin.numOwned}` : "Not owned"
+                                  }
+                                  color={skin.numOwned > 0 ? "success" : "default"}
+                                  size="small"
+                                />
+                                <Chip
+                                  label={
+                                    skin.numListed > 0 ? `Listed x${skin.numListed}` : "No listings"
+                                  }
+                                  color={skin.numListed > 0 ? "warning" : "default"}
+                                  size="small"
+                                />
+                              </Stack>
+                              <Typography variant="body2" color="text.secondary" align="center">
+                                Lowest Price: {formatPriceLabel(skin)}
+                              </Typography>
                             </Stack>
-                            <Typography variant="body2" color="text.secondary" align="center">
-                              Lowest Price: {formatPriceLabel(skin)}
-                            </Typography>
-                          </Stack>
 
-                          <Stack direction={{ xs: "column", sm: "row" }} spacing={1} width="100%">
-                            <Button
-                              variant="contained"
-                              size="small"
-                              disabled={skin.numListed === 0}
-                              onClick={() =>
-                                setDialogState({
-                                  mode: "buy",
-                                  skin,
-                                  defaultListPriceUsd: getLowestUsdPrice(skin.prices),
-                                })
-                              }
-                              fullWidth
-                            >
-                              Buy
-                            </Button>
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              disabled={skin.numOwned === 0}
-                              onClick={() =>
-                                setDialogState({
-                                  mode: "transfer",
-                                  skin,
-                                  defaultListPriceUsd: getLowestUsdPrice(skin.prices),
-                                })
-                              }
-                              fullWidth
-                            >
-                              Transfer
-                            </Button>
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              disabled={skin.numOwned === 0}
-                              onClick={() =>
-                                setDialogState({
-                                  mode: "list",
-                                  skin,
-                                  defaultListPriceUsd: getLowestUsdPrice(skin.prices),
-                                })
-                              }
-                              fullWidth
-                            >
-                              List
-                            </Button>
+                            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} width="100%">
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                title="Buy"
+                                disabled={skin.numListed === 0}
+                                onClick={() =>
+                                  setDialogState({
+                                    mode: "buy",
+                                    skin,
+                                    defaultListPriceUsd: getLowestUsdPrice(skin.prices),
+                                  })
+                                }
+                                fullWidth
+                              >
+                                <FaTag style={{ width: "1.25rem", height: "1.25rem" }} />
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                title="Transfer"
+                                disabled={skin.numOwned === 0}
+                                onClick={() =>
+                                  setDialogState({
+                                    mode: "transfer",
+                                    skin,
+                                    defaultListPriceUsd: getLowestUsdPrice(skin.prices),
+                                  })
+                                }
+                                fullWidth
+                              >
+                                <IoMdSend style={{ width: "1.25rem", height: "1.25rem" }} />
+                              </Button>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                title="List"
+                                disabled={skin.numOwned === 0}
+                                onClick={() =>
+                                  setDialogState({
+                                    mode: "list",
+                                    skin,
+                                    defaultListPriceUsd: getLowestUsdPrice(skin.prices),
+                                  })
+                                }
+                                fullWidth
+                              >
+                                <SiHomeassistantcommunitystore
+                                  style={{ width: "1.25rem", height: "1.25rem" }}
+                                />
+                              </Button>
+                            </Stack>
                           </Stack>
-                        </Stack>
-                      ))}
+                        );
+                      })}
                     </Box>
                   </Stack>
                 </Box>
@@ -409,7 +450,7 @@ export default function SkinsPageClient() {
         </Stack>
       </Box>
 
-      <CardFilterDrawer showHideMissing={false} />
+      <CardFilterDrawer showFoils={false} />
 
       <SkinActionDialog
         open={Boolean(dialogState)}

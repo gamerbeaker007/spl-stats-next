@@ -43,6 +43,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 
 type SkinActionMode = "buy" | "transfer" | "list";
@@ -272,20 +273,6 @@ export default function SkinActionDialog({
     () => calculateEstimatedCost(sortedListings, quantity, "CREDITS", account),
     [account, quantity, sortedListings]
   );
-
-  const estimatedCostUsd = useMemo(() => {
-    const selected = computeSelectedListingPlan(sortedListings, quantity, "DEC", account);
-    if (selected.size === 0) return null;
-
-    let total = 0;
-    for (const listing of sortedListings) {
-      const buyQty = selected.get(listing.listingItemId);
-      if (!buyQty) continue;
-      total += listing.price * buyQty;
-    }
-
-    return Number(total.toFixed(3));
-  }, [account, quantity, sortedListings]);
 
   const selectedDecListingPlan = useMemo(
     () => computeSelectedListingPlan(sortedListings, quantity, "DEC", account),
@@ -551,12 +538,6 @@ export default function SkinActionDialog({
                     />
                   </TableContainer>
 
-                  <Typography variant="body2" color="text.secondary">
-                    Estimated totals: USD {estimatedCostUsd?.toFixed(3) ?? "N/A"} / DEC{" "}
-                    {estimatedCostDec?.toFixed(3) ?? "N/A"} / Credits{" "}
-                    {estimatedCostCredits?.toFixed(0) ?? "N/A"}
-                  </Typography>
-
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
                     <Tooltip
                       title={
@@ -576,9 +557,16 @@ export default function SkinActionDialog({
                           }
                           onClick={() => handleBuy("DEC")}
                         >
-                          {busy
-                            ? "Processing..."
-                            : `Buy with DEC (${estimatedCostDec?.toFixed(3) ?? "N/A"})`}
+                          {busy ? (
+                            "Processing..."
+                          ) : (
+                            <Stack direction="row" spacing={0.75} alignItems="center">
+                              <Image src={dec_icon_url} alt="DEC" width={25} height={25} />
+                              <Typography variant="inherit">
+                                {estimatedCostDec?.toFixed(3) ?? "N/A"}
+                              </Typography>
+                            </Stack>
+                          )}
                         </Button>
                       </span>
                     </Tooltip>
@@ -604,9 +592,16 @@ export default function SkinActionDialog({
                           }
                           onClick={() => handleBuy("CREDITS")}
                         >
-                          {busy
-                            ? "Processing..."
-                            : `Buy with Credits (${estimatedCostCredits?.toFixed(0) ?? "N/A"})`}
+                          {busy ? (
+                            "Processing..."
+                          ) : (
+                            <Stack direction="row" spacing={0.75} alignItems="center">
+                              <Image src={credits_icon_url} alt="Credits" width={25} height={25} />
+                              <Typography variant="inherit">
+                                {estimatedCostCredits?.toFixed(0) ?? "N/A"}
+                              </Typography>
+                            </Stack>
+                          )}
                         </Button>
                       </span>
                     </Tooltip>
