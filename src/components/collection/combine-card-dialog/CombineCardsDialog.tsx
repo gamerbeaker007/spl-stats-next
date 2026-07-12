@@ -26,7 +26,8 @@ import {
 } from "@mui/material";
 import Image from "next/image";
 import { useState } from "react";
-import { MdArrowForward, MdAutoFixHigh } from "react-icons/md";
+import { MdArrowForward } from "react-icons/md";
+import { TbCopyPlusFilled } from "react-icons/tb";
 
 interface CombineCardsDialogProps {
   open: boolean;
@@ -123,7 +124,7 @@ export default function CombineCardsDialog({
 
   const availableCards = matchingCards.filter((entry) => {
     if (!entry.uid || (entry.bcx ?? 0) <= 0 || entry.inSet) return false;
-    if (!entry.onWagon) return true;
+    if (!entry.onWagon && !entry.delegatedTo) return true;
     return entry.uid === baseUid;
   });
   const selectedCardsForTarget = (() => {
@@ -255,7 +256,7 @@ export default function CombineCardsDialog({
       }}
     >
       <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <MdAutoFixHigh size={24} />
+        <TbCopyPlusFilled size={24} />
         Combine Cards
       </DialogTitle>
 
@@ -366,10 +367,11 @@ export default function CombineCardsDialog({
                           targetLevel: level,
                         })
                       : null;
-                  const isBlockedByWagon =
+                  const isBlockedByUnavailableCards =
                     !isReachable &&
                     isReachableByTotal &&
-                    targetStatus?.disabledReason === "on-wagon";
+                    (targetStatus?.disabledReason === "on-wagon" ||
+                      targetStatus?.disabledReason === "delegated-out");
                   const isSelected = level === selectedLevel;
 
                   let tooltipTitle = "";
@@ -377,7 +379,7 @@ export default function CombineCardsDialog({
                     tooltipTitle = "Current level";
                   } else if (level < currentLevel) {
                     tooltipTitle = "Below current level";
-                  } else if (isBlockedByWagon && targetStatus) {
+                  } else if (isBlockedByUnavailableCards && targetStatus) {
                     tooltipTitle = getCombineTooltipText({
                       isLoading: false,
                       combineStatus: {
@@ -385,6 +387,7 @@ export default function CombineCardsDialog({
                         disabledReason: targetStatus.disabledReason,
                         copiesNeeded: targetStatus.copiesNeeded,
                         onWagonCount: targetStatus.onWagonCount,
+                        delegatedOutCount: targetStatus.delegatedOutCount,
                       },
                     });
                   } else if (!isReachable) {
@@ -424,7 +427,7 @@ export default function CombineCardsDialog({
                                 },
                               }),
 
-                            ...(isBlockedByWagon && {
+                            ...(isBlockedByUnavailableCards && {
                               borderColor: "warning.main",
                               color: "warning.main",
                               "&.Mui-disabled": {

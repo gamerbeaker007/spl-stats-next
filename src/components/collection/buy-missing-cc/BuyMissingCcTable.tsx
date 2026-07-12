@@ -380,7 +380,12 @@ export default function BuyMissingCcTable({
                         combineStatus,
                       });
 
-                      const color = combineStatus?.disabledReason === "on-wagon" ? "orange" : "";
+                      const color =
+                        combineStatus?.disabledReason === "on-wagon" ||
+                        combineStatus?.disabledReason === "delegated-out" ||
+                        combineStatus?.disabledReason === "in-set"
+                          ? "orange"
+                          : "";
                       return (
                         <Tooltip title={tooltipText}>
                           <span>

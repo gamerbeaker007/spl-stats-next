@@ -15,7 +15,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 - **Combine Cards feature (Feature C)** — players can now combine cards directly from the collection pages.
   - **`CombineCardsDialog`** — new dialog showing a current → target card preview, animated arrow during processing, a level selector (color-coded: green = reachable, orange = blocked by wagon, disabled = not enough BCX), a new-abilities preview, and a `PurchaseTxProgressPanel` for broadcast/verify feedback.
-  - **Combine column in Buy Missing CC table** — combine button enabled only when the card can actually be upgraded; tooltip explains the first blocking reason (`max-level`, `not-enough-copies`, `in-set`, `on-wagon`).
+  - **Combine column in Buy Missing CC table** — combine button enabled only when the card can actually be upgraded; tooltip explains the first blocking reason (`max-level`, `not-enough-copies`, `in-set`, `on-wagon`, `delegated-out`).
   - **Combine column in BuyCardDialog target-level tab** — per-level combine button with spinner during processing, reuses `checkCombineStatus` validation.
   - **"Upgradeable Cards" filter toggle** on Buy Missing CC — hides cards whose combine button is disabled, making it easy to find immediately combinable cards.
   - **`broadcastCombineCards`** in `splBroadcast.ts` — broadcasts `sm_combine_cards` custom-JSON via Hive Keychain active key.

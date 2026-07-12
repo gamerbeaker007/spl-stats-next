@@ -96,6 +96,7 @@ export async function getDetailedPlayerCardCollectionCached(
       id: playerCard.card_detail_id,
       uid: playerCard.uid,
       owner: playerCard.player,
+      delegatedTo: playerCard.delegated_to,
       xp: playerCard.xp,
       edition: playerCard.edition,
       cardSet: playerCard.card_set as CardSetName,

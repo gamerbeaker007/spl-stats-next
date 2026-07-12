@@ -385,6 +385,7 @@ export default function BuyMissingCcPageClient() {
           row.allCards?.filter((card) => card.edition === row.edition && card.foil === row.foil) ??
           [],
       });
+      console.log("Upgradeable check for", row.name, "levels:", combinableLevels);
       return combinableLevels.length > 0;
     });
   }, [filteredRows, settings, showUpgradeableOnly]);

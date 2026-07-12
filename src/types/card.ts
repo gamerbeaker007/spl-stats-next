@@ -61,6 +61,7 @@ export interface CardDetail {
   id: number;
   uid: string;
   owner: string;
+  delegatedTo?: string | null;
   xp: number;
   edition: number;
   cardSet: CardSetName;
