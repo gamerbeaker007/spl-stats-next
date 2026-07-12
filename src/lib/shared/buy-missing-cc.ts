@@ -493,7 +493,7 @@ export function checkCombineStatus(options: {
     }
   }
 
-  const canOpenDialog = currentLevel < maxLevel && maxLevelReachable > currentLevel;
+  const canOpenDialog = currentLevel < maxLevel && maxLevelReachable > currentLevel && usableCC > 0;
   const targetLevelCcRequired = combineRates[safeTargetLevel - 1] ?? 0;
   const nextLevelCcRequired = combineRates[nextLevel - 1] ?? 0;
 
