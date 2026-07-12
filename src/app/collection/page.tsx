@@ -23,7 +23,7 @@ export default function HomePage() {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)" },
+          gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)", xl: "repeat(3, 1fr)" },
           gap: 4,
           mt: 4,
         }}
@@ -78,6 +78,33 @@ export default function HomePage() {
             fullWidth
           >
             Buy Missing CC
+          </Button>
+        </Box>
+
+        <Box
+          sx={{
+            p: 3,
+            border: 1,
+            borderColor: "divider",
+            borderRadius: 2,
+            textAlign: "center",
+            backgroundColor: "background.paper",
+          }}
+        >
+          <Typography variant="h5" gutterBottom>
+            Skins
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
+            Browse grouped skin ownership, inspect live marketplace pricing, and manage buy,
+            transfer, and listing flows.
+          </Typography>
+          <Button
+            onClick={() => handleNavigate("/collection/skins")}
+            variant="contained"
+            size="large"
+            fullWidth
+          >
+            Open Skin Collection
           </Button>
         </Box>
       </Box>

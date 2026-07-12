@@ -6,6 +6,7 @@ import {
   getBuyCardDialogAccountContextAction,
   getBuyCardDialogSharedContextAction,
 } from "@/lib/backend/actions/buy-missing-cc-actions";
+import { buildCombineCardsPayloadAction } from "@/lib/backend/actions/purchase-actions";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { checkoutItems } from "@/lib/frontend/purchase/checkout";
 import { broadcastCombineCards, waitForTransactions } from "@/lib/frontend/purchase/splBroadcast";
@@ -63,7 +64,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import CardDetailsSummary from "./CardDetailsSummary";
 import ManualListingsTabContent from "./ManualListingsTabContent";
-import PurchaseTxProgressPanel from "./PurchaseTxProgressPanel";
+import TransactionProgressPanel from "@/components/shared/TransactionProgressPanel";
 import TargetLevelTabContent, { type TargetLevelRow } from "./TargetLevelTabContent";
 
 export type BuyCardDialogMode = "manual-listings" | "target-level";
@@ -624,7 +625,7 @@ export default function BuyCardDialog({
     try {
       const txId = await broadcastCombineCards({
         account: selectedAccount,
-        cardUids: dynamicCardUids,
+        payload: await buildCombineCardsPayloadAction({ cardUids: dynamicCardUids }),
       });
 
       const [confirmation] = await waitForTransactions([txId]);
@@ -859,7 +860,7 @@ export default function BuyCardDialog({
           flexWrap="wrap"
           sx={{ width: "100%", justifyContent: "right" }}
         >
-          <PurchaseTxProgressPanel txProgress={txProgress} />
+          <TransactionProgressPanel txProgress={txProgress} />
           <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", mr: 2 }}>
             <Typography variant="body2">Balance ({account}):</Typography>
             <Avatar src={dec_icon_url} alt="DEC" sx={{ width: 16, height: 16 }} />

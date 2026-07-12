@@ -1,10 +1,11 @@
 "use client";
 
-import PurchaseTxProgressPanel from "@/components/collection/buy-card-dialog/PurchaseTxProgressPanel";
+import TransactionProgressPanel from "@/components/shared/TransactionProgressPanel";
 import type { DisplayRow } from "@/components/collection/buy-missing-cc/types";
 import CombineLevelButton, {
   type CombineLevelButtonVm,
 } from "@/components/collection/combine-card-dialog/CombineLevelButton";
+import { buildCombineCardsPayloadAction } from "@/lib/backend/actions/purchase-actions";
 import { broadcastCombineCards, waitForTransactions } from "@/lib/frontend/purchase/splBroadcast";
 import {
   checkCombineStatus,
@@ -205,7 +206,7 @@ export default function CombineCardsDialog({
       // Broadcast combine transaction
       const txId = await broadcastCombineCards({
         account,
-        cardUids: combinePlan.cardUids,
+        payload: await buildCombineCardsPayloadAction({ cardUids: combinePlan.cardUids }),
       });
 
       const [confirmation] = await waitForTransactions([txId]);
@@ -390,7 +391,7 @@ export default function CombineCardsDialog({
           flexWrap="wrap"
           sx={{ width: "100%", justifyContent: "right" }}
         >
-          <PurchaseTxProgressPanel txProgress={txProgress} />
+          <TransactionProgressPanel txProgress={txProgress} />
           <Button onClick={handleClose} disabled={isProcessing}>
             Cancel
           </Button>

@@ -7,6 +7,28 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ## [Unreleased]
 
+## [v1.8.0] - 2026-07-12
+
+### Added
+
+- New /collection/skins flow for grouped skin ownership and marketplace actions (buy, transfer, list) with transaction progress + verification.
+- Buy Skin dialog listing transparency table with pagination (page size 5), showing seller, quantity, USD/DEC/Credits prices, created date, and selected purchase rows.
+- Buy Skin estimated totals now show synchronized USD, DEC, and Credits values based on the exact cheapest selected listings.
+
+### Changed
+
+- Skins page now uses marketplace image data directly from API detailImage for skin rendering, instead of derived URL construction.
+- Collection skins filter drawer hides the Hide Missing Cards toggle on this page; Owned Skins Only remains the intended control.
+- Buy dialog title now includes active account context and right-aligned DEC/Credits balances.
+- List Skin default USD price is now provided directly from already-loaded skins page data (lowest listed USD for that skin), avoiding extra listing fetch for list mode.
+
+### Fixed
+
+- Prevent own listing purchases in cheapest-selection logic (client preview and server payload selection).
+- Fixed duplicate React key warnings in Buy Skin listing rows by using listingItemId as the unique table row key.
+- Fixed Buy Skin pagination inconsistencies by using a stable sorted listing source for page calculations and rendering.
+- Fixed multi-quantity purchase math by consistently selecting the lowest-priced listings first and recalculating totals immediately on quantity change.
+
 ## [v1.7.2] - 2026-07-12
 
 ### Changed

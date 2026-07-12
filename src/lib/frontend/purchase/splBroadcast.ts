@@ -1,8 +1,15 @@
 "use client";
 
 import { waitForTransactionsAction } from "@/lib/backend/actions/purchase-actions";
-import { splApiConfig, withOperationPrefix } from "@/lib/shared/config/splApiConfig";
-import type { PurchaseCurrency, WaitForTransactionsResult } from "@/types/purchase/purchase-plan";
+import { withOperationPrefix } from "@/lib/shared/config/splApiConfig";
+import type { WaitForTransactionsResult } from "@/types/purchase/purchase-plan";
+import type {
+  CombineCardsPayload,
+  MarketPurchasePayload,
+  MarketplaceListPayload,
+  MarketplacePurchasePayload,
+  TransferSkinsPayload,
+} from "@/types/skin-transactions";
 import { KeychainKeyTypes, KeychainSDK } from "keychain-sdk";
 
 interface HiveKeychainWindow extends Window {
@@ -19,26 +26,54 @@ interface BroadcastResponse {
   };
 }
 
-export const MARKET = "spl-stats.com";
+async function broadcastCustomJson(
+  account: string,
+  operationId: string,
+  payload: object
+): Promise<string> {
+  const win = window as HiveKeychainWindow;
+  if (!win?.hive_keychain) {
+    throw new Error("Hive Keychain extension not found.");
+  }
 
-function getNonce(): number {
-  return Date.now();
-}
+  const normalizedAccount = account.toLowerCase();
+  const keychain = new KeychainSDK(win);
+  const result = (await keychain.broadcast({
+    username: normalizedAccount,
+    operations: [
+      [
+        "custom_json",
+        {
+          required_auths: [normalizedAccount],
+          required_posting_auths: [],
+          id: withOperationPrefix(operationId),
+          json: JSON.stringify(payload),
+        },
+      ],
+    ],
+    method: KeychainKeyTypes.active,
+  })) as BroadcastResponse;
 
-function getAppName(): string {
-  return splApiConfig.mode === "test" ? `${splApiConfig.app}/dev` : splApiConfig.app;
+  if (!result?.success) {
+    throw new Error(result?.message || result?.error || "Transaction broadcast failed");
+  }
+
+  const txId = result.result?.id ?? result.result?.tx_id;
+  if (!txId) {
+    throw new Error("No transaction id returned from Keychain broadcast");
+  }
+
+  return txId;
 }
 
 export interface BroadcastMarketPurchaseParams {
   account: string;
-  marketIds: string[];
-  currency: PurchaseCurrency;
-  totalPrice: number;
+  payload: MarketPurchasePayload;
 }
 
 export interface BroadcastCombineCardsParams {
   account: string;
-  cardUids: string[];
+  payload: CombineCardsPayload;
 }
 
 /**
@@ -56,97 +91,35 @@ export async function waitForTransactions(txIds: string[]): Promise<WaitForTrans
 
 export async function broadcastMarketPurchase({
   account,
-  marketIds,
-  currency,
-  totalPrice,
+  payload,
 }: BroadcastMarketPurchaseParams): Promise<string> {
-  const win = window as HiveKeychainWindow;
-  if (!win?.hive_keychain) {
-    throw new Error("Hive Keychain extension not found.");
-  }
-
-  if (marketIds.length === 0) {
-    throw new Error("No listings selected for purchase.");
-  }
-
-  const keychain = new KeychainSDK(win);
-  const result = (await keychain.broadcast({
-    username: account.toLowerCase(),
-    operations: [
-      [
-        "custom_json",
-        {
-          required_auths: [account.toLowerCase()],
-          required_posting_auths: [],
-          id: withOperationPrefix("sm_market_purchase"),
-          json: JSON.stringify({
-            items: marketIds,
-            currency,
-            price: Number(totalPrice.toFixed(3)),
-            market: MARKET,
-            app: getAppName(),
-            n: getNonce(),
-          }),
-        },
-      ],
-    ],
-    method: KeychainKeyTypes.active,
-  })) as BroadcastResponse;
-
-  if (!result?.success) {
-    throw new Error(result?.message || result?.error || "Market purchase broadcast failed");
-  }
-
-  const txId = result.result?.id ?? result.result?.tx_id;
-  if (!txId) {
-    throw new Error("No transaction id returned from Keychain broadcast");
-  }
-
-  return txId;
+  return broadcastCustomJson(account, "sm_market_purchase", payload);
 }
 
 export async function broadcastCombineCards({
   account,
-  cardUids,
+  payload,
 }: BroadcastCombineCardsParams): Promise<string> {
-  const win = window as HiveKeychainWindow;
-  if (!win?.hive_keychain) {
-    throw new Error("Hive Keychain extension not found.");
-  }
+  return broadcastCustomJson(account, "sm_combine_cards", payload);
+}
 
-  if (cardUids.length === 0) {
-    throw new Error("No cards selected for combining.");
-  }
+export async function broadcastMarketplaceAssetPurchase(
+  account: string,
+  payload: MarketplacePurchasePayload
+): Promise<string> {
+  return broadcastCustomJson(account, "sm_marketplace_purchase", payload);
+}
 
-  const keychain = new KeychainSDK(win);
-  const result = (await keychain.broadcast({
-    username: account.toLowerCase(),
-    operations: [
-      [
-        "custom_json",
-        {
-          required_auths: [account.toLowerCase()],
-          required_posting_auths: [],
-          id: withOperationPrefix("sm_combine_cards"),
-          json: JSON.stringify({
-            cards: cardUids,
-            app: getAppName(),
-            n: getNonce(),
-          }),
-        },
-      ],
-    ],
-    method: KeychainKeyTypes.active,
-  })) as BroadcastResponse;
+export async function broadcastTransferSkins(
+  account: string,
+  payload: TransferSkinsPayload
+): Promise<string> {
+  return broadcastCustomJson(account, "sm_transfer_skins", payload);
+}
 
-  if (!result?.success) {
-    throw new Error(result?.message || result?.error || "Card combine broadcast failed");
-  }
-
-  const txId = result.result?.id ?? result.result?.tx_id;
-  if (!txId) {
-    throw new Error("No transaction id returned from Keychain broadcast");
-  }
-
-  return txId;
+export async function broadcastMarketplaceList(
+  account: string,
+  payload: MarketplaceListPayload
+): Promise<string> {
+  return broadcastCustomJson(account, "sm_marketplace_list", payload);
 }

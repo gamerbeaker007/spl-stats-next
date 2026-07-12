@@ -10,17 +10,25 @@ export interface TxProgressState {
   error?: string;
 }
 
-interface PurchaseTxProgressPanelProps {
+interface TransactionProgressPanelProps {
   txProgress: TxProgressState | null;
+  processingLabel?: string;
+  verifiedLabel?: string;
+  failedLabel?: string;
+  transactionLinkLabel?: string;
 }
 
 function txLink(txId: string): string {
   return `https://hivehub.dev/tx/${encodeURIComponent(txId)}`;
 }
 
-export default function PurchaseTxProgressPanel({
+export default function TransactionProgressPanel({
   txProgress,
-}: Readonly<PurchaseTxProgressPanelProps>) {
+  processingLabel = "Processing transaction...",
+  verifiedLabel = "Transaction verified",
+  failedLabel = "Transaction failed",
+  transactionLinkLabel = "View transaction",
+}: Readonly<TransactionProgressPanelProps>) {
   if (!txProgress) return null;
 
   return (
@@ -34,7 +42,7 @@ export default function PurchaseTxProgressPanel({
       {txProgress.status === "processing" && (
         <Stack direction="row" spacing={1} alignItems="center">
           <CircularProgress size={18} />
-          <Typography variant="body2">Processing transaction...</Typography>
+          <Typography variant="body2">{processingLabel}</Typography>
         </Stack>
       )}
 
@@ -42,10 +50,15 @@ export default function PurchaseTxProgressPanel({
         <Stack spacing={0.5} direction="row" alignItems="center">
           <MdCheckCircle color="#2e7d32" />
           <Typography variant="body2" color="success.main" sx={{ fontWeight: 700 }}>
-            Transaction verified
+            {verifiedLabel}
           </Typography>
           {txProgress.txId && (
-            <Link href={txLink(txProgress.txId)} target="_blank" rel="noopener noreferrer">
+            <Link
+              href={txLink(txProgress.txId)}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label={transactionLinkLabel}
+            >
               <LuExternalLink />
             </Link>
           )}
@@ -53,9 +66,7 @@ export default function PurchaseTxProgressPanel({
       )}
 
       {txProgress.status === "error" && (
-        <Alert severity="error">
-          {txProgress.error ?? txProgress.message ?? "Transaction failed"}
-        </Alert>
+        <Alert severity="error">{txProgress.error ?? txProgress.message ?? failedLabel}</Alert>
       )}
 
       {txProgress.message && txProgress.status !== "error" && (
