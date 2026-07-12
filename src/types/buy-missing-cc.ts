@@ -68,17 +68,6 @@ export interface BuildPurchasePlanOutput {
   };
 }
 
-export interface TargetLevelPreview {
-  currentLevel: number;
-  targetLevel: number;
-  currentCc: number;
-  targetCc: number;
-  missingCc: number;
-  currentStats: Partial<Record<keyof Omit<CardStats, "abilities">, number>>;
-  targetStats: Partial<Record<keyof Omit<CardStats, "abilities">, number>>;
-  newAbilities: string[];
-}
-
 export interface BuyMissingCcCardContext {
   cardDetailId: number;
   cardName: string;

@@ -64,7 +64,7 @@ const FOIL_RANK: Record<Row["foil"], number> = {
 
 export default function BuyMissingCcPageClient() {
   const isMobile = useMediaQuery("(max-width:899px)");
-  const { addItems, collectionRefreshVersion } = usePurchasePlan();
+  const { addItems, collectionRefreshVersion, notifyCollectionRefresh } = usePurchasePlan();
   const { filter } = useBuyMissingCcFilter();
   const {
     cardDetails,
@@ -385,7 +385,6 @@ export default function BuyMissingCcPageClient() {
           row.allCards?.filter((card) => card.edition === row.edition && card.foil === row.foil) ??
           [],
       });
-      console.log("Upgradeable check for", row.name, "levels:", combinableLevels);
       return combinableLevels.length > 0;
     });
   }, [filteredRows, settings, showUpgradeableOnly]);
@@ -617,15 +616,10 @@ export default function BuyMissingCcPageClient() {
           }
           topOffsetPx={isMobile ? undefined : APP_BAR_HEIGHT + COLLECTION_STICKY_BAR_HEIGHT}
           onClose={() => setCombineDialogRow(null)}
-          onSuccess={async () => {
-            // Refresh collection data
-            if (selectedAccount) {
-              try {
-                await getBuyMissingCcDetailedCollectionAction(selectedAccount);
-              } catch (err) {
-                console.error("Failed to refresh collection after combine:", err);
-              }
-            }
+          onSuccess={() => {
+            // Bump the shared refresh version so the collection reloads (the load
+            // effect depends on collectionRefreshVersion).
+            notifyCollectionRefresh();
           }}
         />
       )}

@@ -296,7 +296,7 @@ export default function BuyCardDialog({
           ...prev,
           [context.account]: context.combineCards,
         }));
-        setDynamicCardUids(context.cardUids);
+        setDynamicCardUids(context.combineCards.map((card) => card.uid).filter(Boolean));
       } catch (err) {
         if (!active) return;
         setContextError(

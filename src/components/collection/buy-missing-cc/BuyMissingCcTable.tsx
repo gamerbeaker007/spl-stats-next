@@ -35,7 +35,7 @@ import {
   Typography,
 } from "@mui/material";
 import Image from "next/image";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { MdCheckCircle, MdErrorOutline, MdLocalOffer, MdWarningAmber } from "react-icons/md";
 import { TbCopyPlusFilled } from "react-icons/tb";
 import type { BuyMissingCcSortField, DisplayRow } from "./types";
@@ -73,17 +73,28 @@ export default function BuyMissingCcTable({
   onOpenCombineDialog,
   fillHeight = false,
 }: Readonly<BuyMissingCcTableProps>) {
+  // Combine rates are pure per (edition, foil, rarity, tier) but the sort
+  // comparator and the row renderer both need them — compute once per row.
+  const ratesByKey = useMemo(() => {
+    const map = new Map<string, number[] | null>();
+    for (const row of rows) {
+      map.set(
+        row.key,
+        settings
+          ? getCombineRatesForCard(settings, row.edition, row.foil, row.rarity, row.tier)
+          : null
+      );
+    }
+    return map;
+  }, [rows, settings]);
+
   const sortedRows = [...rows].sort((a, b) => {
     const compare = (() => {
       if (sortBy === "name") return a.name.localeCompare(b.name);
       if (sortBy === "owned") return a.totalOwnedCc - b.totalOwnedCc;
 
-      const ratesA = settings
-        ? getCombineRatesForCard(settings, a.edition, a.foil, a.rarity, a.tier)
-        : null;
-      const ratesB = settings
-        ? getCombineRatesForCard(settings, b.edition, b.foil, b.rarity, b.tier)
-        : null;
+      const ratesA = ratesByKey.get(a.key) ?? null;
+      const ratesB = ratesByKey.get(b.key) ?? null;
 
       const maxLevelA = ratesA ? getCardMaxLevel(ratesA) : 1;
       const maxLevelB = ratesB ? getCardMaxLevel(ratesB) : 1;
@@ -290,9 +301,7 @@ export default function BuyMissingCcTable({
               const editionIcon = getEditionIconUrl(row.edition);
               const maxOnlyFoil = isMaxOnlyFoil(row.foil);
 
-              const rates = settings
-                ? getCombineRatesForCard(settings, row.edition, row.foil, row.rarity, row.tier)
-                : null;
+              const rates = ratesByKey.get(row.key) ?? null;
               const maxLevel = rates ? getCardMaxLevel(rates) : 1;
               const maxLevelCc = rates ? getCardMaxCc(rates) : 1;
               const firstLevel = rates ? getCardFirstPlayableLevel(rates) : 1;

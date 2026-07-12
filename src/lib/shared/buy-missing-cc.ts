@@ -4,11 +4,9 @@ import type {
   BuildPurchasePlanOutput,
   BuyMissingCcListing,
   ListingSelection,
-  TargetLevelPreview,
   UpgradeRequirements,
 } from "@/types/buy-missing-cc";
 import { CardDetail, CardFoil, CardRarity } from "@/types/card";
-import type { CardStats } from "@/types/spl/cardDetails";
 import type { SplSettings } from "@/types/spl/season";
 
 export function getCardFirstPlayableLevel(combineRates: number[]): number {
@@ -263,52 +261,70 @@ export function buildPurchasePlan(input: BuildPurchasePlanInput): BuildPurchaseP
   return { items, totals };
 }
 
-function statAtLevel(values: number[] | undefined, level: number): number {
-  if (!values || values.length === 0) return 0;
-  const index = Math.max(0, Math.min(values.length - 1, level - 1));
-  return values[index] ?? 0;
+/**
+ * Abilities gained when moving a card from `currentLevel` to `targetLevel`.
+ * `abilities[level - 1]` is the cumulative ability list at that level.
+ */
+export function getNewAbilitiesAtLevel(
+  abilities: string[][] | undefined,
+  currentLevel: number,
+  targetLevel: number
+): string[] {
+  const currentAbilities = new Set(abilities?.[Math.max(0, currentLevel - 1)] ?? []);
+  const targetAbilities = abilities?.[Math.max(0, targetLevel - 1)] ?? [];
+  return targetAbilities.filter((ability) => !currentAbilities.has(ability));
 }
 
-export function buildTargetLevelPreview(
-  stats: CardStats,
-  currentLevel: number,
-  targetLevel: number,
-  currentCc: number,
-  targetCc: number,
-  missingCc: number
-): TargetLevelPreview {
-  const statKeys: Array<keyof Omit<CardStats, "abilities">> = [
-    "mana",
-    "attack",
-    "ranged",
-    "magic",
-    "armor",
-    "health",
-    "speed",
-  ];
+/**
+ * Pick the exact card copies to burn to reach `targetLevel`.
+ *
+ * The highest-priority copy (see {@link compareByBasePriority}) is the base and
+ * is always kept; it stays usable even while on a wagon/delegated. Other copies
+ * are only usable when freely available (not in a set, on a wagon, or delegated
+ * out). Copies are added cheapest-first (lowest level, then lowest BCX) until the
+ * required BCX is met. Returns `null` when the target cannot be reached with the
+ * usable copies — the single source of truth for which UIDs a combine broadcasts.
+ */
+export function selectCardsToCombine(options: {
+  combineRates: number[];
+  targetLevel: number;
+  cards: CombineCardState[];
+}): { cardUids: string[]; totalBcx: number } | null {
+  const { combineRates, targetLevel, cards } = options;
 
-  const currentStats: Partial<Record<keyof Omit<CardStats, "abilities">, number>> = {};
-  const targetStats: Partial<Record<keyof Omit<CardStats, "abilities">, number>> = {};
+  const requiredBcx = combineRates[targetLevel - 1] ?? 0;
+  if (requiredBcx <= 0) return null;
 
-  for (const key of statKeys) {
-    currentStats[key] = statAtLevel(stats[key], currentLevel);
-    targetStats[key] = statAtLevel(stats[key], targetLevel);
+  const baseUid = [...cards].sort(compareByBasePriority)[0]?.uid;
+
+  const usable = cards.filter((entry) => {
+    if (!entry.uid || (entry.bcx ?? 0) <= 0 || entry.inSet) return false;
+    if (!entry.onWagon && !entry.delegatedTo) return true;
+    return entry.uid === baseUid;
+  });
+
+  const sorted = [...usable].sort(compareByBasePriority);
+  const baseCard = sorted[0];
+  if (!baseCard) return null;
+
+  const remaining = sorted.slice(1).sort((a, b) => {
+    const levelDelta = (a.level ?? 0) - (b.level ?? 0);
+    if (levelDelta !== 0) return levelDelta;
+    return (a.bcx ?? 0) - (b.bcx ?? 0);
+  });
+
+  const picked: CombineCardState[] = [baseCard];
+  let totalBcx = baseCard.bcx ?? 0;
+
+  for (const candidate of remaining) {
+    if (totalBcx >= requiredBcx) break;
+    picked.push(candidate);
+    totalBcx += candidate.bcx ?? 0;
   }
 
-  const currentAbilities = new Set(stats.abilities?.[Math.max(0, currentLevel - 1)] ?? []);
-  const targetAbilities = stats.abilities?.[Math.max(0, targetLevel - 1)] ?? [];
-  const newAbilities = targetAbilities.filter((ability) => !currentAbilities.has(ability));
+  if (totalBcx < requiredBcx) return null;
 
-  return {
-    currentLevel,
-    targetLevel,
-    currentCc,
-    targetCc,
-    missingCc,
-    currentStats,
-    targetStats,
-    newAbilities,
-  };
+  return { cardUids: picked.map((card) => card.uid), totalBcx };
 }
 
 export type CombineDisabledReason =
@@ -335,10 +351,12 @@ export interface CombineStatus {
   nextLevelCcRequired: number;
   copiesNeeded: number;
   cardUids: string[];
-  /** Highest usable level due to wagon/delegation restrictions (null if no restriction) */
-  maxLevelDueToWagon?: number | null;
-  /** Highest usable level due to wagon/delegation restrictions (null if no restriction) */
-  maxLevelDueToAvailability?: number | null;
+  /**
+   * Highest level reachable once wagon/delegation restrictions are applied.
+   * `null` when the card cannot currently be combined (falls back to
+   * `maxReachableLevel`, which ignores availability restrictions).
+   */
+  maxUsableLevel: number | null;
   onWagonCount: number;
   delegatedOutCount: number;
   unavailableCount: number;
@@ -377,14 +395,19 @@ export function getCombineTooltipText(options: {
   );
 }
 
-function buildCombineContext(allCards: CombineCardState[]) {
-  const sortedByBasePriority = [...allCards].sort((a, b) => {
-    const levelDelta = (b.level ?? 0) - (a.level ?? 0);
-    if (levelDelta !== 0) return levelDelta;
-    return (b.bcx ?? 0) - (a.bcx ?? 0);
-  });
+/**
+ * Combine ordering: the highest-level copy (tie-broken by highest BCX) is the
+ * "base" card that all other copies merge into. Single source of truth used by
+ * both combine validation and card selection so the two can never disagree.
+ */
+function compareByBasePriority(a: CombineCardState, b: CombineCardState): number {
+  const levelDelta = (b.level ?? 0) - (a.level ?? 0);
+  if (levelDelta !== 0) return levelDelta;
+  return (b.bcx ?? 0) - (a.bcx ?? 0);
+}
 
-  const baseUid = sortedByBasePriority[0]?.uid;
+function buildCombineContext(allCards: CombineCardState[]) {
+  const baseUid = [...allCards].sort(compareByBasePriority)[0]?.uid;
   const onWagonCount = allCards.reduce((sum, card) => {
     if (!card.onWagon || card.uid === baseUid) return sum;
     return sum + Math.max(0, card.bcx ?? 0);
@@ -457,128 +480,79 @@ export function checkCombineStatus(options: {
   const targetLevelCcRequired = combineRates[safeTargetLevel - 1] ?? 0;
   const nextLevelCcRequired = combineRates[nextLevel - 1] ?? 0;
 
+  // Fields shared by every outcome. Each branch below only overrides the few
+  // fields that actually differ (the discriminant + copies/currentCc).
+  const base = {
+    canOpenDialog,
+    currentLevel,
+    targetLevel: safeTargetLevel,
+    nextLevel,
+    maxReachableLevel: maxLevelReachable,
+    nextLevelCcRequired,
+    cardUids,
+    maxUsableLevel: null as number | null,
+    onWagonCount,
+    delegatedOutCount,
+    unavailableCount,
+  };
+
   if (currentLevel >= maxLevel) {
     return {
+      ...base,
       canCombine: false,
-      canOpenDialog: false,
       disabledReason: "max-level",
-      currentLevel,
-      targetLevel: maxLevel,
-      nextLevel,
-      maxReachableLevel: maxLevel,
       currentCc: totalOwnedCc,
-      nextLevelCcRequired,
       copiesNeeded: 0,
-      cardUids,
-      maxLevelDueToWagon: null,
-      onWagonCount,
-      maxLevelDueToAvailability: null,
-      delegatedOutCount,
-      unavailableCount,
     };
   }
 
   if (totalOwnedCc < targetLevelCcRequired) {
     return {
+      ...base,
       canCombine: false,
-      canOpenDialog,
       disabledReason: "not-enough-copies",
-      currentLevel,
-      targetLevel: safeTargetLevel,
-      nextLevel,
-      maxReachableLevel: maxLevelReachable,
       currentCc: totalOwnedCc,
-      nextLevelCcRequired,
       copiesNeeded: targetLevelCcRequired - totalOwnedCc,
-      cardUids,
-      maxLevelDueToWagon: null,
-      onWagonCount,
-      maxLevelDueToAvailability: null,
-      delegatedOutCount,
-      unavailableCount,
     };
   }
 
   if (inSet) {
     return {
+      ...base,
       canCombine: false,
-      canOpenDialog,
       disabledReason: "in-set",
-      currentLevel,
-      targetLevel: safeTargetLevel,
-      nextLevel,
-      maxReachableLevel: maxLevelReachable,
       currentCc: totalOwnedCc,
-      nextLevelCcRequired,
       copiesNeeded: 0,
-      cardUids,
-      maxLevelDueToWagon: null,
-      onWagonCount,
-      maxLevelDueToAvailability: null,
-      delegatedOutCount,
-      unavailableCount,
     };
   }
 
   if (usableCCAfterWagon < targetLevelCcRequired) {
     return {
+      ...base,
       canCombine: false,
-      canOpenDialog,
       disabledReason: "on-wagon",
-      currentLevel,
-      targetLevel: safeTargetLevel,
-      nextLevel,
-      maxReachableLevel: maxLevelReachable,
       currentCc: usableCC,
-      nextLevelCcRequired,
       copiesNeeded: targetLevelCcRequired - usableCCAfterWagon,
-      cardUids,
-      maxLevelDueToWagon: null,
-      onWagonCount,
-      maxLevelDueToAvailability: null,
-      delegatedOutCount,
-      unavailableCount,
     };
   }
 
   if (usableCC < targetLevelCcRequired) {
     return {
+      ...base,
       canCombine: false,
-      canOpenDialog,
       disabledReason: "delegated-out",
-      currentLevel,
-      targetLevel: safeTargetLevel,
-      nextLevel,
-      maxReachableLevel: maxLevelReachable,
       currentCc: usableCC,
-      nextLevelCcRequired,
       copiesNeeded: targetLevelCcRequired - usableCC,
-      cardUids,
-      maxLevelDueToWagon: null,
-      onWagonCount,
-      maxLevelDueToAvailability: null,
-      delegatedOutCount,
-      unavailableCount,
     };
   }
 
   return {
+    ...base,
     canCombine: true,
-    canOpenDialog,
     disabledReason: null,
-    currentLevel,
-    targetLevel: safeTargetLevel,
-    nextLevel,
-    maxReachableLevel: maxLevelReachable,
     currentCc: usableCC,
-    nextLevelCcRequired,
     copiesNeeded: 0,
-    cardUids,
-    maxLevelDueToWagon: maxLevelReachableDueToAvailability,
-    maxLevelDueToAvailability: maxLevelReachableDueToAvailability,
-    onWagonCount,
-    delegatedOutCount,
-    unavailableCount,
+    maxUsableLevel: maxLevelReachableDueToAvailability,
   };
 }
 
@@ -593,49 +567,14 @@ export function getCombinableLevels(options: {
 }): number[] {
   const { combineRates, currentLevel, totalOwnedCc, allCards } = options;
   const status = checkCombineStatus({ combineRates, currentLevel, totalOwnedCc, allCards });
-  console.log("status", status);
   if (!status.canOpenDialog) return [];
 
-  const levels: number[] = [];
-  const maxReachableNow =
-    status.maxLevelDueToAvailability ?? status.maxLevelDueToWagon ?? status.maxReachableLevel;
+  const maxReachableNow = status.maxUsableLevel ?? status.maxReachableLevel;
 
+  const levels: number[] = [];
   for (let level = currentLevel + 1; level <= maxReachableNow; level += 1) {
     levels.push(level);
   }
 
-  console.log(
-    "Combinable ",
-    "Combine status ",
-    status,
-    "Levels",
-    levels,
-    "MaxReachable",
-    maxReachableNow
-  );
   return levels;
-}
-
-/**
- * Create the custom_json payload for combining cards.
- * This is the format expected by the SPL blockchain.
- */
-export interface CombinePayload {
-  cards: string[];
-  app: string;
-  n: string | number;
-}
-
-export function createCombinePayload(
-  cardUids: string[],
-  appVersion: string = "splinterlands/0.7.177"
-): CombinePayload {
-  // Generate a nonce to ensure uniqueness
-  const nonce = Math.random().toString(36).substring(2, 15);
-
-  return {
-    cards: cardUids,
-    app: appVersion,
-    n: nonce,
-  };
 }

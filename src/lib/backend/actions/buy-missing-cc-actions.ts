@@ -97,7 +97,6 @@ export async function getBuyCardDialogAccountContextAction(
   account: string;
   accountState: { highestLevel: number; highestCc: number; totalCc: number };
   balance: { DEC: number; CREDITS: number };
-  cardUids: string[];
   combineCards: CombineCardState[];
 }> {
   const normalized = normalizeAccount(account);
@@ -143,7 +142,6 @@ export async function getBuyCardDialogAccountContextAction(
   return {
     account: normalized,
     accountState,
-    cardUids: combineCards.map((card) => card.uid).filter(Boolean),
     combineCards,
     balance: {
       DEC: balances.find((entry) => entry.token === "DEC")?.balance ?? 0,

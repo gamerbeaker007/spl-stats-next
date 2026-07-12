@@ -1,17 +1,21 @@
 "use client";
 
 import PurchaseTxProgressPanel from "@/components/collection/buy-card-dialog/PurchaseTxProgressPanel";
+import CombineLevelButton, {
+  type CombineLevelButtonVm,
+} from "@/components/collection/combine-card-dialog/CombineLevelButton";
+import type { DisplayRow } from "@/components/collection/buy-missing-cc/types";
 import { broadcastCombineCards, waitForTransactions } from "@/lib/frontend/purchase/splBroadcast";
 import {
-  buildTargetLevelPreview,
   checkCombineStatus,
   getCardMaxLevel,
   getCombinableLevels,
   getCombineTooltipText,
+  getNewAbilitiesAtLevel,
+  selectCardsToCombine,
 } from "@/lib/shared/buy-missing-cc";
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 import { largeNumberFormat } from "@/lib/utils";
-import type { CardDetail, CardFoil, DetailedPlayerCardCollectionItem } from "@/types/card";
 import {
   Box,
   Button,
@@ -25,23 +29,17 @@ import {
   Typography,
 } from "@mui/material";
 import Image from "next/image";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { MdArrowForward } from "react-icons/md";
 import { TbCopyPlusFilled } from "react-icons/tb";
 
 interface CombineCardsDialogProps {
   open: boolean;
   account: string;
-  card: DetailedPlayerCardCollectionItem & {
-    foil: CardFoil;
-    allCards?: CardDetail[];
-    highestOwnedLevel: number;
-    highestOwnedCc: number;
-    totalOwnedCc: number;
-  };
+  card: DisplayRow;
   combineRates?: number[];
   onClose: () => void;
-  onSuccess?: () => Promise<void>;
+  onSuccess?: () => void | Promise<void>;
   topOffsetPx?: number;
 }
 
@@ -71,12 +69,9 @@ export default function CombineCardsDialog({
   onSuccess,
   topOffsetPx = 0,
 }: Readonly<CombineCardsDialogProps>) {
-  const { currentLevel, currentCc, totalOwnedCc, allCards } = {
-    currentLevel: card.highestOwnedLevel,
-    currentCc: card.highestOwnedCc,
-    totalOwnedCc: card.totalOwnedCc,
-    allCards: card.allCards,
-  };
+  const currentLevel = card.highestOwnedLevel;
+  const currentCc = card.highestOwnedCc;
+  const totalOwnedCc = card.totalOwnedCc;
   const { name, edition, foil, cardStats } = card;
 
   const [txProgress, setTxProgress] = useState<{
@@ -88,33 +83,27 @@ export default function CombineCardsDialog({
 
   const maxLevel = combineRates ? getCardMaxLevel(combineRates) : currentLevel;
 
-  const matchingCards =
-    allCards?.filter((entry) => entry.edition === edition && entry.foil === foil) ?? [];
-  const sortedByBasePriority = [...matchingCards].sort((a, b) => {
-    const levelDelta = (b.level ?? 0) - (a.level ?? 0);
-    if (levelDelta !== 0) return levelDelta;
-    return (b.bcx ?? 0) - (a.bcx ?? 0);
-  });
-  const baseUid = sortedByBasePriority[0]?.uid;
-  const baseCombineStatus = combineRates
-    ? checkCombineStatus({
-        combineRates,
-        currentLevel,
-        totalOwnedCc,
-        allCards: matchingCards,
-      })
-    : null;
-  const hasInSetCards = baseCombineStatus?.disabledReason === "in-set";
-  const usableOwnedCc = baseCombineStatus?.currentCc ?? totalOwnedCc;
+  const matchingCards = useMemo(
+    () => card.allCards?.filter((entry) => entry.edition === edition && entry.foil === foil) ?? [],
+    [card.allCards, edition, foil]
+  );
 
-  const combinableLevels = combineRates
-    ? getCombinableLevels({
-        combineRates,
-        currentLevel,
-        totalOwnedCc,
-        allCards: matchingCards,
-      })
-    : [];
+  const baseCombineStatus = useMemo(
+    () =>
+      combineRates
+        ? checkCombineStatus({ combineRates, currentLevel, totalOwnedCc, allCards: matchingCards })
+        : null,
+    [combineRates, currentLevel, totalOwnedCc, matchingCards]
+  );
+  const hasInSetCards = baseCombineStatus?.disabledReason === "in-set";
+
+  const combinableLevels = useMemo(
+    () =>
+      combineRates
+        ? getCombinableLevels({ combineRates, currentLevel, totalOwnedCc, allCards: matchingCards })
+        : [],
+    [combineRates, currentLevel, totalOwnedCc, matchingCards]
+  );
   const maxReachableByTotal = baseCombineStatus?.maxReachableLevel ?? currentLevel;
 
   // Auto-select the max reachable level on mount
@@ -122,59 +111,71 @@ export default function CombineCardsDialog({
     combinableLevels.length > 0 ? combinableLevels[combinableLevels.length - 1] : currentLevel + 1;
   const [selectedLevel, setSelectedLevel] = useState<number>(initialSelectedLevel);
 
-  const availableCards = matchingCards.filter((entry) => {
-    if (!entry.uid || (entry.bcx ?? 0) <= 0 || entry.inSet) return false;
-    if (!entry.onWagon && !entry.delegatedTo) return true;
-    return entry.uid === baseUid;
-  });
-  const selectedCardsForTarget = (() => {
-    if (!combineRates || availableCards.length === 0) {
-      return [] as CardDetail[];
-    }
-
-    const requiredBcx = combineRates[selectedLevel - 1] ?? 0;
-    if (requiredBcx <= 0) {
-      return [] as CardDetail[];
-    }
-
-    const sortedByBasePriority = [...availableCards].sort((a, b) => {
-      const levelDelta = (b.level ?? 0) - (a.level ?? 0);
-      if (levelDelta !== 0) return levelDelta;
-      return (b.bcx ?? 0) - (a.bcx ?? 0);
-    });
-
-    const baseCard = sortedByBasePriority[0];
-    if (!baseCard) {
-      return [] as CardDetail[];
-    }
-
-    const remaining = sortedByBasePriority.slice(1).sort((a, b) => {
-      const levelDelta = (a.level ?? 0) - (b.level ?? 0);
-      if (levelDelta !== 0) return levelDelta;
-      return (a.bcx ?? 0) - (b.bcx ?? 0);
-    });
-
-    const picked: CardDetail[] = [baseCard];
-    let sumBcx = baseCard.bcx ?? 0;
-
-    for (const candidate of remaining) {
-      if (sumBcx >= requiredBcx) break;
-      picked.push(candidate);
-      sumBcx += candidate.bcx ?? 0;
-    }
-
-    return sumBcx >= requiredBcx ? picked : ([] as CardDetail[]);
-  })();
+  // Exact card copies to burn to reach the selected level (null when unreachable).
+  const combinePlan = combineRates
+    ? selectCardsToCombine({ combineRates, targetLevel: selectedLevel, cards: matchingCards })
+    : null;
 
   const targetLevelCc = combineRates ? (combineRates[selectedLevel - 1] ?? 0) : 0;
-  const preview = buildTargetLevelPreview(
-    cardStats,
+  const newAbilities = getNewAbilitiesAtLevel(cardStats.abilities, currentLevel, selectedLevel);
+
+  // Per-level view models for the level selector. Memoized so the per-level
+  // combine checks only recompute when the underlying card data changes.
+  const levelButtonVms = useMemo<CombineLevelButtonVm[]>(() => {
+    if (!combineRates || combineRates.length === 0) return [];
+
+    return Array.from({ length: maxLevel }, (_, i) => i + 1).map((level) => {
+      const isBelowOrAtCurrent = level <= currentLevel;
+      const isReachable = combinableLevels.includes(level);
+      const isReachableByTotal = level > currentLevel && level <= maxReachableByTotal;
+      const targetStatus =
+        level > currentLevel
+          ? checkCombineStatus({
+              combineRates,
+              currentLevel,
+              totalOwnedCc,
+              allCards: matchingCards,
+              targetLevel: level,
+            })
+          : null;
+      const isBlockedByUnavailableCards =
+        !isReachable &&
+        isReachableByTotal &&
+        (targetStatus?.disabledReason === "on-wagon" ||
+          targetStatus?.disabledReason === "delegated-out");
+
+      let tooltip = "";
+      if (level === currentLevel) {
+        tooltip = "Current level";
+      } else if (level < currentLevel) {
+        tooltip = "Below current level";
+      } else if (isBlockedByUnavailableCards && targetStatus) {
+        tooltip = getCombineTooltipText({
+          isLoading: false,
+          combineStatus: {
+            canCombine: false,
+            disabledReason: targetStatus.disabledReason,
+            copiesNeeded: targetStatus.copiesNeeded,
+            onWagonCount: targetStatus.onWagonCount,
+            delegatedOutCount: targetStatus.delegatedOutCount,
+          },
+        });
+      } else if (!isReachable) {
+        const needed = Math.max(0, (combineRates[level - 1] ?? 0) - totalOwnedCc);
+        tooltip = `Need ${largeNumberFormat(needed)} more BCX to reach`;
+      }
+
+      return { level, isReachable, isBelowOrAtCurrent, isBlockedByUnavailableCards, tooltip };
+    });
+  }, [
+    combineRates,
+    maxLevel,
     currentLevel,
-    selectedLevel,
-    currentCc,
-    targetLevelCc,
-    Math.max(0, targetLevelCc - usableOwnedCc)
-  );
+    totalOwnedCc,
+    matchingCards,
+    combinableLevels,
+    maxReachableByTotal,
+  ]);
 
   const handleCombine = async () => {
     const isProcessing = txProgress?.status === "processing";
@@ -186,7 +187,7 @@ export default function CombineCardsDialog({
       return;
     }
 
-    if (selectedCardsForTarget.length === 0) {
+    if (!combinePlan) {
       setTxProgress({
         status: "error",
         error: hasInSetCards
@@ -200,10 +201,9 @@ export default function CombineCardsDialog({
 
     try {
       // Broadcast combine transaction
-      const cardUids = selectedCardsForTarget.map((c) => c.uid);
       const txId = await broadcastCombineCards({
         account,
-        cardUids,
+        cardUids: combinePlan.cardUids,
       });
 
       const [confirmation] = await waitForTransactions([txId]);
@@ -353,108 +353,25 @@ export default function CombineCardsDialog({
                   justifyContent: "center",
                 }}
               >
-                {Array.from({ length: maxLevel }, (_, i) => i + 1).map((level) => {
-                  const isBelowOrAtCurrent = level <= currentLevel;
-                  const isReachable = combinableLevels.includes(level);
-                  const isReachableByTotal = level > currentLevel && level <= maxReachableByTotal;
-                  const targetStatus =
-                    combineRates && level > currentLevel
-                      ? checkCombineStatus({
-                          combineRates,
-                          currentLevel,
-                          totalOwnedCc,
-                          allCards: matchingCards,
-                          targetLevel: level,
-                        })
-                      : null;
-                  const isBlockedByUnavailableCards =
-                    !isReachable &&
-                    isReachableByTotal &&
-                    (targetStatus?.disabledReason === "on-wagon" ||
-                      targetStatus?.disabledReason === "delegated-out");
-                  const isSelected = level === selectedLevel;
-
-                  let tooltipTitle = "";
-                  if (level === currentLevel) {
-                    tooltipTitle = "Current level";
-                  } else if (level < currentLevel) {
-                    tooltipTitle = "Below current level";
-                  } else if (isBlockedByUnavailableCards && targetStatus) {
-                    tooltipTitle = getCombineTooltipText({
-                      isLoading: false,
-                      combineStatus: {
-                        canCombine: false,
-                        disabledReason: targetStatus.disabledReason,
-                        copiesNeeded: targetStatus.copiesNeeded,
-                        onWagonCount: targetStatus.onWagonCount,
-                        delegatedOutCount: targetStatus.delegatedOutCount,
-                      },
-                    });
-                  } else if (!isReachable) {
-                    const needed = Math.max(0, (combineRates[level - 1] ?? 0) - totalOwnedCc);
-                    tooltipTitle = `Need ${largeNumberFormat(needed)} more BCX to reach`;
-                  }
-
-                  return (
-                    <Tooltip key={level} title={tooltipTitle} placement="top">
-                      <span>
-                        <Button
-                          variant={isSelected ? "contained" : "outlined"}
-                          size="small"
-                          onClick={() =>
-                            isReachable && !isBelowOrAtCurrent && setSelectedLevel(level)
-                          }
-                          disabled={isProcessing || isBelowOrAtCurrent || !isReachable}
-                          sx={{
-                            minWidth: 38,
-                            fontWeight: isSelected ? 700 : 400,
-
-                            ...(isSelected && {
-                              bgcolor: "success.main",
-                              borderColor: "success.main",
-                              color: "white",
-                              "&:hover": { bgcolor: "success.dark" },
-                            }),
-
-                            ...(isReachable &&
-                              !isSelected &&
-                              !isBelowOrAtCurrent && {
-                                borderColor: "success.main",
-                                color: "success.main",
-                                "&:hover": {
-                                  bgcolor: "success.light",
-                                  opacity: 0.8,
-                                },
-                              }),
-
-                            ...(isBlockedByUnavailableCards && {
-                              borderColor: "warning.main",
-                              color: "warning.main",
-                              "&.Mui-disabled": {
-                                borderColor: "warning.main",
-                                color: "warning.main",
-                                opacity: 0.6, // optional
-                                WebkitTextFillColor: "currentColor", // helps Safari
-                              },
-                            }),
-                          }}
-                        >
-                          {level}
-                        </Button>
-                      </span>
-                    </Tooltip>
-                  );
-                })}
+                {levelButtonVms.map((vm) => (
+                  <CombineLevelButton
+                    key={vm.level}
+                    vm={vm}
+                    isSelected={vm.level === selectedLevel}
+                    disabled={isProcessing}
+                    onSelect={setSelectedLevel}
+                  />
+                ))}
               </Box>
             </Box>
           )}
 
           {/* Stats Preview */}
-          {preview.newAbilities.length > 0 && (
+          {newAbilities.length > 0 && (
             <Box>
               <Typography variant="subtitle2">New Abilities at Level {selectedLevel}</Typography>
               <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                {preview.newAbilities.map((ability) => (
+                {newAbilities.map((ability) => (
                   <Chip key={ability} label={ability} size="small" color="success" />
                 ))}
               </Stack>
@@ -479,7 +396,7 @@ export default function CombineCardsDialog({
             title={
               !combinableLevels.includes(selectedLevel)
                 ? "Selected level is not reachable with current cards"
-                : selectedCardsForTarget.length === 0
+                : !combinePlan
                   ? "No cards available to combine"
                   : "Combine to this level"
             }
@@ -488,11 +405,7 @@ export default function CombineCardsDialog({
               <Button
                 onClick={handleCombine}
                 variant="contained"
-                disabled={
-                  isProcessing ||
-                  !combinableLevels.includes(selectedLevel) ||
-                  selectedCardsForTarget.length === 0
-                }
+                disabled={isProcessing || !combinableLevels.includes(selectedLevel) || !combinePlan}
               >
                 Combine to Level {selectedLevel}
               </Button>
