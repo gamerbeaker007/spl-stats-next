@@ -328,6 +328,7 @@ export function selectCardsToCombine(options: {
 }
 
 export type CombineDisabledReason =
+  | "no-copies"
   | "max-level"
   | "not-enough-copies"
   | "in-set"
@@ -395,6 +396,7 @@ export function getCombineTooltipText(options: {
     "on-wagon": `Too many cards on wagon (${combineStatus?.onWagonCount ?? 0} BCX on wagons)`,
     "delegated-out": `Too many cards delegated out (${combineStatus?.delegatedOutCount ?? 0} BCX delegated)`,
     "on-land": `Too many cards on land (${combineStatus?.onLandCount ?? 0} BCX on land)`,
+    "no-copies": "No copies available to combine",
   };
 
   return (
@@ -519,6 +521,16 @@ export function checkCombineStatus(options: {
       disabledReason: "max-level",
       currentCc: totalOwnedCc,
       copiesNeeded: 0,
+    };
+  }
+
+  if (totalOwnedCc <= 0) {
+    return {
+      ...base,
+      canCombine: false,
+      disabledReason: "no-copies",
+      currentCc: totalOwnedCc,
+      copiesNeeded: targetLevelCcRequired - totalOwnedCc,
     };
   }
 

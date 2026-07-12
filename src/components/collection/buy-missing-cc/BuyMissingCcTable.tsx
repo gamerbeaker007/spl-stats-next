@@ -396,13 +396,19 @@ export default function BuyMissingCcTable({
                         combineStatus?.disabledReason === "in-set"
                           ? "orange"
                           : "";
+
                       return (
                         <Tooltip title={tooltipText}>
                           <span>
                             <Button
                               variant="outlined"
                               size="small"
-                              disabled={!settings || !rates || !combineStatus?.canCombine}
+                              disabled={
+                                !settings ||
+                                !rates ||
+                                !combineStatus?.canCombine ||
+                                row.totalOwnedCc <= 0
+                              }
                               sx={{ minWidth: 30, px: 0.5 }}
                               onClick={() => onOpenCombineDialog(row)}
                             >
