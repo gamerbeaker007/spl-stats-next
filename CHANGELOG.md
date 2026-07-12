@@ -28,6 +28,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 - Fixed duplicate React key warnings in Buy Skin listing rows by using listingItemId as the unique table row key.
 - Fixed Buy Skin pagination inconsistencies by using a stable sorted listing source for page calculations and rendering.
 - Fixed multi-quantity purchase math by consistently selecting the lowest-priced listings first and recalculating totals immediately on quantity change.
+- First check delegated out then how many are on land for better combine tooltip
 
 ## [v1.7.2] - 2026-07-12
 
