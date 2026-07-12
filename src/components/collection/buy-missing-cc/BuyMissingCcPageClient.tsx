@@ -3,6 +3,7 @@
 import BuyCardDialog from "@/components/collection/buy-card-dialog/BuyCardDialog";
 import BuyMissingCcFilterDrawer from "@/components/collection/buy-missing-cc/BuyMissingCcFilterDrawer";
 import BuyMissingCcTable from "@/components/collection/buy-missing-cc/BuyMissingCcTable";
+import CombineCardsDialog from "@/components/collection/combine-card-dialog/CombineCardsDialog";
 import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
 import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 import { useBuyMissingCcSharedData } from "@/hooks/cards/useBuyMissingCcSharedData";
@@ -15,6 +16,7 @@ import {
   calculateUpgradeCostEstimate,
   calculateUpgradeRequirements,
   getCardMaxLevel,
+  getCombinableLevels,
   getCombineRatesForCard,
 } from "@/lib/shared/buy-missing-cc";
 import { matchesCardFilter, type FilterableCard } from "@/lib/shared/card-filter-utils";
@@ -62,7 +64,7 @@ const FOIL_RANK: Record<Row["foil"], number> = {
 
 export default function BuyMissingCcPageClient() {
   const isMobile = useMediaQuery("(max-width:899px)");
-  const { addItems, collectionRefreshVersion } = usePurchasePlan();
+  const { addItems, collectionRefreshVersion, notifyCollectionRefresh } = usePurchasePlan();
   const { filter } = useBuyMissingCcFilter();
   const {
     cardDetails,
@@ -93,7 +95,9 @@ export default function BuyMissingCcPageClient() {
   const [combineFoils, setCombineFoils] = useState(false);
   const [highestLevelOnly, setHighestLevelOnly] = useState(true);
   const [search, setSearch] = useState("");
-  const [dialogRow, setDialogRow] = useState<Row | null>(null);
+  const [dialogRow, setDialogRow] = useState<DisplayRow | null>(null);
+  const [combineDialogRow, setCombineDialogRow] = useState<DisplayRow | null>(null);
+  const [showUpgradeableOnly, setShowUpgradeableOnly] = useState(false);
 
   useEffect(() => {
     if (!selectedBracket) {
@@ -152,20 +156,37 @@ export default function BuyMissingCcPageClient() {
           }
         }
 
-        const groupedPriceByKey = new Map<string, number>();
+        const groupedPriceByKey = new Map<string, { lowPrice: number; lowPriceBcx: number }>();
         for (const market of snapshot.groupedMarket) {
-          const foil = toCardFoil(market.foil);
-          const key = `${market.card_detail_id}-${foil}`;
-          const existing = groupedPriceByKey.get(key);
-          const nextPrice = Number(market.low_price_bcx);
-          if (Number.isFinite(nextPrice) && nextPrice > 0) {
-            groupedPriceByKey.set(key, existing ? Math.min(existing, nextPrice) : nextPrice);
+          const key = `${market.card_detail_id}-${toCardFoil(market.foil)}`;
+
+          const prices = groupedPriceByKey.get(key) ?? {
+            lowPrice: Number.POSITIVE_INFINITY,
+            lowPriceBcx: Number.POSITIVE_INFINITY,
+          };
+
+          const lowPriceBcx = Number(market.low_price_bcx);
+          if (Number.isFinite(lowPriceBcx) && lowPriceBcx > 0) {
+            prices.lowPriceBcx = Math.min(prices.lowPriceBcx, lowPriceBcx);
           }
+
+          const lowPrice = Number(market.low_price);
+          if (Number.isFinite(lowPrice) && lowPrice > 0) {
+            prices.lowPrice = Math.min(prices.lowPrice, lowPrice);
+          }
+
+          groupedPriceByKey.set(key, prices);
+        }
+
+        // Optional: convert "not found" values back to 0 if needed
+        for (const prices of groupedPriceByKey.values()) {
+          if (!Number.isFinite(prices.lowPrice)) prices.lowPrice = 0;
+          if (!Number.isFinite(prices.lowPriceBcx)) prices.lowPriceBcx = 0;
         }
 
         const nextRows: Row[] = [];
         for (const item of collectionItems) {
-          if (item.edition === 16) continue;
+          if (item.edition === 16) continue; //skip soulbound foundation
 
           for (const foil of item.availableFoils) {
             const key = `${item.cardDetailId}-${item.edition}-${foil}`;
@@ -189,6 +210,7 @@ export default function BuyMissingCcPageClient() {
               role: item.role,
               availableFoils: item.availableFoils,
               cardStats: item.cardStats,
+              allCards: item.allCards,
             };
 
             nextRows.push({
@@ -196,7 +218,8 @@ export default function BuyMissingCcPageClient() {
               ...card,
               foil,
               accountStates,
-              lowPricePerBcxUsd: groupedPriceByKey.get(priceKey) ?? null,
+              lowPricePerBcxUsd: groupedPriceByKey.get(priceKey)?.lowPriceBcx ?? null,
+              lowPriceUsd: groupedPriceByKey.get(priceKey)?.lowPrice ?? null,
             });
           }
         }
@@ -345,34 +368,52 @@ export default function BuyMissingCcPageClient() {
     combineFoils,
   ]);
 
+  const upgradeableFilteredRows = useMemo(() => {
+    if (!showUpgradeableOnly || !settings) return filteredRows;
+
+    return filteredRows.filter((row) => {
+      const rates = getCombineRatesForCard(settings, row.edition, row.foil, row.rarity, row.tier);
+      if (!rates) return false;
+
+      // Upgradeable filter is BCX-based only: include cards that can reach at least
+      // one higher level, regardless of temporary combine restrictions.
+      const combinableLevels = getCombinableLevels({
+        combineRates: rates,
+        currentLevel: row.highestOwnedLevel,
+        totalOwnedCc: row.totalOwnedCc,
+        allCards:
+          row.allCards?.filter((card) => card.edition === row.edition && card.foil === row.foil) ??
+          [],
+      });
+      return combinableLevels.length > 0;
+    });
+  }, [filteredRows, settings, showUpgradeableOnly]);
+
   const summary = useMemo(() => {
     let toMaxUsd = 0;
     let toBracketUsd = 0;
 
-    for (const row of filteredRows) {
+    for (const row of upgradeableFilteredRows) {
       if (!settings) continue;
       const rates = getCombineRatesForCard(settings, row.edition, row.foil, row.rarity, row.tier);
       if (!rates) continue;
 
       const maxLevel = getCardMaxLevel(rates);
       const maxReq = calculateUpgradeRequirements(row.totalOwnedCc, maxLevel, rates);
-      const maxCost = calculateUpgradeCostEstimate(maxReq.missingCc, row.lowPricePerBcxUsd);
+      const maxCost = calculateUpgradeCostEstimate(maxReq.missingCc, row.lowPriceUsd);
       toMaxUsd += maxCost.usd;
 
       if (selectedBracket) {
         const [, bracketMax] = getBracketLevelRange(selectedBracket, row.rarity);
         const targetLevel = Math.min(bracketMax, maxLevel);
         const bracketReq = calculateUpgradeRequirements(row.totalOwnedCc, targetLevel, rates);
-        const bracketCost = calculateUpgradeCostEstimate(
-          bracketReq.missingCc,
-          row.lowPricePerBcxUsd
-        );
+        const bracketCost = calculateUpgradeCostEstimate(bracketReq.missingCc, row.lowPriceUsd);
         toBracketUsd += bracketCost.usd;
       }
     }
 
     return { toMaxUsd, toBracketUsd };
-  }, [filteredRows, selectedBracket, settings]);
+  }, [selectedBracket, settings, upgradeableFilteredRows]);
 
   function toggleSort(field: BuyMissingCcSortField) {
     if (sortBy === field) {
@@ -494,6 +535,18 @@ export default function BuyMissingCcPageClient() {
               }
               label="Highest Level Only"
             />
+
+            <FormControlLabel
+              sx={{ ml: 0 }}
+              control={
+                <Switch
+                  size="small"
+                  checked={showUpgradeableOnly}
+                  onChange={(_event, checked) => setShowUpgradeableOnly(checked)}
+                />
+              }
+              label="Upgradeable Cards"
+            />
           </Stack>
 
           {error && <Alert severity="error">{error}</Alert>}
@@ -509,12 +562,12 @@ export default function BuyMissingCcPageClient() {
           </Stack>
 
           <Typography variant="caption" color="text.secondary">
-            Estimate formula: (Required CC - Current CC) x Lowest $/CC.
+            Estimate formula: (Required CC - Current CC) x Lowest Price for 1 CC.
           </Typography>
         </Stack>
 
         <BuyMissingCcTable
-          rows={filteredRows}
+          rows={upgradeableFilteredRows}
           settings={settings ?? null}
           selectedBracket={selectedBracket}
           sortBy={sortBy}
@@ -522,6 +575,7 @@ export default function BuyMissingCcPageClient() {
           toggleSort={toggleSort}
           isLoading={isLoading}
           onOpenBuyDialog={(row) => setDialogRow(row)}
+          onOpenCombineDialog={(row) => setCombineDialogRow(row)}
           fillHeight
         />
       </Box>
@@ -542,6 +596,30 @@ export default function BuyMissingCcPageClient() {
           onClose={() => setDialogRow(null)}
           onAddToPurchasePlan={(items) => {
             addItems(items);
+          }}
+        />
+      )}
+
+      {combineDialogRow && settings && selectedAccount && (
+        <CombineCardsDialog
+          open={Boolean(combineDialogRow)}
+          account={selectedAccount}
+          card={combineDialogRow}
+          combineRates={
+            getCombineRatesForCard(
+              settings,
+              combineDialogRow.edition,
+              combineDialogRow.foil,
+              combineDialogRow.rarity,
+              combineDialogRow.tier
+            ) ?? undefined
+          }
+          topOffsetPx={isMobile ? undefined : APP_BAR_HEIGHT + COLLECTION_STICKY_BAR_HEIGHT}
+          onClose={() => setCombineDialogRow(null)}
+          onSuccess={() => {
+            // Bump the shared refresh version so the collection reloads (the load
+            // effect depends on collectionRefreshVersion).
+            notifyCollectionRefresh();
           }}
         />
       )}

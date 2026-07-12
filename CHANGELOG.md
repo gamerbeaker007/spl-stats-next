@@ -9,6 +9,32 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.7.0] - 2026-07-11
+
+### Added
+
+- **Combine Cards feature (Feature C)** — players can now combine cards directly from the collection pages.
+  - **`CombineCardsDialog`** — new dialog showing a current → target card preview, animated arrow during processing, a level selector (color-coded: green = reachable, orange = blocked by wagon, disabled = not enough BCX), a new-abilities preview, and a `PurchaseTxProgressPanel` for broadcast/verify feedback.
+  - **Combine column in Buy Missing CC table** — combine button enabled only when the card can actually be upgraded; tooltip explains the first blocking reason (`max-level`, `not-enough-copies`, `in-set`, `on-wagon`, `delegated-out`).
+  - **Combine column in BuyCardDialog target-level tab** — per-level combine button with spinner during processing, reuses `checkCombineStatus` validation.
+  - **"Upgradeable Cards" filter toggle** on Buy Missing CC — hides cards whose combine button is disabled, making it easy to find immediately combinable cards.
+  - **`broadcastCombineCards`** in `splBroadcast.ts` — broadcasts `sm_combine_cards` custom-JSON via Hive Keychain active key.
+  - **`checkCombineStatus` / `getCombineTooltipText`** shared functions in `buy-missing-cc.ts` — single source of validation for all combine entry points.
+
+### Changed
+
+- **`PurchaseTxProgressPanel`** refactored to a unified `status: "processing" | "verified" | "error"` model with `CircularProgress` spinner, `MdCheckCircle` success indicator, Hivehub.dev tx link, and inline error `Alert`; `buyBusy` prop removed.
+- **`TargetLevelTabContent`** props split into `view` and `actions` objects; `onCombineAtLevel` added to `actions`.
+- **`ManualListingsTabContent`** state mutators moved to an `actions` object passed as a single prop.
+- **`CardDetail`** type gains `onWagon: boolean` and `inSet: boolean` fields; `name` field removed (already available on the parent `DetailedPlayerCardCollectionItem`).
+- **Buy Missing CC table** gains a separate **`1 CC $`** column (lowest price for a single copy) and **`Price CC $`** column (lowest price per BCX), both sortable. Column header tooltips added.
+- **`lowPriceUsd`** added to `Row` type (lowest price for one copy); cost estimate fields updated to use it instead of `lowPricePerBcxUsd`.
+- `BuyMissingCcSortField` extended with `"cc"` and `"1bcx"` sort options.
+- Purchase-cart progress panel replaced with `PurchaseTxProgressPanel`; duplicate error alert suppressed when progress already shows the error.
+- Estimate formula label updated to "Lowest Price for 1 CC" for clarity.
+
+---
+
 ## [v1.6.0] - 2026-07-10
 
 ### Added

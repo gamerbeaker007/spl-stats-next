@@ -95,8 +95,8 @@ export async function getDetailedPlayerCardCollectionCached(
     const cardDetail: CardDetail = {
       id: playerCard.card_detail_id,
       uid: playerCard.uid,
-      name: playerCard.display_name,
       owner: playerCard.player,
+      delegatedTo: playerCard.delegated_to,
       xp: playerCard.xp,
       edition: playerCard.edition,
       cardSet: playerCard.card_set as CardSetName,
@@ -106,6 +106,8 @@ export async function getDetailedPlayerCardCollectionCached(
       foil,
       mint: playerCard.mint,
       level: playerCard.level,
+      onWagon: playerCard.wagon_uid !== null,
+      inSet: playerCard.set_id !== null,
       imgUrl: getCardImageByLevel(item.name, playerCard.edition, foil, playerCard.level),
     };
 

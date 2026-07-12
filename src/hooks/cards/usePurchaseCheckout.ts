@@ -8,6 +8,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 interface CheckoutProgress {
   account: string;
   stage: "idle" | "broadcasting" | "verifying" | "success" | "error";
+  txId?: string;
   message?: string;
 }
 
@@ -45,12 +46,14 @@ export function usePurchaseCheckout(items: PurchasePlanItem[]) {
             updateProgress(account, {
               account,
               stage: "verifying",
+              txId,
               message: `Broadcasted ${txId}`,
             }),
           onVerified: ({ account, txId, success, message }) =>
             updateProgress(account, {
               account,
               stage: success ? "success" : "error",
+              txId,
               message: success
                 ? `Confirmed ${txId}`
                 : (message ?? `Waiting for confirmation: ${txId}`),

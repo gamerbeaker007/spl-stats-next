@@ -1,6 +1,7 @@
 "use client";
 
 import ScrollableTableContainer from "@/components/shared/ScrollableTableContainer";
+import { getCombineTooltipText, type CombineDisabledReason } from "@/lib/shared/buy-missing-cc";
 import { abilityIconUrl } from "@/lib/shared/card-utils";
 import { getBracketLevelRange, LEAGUE_BRACKETS } from "@/lib/shared/league-brackets";
 import {
@@ -22,6 +23,7 @@ import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Stack,
   Table,
   TableBody,
@@ -32,6 +34,8 @@ import {
   Typography,
 } from "@mui/material";
 import Image from "next/image";
+import React from "react";
+import { TbCopyPlusFilled } from "react-icons/tb";
 
 const BRACKET_LOGO_LEAGUE: Record<League, number> = {
   wood: 0,
@@ -59,6 +63,10 @@ export type TargetLevelRow = {
   targetCc: number | null;
   ownedBcx: number;
   neededBcx: number | null;
+  combineMissingBcx: number | null;
+  combineDisabledReason: CombineDisabledReason | null;
+  combineOnWagonBcx: number;
+  combineDelegatedBcx: number;
   dec: number;
   credits: number;
   usd: number;
@@ -82,7 +90,7 @@ export type TargetLevelRow = {
   abilities: string[];
 };
 
-interface TargetLevelTabContentProps {
+interface TargetLevelTabContentView {
   combineRatesAvailable: boolean;
   dynamicStats: Array<{ key: keyof CardStats; label: string }>;
   targetRows: TargetLevelRow[];
@@ -94,25 +102,38 @@ interface TargetLevelTabContentProps {
   isHighestCcAtMaxLevel: boolean;
   buyBusy: boolean;
   balance: { DEC: number; CREDITS: number };
+}
+
+interface TargetLevelTabContentActions {
   onAddToPurchasePlan: (items: TargetLevelRow["planItems"]) => void;
   onRunCheckoutForPlan: (items: TargetLevelRow["planItems"], currency: "DEC" | "CREDITS") => void;
+  onCombineAtLevel?: (level: number) => Promise<void>;
+}
+
+interface TargetLevelTabContentProps {
+  view: TargetLevelTabContentView;
+  actions: TargetLevelTabContentActions;
 }
 
 export default function TargetLevelTabContent({
-  combineRatesAvailable,
-  dynamicStats,
-  targetRows,
-  cardStats,
-  rarity,
-  targetBracket,
-  accountHighestLevel,
-  accountTotalCc,
-  isHighestCcAtMaxLevel,
-  buyBusy,
-  balance,
-  onAddToPurchasePlan,
-  onRunCheckoutForPlan,
+  view,
+  actions,
 }: Readonly<TargetLevelTabContentProps>) {
+  const {
+    combineRatesAvailable,
+    dynamicStats,
+    targetRows,
+    cardStats,
+    rarity,
+    targetBracket,
+    accountHighestLevel,
+    accountTotalCc,
+    isHighestCcAtMaxLevel,
+    buyBusy,
+    balance,
+  } = view;
+  const { onAddToPurchasePlan, onRunCheckoutForPlan, onCombineAtLevel } = actions;
+  const [combiningLevel, setCombiningLevel] = React.useState<number | null>(null);
   if (!combineRatesAvailable) {
     return (
       <Alert severity="warning">
@@ -147,6 +168,7 @@ export default function TargetLevelTabContent({
             <TableCell>Owned BCX</TableCell>
             <TableCell>Needed BCX</TableCell>
             <TableCell>Upgrade Cost ($)</TableCell>
+            <TableCell>Combine</TableCell>
             <TableCell>Add to Cart</TableCell>
             <TableCell>Buy Credits</TableCell>
             <TableCell>Buy DEC</TableCell>
@@ -243,6 +265,69 @@ export default function TargetLevelTabContent({
                 <TableCell>{row.neededBcx ?? "N/A"}</TableCell>
                 <TableCell>
                   {row.isTargetable ? (row.usd > 0 ? row.usd.toFixed(3) : "-") : "N/A"}
+                </TableCell>
+                <TableCell>
+                  {onCombineAtLevel && row.level > accountHighestLevel && (
+                    <Tooltip
+                      title={getCombineTooltipText({
+                        isLoading: false,
+                        combineStatus:
+                          row.combineMissingBcx === null
+                            ? null
+                            : row.combineDisabledReason !== null
+                              ? {
+                                  canCombine: false,
+                                  disabledReason: row.combineDisabledReason,
+                                  copiesNeeded: row.combineMissingBcx,
+                                  onWagonCount: row.combineOnWagonBcx,
+                                  delegatedOutCount: row.combineDelegatedBcx,
+                                }
+                              : {
+                                  canCombine: true,
+                                  disabledReason: null,
+                                  copiesNeeded: 0,
+                                  onWagonCount: row.combineOnWagonBcx,
+                                  delegatedOutCount: row.combineDelegatedBcx,
+                                },
+                      })}
+                    >
+                      <span>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          disabled={
+                            combiningLevel !== null ||
+                            buyBusy ||
+                            row.combineMissingBcx === null ||
+                            row.combineDisabledReason !== null
+                          }
+                          onClick={async () => {
+                            setCombiningLevel(row.level);
+                            try {
+                              await onCombineAtLevel(row.level);
+                            } finally {
+                              setCombiningLevel(null);
+                            }
+                          }}
+                        >
+                          {combiningLevel === row.level ? (
+                            <CircularProgress size={16} />
+                          ) : (
+                            <TbCopyPlusFilled
+                              size={15}
+                              color={
+                                row.combineDisabledReason === "on-wagon" ||
+                                row.combineDisabledReason === "delegated-out" ||
+                                row.combineDisabledReason === "in-set"
+                                  ? "orange"
+                                  : "inherit"
+                              }
+                            />
+                          )}
+                        </Button>
+                      </span>
+                    </Tooltip>
+                  )}
                 </TableCell>
                 <TableCell>
                   {row.isTargetable && (

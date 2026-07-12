@@ -2,7 +2,7 @@ import type { DetailedPlayerCardCollectionItem, CardFoil } from "@/types/card";
 
 export type BracketTableState = "all" | "below" | "in-bracket" | "max";
 
-export type BuyMissingCcSortField = "name" | "owned" | "next" | "bracket" | "max";
+export type BuyMissingCcSortField = "name" | "owned" | "next" | "bracket" | "1bcx" | "max" | "cc";
 
 export type AccountCardState = {
   highestLevel: number;
@@ -15,6 +15,7 @@ export type Row = DetailedPlayerCardCollectionItem & {
   foil: CardFoil;
   accountStates: Record<string, AccountCardState>;
   lowPricePerBcxUsd: number | null;
+  lowPriceUsd: number | null;
 };
 
 export type DisplayRow = Row & {

@@ -5,10 +5,12 @@ import ScrollableTableContainer from "@/components/shared/ScrollableTableContain
 import {
   calculateUpgradeCostEstimate,
   calculateUpgradeRequirements,
+  checkCombineStatus,
   getCardFirstPlayableLevel,
   getCardMaxCc,
   getCardMaxLevel,
   getCombineRatesForCard,
+  getCombineTooltipText,
 } from "@/lib/shared/buy-missing-cc";
 import { getFoilLabel } from "@/lib/shared/card-utils";
 import { getCardSetLabel, getEditionIconUrl, getEditionLabel } from "@/lib/shared/edition-utils";
@@ -33,10 +35,10 @@ import {
   Typography,
 } from "@mui/material";
 import Image from "next/image";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { MdCheckCircle, MdErrorOutline, MdLocalOffer, MdWarningAmber } from "react-icons/md";
 import { TbCopyPlusFilled } from "react-icons/tb";
-import type { BuyMissingCcSortField, DisplayRow, Row } from "./types";
+import type { BuyMissingCcSortField, DisplayRow } from "./types";
 import { bracketStatus, getShortFoilLabel, isMaxOnlyFoil } from "./utils";
 
 const PAGE_SIZE_OPTIONS = [50, 100, 1000] as const;
@@ -49,7 +51,8 @@ interface BuyMissingCcTableProps {
   sortDir: "asc" | "desc";
   toggleSort: (field: BuyMissingCcSortField) => void;
   isLoading: boolean;
-  onOpenBuyDialog: (row: Row) => void;
+  onOpenBuyDialog: (row: DisplayRow) => void;
+  onOpenCombineDialog: (row: DisplayRow) => void;
   /**
    * When true, the table grows to fill the available height of a flex-column
    * parent (scrolling internally) instead of capping at a fixed maxHeight, so
@@ -67,19 +70,31 @@ export default function BuyMissingCcTable({
   toggleSort,
   isLoading,
   onOpenBuyDialog,
+  onOpenCombineDialog,
   fillHeight = false,
 }: Readonly<BuyMissingCcTableProps>) {
+  // Combine rates are pure per (edition, foil, rarity, tier) but the sort
+  // comparator and the row renderer both need them — compute once per row.
+  const ratesByKey = useMemo(() => {
+    const map = new Map<string, number[] | null>();
+    for (const row of rows) {
+      map.set(
+        row.key,
+        settings
+          ? getCombineRatesForCard(settings, row.edition, row.foil, row.rarity, row.tier)
+          : null
+      );
+    }
+    return map;
+  }, [rows, settings]);
+
   const sortedRows = [...rows].sort((a, b) => {
     const compare = (() => {
       if (sortBy === "name") return a.name.localeCompare(b.name);
       if (sortBy === "owned") return a.totalOwnedCc - b.totalOwnedCc;
 
-      const ratesA = settings
-        ? getCombineRatesForCard(settings, a.edition, a.foil, a.rarity, a.tier)
-        : null;
-      const ratesB = settings
-        ? getCombineRatesForCard(settings, b.edition, b.foil, b.rarity, b.tier)
-        : null;
+      const ratesA = ratesByKey.get(a.key) ?? null;
+      const ratesB = ratesByKey.get(b.key) ?? null;
 
       const maxLevelA = ratesA ? getCardMaxLevel(ratesA) : 1;
       const maxLevelB = ratesB ? getCardMaxLevel(ratesB) : 1;
@@ -100,7 +115,14 @@ export default function BuyMissingCcTable({
       const costA = reqA.missingCc * priceA;
       const costB = reqB.missingCc * priceB;
 
+      const lowPriceA = a.lowPriceUsd ?? Number.MAX_SAFE_INTEGER;
+      const lowPriceB = b.lowPriceUsd ?? Number.MAX_SAFE_INTEGER;
+      const lowPriceCostA = reqA.missingCc * lowPriceA;
+      const lowPriceCostB = reqB.missingCc * lowPriceB;
+
       if (sortBy === "next") return costA - costB;
+      if (sortBy === "cc") return priceA - priceB;
+      if (sortBy === "1bcx") return lowPriceCostA - lowPriceCostB;
       if (sortBy === "bracket") {
         if (!selectedBracket || !ratesA || !ratesB) return 0;
         const [, bracketMaxA] = getBracketLevelRange(selectedBracket, a.rarity);
@@ -202,7 +224,9 @@ export default function BuyMissingCcTable({
                   direction={sortBy === "owned" ? sortDir : "asc"}
                   onClick={() => toggleSort("owned")}
                 >
-                  Tot CC
+                  <Tooltip title="Total CC owned across all copies">
+                    <span>Tot CC</span>
+                  </Tooltip>
                 </TableSortLabel>
               </TableCell>
               <TableCell>
@@ -211,9 +235,26 @@ export default function BuyMissingCcTable({
                 </Tooltip>
               </TableCell>
               <TableCell>
-                <Tooltip title="Price per CC (USD)">
-                  <span>$/CC</span>
-                </Tooltip>
+                <TableSortLabel
+                  active={sortBy === "cc"}
+                  direction={sortBy === "cc" ? sortDir : "asc"}
+                  onClick={() => toggleSort("cc")}
+                >
+                  <Tooltip title="Lowest Price per BCX (USD)">
+                    <span>Price CC $</span>
+                  </Tooltip>
+                </TableSortLabel>
+              </TableCell>
+              <TableCell>
+                <TableSortLabel
+                  active={sortBy === "1bcx"}
+                  direction={sortBy === "1bcx" ? sortDir : "asc"}
+                  onClick={() => toggleSort("1bcx")}
+                >
+                  <Tooltip title="Lowest Price for 1 CC (USD)">
+                    <span>1 CC $</span>
+                  </Tooltip>
+                </TableSortLabel>
               </TableCell>
               <TableCell>
                 <TableSortLabel
@@ -221,7 +262,9 @@ export default function BuyMissingCcTable({
                   direction={sortBy === "next" ? sortDir : "asc"}
                   onClick={() => toggleSort("next")}
                 >
-                  Next $
+                  <Tooltip title="Estimate to reach next level">
+                    <span>Next $</span>
+                  </Tooltip>
                 </TableSortLabel>
               </TableCell>
               {selectedBracket && (
@@ -231,7 +274,11 @@ export default function BuyMissingCcTable({
                     direction={sortBy === "bracket" ? sortDir : "asc"}
                     onClick={() => toggleSort("bracket")}
                   >
-                    Bracket $
+                    <Tooltip
+                      title={`Estimate to reach MAX ${LEAGUE_BRACKETS[selectedBracket].label}`}
+                    >
+                      <span>Bracket $</span>
+                    </Tooltip>
                   </TableSortLabel>
                 </TableCell>
               )}
@@ -241,7 +288,9 @@ export default function BuyMissingCcTable({
                   direction={sortBy === "max" ? sortDir : "asc"}
                   onClick={() => toggleSort("max")}
                 >
-                  Max $
+                  <Tooltip title="Estimate to reach max level">
+                    <span>Max $</span>
+                  </Tooltip>
                 </TableSortLabel>
               </TableCell>
             </TableRow>
@@ -252,9 +301,7 @@ export default function BuyMissingCcTable({
               const editionIcon = getEditionIconUrl(row.edition);
               const maxOnlyFoil = isMaxOnlyFoil(row.foil);
 
-              const rates = settings
-                ? getCombineRatesForCard(settings, row.edition, row.foil, row.rarity, row.tier)
-                : null;
+              const rates = ratesByKey.get(row.key) ?? null;
               const maxLevel = rates ? getCardMaxLevel(rates) : 1;
               const maxLevelCc = rates ? getCardMaxCc(rates) : 1;
               const firstLevel = rates ? getCardFirstPlayableLevel(rates) : 1;
@@ -265,22 +312,19 @@ export default function BuyMissingCcTable({
               const nextReq = rates
                 ? calculateUpgradeRequirements(row.totalOwnedCc, nextTarget, rates)
                 : { targetCc: 0, missingCc: 0 };
-              const nextEst = calculateUpgradeCostEstimate(
-                nextReq.missingCc,
-                row.lowPricePerBcxUsd
-              );
+              const nextEst = calculateUpgradeCostEstimate(nextReq.missingCc, row.lowPriceUsd);
 
               const maxReq = rates
                 ? calculateUpgradeRequirements(row.totalOwnedCc, maxLevel, rates)
                 : { targetCc: 0, missingCc: 0 };
-              const maxEst = calculateUpgradeCostEstimate(maxReq.missingCc, row.lowPricePerBcxUsd);
+              const maxEst = calculateUpgradeCostEstimate(maxReq.missingCc, row.lowPriceUsd);
 
               const bracketEst = (() => {
                 if (!selectedBracket || !rates) return null;
                 const [, bracketMax] = getBracketLevelRange(selectedBracket, row.rarity);
                 const target = Math.min(bracketMax, maxLevel);
                 const req = calculateUpgradeRequirements(row.totalOwnedCc, target, rates);
-                return calculateUpgradeCostEstimate(req.missingCc, row.lowPricePerBcxUsd);
+                return calculateUpgradeCostEstimate(req.missingCc, row.lowPriceUsd);
               })();
 
               const isHighestCcAtMaxLevel =
@@ -327,18 +371,46 @@ export default function BuyMissingCcTable({
                     </Tooltip>
                   </TableCell>
                   <TableCell align="center">
-                    <Tooltip title="Coming in a future release.">
-                      <span>
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          disabled
-                          sx={{ minWidth: 30, px: 0.5 }}
-                        >
-                          <TbCopyPlusFilled size={15} />
-                        </Button>
-                      </span>
-                    </Tooltip>
+                    {(() => {
+                      const combineStatus =
+                        settings && rates
+                          ? checkCombineStatus({
+                              combineRates: rates,
+                              currentLevel: row.highestOwnedLevel,
+                              totalOwnedCc: row.totalOwnedCc,
+                              allCards:
+                                row.allCards?.filter(
+                                  (card) => card.edition === row.edition && card.foil === row.foil
+                                ) ?? [],
+                            })
+                          : null;
+                      const tooltipText = getCombineTooltipText({
+                        isLoading: !settings || !rates,
+                        combineStatus,
+                      });
+
+                      const color =
+                        combineStatus?.disabledReason === "on-wagon" ||
+                        combineStatus?.disabledReason === "delegated-out" ||
+                        combineStatus?.disabledReason === "in-set"
+                          ? "orange"
+                          : "";
+                      return (
+                        <Tooltip title={tooltipText}>
+                          <span>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              disabled={!settings || !rates || !combineStatus?.canCombine}
+                              sx={{ minWidth: 30, px: 0.5 }}
+                              onClick={() => onOpenCombineDialog(row)}
+                            >
+                              <TbCopyPlusFilled size={15} color={color} />
+                            </Button>
+                          </span>
+                        </Tooltip>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>{row.name}</TableCell>
                   <TableCell>
@@ -401,6 +473,7 @@ export default function BuyMissingCcTable({
                   <TableCell>
                     {row.lowPricePerBcxUsd ? row.lowPricePerBcxUsd.toFixed(2) : "-"}
                   </TableCell>
+                  <TableCell>{row.lowPriceUsd ? row.lowPriceUsd.toFixed(2) : "-"}</TableCell>
                   <TableCell>{nextEst.usd > 0 ? nextEst.usd.toFixed(2) : "-"}</TableCell>
                   {selectedBracket && (
                     <TableCell>{bracketEst ? bracketEst.usd.toFixed(2) : "-"}</TableCell>

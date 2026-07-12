@@ -36,6 +36,11 @@ export interface BroadcastMarketPurchaseParams {
   totalPrice: number;
 }
 
+export interface BroadcastCombineCardsParams {
+  account: string;
+  cardUids: string[];
+}
+
 /**
  * Wait for SPL to process broadcast tx IDs. Mirrors the retry-until-timeout
  * behavior used in the reference project.
@@ -90,6 +95,52 @@ export async function broadcastMarketPurchase({
 
   if (!result?.success) {
     throw new Error(result?.message || result?.error || "Market purchase broadcast failed");
+  }
+
+  const txId = result.result?.id ?? result.result?.tx_id;
+  if (!txId) {
+    throw new Error("No transaction id returned from Keychain broadcast");
+  }
+
+  return txId;
+}
+
+export async function broadcastCombineCards({
+  account,
+  cardUids,
+}: BroadcastCombineCardsParams): Promise<string> {
+  const win = window as HiveKeychainWindow;
+  if (!win?.hive_keychain) {
+    throw new Error("Hive Keychain extension not found.");
+  }
+
+  if (cardUids.length === 0) {
+    throw new Error("No cards selected for combining.");
+  }
+
+  const keychain = new KeychainSDK(win);
+  const result = (await keychain.broadcast({
+    username: account.toLowerCase(),
+    operations: [
+      [
+        "custom_json",
+        {
+          required_auths: [account.toLowerCase()],
+          required_posting_auths: [],
+          id: withOperationPrefix("sm_combine_cards"),
+          json: JSON.stringify({
+            cards: cardUids,
+            app: getAppName(),
+            n: getNonce(),
+          }),
+        },
+      ],
+    ],
+    method: KeychainKeyTypes.active,
+  })) as BroadcastResponse;
+
+  if (!result?.success) {
+    throw new Error(result?.message || result?.error || "Card combine broadcast failed");
   }
 
   const txId = result.result?.id ?? result.result?.tx_id;
