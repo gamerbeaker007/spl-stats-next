@@ -135,6 +135,7 @@ export async function getBuyCardDialogAccountContextAction(
     level: card.level,
     bcx: card.bcx,
     onWagon: card.wagon_uid !== null,
+    onLand: card.stake_ref_uid !== null,
     inSet: card.set_id !== null,
     delegatedTo: card.delegated_to,
   }));

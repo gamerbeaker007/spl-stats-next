@@ -392,6 +392,7 @@ export default function BuyMissingCcTable({
                       const color =
                         combineStatus?.disabledReason === "on-wagon" ||
                         combineStatus?.disabledReason === "delegated-out" ||
+                        combineStatus?.disabledReason === "on-land" ||
                         combineStatus?.disabledReason === "in-set"
                           ? "orange"
                           : "";

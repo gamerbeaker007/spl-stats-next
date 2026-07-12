@@ -7,6 +7,12 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ## [Unreleased]
 
+## [v1.7.1] - 2026-07-12
+
+### Changed
+
+- Combine validation now treats cards with `stake_ref_uid != null` as unavailable for combining and reports a new `on-land` disabled reason with the same orange warning treatment as wagon-blocked levels and buttons.
+
 ---
 
 ## [v1.7.0] - 2026-07-11

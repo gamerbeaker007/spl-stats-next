@@ -107,6 +107,7 @@ export async function getDetailedPlayerCardCollectionCached(
       mint: playerCard.mint,
       level: playerCard.level,
       onWagon: playerCard.wagon_uid !== null,
+      onLand: playerCard.stake_ref_uid !== null,
       inSet: playerCard.set_id !== null,
       imgUrl: getCardImageByLevel(item.name, playerCard.edition, foil, playerCard.level),
     };

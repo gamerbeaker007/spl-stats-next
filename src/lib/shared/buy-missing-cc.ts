@@ -299,7 +299,7 @@ export function selectCardsToCombine(options: {
 
   const usable = cards.filter((entry) => {
     if (!entry.uid || (entry.bcx ?? 0) <= 0 || entry.inSet) return false;
-    if (!entry.onWagon && !entry.delegatedTo) return true;
+    if (!entry.onWagon && !entry.delegatedTo && !entry.onLand) return true;
     return entry.uid === baseUid;
   });
 
@@ -332,11 +332,12 @@ export type CombineDisabledReason =
   | "not-enough-copies"
   | "in-set"
   | "on-wagon"
-  | "delegated-out";
+  | "delegated-out"
+  | "on-land";
 
 export type CombineCardState = Pick<
   CardDetail,
-  "uid" | "level" | "bcx" | "onWagon" | "inSet" | "delegatedTo"
+  "uid" | "level" | "bcx" | "onWagon" | "onLand" | "inSet" | "delegatedTo"
 >;
 
 export interface CombineStatus {
@@ -359,12 +360,18 @@ export interface CombineStatus {
   maxUsableLevel: number | null;
   onWagonCount: number;
   delegatedOutCount: number;
+  onLandCount: number;
   unavailableCount: number;
 }
 
 type CombineTooltipStatus = Pick<
   CombineStatus,
-  "canCombine" | "disabledReason" | "copiesNeeded" | "onWagonCount" | "delegatedOutCount"
+  | "canCombine"
+  | "disabledReason"
+  | "copiesNeeded"
+  | "onWagonCount"
+  | "delegatedOutCount"
+  | "onLandCount"
 >;
 
 export function getCombineTooltipText(options: {
@@ -387,6 +394,7 @@ export function getCombineTooltipText(options: {
     "in-set": "Some cards are part of a set",
     "on-wagon": `Too many cards on wagon (${combineStatus?.onWagonCount ?? 0} BCX on wagons)`,
     "delegated-out": `Too many cards delegated out (${combineStatus?.delegatedOutCount ?? 0} BCX delegated)`,
+    "on-land": `Too many cards on land (${combineStatus?.onLandCount ?? 0} BCX on land)`,
   };
 
   return (
@@ -418,9 +426,14 @@ function buildCombineContext(allCards: CombineCardState[]) {
     return sum + Math.max(0, card.bcx ?? 0);
   }, 0);
 
+  const onLandCount = allCards.reduce((sum, card) => {
+    if (!card.onLand || card.uid === baseUid) return sum;
+    return sum + Math.max(0, card.bcx ?? 0);
+  }, 0);
+
   const unavailableCount = allCards.reduce((sum, card) => {
     if (card.uid === baseUid) return sum;
-    if (!card.onWagon && !card.delegatedTo) return sum;
+    if (!card.onWagon && !card.delegatedTo && !card.onLand) return sum;
     return sum + Math.max(0, card.bcx ?? 0);
   }, 0);
 
@@ -429,6 +442,7 @@ function buildCombineContext(allCards: CombineCardState[]) {
     inSet: allCards.some((card) => card.inSet),
     onWagonCount,
     delegatedOutCount,
+    onLandCount,
     unavailableCount,
   };
 }
@@ -447,7 +461,7 @@ export function checkCombineStatus(options: {
 }): CombineStatus {
   const { combineRates, currentLevel, totalOwnedCc, allCards, targetLevel } = options;
   const maxLevel = getCardMaxLevel(combineRates);
-  const { cardUids, inSet, onWagonCount, delegatedOutCount, unavailableCount } =
+  const { cardUids, inSet, onWagonCount, delegatedOutCount, onLandCount, unavailableCount } =
     buildCombineContext(allCards);
 
   const nextLevel = Math.min(currentLevel + 1, maxLevel);
@@ -456,6 +470,7 @@ export function checkCombineStatus(options: {
 
   // The highest-level card (base) is exempt — it stays usable even on a wagon.
   const usableCCAfterWagon = Math.max(0, totalOwnedCc - onWagonCount);
+  const usableCCAfterDelegation = Math.max(0, usableCCAfterWagon - delegatedOutCount);
   const usableCC = Math.max(0, totalOwnedCc - unavailableCount);
 
   let maxLevelReachable = currentLevel;
@@ -493,6 +508,7 @@ export function checkCombineStatus(options: {
     maxUsableLevel: null as number | null,
     onWagonCount,
     delegatedOutCount,
+    onLandCount,
     unavailableCount,
   };
 
@@ -537,6 +553,16 @@ export function checkCombineStatus(options: {
   }
 
   if (usableCC < targetLevelCcRequired) {
+    if (usableCCAfterDelegation < targetLevelCcRequired) {
+      return {
+        ...base,
+        canCombine: false,
+        disabledReason: "on-land",
+        currentCc: usableCC,
+        copiesNeeded: targetLevelCcRequired - usableCC,
+      };
+    }
+
     return {
       ...base,
       canCombine: false,

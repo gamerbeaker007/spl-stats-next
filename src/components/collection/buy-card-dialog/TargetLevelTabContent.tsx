@@ -67,6 +67,7 @@ export type TargetLevelRow = {
   combineDisabledReason: CombineDisabledReason | null;
   combineOnWagonBcx: number;
   combineDelegatedBcx: number;
+  combineOnLandBcx: number;
   dec: number;
   credits: number;
   usd: number;
@@ -281,6 +282,7 @@ export default function TargetLevelTabContent({
                                   copiesNeeded: row.combineMissingBcx,
                                   onWagonCount: row.combineOnWagonBcx,
                                   delegatedOutCount: row.combineDelegatedBcx,
+                                  onLandCount: row.combineOnLandBcx,
                                 }
                               : {
                                   canCombine: true,
@@ -288,6 +290,7 @@ export default function TargetLevelTabContent({
                                   copiesNeeded: 0,
                                   onWagonCount: row.combineOnWagonBcx,
                                   delegatedOutCount: row.combineDelegatedBcx,
+                                  onLandCount: row.combineOnLandBcx,
                                 },
                       })}
                     >
@@ -318,6 +321,7 @@ export default function TargetLevelTabContent({
                               color={
                                 row.combineDisabledReason === "on-wagon" ||
                                 row.combineDisabledReason === "delegated-out" ||
+                                row.combineDisabledReason === "on-land" ||
                                 row.combineDisabledReason === "in-set"
                                   ? "orange"
                                   : "inherit"

@@ -1,10 +1,10 @@
 "use client";
 
 import PurchaseTxProgressPanel from "@/components/collection/buy-card-dialog/PurchaseTxProgressPanel";
+import type { DisplayRow } from "@/components/collection/buy-missing-cc/types";
 import CombineLevelButton, {
   type CombineLevelButtonVm,
 } from "@/components/collection/combine-card-dialog/CombineLevelButton";
-import type { DisplayRow } from "@/components/collection/buy-missing-cc/types";
 import { broadcastCombineCards, waitForTransactions } from "@/lib/frontend/purchase/splBroadcast";
 import {
   checkCombineStatus,
@@ -142,7 +142,8 @@ export default function CombineCardsDialog({
         !isReachable &&
         isReachableByTotal &&
         (targetStatus?.disabledReason === "on-wagon" ||
-          targetStatus?.disabledReason === "delegated-out");
+          targetStatus?.disabledReason === "delegated-out" ||
+          targetStatus?.disabledReason === "on-land");
 
       let tooltip = "";
       if (level === currentLevel) {
@@ -158,6 +159,7 @@ export default function CombineCardsDialog({
             copiesNeeded: targetStatus.copiesNeeded,
             onWagonCount: targetStatus.onWagonCount,
             delegatedOutCount: targetStatus.delegatedOutCount,
+            onLandCount: targetStatus.onLandCount,
           },
         });
       } else if (!isReachable) {

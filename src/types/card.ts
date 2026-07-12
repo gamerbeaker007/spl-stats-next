@@ -72,6 +72,7 @@ export interface CardDetail {
   mint: string | null;
   level: number;
   onWagon: boolean;
+  onLand: boolean;
   inSet: boolean;
   imgUrl: string;
 }
