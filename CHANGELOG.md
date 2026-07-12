@@ -7,17 +7,12 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ## [Unreleased]
 
-## [v1.7.3] - 2026-07-12
-
-### Fix
-
-- Fix filter Upgradeable Card
-
 ## [v1.7.2] - 2026-07-12
 
 ### Changed
 
 - When you do not own any copies the combine button is also disabled
+- Fix filter Upgradeable Card
 
 ## [v1.7.1] - 2026-07-12
 
