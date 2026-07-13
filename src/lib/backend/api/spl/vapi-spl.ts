@@ -4,6 +4,7 @@
  * All endpoints are public (no auth token required).
  */
 import logger from "@/lib/backend/log/logger.server";
+import { splApiConfig } from "@/lib/shared/config/splApiConfig";
 import {
   buildMarketplaceAssetItems,
   normalizeMarketplaceAssetMetaDetail,
@@ -11,7 +12,6 @@ import {
   normalizeMarketplaceListingItem,
   parseMarketplaceAssetName,
 } from "@/lib/shared/marketplace-assets";
-import { splApiConfig } from "@/lib/shared/config/splApiConfig";
 import type {
   FetchMarketplaceListingItemsParams,
   MarketplaceAssetItem,
@@ -21,8 +21,8 @@ import type {
   MarketplaceLandingAsset,
   MarketplaceLandingAssetRaw,
   MarketplaceListingItem,
-  MarketplaceListingItemsPage,
   MarketplaceListingItemRaw,
+  MarketplaceListingItemsPage,
 } from "@/types/marketplace-assets";
 import axios from "axios";
 import * as rax from "retry-axios";
@@ -264,7 +264,7 @@ export async function fetchMarketplaceAssetMeta(
     const res = await vapiClient.get<{
       status: string;
       data: { details: MarketplaceAssetMetaDetailRaw[] };
-    }>(`/market/meta/asset/${assetName}`, {
+    }>(`/market/meta/asset/${encodeURIComponent(assetName)}`, {
       params: { detailIds: detailIds.join(",") },
     });
 
