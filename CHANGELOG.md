@@ -25,33 +25,14 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 - Added paginated ownership selection (5 items per page) for listing and transferring individual assets, showing unavailable copies while preventing invalid selections.
 - Added support for cancelling marketplace listings directly from the listing dialog.
 - Added the shared top balances bar to the Skins and Music pages.
+- Added support for ETN and EVP in multiaccount dashboard
 
 ### Changed
 
-- Refactored the marketplace into a shared asset framework used by both Skins and Music, including common page actions, dialogs, hooks, data loading, and transaction handling.
-- Split marketplace actions into dedicated Buy, List, and Transfer dialogs with shared UI components.
-- Skins and Music now use their correct on-chain operations:
-  - **Skins** use quantity-based marketplace operations.
-  - **Music** uses individual inventory item (UID) operations.
-- Listing and transfer operations now validate and operate only on actionable assets, preventing listed, staked, soulbound, or otherwise unavailable items from being selected.
-- Marketplace landing data is now cached and automatically revalidated after marketplace transactions for immediate refresh.
-- Marketplace dialogs now use a shared transaction hook, eliminating duplicated broadcast and verification logic.
-- Skins now use marketplace image data directly from the API instead of constructing image URLs manually.
-- List dialogs now use already-loaded marketplace pricing as the default listing price, avoiding unnecessary API requests.
-- Buy dialogs now display account context together with DEC and Credits balances.
-- Consolidated skins filtering into a single filtering pipeline and improved grouped view rendering.
 - Top balances now display skeleton placeholders while refreshing instead of a loading spinner.
 
 ### Fixed
 
-- Fixed marketplace payloads to match the live SPL API, including removing unsupported fields.
-- Fixed skin marketplace actions incorrectly sharing music marketplace logic.
-- Fixed cheapest-listing selection so both client previews and server transactions always use identical purchase calculations.
-- Prevented purchasing your own marketplace listings.
-- Fixed multi-quantity purchase calculations by consistently selecting the lowest-priced listings first.
-- Fixed Buy dialog row highlighting by matching the correct listing identifier.
-- Fixed duplicate React key warnings in marketplace listing tables.
-- Fixed Buy dialog pagination inconsistencies by using a stable sorted listing source.
 - Improved combine-card validation by checking overall eligibility before evaluating land restrictions, resulting in more accurate tooltips.
 
 
