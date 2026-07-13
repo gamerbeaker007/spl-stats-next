@@ -11,7 +11,7 @@ import { getDetailedPlayerCardCollectionCached } from "@/lib/backend/services/co
 import type { CombineCardState } from "@/lib/shared/buy-missing-cc";
 import { toCardFoilInt } from "@/lib/shared/card-utils";
 import { SOULKEEP_EDITIONS } from "@/lib/shared/edition-utils";
-import type { BuyMissingCcAccountData, BuyMissingCcSnapshot } from "@/types/buy-missing-cc";
+import type { BuyMissingCcSnapshot } from "@/types/buy-missing-cc";
 import { CardFoil } from "@/types/card";
 import type { SplCardDetail } from "@/types/spl/cardDetails";
 import { cacheLife } from "next/cache";
@@ -34,32 +34,6 @@ export async function getBuyMissingCcSharedDataAction() {
   return {
     cardDetails: filteredCardDetails,
     settings,
-  };
-}
-
-export async function getBuyMissingCcAccountDataAction(
-  account: string
-): Promise<BuyMissingCcAccountData> {
-  const normalized = account.trim().toLowerCase();
-  if (!normalized) {
-    throw new Error("Account is required");
-  }
-
-  const [collection, groupedMarket, balances] = await Promise.all([
-    getCachedSplCardCollection(normalized),
-    getCachedSplGroupedMarket(),
-    getCachedSplPlayerBalances(normalized),
-  ]);
-
-  collection.cards = collection.cards.filter(
-    (card) => !SOULKEEP_EDITIONS.has(Number(card.edition))
-  );
-
-  return {
-    account: normalized,
-    collection,
-    groupedMarket,
-    balances,
   };
 }
 
@@ -107,6 +81,7 @@ export async function getBuyCardDialogAccountContextAction(
 
   const cards = collection.cards.filter(
     (card) =>
+      card.player === account && // card should be owned
       card.card_detail_id === cardDetailId &&
       Number(card.edition) === edition &&
       Number(card.foil) === toCardFoilInt(foil)
@@ -151,28 +126,10 @@ export async function getBuyCardDialogAccountContextAction(
   };
 }
 
-export async function getBuyMissingCcSnapshotAction(
-  account: string
-): Promise<BuyMissingCcSnapshot> {
-  const [sharedData, accountData] = await Promise.all([
-    getBuyMissingCcSharedDataAction(),
-    getBuyMissingCcAccountDataAction(account),
-  ]);
-
-  return {
-    account: accountData.account,
-    cardDetails: sharedData.cardDetails,
-    collection: accountData.collection,
-    groupedMarket: accountData.groupedMarket,
-    settings: sharedData.settings,
-    balances: accountData.balances,
-  };
-}
-
 export async function getBuyMissingCcDetailedCollectionAction(account: string) {
   const normalized = normalizeAccount(account);
   const [detailedCollection, groupedMarket, balances] = await Promise.all([
-    getDetailedPlayerCardCollectionCached(normalized),
+    getDetailedPlayerCardCollectionCached(normalized, true),
     getCachedSplGroupedMarket(),
     getCachedSplPlayerBalances(normalized),
   ]);

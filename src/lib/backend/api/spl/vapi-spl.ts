@@ -5,6 +5,25 @@
  */
 import logger from "@/lib/backend/log/logger.server";
 import { splApiConfig } from "@/lib/shared/config/splApiConfig";
+import {
+  buildMarketplaceAssetItems,
+  normalizeMarketplaceAssetMetaDetail,
+  normalizeMarketplaceLandingAsset,
+  normalizeMarketplaceListingItem,
+  parseMarketplaceAssetName,
+} from "@/lib/shared/marketplace-assets";
+import type {
+  FetchMarketplaceListingItemsParams,
+  MarketplaceAssetItem,
+  MarketplaceAssetMetaDetail,
+  MarketplaceAssetMetaDetailRaw,
+  MarketplaceAssetName,
+  MarketplaceLandingAsset,
+  MarketplaceLandingAssetRaw,
+  MarketplaceListingItem,
+  MarketplaceListingItemRaw,
+  MarketplaceListingItemsPage,
+} from "@/types/marketplace-assets";
 import axios from "axios";
 import * as rax from "retry-axios";
 
@@ -211,4 +230,98 @@ export async function fetchMarketLanding(player: string): Promise<VapiMarketLand
     );
     throw error;
   }
+}
+
+export async function fetchMarketplaceLandingAssets(
+  player: string,
+  assetName: MarketplaceAssetName
+): Promise<MarketplaceLandingAsset[]> {
+  try {
+    const res = await vapiClient.get<{
+      status: string;
+      data: { assets: MarketplaceLandingAssetRaw[] };
+    }>("/market/landing", { params: { player, assets: assetName } });
+
+    return (res.data?.data?.assets ?? []).map((asset) => {
+      const normalizedAssetName = parseMarketplaceAssetName(asset.assetName);
+      return normalizeMarketplaceLandingAsset(asset, normalizedAssetName);
+    });
+  } catch (error) {
+    logger.error(
+      `vapi: fetchMarketplaceLandingAssets(${player}, ${assetName}): ${
+        error instanceof Error ? error.message : error
+      }`
+    );
+    throw error;
+  }
+}
+
+export async function fetchMarketplaceAssetMeta(
+  assetName: MarketplaceAssetName,
+  detailIds: string[]
+): Promise<MarketplaceAssetMetaDetail[]> {
+  try {
+    const res = await vapiClient.get<{
+      status: string;
+      data: { details: MarketplaceAssetMetaDetailRaw[] };
+    }>(`/market/meta/asset/${encodeURIComponent(assetName)}`, {
+      params: { detailIds: detailIds.join(",") },
+    });
+
+    return (res.data?.data?.details ?? []).map(normalizeMarketplaceAssetMetaDetail);
+  } catch (error) {
+    logger.error(
+      `vapi: fetchMarketplaceAssetMeta(${assetName}): ${
+        error instanceof Error ? error.message : error
+      }`
+    );
+    throw error;
+  }
+}
+
+export async function fetchMarketplaceListingItemsPage(
+  params: FetchMarketplaceListingItemsParams
+): Promise<MarketplaceListingItemsPage> {
+  try {
+    const res = await vapiClient.post<{
+      status: string;
+      data: { items: MarketplaceListingItemRaw[]; scrollToken?: string; total?: number };
+    }>("/market/listing-items", params);
+
+    return {
+      items: (res.data?.data?.items ?? []).map((item) =>
+        normalizeMarketplaceListingItem(item, params.assetName)
+      ),
+      total: res.data?.data?.total ?? 0,
+    };
+  } catch (error) {
+    logger.error(
+      `vapi: fetchMarketplaceListingItemsPage(${params.assetName}): ${
+        error instanceof Error ? error.message : error
+      }`
+    );
+    throw error;
+  }
+}
+
+export async function fetchMarketplaceListingItems(
+  params: FetchMarketplaceListingItemsParams
+): Promise<MarketplaceListingItem[]> {
+  const page = await fetchMarketplaceListingItemsPage(params);
+  return page.items;
+}
+
+export async function fetchMarketplaceAssets(
+  player: string,
+  assetName: MarketplaceAssetName
+): Promise<MarketplaceAssetItem[]> {
+  const landing = await fetchMarketplaceLandingAssets(player, assetName);
+  const detailIds = landing.map((asset) => asset.detailId);
+
+  if (detailIds.length === 0) {
+    return [];
+  }
+
+  const meta = await fetchMarketplaceAssetMeta(assetName, detailIds);
+  return buildMarketplaceAssetItems(landing, meta, assetName);
 }

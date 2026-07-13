@@ -1,7 +1,10 @@
 "use client";
 
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
-import { getBalancesForAccountsAction } from "@/lib/backend/actions/purchase-actions";
+import {
+  buildMarketPurchasePayloadAction,
+  getBalancesForAccountsAction,
+} from "@/lib/backend/actions/purchase-actions";
 import { broadcastMarketPurchase, waitForTransactions } from "@/lib/frontend/purchase/splBroadcast";
 import type {
   PurchaseCurrency,
@@ -109,11 +112,15 @@ export async function checkoutItems(
     const purchaseChunks = chunkItems(accountItems, MAX_MARKET_ITEMS_PER_TX);
     for (const purchaseChunk of purchaseChunks) {
       try {
-        const txId = await broadcastMarketPurchase({
-          account,
+        const payload = await buildMarketPurchasePayloadAction({
           marketIds: purchaseChunk.map((item) => item.marketId),
           currency,
           totalPrice: accountTotal(purchaseChunk, currency),
+        });
+
+        const txId = await broadcastMarketPurchase({
+          account,
+          payload,
         });
 
         txRows.push({ account, txId, items: purchaseChunk });

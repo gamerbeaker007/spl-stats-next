@@ -7,6 +7,35 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ## [Unreleased]
 
+---
+
+# v1.8.0 - 2026-07-13
+
+### Added
+
+- Added a new **Music** collection page with marketplace support, including owned/listed status, live lowest prices, and buy, list, transfer, and delist actions.
+- Added a new **Skins** collection page with grouped skin ownership, marketplace support, transaction verification, and grouped/flat view modes.
+- Added collection sub-navigation to all `/collection` pages for quick switching between Cards, Buy Missing CC, Skins, and Music.
+- Redesigned the `/collection` landing page with icon-based navigation cards.
+- Added marketplace filter controls for skins and music:
+  - Name and price sorting
+  - USD minimum/maximum price filters
+  - "Listed only" filter
+- Added transaction progress and automatic verification for all marketplace actions.
+- Added paginated ownership selection (5 items per page) for listing and transferring individual assets, showing unavailable copies while preventing invalid selections.
+- Added support for cancelling marketplace listings directly from the listing dialog.
+- Added the shared top balances bar to the Skins and Music pages.
+- Added support for ETN and EVP in multiaccount dashboard
+
+### Changed
+
+- Top balances now display skeleton placeholders while refreshing instead of a loading spinner.
+
+### Fixed
+
+- Improved combine-card validation by checking overall eligibility before evaluating land restrictions, resulting in more accurate tooltips.
+
+
 ## [v1.7.2] - 2026-07-12
 
 ### Changed

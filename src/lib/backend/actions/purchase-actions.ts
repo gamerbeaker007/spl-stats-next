@@ -6,6 +6,10 @@ import {
   fetchSplPrices,
   fetchTransactionLookup,
 } from "@/lib/backend/api/spl/spl-api";
+import {
+  buildCombineCardsPayload,
+  buildMarketPurchasePayload,
+} from "@/lib/shared/transactions-builder";
 import { lookupTransaction } from "@/lib/backend/api/spl/trxLookupParser";
 import { toCardFoil } from "@/lib/shared/card-utils";
 import type {
@@ -65,6 +69,18 @@ export async function getBalancesForAccountsAction(accounts: string[]) {
       return { account, balances };
     })
   );
+}
+
+export async function buildMarketPurchasePayloadAction(args: {
+  marketIds: string[];
+  currency: "DEC" | "CREDITS";
+  totalPrice: number;
+}) {
+  return buildMarketPurchasePayload(args);
+}
+
+export async function buildCombineCardsPayloadAction(args: { cardUids: string[] }) {
+  return buildCombineCardsPayload(args);
 }
 
 export async function lookupTransactionAction(txId: string): Promise<LookupTransactionStatus> {

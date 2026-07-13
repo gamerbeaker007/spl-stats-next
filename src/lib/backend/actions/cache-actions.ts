@@ -25,6 +25,13 @@ export async function revalidateTagsAction(targets: CacheInvalidationTarget[]) {
       continue;
     }
 
+    if (target.type === "marketplace") {
+      for (const username of uniqueLower(target.usernames)) {
+        revalidateTag(CACHE_TAGS.splMarketplace(username), REVALIDATE_PROFILE);
+      }
+      continue;
+    }
+
     if (target.type === "card-details") {
       revalidateTag(CACHE_TAGS.splCardDetails, REVALIDATE_PROFILE);
       continue;

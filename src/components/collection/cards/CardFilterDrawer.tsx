@@ -6,7 +6,7 @@ import type { FilterDrawerConfig } from "@/types/card-filter";
 
 export { DRAWER_WIDTH } from "@/components/shared/filter/UnifiedCardFilterDrawer";
 
-const CONFIG: FilterDrawerConfig = {
+const BASE_CONFIG: FilterDrawerConfig = {
   ariaLabel: "Collection filter",
   showEditions: true,
   showRarities: true,
@@ -16,8 +16,17 @@ const CONFIG: FilterDrawerConfig = {
   showHideMissing: true,
 };
 
-export function CardFilterDrawer() {
+interface CardFilterDrawerProps {
+  showHideMissing?: boolean;
+  showFoils?: boolean;
+}
+
+export function CardFilterDrawer({ showFoils = true }: Readonly<CardFilterDrawerProps>) {
   const { filter, setFilter, resetFilter, toggleFilterOpen } = useCardFilter();
+  const config: FilterDrawerConfig = {
+    ...BASE_CONFIG,
+    showFoils,
+  };
 
   return (
     <UnifiedCardFilterDrawer
@@ -25,7 +34,7 @@ export function CardFilterDrawer() {
       setFilter={setFilter}
       resetFilter={() => resetFilter()}
       toggleFilterOpen={toggleFilterOpen}
-      config={CONFIG}
+      config={config}
     />
   );
 }

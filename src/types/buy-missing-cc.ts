@@ -1,7 +1,7 @@
 import type { PurchasePlanItem } from "@/types/purchase/purchase-plan";
 import type { SplBalance } from "@/types/spl/balances";
 import type { SplCardCollection } from "@/types/spl/card";
-import type { CardStats, SplCardDetail } from "@/types/spl/cardDetails";
+import type { SplCardDetail } from "@/types/spl/cardDetails";
 import type { SplCardListingPriceEntry } from "@/types/spl/market";
 import type { SplSettings } from "@/types/spl/season";
 import { CardFoil } from "@/types/card";
@@ -14,13 +14,6 @@ export interface BuyMissingCcSnapshot {
   collection: SplCardCollection;
   groupedMarket: SplCardListingPriceEntry[];
   settings: SplSettings;
-  balances: SplBalance[];
-}
-
-export interface BuyMissingCcAccountData {
-  account: string;
-  collection: SplCardCollection;
-  groupedMarket: SplCardListingPriceEntry[];
   balances: SplBalance[];
 }
 
@@ -66,13 +59,4 @@ export interface BuildPurchasePlanOutput {
     dec: number;
     usd: number;
   };
-}
-
-export interface BuyMissingCcCardContext {
-  cardDetailId: number;
-  cardName: string;
-  rarity: number;
-  stats: CardStats;
-  edition: number;
-  foil: CardFoil;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import PurchaseTxProgressPanel from "@/components/collection/buy-card-dialog/PurchaseTxProgressPanel";
+import TransactionProgressPanel from "@/components/shared/TransactionProgressPanel";
 import CurrencyAmountChip from "@/components/collection/top-bar/CurrencyAmountChip";
 import ScrollableTableContainer from "@/components/shared/ScrollableTableContainer";
 import { usePurchaseCheckout } from "@/hooks/cards/usePurchaseCheckout";
@@ -292,7 +292,7 @@ export default function PurchaseCartDialog() {
           sx={{ width: "100%", justifyContent: "space-between" }}
         >
           {progress.map((entry) => (
-            <PurchaseTxProgressPanel
+            <TransactionProgressPanel
               key={entry.account}
               txProgress={{
                 label: entry.account,

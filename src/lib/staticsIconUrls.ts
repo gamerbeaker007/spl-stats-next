@@ -19,6 +19,8 @@ export const license_icon_url = `${WEB_URL}website/ui_elements/shop/nodes/power_
 export const sps_icon_url = `${WEB_URL}website/land/resources/sps.png`;
 export const cards_icon_url = `${WEB_URL}website/ui_elements/open_packs/packsv2/img_pack_chaos-legion_opt.png`;
 export const land_icon_url = `${WEB_URL}website/ui_elements/popups/land_presale/img_plot.svg`;
+export const evp_icon_url = `${WEB_URL}website/electroneum/img_evp_100.webp`;
+export const etn_icon_url = `${WEB_URL}website/electroneum/logo.png`;
 
 export const coins_icon_url = `${WEB_URL}website/ui_elements/shop/img_credits.png`;
 export const other_icon_url = `${WEB_URL}website/nav/icon_nav_items_active@2x.png`;

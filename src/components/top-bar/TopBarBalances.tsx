@@ -6,7 +6,7 @@ import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { credits_icon_url, dec_icon_url, sps_icon_url } from "@/lib/staticsIconUrls";
 import { SplBalance } from "@/types/spl/balances";
-import { Avatar, Box, CircularProgress, Stack, Tooltip, Typography } from "@mui/material";
+import { Avatar, Box, Stack, Tooltip, Typography } from "@mui/material";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -37,7 +37,12 @@ export default function TopBarBalances() {
       }
     }
 
-    if (pathname.startsWith("/collection/buy-missing-cc") && selectedAccount) {
+    if (
+      (pathname.startsWith("/collection/buy-missing-cc") ||
+        pathname.startsWith("/collection/skins") ||
+        pathname.startsWith("/collection/music")) &&
+      selectedAccount
+    ) {
       return [selectedAccount];
     }
 
@@ -118,10 +123,9 @@ export default function TopBarBalances() {
   return (
     <Tooltip title={tooltip} placement="bottom" arrow>
       <Box display={"flex"} flexWrap={"wrap"} gap={1} sx={{ alignItems: "center", px: 1 }}>
-        {loading && <CircularProgress size={14} />}
-        <CurrencyAmountChip currency="CREDITS" value={totals.credits} />
-        <CurrencyAmountChip currency="DEC" value={totals.dec} />
-        <CurrencyAmountChip currency="SPS" value={totals.sps} />
+        <CurrencyAmountChip currency="CREDITS" value={totals.credits} loading={loading} />
+        <CurrencyAmountChip currency="DEC" value={totals.dec} loading={loading} />
+        <CurrencyAmountChip currency="SPS" value={totals.sps} loading={loading} />
       </Box>
     </Tooltip>
   );

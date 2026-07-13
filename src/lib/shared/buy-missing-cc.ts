@@ -473,6 +473,7 @@ export function checkCombineStatus(options: {
   // The highest-level card (base) is exempt — it stays usable even on a wagon.
   const usableCCAfterWagon = Math.max(0, totalOwnedCc - onWagonCount);
   const usableCCAfterDelegation = Math.max(0, usableCCAfterWagon - delegatedOutCount);
+  const usableCCAfterLand = Math.max(0, usableCCAfterDelegation - onLandCount);
   const usableCC = Math.max(0, totalOwnedCc - unavailableCount);
 
   let maxLevelReachable = currentLevel;
@@ -564,21 +565,21 @@ export function checkCombineStatus(options: {
     };
   }
 
-  if (usableCC < targetLevelCcRequired) {
-    if (usableCCAfterDelegation < targetLevelCcRequired) {
-      return {
-        ...base,
-        canCombine: false,
-        disabledReason: "on-land",
-        currentCc: usableCC,
-        copiesNeeded: targetLevelCcRequired - usableCC,
-      };
-    }
-
+  if (usableCCAfterDelegation < targetLevelCcRequired) {
     return {
       ...base,
       canCombine: false,
       disabledReason: "delegated-out",
+      currentCc: usableCC,
+      copiesNeeded: targetLevelCcRequired - usableCC,
+    };
+  }
+
+  if (usableCCAfterLand < targetLevelCcRequired) {
+    return {
+      ...base,
+      canCombine: false,
+      disabledReason: "on-land",
       currentCc: usableCC,
       copiesNeeded: targetLevelCcRequired - usableCC,
     };

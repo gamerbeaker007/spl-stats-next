@@ -8,6 +8,7 @@ import Guild from "./Guild";
 import Potions from "./Potions";
 import Scrolls from "./Scrolls";
 import TopBalances from "./TopBalances";
+import ElectroneumBalances from "@/components/multi-dashboard/ElectroneumBalances";
 
 interface Props {
   username: string;
@@ -27,10 +28,11 @@ export default function PlayerBalances({
   glintError,
   collectionData,
   collectionLoading,
-}: Props) {
+}: Readonly<Props>) {
   return (
     <Box sx={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 1 }}>
       <TopBalances balances={balances} />
+      <ElectroneumBalances balances={balances} />
 
       <Box sx={{ display: "flex", gap: 1, width: "100%" }}>
         <Potions balances={balances} />

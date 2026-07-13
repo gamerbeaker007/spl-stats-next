@@ -149,7 +149,11 @@ export default function TargetLevelTabContent({
         <TableHead>
           <TableRow>
             <TableCell>Target Bracket</TableCell>
-            <TableCell>Level</TableCell>
+            <TableCell>
+              <Tooltip title="Level">
+                <Typography variant="body2">L</Typography>
+              </Tooltip>
+            </TableCell>
             {dynamicStats.map((row) => (
               <TableCell key={row.key}>
                 <Tooltip title={row.label}>

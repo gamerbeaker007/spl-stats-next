@@ -73,8 +73,8 @@ export function PurchasePlanProvider({ children }: Readonly<{ children: ReactNod
         // old ownership. Re-trigger on a short schedule so every consumer
         // (dialog, tables, card grid) converges on the updated data without the
         // user having to close and reopen the dialog.
-        setTimeout(() => setCollectionRefreshVersion((v) => v + 1), 3000);
-        setTimeout(() => setCollectionRefreshVersion((v) => v + 1), 8000);
+        setTimeout(() => setCollectionRefreshVersion((v) => v + 1), 5000);
+        // setTimeout(() => setCollectionRefreshVersion((v) => v + 1), 8000);
       },
       count: items.length,
     }),

@@ -62,7 +62,8 @@ function buildCollectionItem(
 }
 
 export async function getDetailedPlayerCardCollectionCached(
-  username: string
+  username: string,
+  ownedCardOnly: boolean = false
 ): Promise<DetailedPlayerCardCollection> {
   const normalized = username.trim().toLowerCase();
   const [collection, cardDetails] = await Promise.all([
@@ -81,6 +82,8 @@ export async function getDetailedPlayerCardCollectionCached(
   }
 
   for (const playerCard of collection.cards) {
+    if (ownedCardOnly && playerCard.player !== normalized) continue; // skip non-owned cards
+
     const key = `${playerCard.card_detail_id}-${playerCard.edition}`;
     let item = detailedMap[key];
 
