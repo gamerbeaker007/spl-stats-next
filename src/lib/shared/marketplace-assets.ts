@@ -1,4 +1,6 @@
 import {
+  type MarketplaceAssetGroup,
+  type MarketplaceAssetItem,
   type MarketplaceAssetMetaDetail,
   type MarketplaceAssetMetaDetailRaw,
   type MarketplaceAssetName,
@@ -8,10 +10,9 @@ import {
   type MarketplaceListingItem,
   type MarketplaceListingItemCurrency,
   type MarketplaceListingItemRaw,
-  type MarketplaceSkinGroup,
-  type MarketplaceSkinItem,
   marketplaceAssetNames,
 } from "@/types/marketplace-assets";
+import type { PurchaseCurrency } from "@/types/purchase/purchase-plan";
 
 function parseInteger(value: string, fieldName: string): number {
   const parsed = Number.parseInt(value, 10);
@@ -138,33 +139,28 @@ export function normalizeMarketplaceListingItem(
   };
 }
 
-export function buildMarketplaceSkinItems(
+export function buildMarketplaceAssetItems(
   landingAssets: MarketplaceLandingAsset[],
-  metaDetails: MarketplaceAssetMetaDetail[]
-): MarketplaceSkinItem[] {
+  metaDetails: MarketplaceAssetMetaDetail[],
+  assetName: MarketplaceAssetName
+): MarketplaceAssetItem[] {
   const landingById = new Map(landingAssets.map((asset) => [asset.detailId, asset]));
 
   return metaDetails
-    .filter((detail) => detail.cardDetailId !== null)
     .map((detail) => {
       const landing = landingById.get(detail.id);
-      if (!landing || landing.assetName !== "SKINS" || detail.cardDetailId === null) {
+      if (!landing || landing.assetName !== assetName) {
         return null;
       }
 
       return {
-        assetName: "SKINS",
+        assetName,
         detailId: detail.id,
         detailIdNumber: detail.idNumber,
         itemId: detail.id,
-        cardDetailId: detail.cardDetailId,
-        cardEditionIds: detail.cardEditionIds,
-        imageCardEditionId: detail.imageCardEditionId,
         displayName: detail.name,
-        baseCardName: detail.cardDetail?.name ?? detail.skinName,
-        skinSet: detail.set,
-        skinIdentifier: detail.set,
-        skinName: detail.skinName,
+        groupName: detail.cardDetail?.name ?? detail.skinName ?? detail.name,
+        setName: detail.set,
         image: detail.image,
         icon: detail.icon,
         filterIcon: detail.filterIcon,
@@ -174,36 +170,200 @@ export function buildMarketplaceSkinItems(
         numOwned: landing.numOwned,
         numListed: landing.numListed,
         prices: landing.prices,
-      } satisfies MarketplaceSkinItem;
+        cardDetailId: detail.cardDetailId,
+        cardEditionIds: detail.cardEditionIds,
+        imageCardEditionId: detail.imageCardEditionId,
+      } satisfies MarketplaceAssetItem;
     })
-    .filter((item): item is MarketplaceSkinItem => item !== null);
+    .filter((item): item is MarketplaceAssetItem => item !== null);
 }
 
-export function groupMarketplaceSkinsByCardDetailId(
-  skins: MarketplaceSkinItem[]
-): MarketplaceSkinGroup[] {
-  const groups = new Map<number, MarketplaceSkinGroup>();
+/**
+ * An owned inventory instance that can currently be listed or transferred:
+ * not already listed, not in use/staked, and not soulbound. `can_transfer` is the
+ * API's own eligibility flag — respect it when present.
+ */
+export function isActionableInventoryItem(item: {
+  listed: boolean;
+  in_use: boolean;
+  is_soulbound?: boolean;
+  can_transfer?: boolean;
+}): boolean {
+  return item.can_transfer !== false && !item.listed && !item.in_use && item.is_soulbound !== true;
+}
 
-  for (const skin of skins) {
-    const existing = groups.get(skin.cardDetailId);
+/** Group card-linked assets (skins) by their base card. Items without a card link are skipped. */
+export function groupMarketplaceAssetsByCardDetailId(
+  items: MarketplaceAssetItem[]
+): MarketplaceAssetGroup[] {
+  const groups = new Map<number, MarketplaceAssetGroup>();
+
+  for (const item of items) {
+    if (item.cardDetailId === null) continue;
+
+    const existing = groups.get(item.cardDetailId);
     if (existing) {
-      existing.skins.push(skin);
+      existing.items.push(item);
       continue;
     }
 
-    groups.set(skin.cardDetailId, {
-      cardDetailId: skin.cardDetailId,
-      baseCardName: skin.baseCardName,
-      skins: [skin],
+    groups.set(item.cardDetailId, {
+      cardDetailId: item.cardDetailId,
+      groupName: item.groupName,
+      items: [item],
     });
   }
 
   return Array.from(groups.values())
     .map((group) => ({
       ...group,
-      skins: [...group.skins].sort((left, right) =>
+      items: [...group.items].sort((left, right) =>
         left.displayName.localeCompare(right.displayName)
       ),
     }))
-    .sort((left, right) => left.baseCardName.localeCompare(right.baseCardName));
+    .sort((left, right) => left.groupName.localeCompare(right.groupName));
+}
+
+/** Human-readable "min per currency" price label (e.g. "1.20 DEC / 0.90 USD"). */
+export function formatAssetPriceLabel(item: { prices: MarketplaceAssetPrice[] }): string {
+  const labels = item.prices
+    .filter((entry) => Number.isFinite(entry.minPrice) && entry.minPrice > 0)
+    .map((entry) => `${entry.minPrice.toFixed(2)} ${entry.currency}`);
+
+  return labels.length > 0 ? labels.join(" / ") : "No active listings";
+}
+
+/** Lowest USD price across an asset's price entries, or null if none. */
+export function getLowestUsdPrice(prices: MarketplaceAssetPrice[]): number | null {
+  const usdPrices = prices
+    .filter(
+      (entry) => entry.currency === "USD" && Number.isFinite(entry.minPrice) && entry.minPrice > 0
+    )
+    .map((entry) => entry.minPrice);
+
+  return usdPrices.length > 0 ? Math.min(...usdPrices) : null;
+}
+
+export type MarketAssetSortField = "name" | "price";
+
+export interface MarketAssetFilter {
+  minPrice: number | null;
+  maxPrice: number | null;
+  listedOnly: boolean;
+  sortBy: MarketAssetSortField;
+  sortDir: "asc" | "desc";
+}
+
+export const DEFAULT_MARKET_ASSET_FILTER: MarketAssetFilter = {
+  minPrice: null,
+  maxPrice: null,
+  listedOnly: false,
+  sortBy: "name",
+  sortDir: "asc",
+};
+
+/** A price/listing filter is active (min, max, or listed-only) — as opposed to just sorting. */
+export function isListingFilterActive(filter: MarketAssetFilter): boolean {
+  return filter.minPrice !== null || filter.maxPrice !== null || filter.listedOnly;
+}
+
+/** Filter (price range + listed-only) and sort (name/price) a set of assets. */
+export function applyMarketAssetFilters<
+  T extends { displayName: string; numListed: number; prices: MarketplaceAssetPrice[] },
+>(items: T[], filter: MarketAssetFilter): T[] {
+  const priceOf = (item: T) => getLowestUsdPrice(item.prices);
+
+  const filtered = items.filter((item) => {
+    if (filter.listedOnly && item.numListed < 1) return false;
+    const price = priceOf(item);
+    if (filter.minPrice !== null && (price === null || price < filter.minPrice)) return false;
+    if (filter.maxPrice !== null && (price === null || price > filter.maxPrice)) return false;
+    return true;
+  });
+
+  return [...filtered].sort((left, right) => {
+    let comparison: number;
+    if (filter.sortBy === "price") {
+      // Items without a listing sort last regardless of direction is handled by the caller's
+      // listedOnly filter; here they compare as the highest price.
+      const leftPrice = priceOf(left) ?? Number.POSITIVE_INFINITY;
+      const rightPrice = priceOf(right) ?? Number.POSITIVE_INFINITY;
+      comparison = leftPrice - rightPrice;
+    } else {
+      comparison = left.displayName.localeCompare(right.displayName);
+    }
+    return filter.sortDir === "asc" ? comparison : -comparison;
+  });
+}
+
+function toUnitPrice(listing: MarketplaceListingItem, currency: PurchaseCurrency): number | null {
+  if (currency === "DEC") return listing.priceDec;
+  if (currency === "CREDITS") return listing.priceCredits;
+  return null;
+}
+
+export interface CheapestListingSelectionItem {
+  listingItemId: number;
+  quantity: number;
+  estimatedCost: number;
+}
+
+export interface CheapestListingSelection {
+  /** listingItemId → quantity to buy from that listing (for UI selection highlight). */
+  plan: Map<number, number>;
+  /** Per-listing breakdown used to build the purchase payload. */
+  items: CheapestListingSelectionItem[];
+  totalCost: number;
+  fulfilled: boolean;
+}
+
+/**
+ * Greedily pick the cheapest listings (by unit price in `currency`) to fulfil
+ * `quantity`, skipping the buyer's own listings. Single source of truth shared by
+ * the client (cost preview) and the server action (authoritative payload) so the
+ * quoted price and the broadcast price can never diverge.
+ */
+export function selectCheapestListings(
+  listings: MarketplaceListingItem[],
+  quantity: number,
+  currency: PurchaseCurrency,
+  account: string
+): CheapestListingSelection {
+  const normalizedAccount = account.trim().toLowerCase();
+
+  const sorted = listings
+    .filter((listing) => {
+      const unit = toUnitPrice(listing, currency);
+      const isOwnListing = listing.seller.trim().toLowerCase() === normalizedAccount;
+      return unit !== null && listing.quantityRemaining > 0 && !isOwnListing;
+    })
+    .sort((left, right) => {
+      const leftUnit = toUnitPrice(left, currency) ?? Number.MAX_SAFE_INTEGER;
+      const rightUnit = toUnitPrice(right, currency) ?? Number.MAX_SAFE_INTEGER;
+      return leftUnit - rightUnit;
+    });
+
+  const plan = new Map<number, number>();
+  const items: CheapestListingSelectionItem[] = [];
+  let remaining = quantity;
+  let totalCost = 0;
+
+  for (const listing of sorted) {
+    if (remaining <= 0) break;
+    const buyQty = Math.min(remaining, listing.quantityRemaining);
+    const unit = toUnitPrice(listing, currency);
+    if (unit === null || buyQty < 1) continue;
+
+    const estimatedCost = Number((unit * buyQty).toFixed(3));
+    plan.set(listing.listingItemId, buyQty);
+    items.push({ listingItemId: listing.listingItemId, quantity: buyQty, estimatedCost });
+    totalCost += unit * buyQty;
+    remaining -= buyQty;
+  }
+
+  if (remaining > 0 || quantity < 1) {
+    return { plan: new Map(), items: [], totalCost: 0, fulfilled: false };
+  }
+
+  return { plan, items, totalCost: Number(totalCost.toFixed(3)), fulfilled: true };
 }

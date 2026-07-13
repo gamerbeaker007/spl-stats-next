@@ -1,4 +1,5 @@
 import logger from "@/lib/backend/log/logger.server";
+import { toCardFoilInt } from "@/lib/shared/card-utils";
 import { splApiConfig } from "@/lib/shared/config/splApiConfig";
 import { SplCAGoldReward } from "@/types/jackpot-prizes/cardCollection";
 import { CardHistoryResponse } from "@/types/jackpot-prizes/cardHistory";
@@ -38,7 +39,6 @@ import { SplSeasonInfo, SplSettings } from "@/types/spl/season";
 import { SPLSeasonRewards } from "@/types/spl/seasonRewards";
 import axios from "axios";
 import * as rax from "retry-axios";
-import { toCardFoilInt } from "@/lib/shared/card-utils";
 
 const SPL_BASE_URL = `${splApiConfig.publicBaseUrl}/`;
 
@@ -667,6 +667,30 @@ export async function fetchFrontierJackpotCollection(): Promise<SplPlayerCardDet
 export async function fetchJackpotCards(): Promise<SplPlayerCardDetail[]> {
   return fetchAccountCardCollection("$JACKPOT");
 }
+/**
+ * Fetch a player's full item inventory (skins, music, …) from /players/inventory.
+ * Each item carries its on-chain `uid` — required to transfer specific instances
+ * via the `sm_transfer_items` operation.
+ */
+export async function fetchPlayerInventory(username: string): Promise<SplInventoryItem[]> {
+  try {
+    console.info(`Fetching inventory for username ${username}`);
+    const res = await splBaseClient.get("/players/inventory", { params: { username } });
+    const data = res.data;
+    if (!data || !Array.isArray(data)) {
+      throw new Error("Invalid response from Splinterlands API: expected array");
+    }
+    return data as SplInventoryItem[];
+  } catch (error) {
+    logger.error(
+      `spl-api: fetchPlayerInventory(${username}): ${
+        error instanceof Error ? error.message : error
+      }`
+    );
+    throw error;
+  }
+}
+
 /**
  * Fetch music inventory from Splinterlands API for $MUSIC_JACKPOT
  */

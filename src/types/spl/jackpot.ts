@@ -52,6 +52,9 @@ export interface SplInventoryItem {
   image_filename: string;
   rarity: string | null;
   quantity: number;
+  is_soulbound?: boolean;
+  /** API-computed transfer eligibility (false while listed / in use / soulbound). */
+  can_transfer?: boolean;
 }
 
 export interface SplSkin {

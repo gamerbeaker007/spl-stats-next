@@ -12,7 +12,7 @@ const iconSize = 20;
 const MyCard = ({ iconUrl, title, value }: { iconUrl: string; title: string; value: string }) => (
   <Card variant="outlined" sx={{ flex: 1 }}>
     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-      <Avatar src={iconUrl} sx={{ width: iconSize, height: iconSize }}>
+      <Avatar src={iconUrl} sx={{ width: iconSize, height: iconSize, marginLeft: 0.5 }}>
         {title.slice(0, 2)}
       </Avatar>
       <Box>

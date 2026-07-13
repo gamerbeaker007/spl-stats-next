@@ -143,6 +143,7 @@ export default function PlayerInfo({ username, playerDetails }: Props) {
 
       {/* Collection Link Icon */}
       <IconButton
+        suppressHydrationWarning
         component={Link}
         href={`/collection/cards?users=${encodeURIComponent(username)}`}
         size="small"

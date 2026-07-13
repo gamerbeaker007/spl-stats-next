@@ -141,19 +141,22 @@ export interface MarketplaceListingItemsPage {
   total: number;
 }
 
-export interface MarketplaceSkinItem {
-  assetName: "SKINS";
+/**
+ * One tradeable marketplace asset (a skin, a music track, …) enriched with the
+ * viewing account's ownership counts and lowest prices. Asset-agnostic: fields
+ * that only apply to card-linked assets (skins) are nullable/optional so the
+ * same shape serves music and any future asset type.
+ */
+export interface MarketplaceAssetItem {
+  assetName: MarketplaceAssetName;
   detailId: string;
   detailIdNumber: number;
   itemId: string;
-  cardDetailId: number;
-  cardEditionIds: number[];
-  imageCardEditionId: number | null;
   displayName: string;
-  baseCardName: string;
-  skinSet: string;
-  skinIdentifier: string;
-  skinName: string;
+  /** Grouping label — the base card name for skins, the track/asset name otherwise. */
+  groupName: string;
+  /** Set/collection the item belongs to (e.g. a skin set, a music series). */
+  setName: string;
   image: string | null;
   icon: string | null;
   filterIcon: string | null;
@@ -163,10 +166,31 @@ export interface MarketplaceSkinItem {
   numOwned: number;
   numListed: number;
   prices: MarketplaceAssetPrice[];
+  /** Card linkage — present for skins, `null` for card-independent assets (music). */
+  cardDetailId: number | null;
+  cardEditionIds: number[];
+  imageCardEditionId: number | null;
 }
 
-export interface MarketplaceSkinGroup {
+/**
+ * One owned copy of an asset (a single inventory instance), used by the list and
+ * transfer dialogs to let the user pick exact copies to act on.
+ */
+export interface OwnedAssetInstance {
+  uid: string;
+  listed: boolean;
+  inUse: boolean;
+  /** Can be listed or transferred (not listed, in use, or soulbound). */
+  actionable: boolean;
+  /** The listing id to cancel (delist) — present only for copies listed by this account. */
+  listingItemId: number | null;
+  /** Current listing price for listed copies. */
+  price: number | null;
+}
+
+/** Assets sharing the same base card (skins group by the card they reskin). */
+export interface MarketplaceAssetGroup {
   cardDetailId: number;
-  baseCardName: string;
-  skins: MarketplaceSkinItem[];
+  groupName: string;
+  items: MarketplaceAssetItem[];
 }

@@ -28,6 +28,21 @@ export interface MarketplacePurchasePayload {
   n: number;
 }
 
+/**
+ * Instance-based transfer (`sm_transfer_items`) — moves specific owned copies by
+ * uid. Used for MUSIC (and other inventory items with per-copy uids).
+ */
+export interface TransferItemsPayload {
+  items: string[];
+  to: string;
+  app: string;
+  n: number;
+}
+
+/**
+ * Skin transfer (`sm_transfer_skins`) — quantity-based per (skin set, card).
+ * Skins have no per-copy uids, so they transfer by count.
+ */
 export interface TransferSkinsPayload {
   to: string;
   skins: Array<{
@@ -47,7 +62,13 @@ export interface MarketplaceListPayload {
     price: number;
     itemId: string;
   }>;
-  market: string;
+  app: string;
+  n: number;
+}
+
+/** Cancel (delist) marketplace listings by their listing item ids (`sm_marketplace_cancel`). */
+export interface MarketplaceCancelPayload {
+  listingItemIds: number[];
   app: string;
   n: number;
 }

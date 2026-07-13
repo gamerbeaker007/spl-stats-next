@@ -4,8 +4,10 @@ import type { PurchaseCurrency } from "@/types/purchase/purchase-plan";
 import type {
   CombineCardsPayload,
   MarketPurchasePayload,
+  MarketplaceCancelPayload,
   MarketplaceListPayload,
   MarketplacePurchasePayload,
+  TransferItemsPayload,
   TransferSkinsPayload,
 } from "@/types/skin-transactions";
 
@@ -94,9 +96,60 @@ export function buildMarketplacePurchasePayload(args: {
   };
 }
 
+export function buildTransferItemsPayload(args: {
+  recipient: string;
+  itemUids: string[];
+}): TransferItemsPayload {
+  const recipient = normalizeRecipient(args.recipient);
+  if (!recipient) {
+    throw new Error("Recipient is required");
+  }
+
+  if (args.itemUids.length === 0) {
+    throw new Error("No items selected for transfer.");
+  }
+
+  return {
+    items: args.itemUids,
+    to: recipient,
+    app: getAppName(),
+    n: getNonce(),
+  };
+}
+
+/**
+ * `sm_marketplace_list` entries. Skins list one entry `{itemId: detailId, quantity}`;
+ * music lists one entry per instance uid `{itemId: uid, quantity: 1}`.
+ */
+export function buildMarketplaceListPayload(args: {
+  assetName: MarketplaceAssetName;
+  entries: Array<{ itemId: string; quantity: number }>;
+  priceUsd: number;
+}): MarketplaceListPayload {
+  if (args.entries.length === 0) {
+    throw new Error("No items selected for listing.");
+  }
+  validateUsdPrice(args.priceUsd);
+  for (const entry of args.entries) {
+    validatePositiveInteger(entry.quantity, "Quantity");
+  }
+
+  return {
+    assetName: args.assetName,
+    currency: "USD",
+    items: args.entries.map((entry) => ({
+      quantity: entry.quantity,
+      price: args.priceUsd,
+      itemId: entry.itemId,
+    })),
+    app: getAppName(),
+    n: getNonce(),
+  };
+}
+
 export function buildTransferSkinsPayload(args: {
   recipient: string;
-  skinIdentifier: string;
+  skin: string;
   cardDetailId: number;
   quantity: number;
 }): TransferSkinsPayload {
@@ -104,42 +157,25 @@ export function buildTransferSkinsPayload(args: {
   if (!recipient) {
     throw new Error("Recipient is required");
   }
-
   validatePositiveInteger(args.quantity, "Quantity");
 
   return {
     to: recipient,
-    skins: [
-      {
-        skin: args.skinIdentifier,
-        card_detail_id: args.cardDetailId,
-        qty: args.quantity,
-      },
-    ],
+    skins: [{ skin: args.skin, card_detail_id: args.cardDetailId, qty: args.quantity }],
     app: getAppName(),
     n: getNonce(),
   };
 }
 
-export function buildMarketplaceListPayload(args: {
-  assetName: MarketplaceAssetName;
-  itemId: string;
-  quantity: number;
-  priceUsd: number;
-}): MarketplaceListPayload {
-  validatePositiveInteger(args.quantity, "Quantity");
+export function buildMarketplaceCancelPayload(args: {
+  listingItemIds: number[];
+}): MarketplaceCancelPayload {
+  if (args.listingItemIds.length === 0) {
+    throw new Error("No listings selected to cancel.");
+  }
 
   return {
-    assetName: args.assetName,
-    currency: "USD",
-    items: [
-      {
-        quantity: args.quantity,
-        price: args.priceUsd,
-        itemId: args.itemId,
-      },
-    ],
-    market: MARKET,
+    listingItemIds: args.listingItemIds,
     app: getAppName(),
     n: getNonce(),
   };

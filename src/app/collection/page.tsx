@@ -1,21 +1,23 @@
 "use client";
 
-import { Box, Button, Container, Typography } from "@mui/material";
-import { useRouter } from "next/navigation";
+import { COLLECTION_NAV_ITEMS } from "@/components/collection/CollectionSubNav";
+import { Box, Card, CardActionArea, Container, Stack, Typography } from "@mui/material";
+import Link from "next/link";
 
-export default function HomePage() {
-  const router = useRouter();
+const DESCRIPTIONS: Record<string, string> = {
+  "/collection/cards": "Browse your full card collection with filters and details.",
+  "/collection/buy-missing-cc":
+    "Find and buy the cheapest missing cards to complete a bracket or max a card.",
+  "/collection/skins": "Browse skin ownership and buy, transfer, or list skins.",
+  "/collection/music": "Browse music ownership and buy, transfer, or list tracks.",
+};
 
-  const handleNavigate = (path: string) => {
-    router.push(path);
-  };
-
+export default function CollectionHomePage() {
   return (
     <Container maxWidth="lg" sx={{ mt: 4 }}>
       <Typography variant="h3" component="h1" gutterBottom align="center">
         Collection Management
       </Typography>
-
       <Typography variant="h6" color="text.secondary" align="center" sx={{ mb: 6 }}>
         Market features
       </Typography>
@@ -23,90 +25,53 @@ export default function HomePage() {
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(2, 1fr)", xl: "repeat(3, 1fr)" },
-          gap: 4,
-          mt: 4,
+          gridTemplateColumns: { xs: "1fr", sm: "repeat(2, 1fr)", lg: "repeat(4, 1fr)" },
+          gap: 3,
         }}
       >
-        <Box
-          sx={{
-            p: 3,
-            border: 1,
-            borderColor: "divider",
-            borderRadius: 2,
-            textAlign: "center",
-            backgroundColor: "background.paper",
-          }}
-        >
-          <Typography variant="h5" gutterBottom>
-            Collection
-          </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-            View your collection of cards and buy missing cards to complete your collection.
-          </Typography>
-          <Button
-            onClick={() => handleNavigate("/collection/cards")}
-            variant="contained"
-            size="large"
-            fullWidth
-          >
-            View Collection
-          </Button>
-        </Box>
-
-        <Box
-          sx={{
-            p: 3,
-            border: 1,
-            borderColor: "divider",
-            borderRadius: 2,
-            textAlign: "center",
-            backgroundColor: "background.paper",
-          }}
-        >
-          <Typography variant="h5" gutterBottom>
-            Buy Missing CC
-          </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-            View your collection and buy missing cards to complete your collection or a specific
-            bracket.
-          </Typography>
-          <Button
-            onClick={() => handleNavigate("/collection/buy-missing-cc")}
-            variant="contained"
-            size="large"
-            fullWidth
-          >
-            Buy Missing CC
-          </Button>
-        </Box>
-
-        <Box
-          sx={{
-            p: 3,
-            border: 1,
-            borderColor: "divider",
-            borderRadius: 2,
-            textAlign: "center",
-            backgroundColor: "background.paper",
-          }}
-        >
-          <Typography variant="h5" gutterBottom>
-            Skins
-          </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-            Browse grouped skin ownership, inspect live marketplace pricing, and manage buy,
-            transfer, and listing flows.
-          </Typography>
-          <Button
-            onClick={() => handleNavigate("/collection/skins")}
-            variant="contained"
-            size="large"
-            fullWidth
-          >
-            Open Skin Collection
-          </Button>
-        </Box>
+        {COLLECTION_NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Card
+              key={item.href}
+              variant="outlined"
+              sx={{
+                borderRadius: 3,
+                transition: "transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease",
+                "&:hover": {
+                  transform: "translateY(-4px)",
+                  boxShadow: 4,
+                  borderColor: "primary.main",
+                },
+              }}
+            >
+              <CardActionArea
+                suppressHydrationWarning
+                component={Link}
+                href={item.href}
+                sx={{ p: 3, height: "100%" }}
+              >
+                <Stack spacing={1.5} alignItems="center" textAlign="center">
+                  <Box
+                    sx={{
+                      display: "inline-flex",
+                      p: 1.5,
+                      borderRadius: "50%",
+                      color: "primary.main",
+                      backgroundColor: "action.hover",
+                    }}
+                  >
+                    <Icon size={32} />
+                  </Box>
+                  <Typography variant="h6">{item.label}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {DESCRIPTIONS[item.href] ?? ""}
+                  </Typography>
+                </Stack>
+              </CardActionArea>
+            </Card>
+          );
+        })}
       </Box>
     </Container>
   );

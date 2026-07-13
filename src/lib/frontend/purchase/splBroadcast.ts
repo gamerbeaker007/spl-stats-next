@@ -6,8 +6,10 @@ import type { WaitForTransactionsResult } from "@/types/purchase/purchase-plan";
 import type {
   CombineCardsPayload,
   MarketPurchasePayload,
+  MarketplaceCancelPayload,
   MarketplaceListPayload,
   MarketplacePurchasePayload,
+  TransferItemsPayload,
   TransferSkinsPayload,
 } from "@/types/skin-transactions";
 import { KeychainKeyTypes, KeychainSDK } from "keychain-sdk";
@@ -110,6 +112,13 @@ export async function broadcastMarketplaceAssetPurchase(
   return broadcastCustomJson(account, "sm_marketplace_purchase", payload);
 }
 
+export async function broadcastTransferItems(
+  account: string,
+  payload: TransferItemsPayload
+): Promise<string> {
+  return broadcastCustomJson(account, "sm_transfer_items", payload);
+}
+
 export async function broadcastTransferSkins(
   account: string,
   payload: TransferSkinsPayload
@@ -122,4 +131,11 @@ export async function broadcastMarketplaceList(
   payload: MarketplaceListPayload
 ): Promise<string> {
   return broadcastCustomJson(account, "sm_marketplace_list", payload);
+}
+
+export async function broadcastMarketplaceCancel(
+  account: string,
+  payload: MarketplaceCancelPayload
+): Promise<string> {
+  return broadcastCustomJson(account, "sm_marketplace_cancel", payload);
 }

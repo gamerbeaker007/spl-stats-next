@@ -6,6 +6,7 @@ import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Chip from "@mui/material/Chip";
 import Typography from "@mui/material/Typography";
+import { Skeleton } from "@mui/material";
 
 type CurrencySymbol = "CREDITS" | "DEC" | "SPS" | "USD";
 
@@ -19,6 +20,7 @@ interface CurrencyAmountChipProps {
   currency: CurrencySymbol;
   value: number;
   compareValue?: number;
+  loading?: boolean;
   size?: "small" | "medium";
 }
 
@@ -26,6 +28,7 @@ export default function CurrencyAmountChip({
   currency,
   value,
   compareValue,
+  loading = false,
   size = "small",
 }: Readonly<CurrencyAmountChipProps>) {
   const icon = ICONS[currency];
@@ -39,7 +42,9 @@ export default function CurrencyAmountChip({
       size={size}
       avatar={icon ? <Avatar src={icon} alt={currency} /> : undefined}
       label={
-        compareValue === undefined ? (
+        loading ? (
+          <Skeleton variant="text" width={40} height={16} />
+        ) : compareValue === undefined ? (
           format(value)
         ) : (
           <Box display="flex" alignItems="center" gap={0.5}>

@@ -5,7 +5,7 @@
  */
 import logger from "@/lib/backend/log/logger.server";
 import {
-  buildMarketplaceSkinItems,
+  buildMarketplaceAssetItems,
   normalizeMarketplaceAssetMetaDetail,
   normalizeMarketplaceLandingAsset,
   normalizeMarketplaceListingItem,
@@ -14,6 +14,7 @@ import {
 import { splApiConfig } from "@/lib/shared/config/splApiConfig";
 import type {
   FetchMarketplaceListingItemsParams,
+  MarketplaceAssetItem,
   MarketplaceAssetMetaDetail,
   MarketplaceAssetMetaDetailRaw,
   MarketplaceAssetName,
@@ -22,7 +23,6 @@ import type {
   MarketplaceListingItem,
   MarketplaceListingItemsPage,
   MarketplaceListingItemRaw,
-  MarketplaceSkinItem,
 } from "@/types/marketplace-assets";
 import axios from "axios";
 import * as rax from "retry-axios";
@@ -311,14 +311,17 @@ export async function fetchMarketplaceListingItems(
   return page.items;
 }
 
-export async function fetchMarketplaceSkins(player: string): Promise<MarketplaceSkinItem[]> {
-  const landing = await fetchMarketplaceLandingAssets(player, "SKINS");
+export async function fetchMarketplaceAssets(
+  player: string,
+  assetName: MarketplaceAssetName
+): Promise<MarketplaceAssetItem[]> {
+  const landing = await fetchMarketplaceLandingAssets(player, assetName);
   const detailIds = landing.map((asset) => asset.detailId);
 
   if (detailIds.length === 0) {
     return [];
   }
 
-  const meta = await fetchMarketplaceAssetMeta("SKINS", detailIds);
-  return buildMarketplaceSkinItems(landing, meta);
+  const meta = await fetchMarketplaceAssetMeta(assetName, detailIds);
+  return buildMarketplaceAssetItems(landing, meta, assetName);
 }

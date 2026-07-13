@@ -7,28 +7,53 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ## [Unreleased]
 
-## [v1.8.0] - 2026-07-12
+---
+
+# v1.8.0 - 2026-07-13
 
 ### Added
 
-- New /collection/skins flow for grouped skin ownership and marketplace actions (buy, transfer, list) with transaction progress + verification.
-- Buy Skin dialog listing transparency table with pagination (page size 5), showing seller, quantity, USD/DEC/Credits prices, created date, and selected purchase rows.
-- Buy Skin estimated totals now show synchronized USD, DEC, and Credits values based on the exact cheapest selected listings.
+- Added a new **Music** collection page with marketplace support, including owned/listed status, live lowest prices, and buy, list, transfer, and delist actions.
+- Added a new **Skins** collection page with grouped skin ownership, marketplace support, transaction verification, and grouped/flat view modes.
+- Added collection sub-navigation to all `/collection` pages for quick switching between Cards, Buy Missing CC, Skins, and Music.
+- Redesigned the `/collection` landing page with icon-based navigation cards.
+- Added marketplace filter controls for skins and music:
+  - Name and price sorting
+  - USD minimum/maximum price filters
+  - "Listed only" filter
+- Added transaction progress and automatic verification for all marketplace actions.
+- Added paginated ownership selection (5 items per page) for listing and transferring individual assets, showing unavailable copies while preventing invalid selections.
+- Added support for cancelling marketplace listings directly from the listing dialog.
+- Added the shared top balances bar to the Skins and Music pages.
 
 ### Changed
 
-- Skins page now uses marketplace image data directly from API detailImage for skin rendering, instead of derived URL construction.
-- Collection skins filter drawer hides the Hide Missing Cards toggle on this page; Owned Skins Only remains the intended control.
-- Buy dialog title now includes active account context and right-aligned DEC/Credits balances.
-- List Skin default USD price is now provided directly from already-loaded skins page data (lowest listed USD for that skin), avoiding extra listing fetch for list mode.
+- Refactored the marketplace into a shared asset framework used by both Skins and Music, including common page actions, dialogs, hooks, data loading, and transaction handling.
+- Split marketplace actions into dedicated Buy, List, and Transfer dialogs with shared UI components.
+- Skins and Music now use their correct on-chain operations:
+  - **Skins** use quantity-based marketplace operations.
+  - **Music** uses individual inventory item (UID) operations.
+- Listing and transfer operations now validate and operate only on actionable assets, preventing listed, staked, soulbound, or otherwise unavailable items from being selected.
+- Marketplace landing data is now cached and automatically revalidated after marketplace transactions for immediate refresh.
+- Marketplace dialogs now use a shared transaction hook, eliminating duplicated broadcast and verification logic.
+- Skins now use marketplace image data directly from the API instead of constructing image URLs manually.
+- List dialogs now use already-loaded marketplace pricing as the default listing price, avoiding unnecessary API requests.
+- Buy dialogs now display account context together with DEC and Credits balances.
+- Consolidated skins filtering into a single filtering pipeline and improved grouped view rendering.
+- Top balances now display skeleton placeholders while refreshing instead of a loading spinner.
 
 ### Fixed
 
-- Prevent own listing purchases in cheapest-selection logic (client preview and server payload selection).
-- Fixed duplicate React key warnings in Buy Skin listing rows by using listingItemId as the unique table row key.
-- Fixed Buy Skin pagination inconsistencies by using a stable sorted listing source for page calculations and rendering.
-- Fixed multi-quantity purchase math by consistently selecting the lowest-priced listings first and recalculating totals immediately on quantity change.
-- First check delegated out then how many are on land for better combine tooltip
+- Fixed marketplace payloads to match the live SPL API, including removing unsupported fields.
+- Fixed skin marketplace actions incorrectly sharing music marketplace logic.
+- Fixed cheapest-listing selection so both client previews and server transactions always use identical purchase calculations.
+- Prevented purchasing your own marketplace listings.
+- Fixed multi-quantity purchase calculations by consistently selecting the lowest-priced listings first.
+- Fixed Buy dialog row highlighting by matching the correct listing identifier.
+- Fixed duplicate React key warnings in marketplace listing tables.
+- Fixed Buy dialog pagination inconsistencies by using a stable sorted listing source.
+- Improved combine-card validation by checking overall eligibility before evaluating land restrictions, resulting in more accurate tooltips.
+
 
 ## [v1.7.2] - 2026-07-12
 

@@ -6,7 +6,11 @@ import TopBarBalances from "@/components/top-bar/TopBarBalances";
 import Box from "@mui/material/Box";
 import { Suspense } from "react";
 
-export default function TopBarBalancesCart() {
+interface TopBarBalancesCartProps {
+  showCart?: boolean;
+}
+
+export default function TopBarBalancesCart({ showCart = true }: Readonly<TopBarBalancesCartProps>) {
   return (
     <Box
       sx={{
@@ -31,7 +35,7 @@ export default function TopBarBalancesCart() {
         <Suspense fallback={<Box sx={{ width: 120, height: 24 }} />}>
           <TopBarBalances />
         </Suspense>
-        <PurchaseCartButton />
+        {showCart && <PurchaseCartButton />}
       </Box>
     </Box>
   );

@@ -1,10 +1,14 @@
 "use client";
 
-import { getMarketplaceSkinListingsAction } from "@/lib/backend/actions/marketplace-assets-actions";
-import type { MarketplaceListingItem } from "@/types/marketplace-assets";
+import { getMarketplaceAssetListingsAction } from "@/lib/backend/actions/marketplace-assets-actions";
+import type { MarketplaceAssetName, MarketplaceListingItem } from "@/types/marketplace-assets";
 import { useEffect, useState } from "react";
 
-export function useMarketplaceSkinListings(detailId: string, enabled: boolean) {
+export function useMarketplaceAssetListings(
+  assetName: MarketplaceAssetName,
+  detailId: string,
+  enabled: boolean
+) {
   const [listings, setListings] = useState<MarketplaceListingItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,12 +28,12 @@ export function useMarketplaceSkinListings(detailId: string, enabled: boolean) {
       setError(null);
 
       try {
-        const next = await getMarketplaceSkinListingsAction(detailId);
+        const next = await getMarketplaceAssetListingsAction(assetName, detailId);
         if (!active) return;
         setListings(next);
       } catch (err) {
         if (!active) return;
-        setError(err instanceof Error ? err.message : "Failed to load skin listings");
+        setError(err instanceof Error ? err.message : "Failed to load listings");
       } finally {
         if (active) setLoading(false);
       }
@@ -40,7 +44,7 @@ export function useMarketplaceSkinListings(detailId: string, enabled: boolean) {
     return () => {
       active = false;
     };
-  }, [detailId, enabled]);
+  }, [assetName, detailId, enabled]);
 
   return { listings, loading, error };
 }
