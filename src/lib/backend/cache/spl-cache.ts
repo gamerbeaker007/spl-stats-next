@@ -1,6 +1,7 @@
 "use server";
 
 import {
+  fetchAccountSkins,
   fetchCardCollection,
   fetchCardDetails,
   fetchMarketForSaleGrouped,
@@ -80,4 +81,18 @@ export async function getCachedMarketplaceAssets(
   cacheTag(CACHE_TAGS.splMarketplace(normalized));
 
   return fetchMarketplaceAssets(normalized, assetName);
+}
+
+/**
+ * Player's owned skins from `/players/skins`.
+ * Cached for minutes and tagged per account so buy/transfer/list/delist/activate
+ * actions can invalidate it via `revalidateTagsAction([{ type: "player-skins", ... }])`.
+ */
+export async function getCachedPlayerSkins(username: string) {
+  "use cache";
+  cacheLife("minutes");
+  const normalized = username.trim().toLowerCase();
+  cacheTag(CACHE_TAGS.splPlayerSkins(normalized));
+
+  return fetchAccountSkins(normalized);
 }

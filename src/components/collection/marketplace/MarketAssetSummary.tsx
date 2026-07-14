@@ -1,6 +1,7 @@
 "use client";
 
 import type { MarketplaceAssetItem } from "@/types/marketplace-assets";
+import { isSkinActive } from "@/lib/shared/marketplace-assets";
 import { Box, Stack, Typography } from "@mui/material";
 
 interface MarketAssetSummaryProps {
@@ -9,6 +10,8 @@ interface MarketAssetSummaryProps {
 
 /** Shared header for the buy/list/transfer dialogs: image + name + ownership. */
 export default function MarketAssetSummary({ item }: Readonly<MarketAssetSummaryProps>) {
+  const activeSkin = isSkinActive(item);
+
   return (
     <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
       <Box
@@ -28,6 +31,11 @@ export default function MarketAssetSummary({ item }: Readonly<MarketAssetSummary
         <Typography variant="body2" color="text.secondary">
           Owned: {item.numOwned} | Listed: {item.numListed}
         </Typography>
+        {item.assetName === "SKINS" && (
+          <Typography variant="body2" color={activeSkin ? "success.main" : "text.secondary"}>
+            Active: {activeSkin ? "Yes" : "No"}
+          </Typography>
+        )}
         {item.description && (
           <Typography variant="body2" color="text.secondary">
             {item.description}

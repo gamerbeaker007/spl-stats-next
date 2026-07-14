@@ -85,3 +85,14 @@ export interface MarketplaceCancelPayload {
   app: string;
   n: number;
 }
+
+/**
+ * Set the active skin for a card (`sm_set_skin`).
+ * Activates the named skin on the given card for the broadcasting account.
+ */
+export interface SetSkinPayload {
+  card_detail_id: number;
+  skin: string;
+  app: string;
+  n: number;
+}

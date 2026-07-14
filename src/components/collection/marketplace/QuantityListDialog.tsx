@@ -8,6 +8,7 @@ import {
   buildDelistAssetPayloadAction,
   buildQuantityListPayloadAction,
 } from "@/lib/backend/actions/marketplace-assets-actions";
+import { getSkinListableQuantity, isSkinActive } from "@/lib/shared/marketplace-assets";
 import {
   broadcastMarketplaceCancel,
   broadcastMarketplaceList,
@@ -63,7 +64,9 @@ export default function QuantityListDialog({
   const [priceUsd, setPriceUsd] = useState(() => defaultListPriceUsd?.toFixed(3) ?? "1.000");
   const [delistingId, setDelistingId] = useState<number | null>(null);
 
-  const maxQuantity = Math.max(1, item.numOwned);
+  const maxQuantity = Math.max(1, getSkinListableQuantity(item));
+  const listableQuantity = getSkinListableQuantity(item);
+  const activeSkin = isSkinActive(item);
 
   async function handleList() {
     await run({
@@ -108,6 +111,15 @@ export default function QuantityListDialog({
       <DialogContent dividers>
         <Stack spacing={2.5}>
           <MarketAssetSummary item={item} />
+
+          {item.assetName === "SKINS" && activeSkin && (
+            <Alert severity="warning">
+              Skin is currently active and cannot be listed.
+              {listableQuantity > 0
+                ? ` You can still list up to ${listableQuantity} other copies.`
+                : ""}
+            </Alert>
+          )}
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField
@@ -179,7 +191,7 @@ export default function QuantityListDialog({
         <Button
           onClick={handleList}
           variant="contained"
-          disabled={busy || item.numOwned < 1 || Number(priceUsd) <= 0}
+          disabled={busy || listableQuantity < 1 || Number(priceUsd) <= 0}
         >
           List {quantity}
         </Button>

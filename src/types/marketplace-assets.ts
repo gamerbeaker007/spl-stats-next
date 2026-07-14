@@ -183,6 +183,11 @@ export interface MarketplaceAssetItem {
   cardDetailId: number | null;
   cardEditionIds: number[];
   imageCardEditionId: number | null;
+  /**
+   * How many copies of this skin are currently active for the viewing account (0 or 1).
+   * Only present for SKINS; `false` for all other asset types.
+   */
+  active: boolean;
 }
 
 /**

@@ -8,8 +8,7 @@ import MarketActionDialogHost, {
 import MarketAssetCard from "@/components/collection/marketplace/MarketAssetCard";
 import MarketAssetTable from "@/components/collection/marketplace/MarketAssetTable";
 import MarketFilterBar from "@/components/collection/marketplace/MarketFilterBar";
-import MarketViewToggle from "@/components/collection/marketplace/MarketViewToggle";
-import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
+import MarketplaceAccountBar from "@/components/collection/marketplace/MarketplaceAccountBar";
 import { LoadingSpinnerOverlay } from "@/components/ui/LoadingSpinnerOverlay";
 import { useMarketplaceAssetsPageData } from "@/hooks/collection/useMarketplaceAssetsPageData";
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
@@ -73,18 +72,10 @@ function chooseRepresentativeCard(
 export default function SkinsPageClient() {
   const { collectionRefreshVersion, notifyBalancesRefresh, notifyCollectionRefresh } =
     usePurchasePlan();
-  const {
-    monitoredAccounts,
-    selectedAccount,
-    setSelectedAccount,
-    accountOptions,
-    addLocalAccount,
-    removeLocalAccount,
-  } = useAccounts();
+  const { selectedAccount } = useAccounts();
   const { filter: cardFilter } = useCardFilter();
   const { viewMode: layoutMode } = useMarketplaceView();
 
-  const [addAccountInput, setAddAccountInput] = useState("");
   const [ownedOnly, setOwnedOnly] = useState(false);
   const [selectedSkinSet, setSelectedSkinSet] = useState("");
   const [marketFilter, setMarketFilter] = useState<MarketAssetFilter>(DEFAULT_MARKET_ASSET_FILTER);
@@ -173,6 +164,7 @@ export default function SkinsPageClient() {
     await revalidateTagsAction([
       { type: "marketplace", usernames: [selectedAccount] },
       { type: "balances", usernames: [selectedAccount] },
+      { type: "player-skins", usernames: [selectedAccount] },
     ]);
     notifyBalancesRefresh();
     notifyCollectionRefresh();
@@ -186,6 +178,8 @@ export default function SkinsPageClient() {
     <Box display="flex" flex={1}>
       <Box flex={1}>
         <Stack spacing={2.5}>
+          <MarketplaceAccountBar />
+
           <Box
             sx={{
               p: 2,
@@ -196,20 +190,6 @@ export default function SkinsPageClient() {
             }}
           >
             <Stack spacing={1.25}>
-              <AccountSelectorBar
-                accounts={accountOptions}
-                selectedAccount={selectedAccount}
-                onSelectedAccountChange={setSelectedAccount}
-                addAccountInput={addAccountInput}
-                onAddAccountInputChange={setAddAccountInput}
-                onAddAccount={() => {
-                  addLocalAccount(addAccountInput);
-                  setAddAccountInput("");
-                }}
-                onRemoveSelected={() => removeLocalAccount(selectedAccount)}
-                removeDisabled={!selectedAccount || monitoredAccounts.includes(selectedAccount)}
-              />
-
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                 <FormControlLabel
                   control={
@@ -270,7 +250,6 @@ export default function SkinsPageClient() {
                     </ToggleButton>
                   </ToggleButtonGroup>
                 )}
-                <MarketViewToggle />
               </Stack>
             </Stack>
           </Box>
@@ -361,13 +340,15 @@ export default function SkinsPageClient() {
                       )}
 
                       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-                        {row.visibleSkins.map((skin) => (
-                          <MarketAssetCard
-                            key={skin.detailId}
-                            item={skin}
-                            onAction={handleAction}
-                          />
-                        ))}
+                        {row.visibleSkins.map((skin) => {
+                          return (
+                            <MarketAssetCard
+                              key={skin.detailId}
+                              item={skin}
+                              onAction={handleAction}
+                            />
+                          );
+                        })}
                       </Box>
                     </Stack>
                   </Box>

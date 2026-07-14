@@ -1,11 +1,16 @@
 "use client";
 
 import type { MarketActionMode } from "@/components/collection/marketplace/MarketActionDialogHost";
-import { formatAssetPriceLabel } from "@/lib/shared/marketplace-assets";
+import {
+  formatAssetPriceLabel,
+  getSkinListableQuantity,
+  isSkinActive,
+} from "@/lib/shared/marketplace-assets";
 import type { MarketplaceAssetItem } from "@/types/marketplace-assets";
-import { Box, Button, Chip, Stack, Typography } from "@mui/material";
+import { Box, Button, Chip, Stack, Tooltip, Typography } from "@mui/material";
 import { FaTag } from "react-icons/fa";
 import { IoMdSend } from "react-icons/io";
+import { MdCheckCircle } from "react-icons/md";
 import { SiHomeassistantcommunitystore } from "react-icons/si";
 
 interface MarketAssetCardProps {
@@ -21,6 +26,23 @@ export default function MarketAssetCard({
   onAction,
   showDescription = false,
 }: Readonly<MarketAssetCardProps>) {
+  const activeSkin = isSkinActive(item);
+  const listableQty = getSkinListableQuantity(item);
+  // TODO fix when item is listed it now removed from owned see way to cover that maybe even combine buy and list into one dialog!
+  // I think this special for skins!!
+
+  const listDisabled = false; // item.assetName === "SKINS" ? listableQty < 1 : item.numOwned === 0;
+  const listTooltip =
+    item.assetName !== "SKINS"
+      ? "List"
+      : activeSkin && listableQty < 1
+        ? "Skin is currently active and cannot be listed."
+        : activeSkin
+          ? `1 active copy is locked. You can list up to ${listableQty}.`
+          : "List";
+
+  const activateDisabled = item.assetName !== "SKINS" || item.numOwned < 1 || activeSkin;
+
   return (
     <Stack
       spacing={1}
@@ -28,9 +50,10 @@ export default function MarketAssetCard({
         width: 220,
         p: 1.25,
         borderRadius: 2,
-        border: 1,
-        borderColor: "divider",
+        border: activeSkin ? 2 : 1,
+        borderColor: activeSkin ? "success.main" : "divider",
         backgroundColor: "background.paper",
+        boxShadow: activeSkin ? "0 0 0 1px rgba(76, 175, 80, 0.15)" : "none",
       }}
     >
       <Typography variant="subtitle2" align="center" noWrap title={item.displayName}>
@@ -73,6 +96,7 @@ export default function MarketAssetCard({
       )}
 
       <Stack direction="row" spacing={0.5} justifyContent="center" flexWrap="wrap" useFlexGap>
+        {activeSkin && <Chip label="Active" color="success" size="small" />}
         <Chip
           label={item.numOwned > 0 ? `Owned x${item.numOwned}` : "Not owned"}
           color={item.numOwned > 0 ? "success" : "default"}
@@ -110,17 +134,39 @@ export default function MarketAssetCard({
         >
           <IoMdSend style={{ width: "1.1rem", height: "1.1rem" }} />
         </Button>
+        <Tooltip title={listTooltip}>
+          <Box sx={{ width: "100%", display: "flex" }}>
+            <Button
+              variant="outlined"
+              size="small"
+              title="List"
+              color={activeSkin ? "warning" : "primary"}
+              disabled={listDisabled}
+              onClick={() => onAction("list", item)}
+              fullWidth
+            >
+              <SiHomeassistantcommunitystore
+                style={{ width: "1.1rem", height: "1.1rem" }}
+                color={activeSkin ? "orange" : "inherit"}
+              />
+            </Button>
+          </Box>
+        </Tooltip>
+      </Stack>
+
+      {item.assetName === "SKINS" && (
         <Button
           variant="outlined"
           size="small"
-          title="List"
-          disabled={item.numOwned === 0}
-          onClick={() => onAction("list", item)}
+          color={activeSkin ? "success" : "primary"}
+          title="Activate"
+          disabled={activateDisabled}
+          onClick={() => onAction("activate", item)}
           fullWidth
         >
-          <SiHomeassistantcommunitystore style={{ width: "1.1rem", height: "1.1rem" }} />
+          <MdCheckCircle style={{ width: "1.1rem", height: "1.1rem" }} />
         </Button>
-      </Stack>
+      )}
     </Stack>
   );
 }

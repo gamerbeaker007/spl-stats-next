@@ -5,11 +5,12 @@ import InstanceListDialog from "@/components/collection/marketplace/InstanceList
 import InstanceTransferDialog from "@/components/collection/marketplace/InstanceTransferDialog";
 import QuantityTransferDialog from "@/components/collection/marketplace/QuantityTransferDialog";
 import QuantityListDialog from "@/components/collection/marketplace/QuantityListDialog";
+import SkinActivateDialog from "@/components/collection/marketplace/SkinActivateDialog";
 import SkinTransferDialog from "@/components/collection/marketplace/SkinTransferDialog";
 import { MARKETPLACE_ASSET_MODEL } from "@/lib/shared/marketplace-asset-model";
 import type { MarketplaceAssetItem, MarketplaceAssetName } from "@/types/marketplace-assets";
 
-export type MarketActionMode = "buy" | "transfer" | "list";
+export type MarketActionMode = "buy" | "transfer" | "list" | "activate";
 
 export interface MarketActionState {
   mode: MarketActionMode;
@@ -83,6 +84,18 @@ export default function MarketActionDialogHost({
   }
 
   if (model === "skin") {
+    if (state.mode === "activate") {
+      return (
+        <SkinActivateDialog
+          open
+          account={account}
+          item={state.item}
+          onClose={onClose}
+          onCompleted={onCompleted}
+        />
+      );
+    }
+
     return state.mode === "list" ? (
       <QuantityListDialog
         open

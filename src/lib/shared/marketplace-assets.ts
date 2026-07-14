@@ -176,6 +176,7 @@ export function buildMarketplaceAssetItems(
         cardDetailId: detail.cardDetailId,
         cardEditionIds: detail.cardEditionIds,
         imageCardEditionId: detail.imageCardEditionId,
+        active: Boolean(false), // skins on market can never be active, only owned skins can be active, and this is a marketplace item
       } satisfies MarketplaceAssetItem;
     })
     .filter((item): item is MarketplaceAssetItem => item !== null);
@@ -243,6 +244,27 @@ export function getLowestPrice(item: MarketplaceAssetItem): number {
 
   return prices.length > 0 ? Math.min(...prices) : Number.POSITIVE_INFINITY;
 }
+
+/** Whether this SKINS row has an active copy for the selected player. */
+export function isSkinActive(item: Pick<MarketplaceAssetItem, "assetName" | "active">): boolean {
+  return item.assetName === "SKINS" && (item.active ?? false);
+}
+
+/**
+ * Quantity available to newly list for a skin entry.
+ * Formula: owned - active(0|1) - already listed.
+ */
+export function getSkinListableQuantity(
+  item: Pick<MarketplaceAssetItem, "assetName" | "numOwned" | "numListed" | "active">
+): number {
+  if (item.assetName !== "SKINS") {
+    return Math.max(0, item.numOwned);
+  }
+
+  const activeQty = isSkinActive(item) ? 1 : 0;
+  return Math.max(0, item.numOwned - activeQty);
+}
+
 /** Lowest USD price across an asset's price entries, or null if none. */
 export function getLowestUsdPrice(prices: MarketplaceAssetPrice[]): number | null {
   const usdPrices = prices

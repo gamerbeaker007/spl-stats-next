@@ -7,6 +7,7 @@ import type {
   MarketplaceCancelPayload,
   MarketplaceListPayload,
   MarketplacePurchasePayload,
+  SetSkinPayload,
   TokenTransferPayload,
   TransferItemsPayload,
   TransferSkinsPayload,
@@ -205,6 +206,23 @@ export function buildMarketplaceCancelPayload(args: {
 
   return {
     listingItemIds: args.listingItemIds,
+    app: getAppName(),
+    n: getNonce(),
+  };
+}
+
+/** `sm_set_skin` — activates a skin on the given card for the broadcasting account. */
+export function buildSetSkinPayload(args: { cardDetailId: number; skin: string }): SetSkinPayload {
+  if (!Number.isInteger(args.cardDetailId) || args.cardDetailId < 1) {
+    throw new Error("Card detail id is required");
+  }
+  if (!args.skin) {
+    throw new Error("Skin name is required");
+  }
+
+  return {
+    card_detail_id: args.cardDetailId,
+    skin: args.skin,
     app: getAppName(),
     n: getNonce(),
   };

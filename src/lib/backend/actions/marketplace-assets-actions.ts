@@ -1,15 +1,17 @@
 "use server";
 
-import { getCurrentUser, getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
+import { getCurrentUser } from "@/lib/backend/actions/auth-actions";
 import { fetchPlayerBalances, fetchPlayerInventory } from "@/lib/backend/api/spl/spl-api";
 import { fetchMarketplaceListingItems } from "@/lib/backend/api/spl/vapi-spl";
 import {
   getCachedMarketplaceAssets,
+  getCachedPlayerSkins,
   getCachedSplPlayerBalances,
   getCachedSplPlayerInventory,
 } from "@/lib/backend/cache/spl-cache";
 import { getDetailedPlayerCardCollectionCached } from "@/lib/backend/services/collection-detailed";
 import {
+  getSkinListableQuantity,
   groupMarketplaceAssetsByCardDetailId,
   isActionableInventoryItem,
   selectCheapestListings,
@@ -18,6 +20,7 @@ import {
   buildMarketplaceCancelPayload,
   buildMarketplaceListPayload,
   buildMarketplacePurchasePayload,
+  buildSetSkinPayload,
   buildTokenTransferPayload,
   buildTransferItemsPayload,
   buildTransferSkinsPayload,
@@ -47,18 +50,6 @@ function getTokenBalance(
   token: string
 ): number {
   return balances.find((entry) => entry.token === token)?.balance ?? 0;
-}
-
-async function assertMonitorsAccount(account: string): Promise<void> {
-  const user = await getCurrentUser();
-  if (!user) {
-    throw new Error("Not logged in");
-  }
-
-  const monitoredAccounts = await getMonitoredAccounts();
-  if (!monitoredAccounts.some((entry) => entry.username === account)) {
-    throw new Error("Account not in your monitored list");
-  }
 }
 
 /**
@@ -95,16 +86,31 @@ export async function getMarketplaceAssetsPageDataAction(
 }> {
   const normalized = normalizeAccount(account);
 
-  const [items, detailedCollection] = await Promise.all([
+  const [items, detailedCollection, playerSkins] = await Promise.all([
     getCachedMarketplaceAssets(normalized, assetName),
     getDetailedPlayerCardCollectionCached(normalized),
+    assetName === "SKINS" ? getCachedPlayerSkins(normalized) : Promise.resolve([]),
   ]);
+
+  // Enrich SKINS items with the player's active status from /players/skins.
+  let enrichedItems = items;
+  if (assetName === "SKINS" && playerSkins.length > 0) {
+    const skinActiveById = new Map<number, boolean>(
+      playerSkins.map((s) => [s.skin_detail_id, s.active])
+    );
+    enrichedItems = items.map((item) => ({
+      ...item,
+      active: Boolean(skinActiveById.get(item.detailIdNumber)),
+    }));
+  } else if (assetName === "SKINS") {
+    enrichedItems = items.map((item) => ({ ...item, numActive: 0 }));
+  }
 
   return {
     account: normalized,
     assetName,
-    items,
-    groups: groupMarketplaceAssetsByCardDetailId(items),
+    items: enrichedItems,
+    groups: groupMarketplaceAssetsByCardDetailId(enrichedItems),
     detailedCollection,
   };
 }
@@ -197,7 +203,6 @@ export async function buildMarketplaceAssetPurchasePayloadAction(args: {
   quantity: number;
 }) {
   const account = normalizeAccount(args.account);
-  await assertMonitorsAccount(account);
   validatePositiveInteger(args.quantity, "Quantity");
 
   // Live listings + balances for the authoritative pre-broadcast affordability check.
@@ -239,7 +244,6 @@ export async function buildInstanceListPayloadAction(args: {
   priceUsd: number;
 }) {
   const account = normalizeAccount(args.account);
-  await assertMonitorsAccount(account);
   validateUsdPrice(args.priceUsd);
 
   const itemUids = await resolveActionableUids(account, args.itemUids);
@@ -260,7 +264,6 @@ export async function buildInstanceTransferPayloadAction(args: {
   itemUids: string[];
 }) {
   const account = normalizeAccount(args.account);
-  await assertMonitorsAccount(account);
   const recipient = normalizeRecipient(args.recipient);
 
   if (!recipient) {
@@ -324,13 +327,24 @@ export async function buildQuantityListPayloadAction(args: {
   priceUsd: number;
 }) {
   const account = normalizeAccount(args.account);
-  await assertMonitorsAccount(account);
   validatePositiveInteger(args.quantity, "Quantity");
   validateUsdPrice(args.priceUsd);
 
   const owned = await getOwnedAsset(account, args.assetName, args.detailId);
-  if (owned.numOwned < args.quantity) {
-    throw new Error("Listing quantity exceeds owned amount");
+  let listableQty = owned.numOwned;
+  if (args.assetName === "SKINS") {
+    const playerSkins = await getCachedPlayerSkins(account);
+    const splSkin = playerSkins.find((s) => s.skin_detail_id === owned.detailIdNumber);
+    listableQty = getSkinListableQuantity({
+      assetName: "SKINS",
+      numOwned: owned.numOwned,
+      numListed: owned.numListed,
+      active: splSkin?.active ?? false,
+    });
+  }
+
+  if (listableQty < args.quantity) {
+    throw new Error("Listing quantity exceeds available amount");
   }
 
   return {
@@ -342,6 +356,41 @@ export async function buildQuantityListPayloadAction(args: {
   };
 }
 
+/**
+ * Build the payload to activate a skin (`sm_set_skin`).
+ * Guard: player must own at least one copy, none listed, and not already active.
+ */
+export async function buildActivateSkinPayloadAction(args: { account: string; detailId: string }) {
+  const account = normalizeAccount(args.account);
+
+  const [skin, playerSkins] = await Promise.all([
+    getOwnedAsset(account, "SKINS", args.detailId),
+    getCachedPlayerSkins(account),
+  ]);
+
+  if (skin.numOwned < 1) {
+    throw new Error("You do not own this skin");
+  }
+  if (skin.cardDetailId === null) {
+    throw new Error("Skin is missing card metadata required for activation");
+  }
+
+  const splSkin = playerSkins.find((s) => s.skin_detail_id === skin.detailIdNumber);
+  if (splSkin.active) {
+    throw new Error("This skin is already active");
+  }
+  if (skin.numListed > 0) {
+    throw new Error("This skin has listed copies and cannot be activated");
+  }
+
+  return {
+    payload: buildSetSkinPayload({
+      cardDetailId: skin.cardDetailId,
+      skin: skin.setName || skin.displayName,
+    }),
+  };
+}
+
 export async function buildSkinTransferPayloadAction(args: {
   account: string;
   detailId: string;
@@ -349,7 +398,6 @@ export async function buildSkinTransferPayloadAction(args: {
   quantity: number;
 }) {
   const account = normalizeAccount(args.account);
-  await assertMonitorsAccount(account);
   const recipient = normalizeRecipient(args.recipient);
   validatePositiveInteger(args.quantity, "Quantity");
 
@@ -386,7 +434,6 @@ export async function buildTokenTransferPayloadAction(args: {
   quantity: number;
 }) {
   const account = normalizeAccount(args.account);
-  await assertMonitorsAccount(account);
   const recipient = normalizeRecipient(args.recipient);
   validatePositiveInteger(args.quantity, "Quantity");
 
