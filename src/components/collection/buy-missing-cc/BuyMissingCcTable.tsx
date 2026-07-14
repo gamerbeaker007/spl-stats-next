@@ -165,7 +165,7 @@ export default function BuyMissingCcTable({
         maxHeight={fillHeight ? { xs: "70vh", md: "none" } : "70vh"}
         sx={{
           maxWidth: "100%",
-          ...(fillHeight && { flex: { md: 1 }, minHeight: { md: 0 } }),
+          ...(fillHeight && { flex: { md: 1 }, minHeight: { md: 200 } }),
         }}
       >
         <Table

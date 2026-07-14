@@ -11,10 +11,16 @@ import { SiHomeassistantcommunitystore } from "react-icons/si";
 interface MarketAssetCardProps {
   item: MarketplaceAssetItem;
   onAction: (mode: MarketActionMode, item: MarketplaceAssetItem) => void;
+  /** Render the item description prominently (e.g. Titles, where it is meaningful). */
+  showDescription?: boolean;
 }
 
-/** One tradeable asset tile (image, ownership, price, buy/transfer/list) — shared by skins & music. */
-export default function MarketAssetCard({ item, onAction }: Readonly<MarketAssetCardProps>) {
+/** One tradeable asset tile (image, ownership, price, buy/transfer/list) — shared by skins, music & shopping pages. */
+export default function MarketAssetCard({
+  item,
+  onAction,
+  showDescription = false,
+}: Readonly<MarketAssetCardProps>) {
   return (
     <Stack
       spacing={1}
@@ -46,6 +52,23 @@ export default function MarketAssetCard({ item, onAction }: Readonly<MarketAsset
       {item.setName && (
         <Typography variant="caption" color="text.secondary" align="center" noWrap>
           {item.setName}
+        </Typography>
+      )}
+
+      {showDescription && item.description && (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          title={item.description}
+          sx={{
+            // Clamp to a few lines so long descriptions don't distort the grid.
+            display: "-webkit-box",
+            WebkitLineClamp: 4,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          {item.description}
         </Typography>
       )}
 

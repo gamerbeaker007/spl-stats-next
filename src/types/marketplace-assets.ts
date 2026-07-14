@@ -1,6 +1,19 @@
 import type { SplCardDetail } from "@/types/spl/cardDetails";
 
-export const marketplaceAssetNames = ["SKINS", "MUSIC"] as const;
+export const marketplaceAssetNames = [
+  "SKINS",
+  "MUSIC",
+  "PACKS",
+  "TITLES",
+  "CONSUMABLES",
+  "COLLECTOR_STICKERS",
+  "TOTEMS",
+  "TOTEM_ITEMS",
+  "TOTEM_FRAGMENTS",
+  "LAND",
+  "DEEDS",
+  "LAND_RESOURCES",
+] as const;
 
 export type MarketplaceAssetName = (typeof marketplaceAssetNames)[number];
 

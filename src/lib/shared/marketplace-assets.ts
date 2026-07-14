@@ -14,12 +14,15 @@ import {
 } from "@/types/marketplace-assets";
 import type { PurchaseCurrency } from "@/types/purchase/purchase-plan";
 
-function parseInteger(value: string, fieldName: string): number {
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isInteger(parsed)) {
-    throw new Error(`Invalid numeric ${fieldName}: ${value}`);
-  }
-  return parsed;
+/**
+ * Numeric form of an asset detail id, or `NaN` when the id is non-numeric.
+ * Many asset types have string ids (packs `"CHAOS"`, consumables `"MIDNIGHTPOT"`,
+ * land resources `"TC"`, totem fragments `"TOTEMFC"`); only skins/music happen to
+ * be numeric. This value is carried for numeric assets but never used to key
+ * behaviour, so `NaN` for string ids is intentional and harmless.
+ */
+function toDetailIdNumber(value: string): number {
+  return Number.parseInt(value, 10);
 }
 
 function normalizePrices(prices: MarketplaceAssetPrice[] | undefined): MarketplaceAssetPrice[] {
@@ -49,7 +52,7 @@ export function normalizeMarketplaceLandingAsset(
   raw: MarketplaceLandingAssetRaw,
   assetName: MarketplaceAssetName
 ): MarketplaceLandingAsset {
-  const detailIdNumber = parseInteger(raw.detailId, "detailId");
+  const detailIdNumber = toDetailIdNumber(raw.detailId);
 
   return {
     assetName,
@@ -75,7 +78,7 @@ export function normalizeMarketplaceAssetMetaDetail(
 ): MarketplaceAssetMetaDetail {
   return {
     id: raw.id,
-    idNumber: parseInteger(raw.id, "asset meta id"),
+    idNumber: toDetailIdNumber(raw.id),
     name: raw.name,
     description: raw.description ?? "",
     image: raw.image ?? null,
@@ -109,7 +112,7 @@ export function normalizeMarketplaceListingItem(
   raw: MarketplaceListingItemRaw,
   assetName: MarketplaceAssetName
 ): MarketplaceListingItem {
-  const detailIdNumber = parseInteger(raw.detailId, "listing detailId");
+  const detailIdNumber = toDetailIdNumber(raw.detailId);
   const otherCurrencies = Array.isArray(raw.otherCurrencies)
     ? raw.otherCurrencies.filter(
         (entry) =>
@@ -233,6 +236,13 @@ export function formatAssetPriceLabel(item: { prices: MarketplaceAssetPrice[] })
   return labels.length > 0 ? labels.join(" / ") : "No active listings";
 }
 
+export function getLowestPrice(item: MarketplaceAssetItem): number {
+  const prices = item.prices
+    .map((p) => p.minPrice)
+    .filter((price) => Number.isFinite(price) && price > 0);
+
+  return prices.length > 0 ? Math.min(...prices) : Number.POSITIVE_INFINITY;
+}
 /** Lowest USD price across an asset's price entries, or null if none. */
 export function getLowestUsdPrice(prices: MarketplaceAssetPrice[]): number | null {
   const usdPrices = prices

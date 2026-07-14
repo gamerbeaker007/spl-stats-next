@@ -1,13 +1,13 @@
 "use client";
 
 import MarketAssetSummary from "@/components/collection/marketplace/MarketAssetSummary";
-import MusicCopyPicker from "@/components/collection/marketplace/MusicCopyPicker";
+import AssetCopyPicker from "@/components/collection/marketplace/AssetCopyPicker";
 import TransactionProgressPanel from "@/components/shared/TransactionProgressPanel";
 import { useMarketplaceTransaction } from "@/hooks/collection/useMarketplaceTransaction";
 import { useOwnedAssetInstances } from "@/hooks/collection/useOwnedAssetInstances";
-import { buildMusicTransferPayloadAction } from "@/lib/backend/actions/marketplace-assets-actions";
+import { buildInstanceTransferPayloadAction } from "@/lib/backend/actions/marketplace-assets-actions";
 import { broadcastTransferItems } from "@/lib/frontend/purchase/splBroadcast";
-import type { MarketplaceAssetItem } from "@/types/marketplace-assets";
+import type { MarketplaceAssetItem, MarketplaceAssetName } from "@/types/marketplace-assets";
 import {
   Alert,
   Button,
@@ -20,25 +20,30 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 
-interface MusicTransferDialogProps {
+interface InstanceTransferDialogProps {
   open: boolean;
   account: string;
+  assetName: MarketplaceAssetName;
   item: MarketplaceAssetItem;
   onClose: () => void;
   onCompleted: () => void | Promise<void>;
 }
 
-/** Music is instance-based: transfer picks specific owned copies (uids). */
-export default function MusicTransferDialog({
+/**
+ * Instance-based transfer dialog: picks specific owned copies (uids). Used by
+ * music and every other uid/instance-based asset type (packs, titles, …).
+ */
+export default function InstanceTransferDialog({
   open,
   account,
+  assetName,
   item,
   onClose,
   onCompleted,
-}: Readonly<MusicTransferDialogProps>) {
+}: Readonly<InstanceTransferDialogProps>) {
   const { instances, loading, error, refresh } = useOwnedAssetInstances(
     account,
-    "MUSIC",
+    assetName,
     item.detailId,
     open
   );
@@ -59,7 +64,7 @@ export default function MusicTransferDialog({
       label: "Transfer",
       message: `Sending ${selectedUids.length} item${selectedUids.length === 1 ? "" : "s"} to ${recipient}...`,
       execute: async () => {
-        const { payload } = await buildMusicTransferPayloadAction({
+        const { payload } = await buildInstanceTransferPayloadAction({
           account,
           recipient,
           itemUids: selectedUids,
@@ -75,7 +80,7 @@ export default function MusicTransferDialog({
 
   return (
     <Dialog open={open} onClose={busy ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Transfer Music</DialogTitle>
+      <DialogTitle>Transfer Items</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2.5}>
           <MarketAssetSummary item={item} />
@@ -89,7 +94,7 @@ export default function MusicTransferDialog({
 
           {error && <Alert severity="error">{error}</Alert>}
 
-          <MusicCopyPicker
+          <AssetCopyPicker
             instances={instances}
             loading={loading}
             selectedUids={selectedUids}

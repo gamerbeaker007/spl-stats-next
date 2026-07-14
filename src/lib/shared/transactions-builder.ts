@@ -7,6 +7,7 @@ import type {
   MarketplaceCancelPayload,
   MarketplaceListPayload,
   MarketplacePurchasePayload,
+  TokenTransferPayload,
   TransferItemsPayload,
   TransferSkinsPayload,
 } from "@/types/skin-transactions";
@@ -142,6 +143,34 @@ export function buildMarketplaceListPayload(args: {
       price: args.priceUsd,
       itemId: entry.itemId,
     })),
+    app: getAppName(),
+    n: getNonce(),
+  };
+}
+
+/**
+ * `sm_token_transfer` — transfer a quantity of a fungible token (by symbol) to
+ * another player. `memo` mirrors the recipient, matching the Splinterlands client.
+ */
+export function buildTokenTransferPayload(args: {
+  token: string;
+  recipient: string;
+  quantity: number;
+}): TokenTransferPayload {
+  const recipient = normalizeRecipient(args.recipient);
+  if (!recipient) {
+    throw new Error("Recipient is required");
+  }
+  if (!args.token) {
+    throw new Error("Token is required");
+  }
+  validatePositiveInteger(args.quantity, "Quantity");
+
+  return {
+    token: args.token,
+    to: recipient,
+    qty: args.quantity,
+    memo: recipient,
     app: getAppName(),
     n: getNonce(),
   };

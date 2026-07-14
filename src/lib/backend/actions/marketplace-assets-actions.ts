@@ -18,6 +18,7 @@ import {
   buildMarketplaceCancelPayload,
   buildMarketplaceListPayload,
   buildMarketplacePurchasePayload,
+  buildTokenTransferPayload,
   buildTransferItemsPayload,
   buildTransferSkinsPayload,
   normalizeRecipient,
@@ -153,9 +154,10 @@ export async function getOwnedAssetInstancesAction(
     });
   }
 
-  const detailIdNumber = Number(detailId);
+  // Match by string: detail ids are numeric for skins/music but string for many
+  // asset types (packs `"CHAOS"`, consumables `"MIDNIGHTPOT"`, land resources `"TC"`).
   const temp = inventory
-    .filter((item) => item.item_detail_id === detailIdNumber)
+    .filter((item) => String(item.item_detail_id) === detailId)
     .map((item) => {
       const own = ownListingByUid.get(item.uid);
       return {
@@ -228,10 +230,11 @@ export async function buildMarketplaceAssetPurchasePayloadAction(args: {
   };
 }
 
-// --- Music (instance / uid based) -----------------------------------------
+// --- Instance / uid based (music, packs, titles, consumables, …) -----------
 
-export async function buildMusicListPayloadAction(args: {
+export async function buildInstanceListPayloadAction(args: {
   account: string;
+  assetName: MarketplaceAssetName;
   itemUids: string[];
   priceUsd: number;
 }) {
@@ -243,7 +246,7 @@ export async function buildMusicListPayloadAction(args: {
 
   return {
     payload: buildMarketplaceListPayload({
-      assetName: "MUSIC",
+      assetName: args.assetName,
       entries: itemUids.map((uid) => ({ itemId: uid, quantity: 1 })),
       priceUsd: args.priceUsd,
     }),
@@ -251,7 +254,7 @@ export async function buildMusicListPayloadAction(args: {
   };
 }
 
-export async function buildMusicTransferPayloadAction(args: {
+export async function buildInstanceTransferPayloadAction(args: {
   account: string;
   recipient: string;
   itemUids: string[];
@@ -275,26 +278,31 @@ export async function buildMusicTransferPayloadAction(args: {
   };
 }
 
-// --- Skins (aggregate / quantity based) ------------------------------------
+// --- Aggregate / quantity based (skins + fungible tokens) ------------------
 
-async function getOwnedSkin(account: string, detailId: string): Promise<MarketplaceAssetItem> {
-  const skins = await getCachedMarketplaceAssets(account, "SKINS");
-  const skin = skins.find((entry) => entry.detailId === detailId);
-  if (!skin) {
-    throw new Error("Skin not found for this account");
+async function getOwnedAsset(
+  account: string,
+  assetName: MarketplaceAssetName,
+  detailId: string
+): Promise<MarketplaceAssetItem> {
+  const assets = await getCachedMarketplaceAssets(account, assetName);
+  const owned = assets.find((entry) => entry.detailId === detailId);
+  if (!owned) {
+    throw new Error("Item not found for this account");
   }
-  return skin;
+  return owned;
 }
 
-/** The account's own active listings for a skin (used to delist). */
-export async function getOwnedSkinListingsAction(
+/** The account's own active listings for an asset (used to delist). */
+export async function getOwnedListingsAction(
   account: string,
+  assetName: MarketplaceAssetName,
   detailId: string
 ): Promise<Array<{ listingItemId: number; price: number; quantityRemaining: number }>> {
   const normalized = normalizeAccount(account);
 
   const listings = await fetchMarketplaceListingItems({
-    assetName: "SKINS",
+    assetName,
     detailIds: [detailId],
     sort: { field: "price", order: "asc" },
   });
@@ -308,8 +316,9 @@ export async function getOwnedSkinListingsAction(
     }));
 }
 
-export async function buildSkinListPayloadAction(args: {
+export async function buildQuantityListPayloadAction(args: {
   account: string;
+  assetName: MarketplaceAssetName;
   detailId: string;
   quantity: number;
   priceUsd: number;
@@ -319,14 +328,14 @@ export async function buildSkinListPayloadAction(args: {
   validatePositiveInteger(args.quantity, "Quantity");
   validateUsdPrice(args.priceUsd);
 
-  const skin = await getOwnedSkin(account, args.detailId);
-  if (skin.numOwned < args.quantity) {
-    throw new Error("Listing quantity exceeds owned skins");
+  const owned = await getOwnedAsset(account, args.assetName, args.detailId);
+  if (owned.numOwned < args.quantity) {
+    throw new Error("Listing quantity exceeds owned amount");
   }
 
   return {
     payload: buildMarketplaceListPayload({
-      assetName: "SKINS",
+      assetName: args.assetName,
       entries: [{ itemId: args.detailId, quantity: args.quantity }],
       priceUsd: args.priceUsd,
     }),
@@ -351,7 +360,7 @@ export async function buildSkinTransferPayloadAction(args: {
     throw new Error("Recipient cannot be the same as the sender");
   }
 
-  const skin = await getOwnedSkin(account, args.detailId);
+  const skin = await getOwnedAsset(account, "SKINS", args.detailId);
   if (skin.numOwned < args.quantity) {
     throw new Error("Transfer quantity exceeds owned skins");
   }
@@ -364,6 +373,40 @@ export async function buildSkinTransferPayloadAction(args: {
       recipient,
       skin: skin.setName,
       cardDetailId: skin.cardDetailId,
+      quantity: args.quantity,
+    }),
+  };
+}
+
+export async function buildTokenTransferPayloadAction(args: {
+  account: string;
+  assetName: MarketplaceAssetName;
+  detailId: string;
+  recipient: string;
+  quantity: number;
+}) {
+  const account = normalizeAccount(args.account);
+  await assertMonitorsAccount(account);
+  const recipient = normalizeRecipient(args.recipient);
+  validatePositiveInteger(args.quantity, "Quantity");
+
+  if (!recipient) {
+    throw new Error("Recipient is required");
+  }
+  if (recipient === account) {
+    throw new Error("Recipient cannot be the same as the sender");
+  }
+
+  const owned = await getOwnedAsset(account, args.assetName, args.detailId);
+  if (owned.numOwned < args.quantity) {
+    throw new Error("Transfer quantity exceeds owned amount");
+  }
+
+  // For fungible assets the detailId is the token symbol (e.g. "MIDNIGHTPOT").
+  return {
+    payload: buildTokenTransferPayload({
+      token: args.detailId,
+      recipient,
       quantity: args.quantity,
     }),
   };

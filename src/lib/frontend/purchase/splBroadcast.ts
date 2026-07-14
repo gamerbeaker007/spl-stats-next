@@ -9,6 +9,7 @@ import type {
   MarketplaceCancelPayload,
   MarketplaceListPayload,
   MarketplacePurchasePayload,
+  TokenTransferPayload,
   TransferItemsPayload,
   TransferSkinsPayload,
 } from "@/types/skin-transactions";
@@ -124,6 +125,13 @@ export async function broadcastTransferSkins(
   payload: TransferSkinsPayload
 ): Promise<string> {
   return broadcastCustomJson(account, "sm_transfer_skins", payload);
+}
+
+export async function broadcastTokenTransfer(
+  account: string,
+  payload: TokenTransferPayload
+): Promise<string> {
+  return broadcastCustomJson(account, "sm_token_transfer", payload);
 }
 
 export async function broadcastMarketplaceList(

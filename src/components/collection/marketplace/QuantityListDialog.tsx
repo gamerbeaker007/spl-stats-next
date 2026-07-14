@@ -3,16 +3,16 @@
 import MarketAssetSummary from "@/components/collection/marketplace/MarketAssetSummary";
 import TransactionProgressPanel from "@/components/shared/TransactionProgressPanel";
 import { useMarketplaceTransaction } from "@/hooks/collection/useMarketplaceTransaction";
-import { useOwnedSkinListings } from "@/hooks/collection/useOwnedSkinListings";
+import { useOwnedListings } from "@/hooks/collection/useOwnedListings";
 import {
   buildDelistAssetPayloadAction,
-  buildSkinListPayloadAction,
+  buildQuantityListPayloadAction,
 } from "@/lib/backend/actions/marketplace-assets-actions";
 import {
   broadcastMarketplaceCancel,
   broadcastMarketplaceList,
 } from "@/lib/frontend/purchase/splBroadcast";
-import type { MarketplaceAssetItem } from "@/types/marketplace-assets";
+import type { MarketplaceAssetItem, MarketplaceAssetName } from "@/types/marketplace-assets";
 import {
   Alert,
   Button,
@@ -32,25 +32,30 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 
-interface SkinListDialogProps {
+interface QuantityListDialogProps {
   open: boolean;
   account: string;
+  assetName: MarketplaceAssetName;
   item: MarketplaceAssetItem;
   defaultListPriceUsd: number | null;
   onClose: () => void;
   onCompleted: () => void | Promise<void>;
 }
 
-/** Skins are quantity-based: list N copies at a price; cancel your active listings. */
-export default function SkinListDialog({
+/**
+ * Quantity-based list dialog: list N copies at a price; cancel active listings.
+ * Used by skins and every fungible/quantity asset (packs, consumables, …).
+ */
+export default function QuantityListDialog({
   open,
   account,
+  assetName,
   item,
   defaultListPriceUsd,
   onClose,
   onCompleted,
-}: Readonly<SkinListDialogProps>) {
-  const { listings, error, refresh } = useOwnedSkinListings(account, item.detailId, open);
+}: Readonly<QuantityListDialogProps>) {
+  const { listings, error, refresh } = useOwnedListings(account, assetName, item.detailId, open);
   const { busy, txProgress, error: submitError, run } = useMarketplaceTransaction(onCompleted);
 
   // The host unmounts this dialog when closed, so state resets on each open.
@@ -63,10 +68,11 @@ export default function SkinListDialog({
   async function handleList() {
     await run({
       label: "List",
-      message: `Listing ${quantity} skin${quantity === 1 ? "" : "s"} for ${priceUsd} USD...`,
+      message: `Listing ${quantity} item${quantity === 1 ? "" : "s"} for ${priceUsd} USD...`,
       execute: async () => {
-        const { payload } = await buildSkinListPayloadAction({
+        const { payload } = await buildQuantityListPayloadAction({
           account,
+          assetName,
           detailId: item.detailId,
           quantity,
           priceUsd: Number(priceUsd),
@@ -85,7 +91,7 @@ export default function SkinListDialog({
       execute: async () => {
         const { payload } = await buildDelistAssetPayloadAction({
           account,
-          assetName: "SKINS",
+          assetName,
           detailId: item.detailId,
           listingItemIds: [listingItemId],
         });
@@ -98,7 +104,7 @@ export default function SkinListDialog({
 
   return (
     <Dialog open={open} onClose={busy ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle>List Skin</DialogTitle>
+      <DialogTitle>List Items</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2.5}>
           <MarketAssetSummary item={item} />
@@ -117,7 +123,7 @@ export default function SkinListDialog({
               fullWidth
             />
             <TextField
-              label="Price Per Skin (USD)"
+              label="Price Per Item (USD)"
               type="number"
               value={priceUsd}
               onChange={(event) => setPriceUsd(event.target.value)}

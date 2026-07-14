@@ -6,13 +6,16 @@ import MarketActionDialogHost, {
   type MarketActionState,
 } from "@/components/collection/marketplace/MarketActionDialogHost";
 import MarketAssetCard from "@/components/collection/marketplace/MarketAssetCard";
+import MarketAssetTable from "@/components/collection/marketplace/MarketAssetTable";
 import MarketFilterBar from "@/components/collection/marketplace/MarketFilterBar";
+import MarketViewToggle from "@/components/collection/marketplace/MarketViewToggle";
 import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
 import { LoadingSpinnerOverlay } from "@/components/ui/LoadingSpinnerOverlay";
 import { useMarketplaceAssetsPageData } from "@/hooks/collection/useMarketplaceAssetsPageData";
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import { useCardFilter } from "@/lib/frontend/context/CardFilterContext";
+import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { matchesCardFilter } from "@/lib/shared/card-filter-utils";
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
@@ -79,6 +82,7 @@ export default function SkinsPageClient() {
     removeLocalAccount,
   } = useAccounts();
   const { filter: cardFilter } = useCardFilter();
+  const { viewMode: layoutMode } = useMarketplaceView();
 
   const [addAccountInput, setAddAccountInput] = useState("");
   const [ownedOnly, setOwnedOnly] = useState(false);
@@ -174,7 +178,9 @@ export default function SkinsPageClient() {
     notifyCollectionRefresh();
   };
 
-  const isEmpty = flatMode ? flatSkins.length === 0 : rows.length === 0;
+  // Table layout always shows the flat skin list (no base card).
+  const tableMode = layoutMode === "table";
+  const isEmpty = tableMode || flatMode ? flatSkins.length === 0 : rows.length === 0;
 
   return (
     <Box display="flex" flex={1}>
@@ -242,25 +248,29 @@ export default function SkinsPageClient() {
 
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                 <MarketFilterBar filter={marketFilter} onChange={setMarketFilter} />
-                <ToggleButtonGroup
-                  size="small"
-                  exclusive
-                  value={viewMode}
-                  onChange={(_event, value: SkinViewMode | null) => {
-                    if (value) setViewMode(value);
-                  }}
-                >
-                  <ToggleButton value="grouped" aria-label="Grouped by card">
-                    <Tooltip title="Group by base card">
-                      <MdViewAgenda size={18} />
-                    </Tooltip>
-                  </ToggleButton>
-                  <ToggleButton value="flat" aria-label="Flat skin grid">
-                    <Tooltip title="Show skins only (no base card)">
-                      <MdGridView size={18} />
-                    </Tooltip>
-                  </ToggleButton>
-                </ToggleButtonGroup>
+                {/* Grouped/flat only applies to the card layout. */}
+                {!tableMode && (
+                  <ToggleButtonGroup
+                    size="small"
+                    exclusive
+                    value={viewMode}
+                    onChange={(_event, value: SkinViewMode | null) => {
+                      if (value) setViewMode(value);
+                    }}
+                  >
+                    <ToggleButton value="grouped" aria-label="Grouped by card">
+                      <Tooltip title="Group by base card">
+                        <MdViewAgenda size={18} />
+                      </Tooltip>
+                    </ToggleButton>
+                    <ToggleButton value="flat" aria-label="Flat skin grid">
+                      <Tooltip title="Show skins only (no base card)">
+                        <MdGridView size={18} />
+                      </Tooltip>
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                )}
+                <MarketViewToggle />
               </Stack>
             </Stack>
           </Box>
@@ -273,8 +283,11 @@ export default function SkinsPageClient() {
             <Alert severity="info">No skin data matches the selected filters.</Alert>
           )}
 
-          {/* Flat mode — only skin cards, no base card. */}
-          {flatMode ? (
+          {/* Table layout — flat rows, no base card. */}
+          {tableMode ? (
+            <MarketAssetTable items={flatSkins} onAction={handleAction} />
+          ) : flatMode ? (
+            /* Flat card mode — only skin cards, no base card. */
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
               {flatSkins.map((skin) => (
                 <MarketAssetCard key={skin.detailId} item={skin} onAction={handleAction} />

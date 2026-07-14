@@ -20,7 +20,7 @@ export default function TopBarBalancesCart({ showCart = true }: Readonly<TopBarB
         gap: 1,
         px: 2,
         py: 1,
-        mb: 2.5,
+        mb: 0.5,
         position: { xs: "relative", md: "sticky" },
         top: { xs: "auto", md: APP_BAR_HEIGHT },
         zIndex: (theme) => theme.zIndex.appBar,

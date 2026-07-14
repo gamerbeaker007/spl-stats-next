@@ -4,7 +4,18 @@ import { Box, Tab, Tabs } from "@mui/material";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
-import { MdAddShoppingCart, MdBrush, MdGridView, MdMusicNote } from "react-icons/md";
+import {
+  MdAddShoppingCart,
+  MdBrush,
+  MdEmojiEvents,
+  MdGridView,
+  MdMusicNote,
+  MdScience,
+  MdShoppingBag,
+  MdStyle,
+  MdTerrain,
+  MdViewInAr,
+} from "react-icons/md";
 
 interface CollectionNavItem {
   label: string;
@@ -17,6 +28,12 @@ export const COLLECTION_NAV_ITEMS: CollectionNavItem[] = [
   { label: "Buy Missing CC", href: "/collection/buy-missing-cc", icon: MdAddShoppingCart },
   { label: "Skins", href: "/collection/skins", icon: MdBrush },
   { label: "Music", href: "/collection/music", icon: MdMusicNote },
+  { label: "Packs", href: "/collection/packs", icon: MdShoppingBag },
+  { label: "Titles", href: "/collection/titles", icon: MdEmojiEvents },
+  { label: "Consumables", href: "/collection/consumables", icon: MdScience },
+  { label: "Collector Stickers", href: "/collection/collector-stickers", icon: MdStyle },
+  { label: "Totems", href: "/collection/totems", icon: MdViewInAr },
+  { label: "Land", href: "/collection/land", icon: MdTerrain },
 ];
 
 /** Sub-navigation shown on every /collection page so users can jump between sections. */

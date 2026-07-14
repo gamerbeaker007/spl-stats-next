@@ -54,6 +54,19 @@ export interface TransferSkinsPayload {
   n: number;
 }
 
+/**
+ * Fungible token transfer (`sm_token_transfer`) — moves a quantity of a fungible
+ * asset (packs, consumables, totem fragments, land resources) by its token symbol.
+ */
+export interface TokenTransferPayload {
+  token: string;
+  to: string;
+  qty: number;
+  memo: string;
+  app: string;
+  n: number;
+}
+
 export interface MarketplaceListPayload {
   assetName: MarketplaceAssetName;
   currency: "USD";

@@ -6,6 +6,7 @@ import {
   getBuyCardDialogAccountContextAction,
   getBuyCardDialogSharedContextAction,
 } from "@/lib/backend/actions/buy-missing-cc-actions";
+import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { buildCombineCardsPayloadAction } from "@/lib/backend/actions/purchase-actions";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { checkoutItems } from "@/lib/frontend/purchase/checkout";
@@ -638,6 +639,13 @@ export default function BuyCardDialog({
           error: confirmation?.status.message ?? "Transaction was not verified.",
         });
       }
+      // Bust the cached collection/balances BEFORE bumping the refresh version,
+      // otherwise the reload re-reads the same pre-combine `"use cache"` snapshot
+      // and the combine status recomputes to the identical (stale) state.
+      await revalidateTagsAction([
+        { type: "collection", usernames: [selectedAccount] },
+        { type: "balances", usernames: [selectedAccount] },
+      ]);
       notifyBalancesRefresh();
       notifyCollectionRefresh();
     } catch (err) {

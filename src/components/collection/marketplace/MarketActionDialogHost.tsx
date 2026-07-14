@@ -1,10 +1,12 @@
 "use client";
 
 import BuyAssetDialog from "@/components/collection/marketplace/BuyAssetDialog";
-import MusicListDialog from "@/components/collection/marketplace/MusicListDialog";
-import MusicTransferDialog from "@/components/collection/marketplace/MusicTransferDialog";
-import SkinListDialog from "@/components/collection/marketplace/SkinListDialog";
+import InstanceListDialog from "@/components/collection/marketplace/InstanceListDialog";
+import InstanceTransferDialog from "@/components/collection/marketplace/InstanceTransferDialog";
+import QuantityTransferDialog from "@/components/collection/marketplace/QuantityTransferDialog";
+import QuantityListDialog from "@/components/collection/marketplace/QuantityListDialog";
 import SkinTransferDialog from "@/components/collection/marketplace/SkinTransferDialog";
+import { MARKETPLACE_ASSET_MODEL } from "@/lib/shared/marketplace-asset-model";
 import type { MarketplaceAssetItem, MarketplaceAssetName } from "@/types/marketplace-assets";
 
 export type MarketActionMode = "buy" | "transfer" | "list";
@@ -24,9 +26,12 @@ interface MarketActionDialogHostProps {
 }
 
 /**
- * Renders the correct action dialog for the active (asset, mode). Buy is shared;
- * list/transfer are split because skins are quantity-based while music is
- * instance (uid) based.
+ * Renders the correct action dialog for the active (asset, mode). Buy is shared.
+ * List/transfer are routed by the asset's ownership model:
+ *  - `"instance"` (music, titles, totems, stickers, deeds): per-uid dialogs.
+ *  - `"skin"`: card-linked quantity dialogs.
+ *  - `"quantity"` (packs, consumables, fragments, resources, land): quantity list
+ *    dialog; transfer sends a quantity of the fungible token (`sm_token_transfer`).
  */
 export default function MarketActionDialogHost({
   state,
@@ -50,11 +55,39 @@ export default function MarketActionDialogHost({
     );
   }
 
-  if (assetName === "SKINS") {
+  const model = MARKETPLACE_ASSET_MODEL[assetName];
+
+  // Quantity / fungible tokens: list by symbol + quantity; transfer a quantity of
+  // the token via sm_token_transfer.
+  if (model === "quantity") {
     return state.mode === "list" ? (
-      <SkinListDialog
+      <QuantityListDialog
         open
         account={account}
+        assetName={assetName}
+        item={state.item}
+        defaultListPriceUsd={state.defaultListPriceUsd}
+        onClose={onClose}
+        onCompleted={onCompleted}
+      />
+    ) : (
+      <QuantityTransferDialog
+        open
+        account={account}
+        assetName={assetName}
+        item={state.item}
+        onClose={onClose}
+        onCompleted={onCompleted}
+      />
+    );
+  }
+
+  if (model === "skin") {
+    return state.mode === "list" ? (
+      <QuantityListDialog
+        open
+        account={account}
+        assetName={assetName}
         item={state.item}
         defaultListPriceUsd={state.defaultListPriceUsd}
         onClose={onClose}
@@ -71,20 +104,22 @@ export default function MarketActionDialogHost({
     );
   }
 
-  // MUSIC (instance / uid based)
+  // Instance / uid based (music, titles, totems, collector stickers, deeds).
   return state.mode === "list" ? (
-    <MusicListDialog
+    <InstanceListDialog
       open
       account={account}
+      assetName={assetName}
       item={state.item}
       defaultListPriceUsd={state.defaultListPriceUsd}
       onClose={onClose}
       onCompleted={onCompleted}
     />
   ) : (
-    <MusicTransferDialog
+    <InstanceTransferDialog
       open
       account={account}
+      assetName={assetName}
       item={state.item}
       onClose={onClose}
       onCompleted={onCompleted}

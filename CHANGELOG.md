@@ -9,6 +9,35 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+# v1.9.0 - 2026-07-14
+
+### Added
+
+- Added new marketplace pages for trading assets on the selected account, reusing the existing marketplace components (live lowest prices, owned/listed status, name/price sorting, USD min/max and "listed only" filters, and transaction verification):
+  - **Packs** — with a set-based filter (select one or more sets such as Chaos Legion to query all corresponding marketplace pack editions), using the existing set icons and names.
+  - **Titles** — displays each title's description prominently.
+  - **Consumables**.
+  - **Collector Stickers**.
+  - **Totems** — complete totems and totem fragments shown as two labelled sections on one page.
+  - **Land** — land plots, deeds, and land resources (e.g. Time Crystals) shown as labelled sections on one page.
+- Added collection sub-navigation entries for the new marketplace pages.
+- Added a card/table layout toggle to all marketplace pages; the preference is remembered per user (localStorage). In table layout, skins show as flat rows without the base-card grouping.
+- Supported buy, list, transfer, and delist across the new marketplace pages according to each asset's ownership model:
+  - Instance/uid assets (titles, complete totems, collector stickers, deeds) list and transfer specific owned copies (per uid).
+  - Fungible/quantity assets (packs, consumables, totem fragments, land resources, land) list and transfer by quantity — listing via `sm_marketplace_list` and transferring via `sm_token_transfer`.
+
+### Changed
+
+- Marketplace asset detail ids may now be non-numeric (e.g. pack `CHAOS`, consumable `MIDNIGHTPOT`, land resource `TC`); id parsing no longer throws on string ids, and owned-copy lookups match detail ids as strings.
+- Generalized the marketplace list/transfer flow to route by asset ownership model (instance / skin / quantity) instead of skins-vs-music, so all asset types reuse the same dialogs.
+- Consolidated the set → marketplace pack mapping into `edition-utils` (`SetDef.marketPackDetailIds`) so editions, sets, and their pack codes are maintained in one place.
+
+### Fixed
+
+- Fixed combine status not refreshing after a successful combine. Both the target-level combine flow and the Buy Missing CC combine dialog now invalidate the cached collection/balances before reloading, so the enabled/disabled combine state is recalculated against the post-combine collection instead of a stale cached snapshot.
+
+---
+
 # v1.8.0 - 2026-07-13
 
 ### Added
