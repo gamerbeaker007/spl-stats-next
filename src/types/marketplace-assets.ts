@@ -1,6 +1,19 @@
 import type { SplCardDetail } from "@/types/spl/cardDetails";
 
-export const marketplaceAssetNames = ["SKINS", "MUSIC"] as const;
+export const marketplaceAssetNames = [
+  "SKINS",
+  "MUSIC",
+  "PACKS",
+  "TITLES",
+  "CONSUMABLES",
+  "COLLECTOR_STICKERS",
+  "TOTEMS",
+  "TOTEM_ITEMS",
+  "TOTEM_FRAGMENTS",
+  "LAND",
+  "DEEDS",
+  "LAND_RESOURCES",
+] as const;
 
 export type MarketplaceAssetName = (typeof marketplaceAssetNames)[number];
 
@@ -141,6 +154,23 @@ export interface MarketplaceListingItemsPage {
   total: number;
 }
 
+export interface MarketplacePlayerListingRaw {
+  listingId: number;
+  assetName: string;
+  detailId: string;
+  quantity: number;
+  quantityRemaining: number;
+}
+
+export interface MarketplacePlayerListing {
+  listingId: number;
+  assetName: MarketplaceAssetName;
+  detailId: string;
+  detailIdNumber: number;
+  quantity: number;
+  quantityRemaining: number;
+}
+
 /**
  * One tradeable marketplace asset (a skin, a music track, …) enriched with the
  * viewing account's ownership counts and lowest prices. Asset-agnostic: fields
@@ -163,13 +193,32 @@ export interface MarketplaceAssetItem {
   description: string;
   rarity: number | null;
   numCirculation: number;
+  /** Quantity returned as locally held by `/market/landing`, excluding own listed quantity assets. */
+  ownedQuantity: number;
+  /** Actual owned quantity: local owned quantity plus the player's own active listed quantity. */
+  actualOwned: number;
+  /** Quantity still owned by the player but currently listed on the marketplace. */
+  currentlyListed: number;
+  /** Quantity that can be newly listed after subtracting own listed and active locked copies. */
+  availableToList: number;
+  /** Backwards-compatible ownership count; mirrors `actualOwned` after player ownership enrichment. */
   numOwned: number;
+  /** Marketplace-wide listed quantity available to buy. */
   numListed: number;
   prices: MarketplaceAssetPrice[];
   /** Card linkage — present for skins, `null` for card-independent assets (music). */
   cardDetailId: number | null;
   cardEditionIds: number[];
   imageCardEditionId: number | null;
+  /**
+   * How many copies of this skin are currently active for the viewing account (0 or 1).
+   * Only present for SKINS; `false` for all other asset types.
+   */
+  active: boolean;
+  /** Synthetic row used for activating the always-available base card skin. */
+  baseSkin: boolean;
+  /** Skin value to send in `sm_set_skin`; defaults to the skin set/display name. */
+  activationSkinName: string | null;
 }
 
 /**

@@ -7,6 +7,8 @@ import type {
   MarketplaceCancelPayload,
   MarketplaceListPayload,
   MarketplacePurchasePayload,
+  SetSkinPayload,
+  TokenTransferPayload,
   TransferItemsPayload,
   TransferSkinsPayload,
 } from "@/types/skin-transactions";
@@ -147,6 +149,34 @@ export function buildMarketplaceListPayload(args: {
   };
 }
 
+/**
+ * `sm_token_transfer` — transfer a quantity of a fungible token (by symbol) to
+ * another player. `memo` mirrors the recipient, matching the Splinterlands client.
+ */
+export function buildTokenTransferPayload(args: {
+  token: string;
+  recipient: string;
+  quantity: number;
+}): TokenTransferPayload {
+  const recipient = normalizeRecipient(args.recipient);
+  if (!recipient) {
+    throw new Error("Recipient is required");
+  }
+  if (!args.token) {
+    throw new Error("Token is required");
+  }
+  validatePositiveInteger(args.quantity, "Quantity");
+
+  return {
+    token: args.token,
+    to: recipient,
+    qty: args.quantity,
+    memo: recipient,
+    app: getAppName(),
+    n: getNonce(),
+  };
+}
+
 export function buildTransferSkinsPayload(args: {
   recipient: string;
   skin: string;
@@ -176,6 +206,23 @@ export function buildMarketplaceCancelPayload(args: {
 
   return {
     listingItemIds: args.listingItemIds,
+    app: getAppName(),
+    n: getNonce(),
+  };
+}
+
+/** `sm_set_skin` — activates a skin on the given card for the broadcasting account. */
+export function buildSetSkinPayload(args: { cardDetailId: number; skin: string }): SetSkinPayload {
+  if (!Number.isInteger(args.cardDetailId) || args.cardDetailId < 1) {
+    throw new Error("Card detail id is required");
+  }
+  if (args.skin === undefined || args.skin === null) {
+    throw new Error("Skin name is required");
+  }
+
+  return {
+    card_detail_id: args.cardDetailId,
+    skin: args.skin,
     app: getAppName(),
     n: getNonce(),
   };

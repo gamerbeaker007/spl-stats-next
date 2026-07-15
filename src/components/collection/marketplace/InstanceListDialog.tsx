@@ -1,19 +1,19 @@
 "use client";
 
 import MarketAssetSummary from "@/components/collection/marketplace/MarketAssetSummary";
-import MusicCopyPicker from "@/components/collection/marketplace/MusicCopyPicker";
+import AssetCopyPicker from "@/components/collection/marketplace/AssetCopyPicker";
 import TransactionProgressPanel from "@/components/shared/TransactionProgressPanel";
 import { useMarketplaceTransaction } from "@/hooks/collection/useMarketplaceTransaction";
 import { useOwnedAssetInstances } from "@/hooks/collection/useOwnedAssetInstances";
 import {
   buildDelistAssetPayloadAction,
-  buildMusicListPayloadAction,
+  buildInstanceListPayloadAction,
 } from "@/lib/backend/actions/marketplace-assets-actions";
 import {
   broadcastMarketplaceCancel,
   broadcastMarketplaceList,
 } from "@/lib/frontend/purchase/splBroadcast";
-import type { MarketplaceAssetItem } from "@/types/marketplace-assets";
+import type { MarketplaceAssetItem, MarketplaceAssetName } from "@/types/marketplace-assets";
 import {
   Alert,
   Button,
@@ -26,27 +26,32 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 
-interface MusicListDialogProps {
+interface InstanceListDialogProps {
   open: boolean;
   account: string;
+  assetName: MarketplaceAssetName;
   item: MarketplaceAssetItem;
   defaultListPriceUsd: number | null;
   onClose: () => void;
   onCompleted: () => void | Promise<void>;
 }
 
-/** Music is instance-based: list picks specific owned copies (uids) to sell. */
-export default function MusicListDialog({
+/**
+ * Instance-based list dialog: picks specific owned copies (uids) to sell. Used by
+ * music and every other uid/instance-based asset type (packs, titles, …).
+ */
+export default function InstanceListDialog({
   open,
   account,
+  assetName,
   item,
   defaultListPriceUsd,
   onClose,
   onCompleted,
-}: Readonly<MusicListDialogProps>) {
+}: Readonly<InstanceListDialogProps>) {
   const { instances, loading, error, refresh } = useOwnedAssetInstances(
     account,
-    "MUSIC",
+    assetName,
     item.detailId,
     open
   );
@@ -68,8 +73,9 @@ export default function MusicListDialog({
       label: "List",
       message: `Listing ${selectedUids.length} item${selectedUids.length === 1 ? "" : "s"} for ${priceUsd} USD...`,
       execute: async () => {
-        const { payload } = await buildMusicListPayloadAction({
+        const { payload } = await buildInstanceListPayloadAction({
           account,
+          assetName,
           itemUids: selectedUids,
           priceUsd: Number(priceUsd),
         });
@@ -90,7 +96,7 @@ export default function MusicListDialog({
       execute: async () => {
         const { payload } = await buildDelistAssetPayloadAction({
           account,
-          assetName: "MUSIC",
+          assetName,
           detailId: item.detailId,
           listingItemIds: [listingItemId],
         });
@@ -103,7 +109,7 @@ export default function MusicListDialog({
 
   return (
     <Dialog open={open} onClose={busy ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle>List Music</DialogTitle>
+      <DialogTitle>List Items</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2.5}>
           <MarketAssetSummary item={item} />
@@ -119,7 +125,7 @@ export default function MusicListDialog({
 
           {error && <Alert severity="error">{error}</Alert>}
 
-          <MusicCopyPicker
+          <AssetCopyPicker
             instances={instances}
             loading={loading}
             selectedUids={selectedUids}

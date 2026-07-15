@@ -19,7 +19,7 @@ import { useMemo, useState } from "react";
 
 const PAGE_SIZE = 5;
 
-interface MusicCopyPickerProps {
+interface AssetCopyPickerProps {
   instances: OwnedAssetInstance[];
   loading: boolean;
   selectedUids: string[];
@@ -36,7 +36,7 @@ interface MusicCopyPickerProps {
  * operate on specific instance uids, so the user picks copies here; already-listed
  * copies aren't selectable but can be delisted.
  */
-export default function MusicCopyPicker({
+export default function AssetCopyPicker({
   instances,
   loading,
   selectedUids,
@@ -45,7 +45,7 @@ export default function MusicCopyPicker({
   onDelist,
   delistingId,
   disabled = false,
-}: Readonly<MusicCopyPickerProps>) {
+}: Readonly<AssetCopyPickerProps>) {
   const [page, setPage] = useState(0);
 
   const pageCount = Math.max(1, Math.ceil(instances.length / PAGE_SIZE));

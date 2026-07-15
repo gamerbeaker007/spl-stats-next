@@ -2,7 +2,7 @@
 
 import { getMarketplaceAssetListingsAction } from "@/lib/backend/actions/marketplace-assets-actions";
 import type { MarketplaceAssetName, MarketplaceListingItem } from "@/types/marketplace-assets";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export function useMarketplaceAssetListings(
   assetName: MarketplaceAssetName,
@@ -13,6 +13,32 @@ export function useMarketplaceAssetListings(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const load = useCallback(
+    async (active: () => boolean): Promise<MarketplaceListingItem[]> => {
+      if (!enabled || !detailId) {
+        setListings([]);
+        setLoading(false);
+        setError(null);
+        return [];
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const next = await getMarketplaceAssetListingsAction(assetName, detailId);
+        if (active()) setListings(next);
+        return next;
+      } catch (err) {
+        if (active()) setError(err instanceof Error ? err.message : "Failed to load listings");
+        return [];
+      } finally {
+        if (active()) setLoading(false);
+      }
+    },
+    [assetName, detailId, enabled]
+  );
+
   useEffect(() => {
     if (!enabled || !detailId) {
       setListings([]);
@@ -22,29 +48,14 @@ export function useMarketplaceAssetListings(
     }
 
     let active = true;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const next = await getMarketplaceAssetListingsAction(assetName, detailId);
-        if (!active) return;
-        setListings(next);
-      } catch (err) {
-        if (!active) return;
-        setError(err instanceof Error ? err.message : "Failed to load listings");
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-
-    load();
+    load(() => active);
 
     return () => {
       active = false;
     };
-  }, [assetName, detailId, enabled]);
+  }, [detailId, enabled, load]);
 
-  return { listings, loading, error };
+  const refresh = useCallback(() => load(() => true), [load]);
+
+  return { listings, loading, error, refresh };
 }

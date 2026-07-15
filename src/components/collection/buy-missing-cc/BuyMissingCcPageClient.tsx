@@ -9,6 +9,7 @@ import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 import { useBuyMissingCcSharedData } from "@/hooks/cards/useBuyMissingCcSharedData";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { getBuyMissingCcDetailedCollectionAction } from "@/lib/backend/actions/buy-missing-cc-actions";
+import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import { useBuyMissingCcFilter } from "@/lib/frontend/context/BuyMissingCcFilterContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
@@ -616,7 +617,14 @@ export default function BuyMissingCcPageClient() {
           }
           topOffsetPx={isMobile ? undefined : APP_BAR_HEIGHT + COLLECTION_STICKY_BAR_HEIGHT}
           onClose={() => setCombineDialogRow(null)}
-          onSuccess={() => {
+          onSuccess={async () => {
+            // Bust the cached collection BEFORE bumping the refresh version,
+            // otherwise the reload re-reads the same pre-combine `"use cache"`
+            // snapshot and the combine status recomputes to the identical state.
+            await revalidateTagsAction([
+              { type: "collection", usernames: [selectedAccount] },
+              { type: "balances", usernames: [selectedAccount] },
+            ]);
             // Bump the shared refresh version so the collection reloads (the load
             // effect depends on collectionRefreshVersion).
             notifyCollectionRefresh();

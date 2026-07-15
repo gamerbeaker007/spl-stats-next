@@ -3,16 +3,17 @@
 import MarketAssetSummary from "@/components/collection/marketplace/MarketAssetSummary";
 import TransactionProgressPanel from "@/components/shared/TransactionProgressPanel";
 import { useMarketplaceTransaction } from "@/hooks/collection/useMarketplaceTransaction";
-import { useOwnedSkinListings } from "@/hooks/collection/useOwnedSkinListings";
+import { useOwnedListings } from "@/hooks/collection/useOwnedListings";
 import {
   buildDelistAssetPayloadAction,
-  buildSkinListPayloadAction,
+  buildQuantityListPayloadAction,
 } from "@/lib/backend/actions/marketplace-assets-actions";
+import { getAvailableToListQuantity, isSkinActive } from "@/lib/shared/marketplace-assets";
 import {
   broadcastMarketplaceCancel,
   broadcastMarketplaceList,
 } from "@/lib/frontend/purchase/splBroadcast";
-import type { MarketplaceAssetItem } from "@/types/marketplace-assets";
+import type { MarketplaceAssetItem, MarketplaceAssetName } from "@/types/marketplace-assets";
 import {
   Alert,
   Button,
@@ -32,25 +33,30 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 
-interface SkinListDialogProps {
+interface QuantityListDialogProps {
   open: boolean;
   account: string;
+  assetName: MarketplaceAssetName;
   item: MarketplaceAssetItem;
   defaultListPriceUsd: number | null;
   onClose: () => void;
   onCompleted: () => void | Promise<void>;
 }
 
-/** Skins are quantity-based: list N copies at a price; cancel your active listings. */
-export default function SkinListDialog({
+/**
+ * Quantity-based list dialog: list N copies at a price; cancel active listings.
+ * Used by skins and every fungible/quantity asset (packs, consumables, …).
+ */
+export default function QuantityListDialog({
   open,
   account,
+  assetName,
   item,
   defaultListPriceUsd,
   onClose,
   onCompleted,
-}: Readonly<SkinListDialogProps>) {
-  const { listings, error, refresh } = useOwnedSkinListings(account, item.detailId, open);
+}: Readonly<QuantityListDialogProps>) {
+  const { listings, error, refresh } = useOwnedListings(account, assetName, item.detailId, open);
   const { busy, txProgress, error: submitError, run } = useMarketplaceTransaction(onCompleted);
 
   // The host unmounts this dialog when closed, so state resets on each open.
@@ -58,17 +64,22 @@ export default function SkinListDialog({
   const [priceUsd, setPriceUsd] = useState(() => defaultListPriceUsd?.toFixed(3) ?? "1.000");
   const [delistingId, setDelistingId] = useState<number | null>(null);
 
-  const maxQuantity = Math.max(1, item.numOwned);
+  const listableQuantity = getAvailableToListQuantity(item);
+  const maxQuantity = Math.max(1, listableQuantity);
+  const activeSkin = isSkinActive(item);
+
+  const effectiveQuantity = Math.min(Math.max(1, quantity), maxQuantity);
 
   async function handleList() {
     await run({
       label: "List",
-      message: `Listing ${quantity} skin${quantity === 1 ? "" : "s"} for ${priceUsd} USD...`,
+      message: `Listing ${effectiveQuantity} item${effectiveQuantity === 1 ? "" : "s"} for ${priceUsd} USD...`,
       execute: async () => {
-        const { payload } = await buildSkinListPayloadAction({
+        const { payload } = await buildQuantityListPayloadAction({
           account,
+          assetName,
           detailId: item.detailId,
-          quantity,
+          quantity: effectiveQuantity,
           priceUsd: Number(priceUsd),
         });
         return broadcastMarketplaceList(account, payload);
@@ -85,7 +96,7 @@ export default function SkinListDialog({
       execute: async () => {
         const { payload } = await buildDelistAssetPayloadAction({
           account,
-          assetName: "SKINS",
+          assetName,
           detailId: item.detailId,
           listingItemIds: [listingItemId],
         });
@@ -98,16 +109,29 @@ export default function SkinListDialog({
 
   return (
     <Dialog open={open} onClose={busy ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle>List Skin</DialogTitle>
+      <DialogTitle>List Items</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2.5}>
           <MarketAssetSummary item={item} />
+
+          {item.assetName === "SKINS" && activeSkin && (
+            <Alert severity="warning">
+              One active copy is reserved and cannot be listed.
+              {listableQuantity > 0
+                ? ` You can still list up to ${listableQuantity} other copies.`
+                : ""}
+            </Alert>
+          )}
+
+          {listableQuantity < 1 && (
+            <Alert severity="info">No quantity is currently available to list.</Alert>
+          )}
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField
               label="Quantity"
               type="number"
-              value={quantity}
+              value={effectiveQuantity}
               onChange={(event) => {
                 const next = Number(event.target.value);
                 if (!Number.isFinite(next)) return;
@@ -117,7 +141,7 @@ export default function SkinListDialog({
               fullWidth
             />
             <TextField
-              label="Price Per Skin (USD)"
+              label="Price Per Item (USD)"
               type="number"
               value={priceUsd}
               onChange={(event) => setPriceUsd(event.target.value)}
@@ -173,9 +197,9 @@ export default function SkinListDialog({
         <Button
           onClick={handleList}
           variant="contained"
-          disabled={busy || item.numOwned < 1 || Number(priceUsd) <= 0}
+          disabled={busy || listableQuantity < 1 || Number(priceUsd) <= 0}
         >
-          List {quantity}
+          List {effectiveQuantity}
         </Button>
       </DialogActions>
     </Dialog>

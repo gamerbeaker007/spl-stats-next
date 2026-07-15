@@ -1,17 +1,23 @@
 "use client";
 
-import { getOwnedSkinListingsAction } from "@/lib/backend/actions/marketplace-assets-actions";
+import { getOwnedListingsAction } from "@/lib/backend/actions/marketplace-assets-actions";
+import type { MarketplaceAssetName } from "@/types/marketplace-assets";
 import { useCallback, useEffect, useState } from "react";
 
-export interface OwnedSkinListing {
+export interface OwnedListing {
   listingItemId: number;
   price: number;
   quantityRemaining: number;
 }
 
-/** The account's own active listings for a skin (to show + cancel/delist). */
-export function useOwnedSkinListings(account: string, detailId: string, enabled: boolean) {
-  const [listings, setListings] = useState<OwnedSkinListing[]>([]);
+/** The account's own active listings for an asset (to show + cancel/delist). */
+export function useOwnedListings(
+  account: string,
+  assetName: MarketplaceAssetName,
+  detailId: string,
+  enabled: boolean
+) {
+  const [listings, setListings] = useState<OwnedListing[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +33,7 @@ export function useOwnedSkinListings(account: string, detailId: string, enabled:
       setLoading(true);
       setError(null);
       try {
-        const next = await getOwnedSkinListingsAction(account, detailId);
+        const next = await getOwnedListingsAction(account, assetName, detailId);
         if (active()) setListings(next);
       } catch (err) {
         if (active()) setError(err instanceof Error ? err.message : "Failed to load your listings");
@@ -35,7 +41,7 @@ export function useOwnedSkinListings(account: string, detailId: string, enabled:
         if (active()) setLoading(false);
       }
     },
-    [account, detailId, enabled]
+    [account, assetName, detailId, enabled]
   );
 
   useEffect(() => {

@@ -54,6 +54,19 @@ export interface TransferSkinsPayload {
   n: number;
 }
 
+/**
+ * Fungible token transfer (`sm_token_transfer`) — moves a quantity of a fungible
+ * asset (packs, consumables, totem fragments, land resources) by its token symbol.
+ */
+export interface TokenTransferPayload {
+  token: string;
+  to: string;
+  qty: number;
+  memo: string;
+  app: string;
+  n: number;
+}
+
 export interface MarketplaceListPayload {
   assetName: MarketplaceAssetName;
   currency: "USD";
@@ -69,6 +82,17 @@ export interface MarketplaceListPayload {
 /** Cancel (delist) marketplace listings by their listing item ids (`sm_marketplace_cancel`). */
 export interface MarketplaceCancelPayload {
   listingItemIds: number[];
+  app: string;
+  n: number;
+}
+
+/**
+ * Set the active skin for a card (`sm_set_skin`).
+ * Activates the named skin on the given card for the broadcasting account.
+ */
+export interface SetSkinPayload {
+  card_detail_id: number;
+  skin: string;
   app: string;
   n: number;
 }

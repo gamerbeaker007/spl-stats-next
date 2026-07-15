@@ -64,6 +64,7 @@ export default function BuyAssetDialog({
     listings,
     loading: listingsLoading,
     error: listingsError,
+    refresh: refreshListings,
   } = useMarketplaceAssetListings(assetName, item.detailId, open);
   const {
     balances,
@@ -134,7 +135,9 @@ export default function BuyAssetDialog({
         });
         return broadcastMarketplaceAssetPurchase(account, payload);
       },
-      onVerified: refreshBalances,
+      onVerified: async () => {
+        await Promise.all([refreshBalances(), refreshListings()]);
+      },
     });
   }
 

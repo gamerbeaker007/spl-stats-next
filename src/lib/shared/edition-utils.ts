@@ -256,6 +256,15 @@ export interface SetDef {
   readonly hasReward: boolean;
   /** Whether this set has extra cards (edition=17 with this tier). */
   readonly hasExtra: boolean;
+  /**
+   * Marketplace `PACKS` `detailId`s that belong to this set's era, used by the
+   * Packs shopping page to let users filter by set instead of raw pack codes.
+   * A set may map to several pack codes (e.g. Chaos → `CHAOS` + `RIFT`). Codes
+   * with no standalone edition entry are grouped by era here (e.g. `ORB` under
+   * Beta, the `ARCANA*` variants + `ESCALATION` under Conclave). Omitted for sets
+   * with no tradeable packs.
+   */
+  readonly marketPackDetailIds?: readonly string[];
 }
 
 /**
@@ -276,6 +285,7 @@ const _SET_DEF_INPUTS: readonly SetDefInput[] = [
     hasPromo: true,
     hasReward: false,
     hasExtra: false,
+    marketPackDetailIds: ["ALPHA"],
   },
   {
     setName: "beta",
@@ -284,6 +294,7 @@ const _SET_DEF_INPUTS: readonly SetDefInput[] = [
     hasPromo: true,
     hasReward: true,
     hasExtra: false,
+    marketPackDetailIds: ["BETA", "ORB"],
   },
   {
     setName: "untamed",
@@ -292,6 +303,7 @@ const _SET_DEF_INPUTS: readonly SetDefInput[] = [
     hasPromo: true,
     hasReward: true,
     hasExtra: false,
+    marketPackDetailIds: ["UNTAMED", "DICE"],
   },
   {
     setName: "chaos",
@@ -300,6 +312,7 @@ const _SET_DEF_INPUTS: readonly SetDefInput[] = [
     hasPromo: true,
     hasReward: true,
     hasExtra: false,
+    marketPackDetailIds: ["CHAOS", "RIFT"],
   },
   // Do not show the soulkeep
   // {
@@ -317,6 +330,7 @@ const _SET_DEF_INPUTS: readonly SetDefInput[] = [
     hasPromo: true,
     hasReward: false,
     hasExtra: false,
+    marketPackDetailIds: ["REBELLION"],
   },
   {
     setName: "conclave",
@@ -325,6 +339,7 @@ const _SET_DEF_INPUTS: readonly SetDefInput[] = [
     hasPromo: true,
     hasReward: false,
     hasExtra: true,
+    marketPackDetailIds: ["ARCANA", "ARCANAA", "ARCANAL", "ESCALATION"],
   },
   {
     setName: "foundation",
@@ -333,6 +348,7 @@ const _SET_DEF_INPUTS: readonly SetDefInput[] = [
     hasPromo: false,
     hasReward: false,
     hasExtra: true,
+    marketPackDetailIds: ["FOUNDATIONS"],
   },
   {
     setName: "eternal",
@@ -341,6 +357,7 @@ const _SET_DEF_INPUTS: readonly SetDefInput[] = [
     hasPromo: false,
     hasReward: false,
     hasExtra: false,
+    marketPackDetailIds: ["VERICO"],
   },
 ];
 

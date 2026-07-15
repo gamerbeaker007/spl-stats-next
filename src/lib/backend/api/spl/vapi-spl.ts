@@ -10,6 +10,7 @@ import {
   normalizeMarketplaceAssetMetaDetail,
   normalizeMarketplaceLandingAsset,
   normalizeMarketplaceListingItem,
+  normalizeMarketplacePlayerListing,
   parseMarketplaceAssetName,
 } from "@/lib/shared/marketplace-assets";
 import type {
@@ -23,6 +24,8 @@ import type {
   MarketplaceListingItem,
   MarketplaceListingItemRaw,
   MarketplaceListingItemsPage,
+  MarketplacePlayerListing,
+  MarketplacePlayerListingRaw,
 } from "@/types/marketplace-assets";
 import axios from "axios";
 import * as rax from "retry-axios";
@@ -309,6 +312,32 @@ export async function fetchMarketplaceListingItems(
 ): Promise<MarketplaceListingItem[]> {
   const page = await fetchMarketplaceListingItemsPage(params);
   return page.items;
+}
+
+export async function fetchMarketplacePlayerAllListings(
+  player: string
+): Promise<MarketplacePlayerListing[]> {
+  try {
+    const res = await vapiClient.get<{
+      status: string;
+      data: MarketplacePlayerListingRaw[];
+    }>("/market/player/all_listings", { params: { player } });
+
+    return (res.data?.data ?? []).flatMap((listing) => {
+      try {
+        return [normalizeMarketplacePlayerListing(listing)];
+      } catch {
+        return [];
+      }
+    });
+  } catch (error) {
+    logger.error(
+      `vapi: fetchMarketplacePlayerAllListings(${player}): ${
+        error instanceof Error ? error.message : error
+      }`
+    );
+    throw error;
+  }
 }
 
 export async function fetchMarketplaceAssets(

@@ -3,10 +3,10 @@
 import MarketAssetSummary from "@/components/collection/marketplace/MarketAssetSummary";
 import TransactionProgressPanel from "@/components/shared/TransactionProgressPanel";
 import { useMarketplaceTransaction } from "@/hooks/collection/useMarketplaceTransaction";
-import { buildSkinTransferPayloadAction } from "@/lib/backend/actions/marketplace-assets-actions";
-import { broadcastTransferSkins } from "@/lib/frontend/purchase/splBroadcast";
+import { buildTokenTransferPayloadAction } from "@/lib/backend/actions/marketplace-assets-actions";
+import { broadcastTokenTransfer } from "@/lib/frontend/purchase/splBroadcast";
 import { getActualOwnedQuantity } from "@/lib/shared/marketplace-assets";
-import type { MarketplaceAssetItem } from "@/types/marketplace-assets";
+import type { MarketplaceAssetItem, MarketplaceAssetName } from "@/types/marketplace-assets";
 import {
   Alert,
   Button,
@@ -19,22 +19,28 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 
-interface SkinTransferDialogProps {
+interface QuantityTransferDialogProps {
   open: boolean;
   account: string;
+  assetName: MarketplaceAssetName;
   item: MarketplaceAssetItem;
   onClose: () => void;
   onCompleted: () => void | Promise<void>;
 }
 
-/** Skins are quantity-based: transfer N copies via sm_transfer_skins. */
-export default function SkinTransferDialog({
+/**
+ * Fungible/quantity transfer dialog: send N of a fungible token (packs,
+ * consumables, totem fragments, land resources) to another player via
+ * `sm_token_transfer`. The asset's detailId is the token symbol.
+ */
+export default function QuantityTransferDialog({
   open,
   account,
+  assetName,
   item,
   onClose,
   onCompleted,
-}: Readonly<SkinTransferDialogProps>) {
+}: Readonly<QuantityTransferDialogProps>) {
   const { busy, txProgress, error: submitError, run } = useMarketplaceTransaction(onCompleted);
 
   // The host unmounts this dialog when closed, so state resets on each open.
@@ -49,22 +55,23 @@ export default function SkinTransferDialog({
   async function handleTransfer() {
     await run({
       label: "Transfer",
-      message: `Sending ${effectiveQuantity} skin${effectiveQuantity === 1 ? "" : "s"} to ${recipient}...`,
+      message: `Sending ${effectiveQuantity} item${effectiveQuantity === 1 ? "" : "s"} to ${recipient}...`,
       execute: async () => {
-        const { payload } = await buildSkinTransferPayloadAction({
+        const { payload } = await buildTokenTransferPayloadAction({
           account,
+          assetName,
           detailId: item.detailId,
           recipient,
-          quantity: effectiveQuantity,
+          quantity,
         });
-        return broadcastTransferSkins(account, payload);
+        return broadcastTokenTransfer(account, payload);
       },
     });
   }
 
   return (
     <Dialog open={open} onClose={busy ? undefined : onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Transfer Skin</DialogTitle>
+      <DialogTitle>Transfer Items</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2.5}>
           <MarketAssetSummary item={item} />

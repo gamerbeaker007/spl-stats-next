@@ -445,19 +445,18 @@ function buildClosingLines(): string[] {
   return [
     `${HEADER} Closing notes ${CLOSE_HEADER}`,
     "",
-    "This report is generated with the splinterlands statistics tool from @beaker007  [SPL Stats](http://spl-stats.com/) ([git-repo](https://github.com/gamerbeaker007/spl-stats-next)).",
+    "This report was generated using **SPL Stats**, a community-built Splinterlands statistics tool. Explore the site at [spl-stats.com](http://spl-stats.com/).",
     "",
-    `${SUB_HEADER}🙌 Support the Project ${CLOSE_HEADER}`,
+    `${SUB_HEADER}Support SPL Stats ${CLOSE_HEADER}`,
     "",
-    "✅ Upvote this post – it really helps!",
+    "👉 [Support SPL Stats by voting for @beaker007's SPS Validator](https://monstermarket.io/validators?validator=beaker007)",
     "",
-    "👉 [Vote for My SPS Validator Node](https://monstermarket.io/validators?validator=beaker007)",
+    "💬 Feedback, bug reports, feature ideas, and weird edge cases are always welcome!",
     "",
-    "💬 Drop a comment or idea – weird edge cases welcome.",
-    "",
-    "*10% of post rewards go to @beaker007*",
     "------",
     `![](${spl_logo_icon_url})`,
+    "",
+    "*10% of this post's rewards go to @beaker007 to support SPL Stats development.*",
   ];
 }
 

@@ -32,6 +32,13 @@ export async function revalidateTagsAction(targets: CacheInvalidationTarget[]) {
       continue;
     }
 
+    if (target.type === "player-skins") {
+      for (const username of uniqueLower(target.usernames)) {
+        revalidateTag(CACHE_TAGS.splPlayerSkins(username), REVALIDATE_PROFILE);
+      }
+      continue;
+    }
+
     if (target.type === "card-details") {
       revalidateTag(CACHE_TAGS.splCardDetails, REVALIDATE_PROFILE);
       continue;

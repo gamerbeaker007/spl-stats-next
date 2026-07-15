@@ -11,6 +11,7 @@ import {
   ToggleButtonGroup,
 } from "@mui/material";
 import { MdArrowDownward, MdArrowUpward } from "react-icons/md";
+import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
 
 interface MarketFilterBarProps {
   filter: MarketAssetFilter;
@@ -29,6 +30,8 @@ function parsePrice(value: string): number | null {
  * prices are unbounded and vary widely per asset — exact entry beats a range.
  */
 export default function MarketFilterBar({ filter, onChange }: Readonly<MarketFilterBarProps>) {
+  const { viewMode } = useMarketplaceView();
+
   return (
     <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
       <TextField
@@ -62,35 +65,39 @@ export default function MarketFilterBar({ filter, onChange }: Readonly<MarketFil
         label="Listed only"
       />
 
-      <TextField
-        size="small"
-        select
-        label="Sort by"
-        value={filter.sortBy}
-        onChange={(event) =>
-          onChange({ ...filter, sortBy: event.target.value as MarketAssetFilter["sortBy"] })
-        }
-        sx={{ width: 120 }}
-      >
-        <MenuItem value="name">Name</MenuItem>
-        <MenuItem value="price">Price</MenuItem>
-      </TextField>
+      {viewMode != "table" && (
+        <>
+          <TextField
+            size="small"
+            select
+            label="Sort by"
+            value={filter.sortBy}
+            onChange={(event) =>
+              onChange({ ...filter, sortBy: event.target.value as MarketAssetFilter["sortBy"] })
+            }
+            sx={{ width: 120 }}
+          >
+            <MenuItem value="name">Name</MenuItem>
+            <MenuItem value="price">Price</MenuItem>
+          </TextField>
 
-      <ToggleButtonGroup
-        size="small"
-        exclusive
-        value={filter.sortDir}
-        onChange={(_event, value: MarketAssetFilter["sortDir"] | null) => {
-          if (value) onChange({ ...filter, sortDir: value });
-        }}
-      >
-        <ToggleButton value="asc" aria-label="Ascending">
-          <MdArrowUpward size={16} />
-        </ToggleButton>
-        <ToggleButton value="desc" aria-label="Descending">
-          <MdArrowDownward size={16} />
-        </ToggleButton>
-      </ToggleButtonGroup>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={filter.sortDir}
+            onChange={(_event, value: MarketAssetFilter["sortDir"] | null) => {
+              if (value) onChange({ ...filter, sortDir: value });
+            }}
+          >
+            <ToggleButton value="asc" aria-label="Ascending">
+              <MdArrowUpward size={16} />
+            </ToggleButton>
+            <ToggleButton value="desc" aria-label="Descending">
+              <MdArrowDownward size={16} />
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </>
+      )}
     </Stack>
   );
 }

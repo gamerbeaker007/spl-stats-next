@@ -6,20 +6,26 @@ import MarketActionDialogHost, {
   type MarketActionState,
 } from "@/components/collection/marketplace/MarketActionDialogHost";
 import MarketAssetCard from "@/components/collection/marketplace/MarketAssetCard";
+import MarketAssetTable from "@/components/collection/marketplace/MarketAssetTable";
 import MarketFilterBar from "@/components/collection/marketplace/MarketFilterBar";
-import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
+import MarketplaceAccountBar from "@/components/collection/marketplace/MarketplaceAccountBar";
 import { LoadingSpinnerOverlay } from "@/components/ui/LoadingSpinnerOverlay";
 import { useMarketplaceAssetsPageData } from "@/hooks/collection/useMarketplaceAssetsPageData";
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import { useCardFilter } from "@/lib/frontend/context/CardFilterContext";
+import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { matchesCardFilter } from "@/lib/shared/card-filter-utils";
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 import {
   applyMarketAssetFilters,
   DEFAULT_MARKET_ASSET_FILTER,
+  DEFAULT_SKIN_DISPLAY_NAME,
+  DEFAULT_SKIN_NAME,
+  getActualOwnedQuantity,
   getLowestUsdPrice,
+  isSkinActive,
   type MarketAssetFilter,
 } from "@/lib/shared/marketplace-assets";
 import type { DetailedPlayerCardCollectionItem } from "@/types/card";
@@ -27,6 +33,7 @@ import type { MarketplaceAssetGroup, MarketplaceAssetItem } from "@/types/market
 import {
   Alert,
   Box,
+  Button,
   Chip,
   Divider,
   FormControlLabel,
@@ -40,7 +47,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useMemo, useState } from "react";
-import { MdGridView, MdInfoOutline, MdViewAgenda } from "react-icons/md";
+import { MdCheckCircle, MdGridView, MdInfoOutline, MdViewAgenda } from "react-icons/md";
 
 type SkinViewMode = "grouped" | "flat";
 
@@ -67,31 +74,63 @@ function chooseRepresentativeCard(
   );
 }
 
+function buildBaseSkinItem(args: {
+  cardDetailId: number;
+  groupName: string;
+  image: string;
+  active: boolean;
+}): MarketplaceAssetItem {
+  const detailId = `base:${args.cardDetailId}`;
+
+  return {
+    assetName: "SKINS",
+    detailId,
+    detailIdNumber: args.cardDetailId,
+    itemId: detailId,
+    displayName: DEFAULT_SKIN_DISPLAY_NAME,
+    groupName: args.groupName,
+    setName: DEFAULT_SKIN_NAME,
+    image: args.image,
+    icon: null,
+    filterIcon: null,
+    description: "",
+    rarity: null,
+    numCirculation: 0,
+    ownedQuantity: 1,
+    actualOwned: 1,
+    currentlyListed: 0,
+    availableToList: 0,
+    numOwned: 1,
+    numListed: 0,
+    prices: [],
+    cardDetailId: args.cardDetailId,
+    cardEditionIds: [],
+    imageCardEditionId: null,
+    active: args.active,
+    baseSkin: true,
+    activationSkinName: DEFAULT_SKIN_NAME,
+  };
+}
+
 export default function SkinsPageClient() {
   const { collectionRefreshVersion, notifyBalancesRefresh, notifyCollectionRefresh } =
     usePurchasePlan();
-  const {
-    monitoredAccounts,
-    selectedAccount,
-    setSelectedAccount,
-    accountOptions,
-    addLocalAccount,
-    removeLocalAccount,
-  } = useAccounts();
+  const { selectedAccount } = useAccounts();
   const { filter: cardFilter } = useCardFilter();
+  const { viewMode: layoutMode } = useMarketplaceView();
 
-  const [addAccountInput, setAddAccountInput] = useState("");
   const [ownedOnly, setOwnedOnly] = useState(false);
   const [selectedSkinSet, setSelectedSkinSet] = useState("");
   const [marketFilter, setMarketFilter] = useState<MarketAssetFilter>(DEFAULT_MARKET_ASSET_FILTER);
   const [viewMode, setViewMode] = useState<SkinViewMode>("grouped");
   const [dialogState, setDialogState] = useState<MarketActionState | null>(null);
 
-  const { data, loading, error } = useMarketplaceAssetsPageData(
-    selectedAccount,
-    "SKINS",
-    collectionRefreshVersion
-  );
+  const {
+    data,
+    loading,
+    error,
+    refresh: refreshMarketplaceData,
+  } = useMarketplaceAssetsPageData(selectedAccount, "SKINS", collectionRefreshVersion);
 
   // Grouped shows base card + its skins; flat shows only skin cards.
   const flatMode = viewMode === "flat";
@@ -121,7 +160,7 @@ export default function SkinsPageClient() {
 
         const setOwnedSkins = group.items.filter((skin) => {
           if (selectedSkinSet && skin.setName !== selectedSkinSet) return false;
-          if (ownedOnly && skin.numOwned < 1) return false;
+          if (ownedOnly && getActualOwnedQuantity(skin) < 1) return false;
           return true;
         });
 
@@ -130,7 +169,7 @@ export default function SkinsPageClient() {
           card,
           visibleSkins: applyMarketAssetFilters(setOwnedSkins, marketFilter),
           totalOwnedCards,
-          totalOwnedSkins: group.items.reduce((sum, skin) => sum + skin.numOwned, 0),
+          totalOwnedSkins: group.items.reduce((sum, skin) => sum + getActualOwnedQuantity(skin), 0),
         };
       })
       .filter((row) => {
@@ -155,7 +194,7 @@ export default function SkinsPageClient() {
       .flatMap((group) => group.items)
       .filter((skin) => {
         if (selectedSkinSet && skin.setName !== selectedSkinSet) return false;
-        if (ownedOnly && skin.numOwned < 1) return false;
+        if (ownedOnly && getActualOwnedQuantity(skin) < 1) return false;
         return true;
       });
     return applyMarketAssetFilters(base, marketFilter);
@@ -165,21 +204,70 @@ export default function SkinsPageClient() {
     setDialogState({ mode, item, defaultListPriceUsd: getLowestUsdPrice(item.prices) });
   };
 
+  const resolvedDialogState = useMemo<MarketActionState | null>(() => {
+    if (!dialogState) return null;
+
+    if (dialogState.item.baseSkin) {
+      const cardDetailId = dialogState.item.cardDetailId;
+      const group =
+        cardDetailId !== null
+          ? data?.groups.find((entry) => entry.cardDetailId === cardDetailId)
+          : undefined;
+      if (!group) return dialogState;
+
+      const cardCandidates = Object.values(data?.detailedCollection ?? {}).filter(
+        (entry) => entry.cardDetailId === group.cardDetailId
+      );
+      const card = chooseRepresentativeCard(group.items, cardCandidates);
+      const cardEdition = card?.highestLevelCard?.edition ?? card?.edition ?? 1;
+      const cardFoil = card?.highestLevelCard?.foil ?? "regular";
+      const cardLevel = card?.highestLevelCard?.level ?? 1;
+      const baseCardImage = getCardImageByLevel(
+        card?.name ?? group.groupName,
+        cardEdition,
+        cardFoil,
+        cardLevel
+      );
+
+      return {
+        ...dialogState,
+        item: buildBaseSkinItem({
+          cardDetailId: group.cardDetailId,
+          groupName: group.groupName,
+          image: baseCardImage,
+          active: !group.items.some(isSkinActive),
+        }),
+      };
+    }
+
+    const currentItem =
+      data?.groups
+        .flatMap((group) => group.items)
+        .find((item) => item.detailId === dialogState.item.detailId) ?? dialogState.item;
+    return { ...dialogState, item: currentItem };
+  }, [data?.detailedCollection, data?.groups, dialogState]);
+
   const handleCompleted = async () => {
     await revalidateTagsAction([
       { type: "marketplace", usernames: [selectedAccount] },
       { type: "balances", usernames: [selectedAccount] },
+      { type: "player-skins", usernames: [selectedAccount] },
     ]);
+    await refreshMarketplaceData();
     notifyBalancesRefresh();
     notifyCollectionRefresh();
   };
 
-  const isEmpty = flatMode ? flatSkins.length === 0 : rows.length === 0;
+  // Table layout always shows the flat skin list (no base card).
+  const tableMode = layoutMode === "table";
+  const isEmpty = tableMode || flatMode ? flatSkins.length === 0 : rows.length === 0;
 
   return (
     <Box display="flex" flex={1}>
       <Box flex={1}>
         <Stack spacing={2.5}>
+          <MarketplaceAccountBar />
+
           <Box
             sx={{
               p: 2,
@@ -190,20 +278,6 @@ export default function SkinsPageClient() {
             }}
           >
             <Stack spacing={1.25}>
-              <AccountSelectorBar
-                accounts={accountOptions}
-                selectedAccount={selectedAccount}
-                onSelectedAccountChange={setSelectedAccount}
-                addAccountInput={addAccountInput}
-                onAddAccountInputChange={setAddAccountInput}
-                onAddAccount={() => {
-                  addLocalAccount(addAccountInput);
-                  setAddAccountInput("");
-                }}
-                onRemoveSelected={() => removeLocalAccount(selectedAccount)}
-                removeDisabled={!selectedAccount || monitoredAccounts.includes(selectedAccount)}
-              />
-
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                 <FormControlLabel
                   control={
@@ -242,25 +316,28 @@ export default function SkinsPageClient() {
 
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                 <MarketFilterBar filter={marketFilter} onChange={setMarketFilter} />
-                <ToggleButtonGroup
-                  size="small"
-                  exclusive
-                  value={viewMode}
-                  onChange={(_event, value: SkinViewMode | null) => {
-                    if (value) setViewMode(value);
-                  }}
-                >
-                  <ToggleButton value="grouped" aria-label="Grouped by card">
-                    <Tooltip title="Group by base card">
-                      <MdViewAgenda size={18} />
-                    </Tooltip>
-                  </ToggleButton>
-                  <ToggleButton value="flat" aria-label="Flat skin grid">
-                    <Tooltip title="Show skins only (no base card)">
-                      <MdGridView size={18} />
-                    </Tooltip>
-                  </ToggleButton>
-                </ToggleButtonGroup>
+                {/* Grouped/flat only applies to the card layout. */}
+                {!tableMode && (
+                  <ToggleButtonGroup
+                    size="small"
+                    exclusive
+                    value={viewMode}
+                    onChange={(_event, value: SkinViewMode | null) => {
+                      if (value) setViewMode(value);
+                    }}
+                  >
+                    <ToggleButton value="grouped" aria-label="Grouped by card">
+                      <Tooltip title="Group by base card">
+                        <MdViewAgenda size={18} />
+                      </Tooltip>
+                    </ToggleButton>
+                    <ToggleButton value="flat" aria-label="Flat skin grid">
+                      <Tooltip title="Show skins only (no base card)">
+                        <MdGridView size={18} />
+                      </Tooltip>
+                    </ToggleButton>
+                  </ToggleButtonGroup>
+                )}
               </Stack>
             </Stack>
           </Box>
@@ -273,8 +350,11 @@ export default function SkinsPageClient() {
             <Alert severity="info">No skin data matches the selected filters.</Alert>
           )}
 
-          {/* Flat mode — only skin cards, no base card. */}
-          {flatMode ? (
+          {/* Table layout — flat rows, no base card. */}
+          {tableMode ? (
+            <MarketAssetTable items={flatSkins} onAction={handleAction} />
+          ) : flatMode ? (
+            /* Flat card mode — only skin cards, no base card. */
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
               {flatSkins.map((skin) => (
                 <MarketAssetCard key={skin.detailId} item={skin} onAction={handleAction} />
@@ -286,6 +366,19 @@ export default function SkinsPageClient() {
                 const cardEdition = row.card?.highestLevelCard?.edition ?? row.card?.edition ?? 1;
                 const cardFoil = row.card?.highestLevelCard?.foil ?? "regular";
                 const cardLevel = row.card?.highestLevelCard?.level ?? 1;
+                const baseCardImage = getCardImageByLevel(
+                  row.card?.name ?? row.group.groupName,
+                  cardEdition,
+                  cardFoil,
+                  cardLevel
+                );
+                const baseSkinActive = !row.group.items.some(isSkinActive);
+                const baseSkinItem = buildBaseSkinItem({
+                  cardDetailId: row.group.cardDetailId,
+                  groupName: row.group.groupName,
+                  image: baseCardImage,
+                  active: baseSkinActive,
+                });
 
                 return (
                   <Box key={`${row.group.cardDetailId}-${row.group.groupName}`}>
@@ -296,7 +389,17 @@ export default function SkinsPageClient() {
                     >
                       {/* Base card column — omitted entirely when there is no card for this row. */}
                       {row.card ? (
-                        <>
+                        <Box
+                          sx={{
+                            borderRadius: 2,
+                            border: baseSkinActive ? 2 : 1,
+                            borderColor: baseSkinActive ? "success.main" : "divider",
+                            backgroundColor: "background.paper",
+                            boxShadow: baseSkinActive
+                              ? "0 0 0 1px rgba(76, 175, 80, 0.15)"
+                              : "none",
+                          }}
+                        >
                           <Stack
                             spacing={1.25}
                             alignItems="center"
@@ -307,12 +410,7 @@ export default function SkinsPageClient() {
                             </Typography>
                             <Box
                               component="img"
-                              src={getCardImageByLevel(
-                                row.card.name,
-                                cardEdition,
-                                cardFoil,
-                                cardLevel
-                              )}
+                              src={baseCardImage}
                               alt={row.group.groupName}
                               sx={{
                                 width: "100%",
@@ -336,25 +434,37 @@ export default function SkinsPageClient() {
                                 size="small"
                               />
                             </Stack>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              title="List"
+                              color={baseSkinActive ? "warning" : "primary"}
+                              disabled={baseSkinActive}
+                              onClick={() => handleAction("activate", baseSkinItem)}
+                            >
+                              <MdCheckCircle style={{ width: "150px", height: "1.1rem" }} />
+                            </Button>
                           </Stack>
                           <Divider
                             orientation="vertical"
                             flexItem
                             sx={{ display: { xs: "none", lg: "block" }, borderColor: "divider" }}
                           />
-                        </>
+                        </Box>
                       ) : (
                         <Typography variant="h6">{row.group.groupName}</Typography>
                       )}
 
                       <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-                        {row.visibleSkins.map((skin) => (
-                          <MarketAssetCard
-                            key={skin.detailId}
-                            item={skin}
-                            onAction={handleAction}
-                          />
-                        ))}
+                        {row.visibleSkins.map((skin) => {
+                          return (
+                            <MarketAssetCard
+                              key={skin.detailId}
+                              item={skin}
+                              onAction={handleAction}
+                            />
+                          );
+                        })}
                       </Box>
                     </Stack>
                   </Box>
@@ -368,7 +478,7 @@ export default function SkinsPageClient() {
       <CardFilterDrawer showFoils={false} />
 
       <MarketActionDialogHost
-        state={dialogState}
+        state={resolvedDialogState}
         assetName="SKINS"
         account={selectedAccount}
         onClose={() => setDialogState(null)}
