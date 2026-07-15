@@ -1,5 +1,5 @@
 export const WEB_URL = `https://d36mxiodymuqjm.cloudfront.net/`;
-const SPL_NEXT_URL = "https://next.splinterlands.com/";
+export const SPL_URL = "https://splinterlands.com/";
 const PEAKD_URL = "https://files.peakd.com/file/peakd-hive/beaker007/";
 
 export const dec_icon_url = `${WEB_URL}website/icon_dec.png`;
@@ -86,8 +86,8 @@ export const brawl_filter_icon_url = `${WEB_URL}website/nav/icon_nav_guilds_acti
 export const tournament_filter_icon_url = `${WEB_URL}website/nav/icon_nav_events_active@2x.png`;
 export const challenge_icon_url = `${WEB_URL}website/ui_elements/img_challenge-sword.png`;
 
-export const format_wild_icon_url = `${SPL_NEXT_URL}assets/cards/icon_format_wild_off.svg`;
-export const format_modern_icon_url = `${SPL_NEXT_URL}assets/cards/icon_format_modern_off.svg`;
+export const format_wild_icon_url = `${SPL_URL}assets/cards/icon_format_wild_off.svg`;
+export const format_modern_icon_url = `${SPL_URL}assets/cards/icon_format_modern_off.svg`;
 
 export const format_foundation_icon_url = `${WEB_URL}website/nav/img_nav_items.png`;
 export const format_survival_icon_url = `${WEB_URL}website/nav/img_nav_play.png`;

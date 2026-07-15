@@ -9,9 +9,16 @@ import {
   fetchPlayerInventory,
   fetchSettings,
 } from "@/lib/backend/api/spl/spl-api";
-import { fetchMarketplaceAssets } from "@/lib/backend/api/spl/vapi-spl";
+import {
+  fetchMarketplaceAssets,
+  fetchMarketplacePlayerAllListings,
+} from "@/lib/backend/api/spl/vapi-spl";
 import { CACHE_TAGS } from "@/lib/backend/cache/cache-tags";
-import type { MarketplaceAssetItem, MarketplaceAssetName } from "@/types/marketplace-assets";
+import type {
+  MarketplaceAssetItem,
+  MarketplaceAssetName,
+  MarketplacePlayerListing,
+} from "@/types/marketplace-assets";
 import { cacheLife, cacheTag } from "next/cache";
 
 export async function getCachedSplSettings() {
@@ -81,6 +88,22 @@ export async function getCachedMarketplaceAssets(
   cacheTag(CACHE_TAGS.splMarketplace(normalized));
 
   return fetchMarketplaceAssets(normalized, assetName);
+}
+
+/**
+ * Player's own marketplace listings across all marketplace asset types.
+ * Cached with the same tag/lifetime as marketplace landing assets because these
+ * quantities are part of marketplace ownership for quantity-based assets.
+ */
+export async function getCachedMarketplacePlayerAllListings(
+  username: string
+): Promise<MarketplacePlayerListing[]> {
+  "use cache";
+  cacheLife("minutes");
+  const normalized = username.trim().toLowerCase();
+  cacheTag(CACHE_TAGS.splMarketplace(normalized));
+
+  return fetchMarketplacePlayerAllListings(normalized);
 }
 
 /**

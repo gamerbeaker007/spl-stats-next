@@ -1,3 +1,4 @@
+import { MARKETPLACE_ASSET_MODEL } from "@/lib/shared/marketplace-asset-model";
 import {
   type MarketplaceAssetGroup,
   type MarketplaceAssetItem,
@@ -10,9 +11,15 @@ import {
   type MarketplaceListingItem,
   type MarketplaceListingItemCurrency,
   type MarketplaceListingItemRaw,
+  type MarketplacePlayerListing,
+  type MarketplacePlayerListingRaw,
   marketplaceAssetNames,
 } from "@/types/marketplace-assets";
 import type { PurchaseCurrency } from "@/types/purchase/purchase-plan";
+import { SPL_URL, WEB_URL } from "../staticsIconUrls";
+
+export const DEFAULT_SKIN_NAME = "";
+export const DEFAULT_SKIN_DISPLAY_NAME = "Default";
 
 /**
  * Numeric form of an asset detail id, or `NaN` when the id is non-numeric.
@@ -23,6 +30,55 @@ import type { PurchaseCurrency } from "@/types/purchase/purchase-plan";
  */
 function toDetailIdNumber(value: string): number {
   return Number.parseInt(value, 10);
+}
+
+export function getListTooltip(
+  assetName: string,
+  availableToList: number,
+  activeSkin: boolean
+): string {
+  if (assetName !== "SKINS") {
+    return availableToList < 1 ? "No quantity is available to list." : "List";
+  }
+
+  if (activeSkin && availableToList < 1) {
+    return "The active copy cannot be listed, and no other copies are owned";
+  }
+
+  if (activeSkin) {
+    return `1 active copy is locked. You can list up to ${availableToList}.`;
+  }
+
+  if (availableToList < 1) {
+    return "No copies are available to list.";
+  }
+
+  return "List";
+}
+
+export function getActivateTooltip(
+  assetName: string,
+  actualOwned: number,
+  currentlyListed: number,
+  activeSkin: boolean
+): string {
+  if (assetName !== "SKINS") {
+    return "No quantity is owned.";
+  }
+
+  if (actualOwned < 1) {
+    return "No quantity is owned.";
+  }
+
+  if (activeSkin) {
+    return "Already active";
+  }
+
+  if (actualOwned - currentlyListed < 1) {
+    return "Owned copies are listed.";
+  }
+
+  return "Activate";
 }
 
 function normalizePrices(prices: MarketplaceAssetPrice[] | undefined): MarketplaceAssetPrice[] {
@@ -142,6 +198,52 @@ export function normalizeMarketplaceListingItem(
   };
 }
 
+export function normalizeMarketplacePlayerListing(
+  raw: MarketplacePlayerListingRaw
+): MarketplacePlayerListing {
+  const assetName = parseMarketplaceAssetName(raw.assetName);
+  const detailIdNumber = toDetailIdNumber(raw.detailId);
+
+  return {
+    listingId: raw.listingId,
+    assetName,
+    detailId: raw.detailId,
+    detailIdNumber,
+    quantity: typeof raw.quantity === "number" && Number.isFinite(raw.quantity) ? raw.quantity : 0,
+    quantityRemaining:
+      typeof raw.quantityRemaining === "number" && Number.isFinite(raw.quantityRemaining)
+        ? raw.quantityRemaining
+        : 0,
+  };
+}
+
+export function hasQuantityOwnership(
+  itemOrAssetName: MarketplaceAssetName | Pick<MarketplaceAssetItem, "assetName">
+): boolean {
+  const assetName =
+    typeof itemOrAssetName === "string" ? itemOrAssetName : itemOrAssetName.assetName;
+  const model = MARKETPLACE_ASSET_MODEL[assetName];
+  return model === "quantity" || model === "skin";
+}
+
+export function getActualOwnedQuantity(
+  item: Pick<MarketplaceAssetItem, "actualOwned" | "numOwned">
+): number {
+  return Math.max(0, item.actualOwned ?? item.numOwned);
+}
+
+export function getCurrentlyListedQuantity(
+  item: Pick<MarketplaceAssetItem, "currentlyListed">
+): number {
+  return Math.max(0, item.currentlyListed ?? 0);
+}
+
+export function getAvailableToListQuantity(
+  item: Pick<MarketplaceAssetItem, "availableToList" | "assetName" | "actualOwned" | "numOwned">
+): number {
+  return Math.max(0, item.availableToList ?? getActualOwnedQuantity(item));
+}
+
 export function buildMarketplaceAssetItems(
   landingAssets: MarketplaceLandingAsset[],
   metaDetails: MarketplaceAssetMetaDetail[],
@@ -150,13 +252,13 @@ export function buildMarketplaceAssetItems(
   const landingById = new Map(landingAssets.map((asset) => [asset.detailId, asset]));
 
   return metaDetails
-    .map((detail) => {
+    .map((detail): MarketplaceAssetItem | null => {
       const landing = landingById.get(detail.id);
       if (!landing || landing.assetName !== assetName) {
         return null;
       }
 
-      return {
+      const item: MarketplaceAssetItem = {
         assetName,
         detailId: detail.id,
         detailIdNumber: detail.idNumber,
@@ -170,16 +272,77 @@ export function buildMarketplaceAssetItems(
         description: detail.description || landing.detailDescription,
         rarity: detail.rarity,
         numCirculation: landing.numCirculation,
+        ownedQuantity: landing.numOwned,
+        actualOwned: landing.numOwned,
+        currentlyListed: 0,
+        availableToList: landing.numOwned,
         numOwned: landing.numOwned,
         numListed: landing.numListed,
         prices: landing.prices,
         cardDetailId: detail.cardDetailId,
         cardEditionIds: detail.cardEditionIds,
         imageCardEditionId: detail.imageCardEditionId,
-        active: Boolean(false), // skins on market can never be active, only owned skins can be active, and this is a marketplace item
-      } satisfies MarketplaceAssetItem;
+        active: Boolean(false),
+        baseSkin: false,
+        activationSkinName: null,
+      };
+
+      return item;
     })
     .filter((item): item is MarketplaceAssetItem => item !== null);
+}
+
+function listingKey(assetName: MarketplaceAssetName, detailId: string): string {
+  return `${assetName}:${detailId}`;
+}
+
+/**
+ * Add the player's own marketplace-listed quantity back into quantity-based
+ * ownership. `/market/landing` reports only locally held quantity for these
+ * assets, while `/market/player/all_listings` reports quantity that still
+ * belongs to the player but is currently listed.
+ */
+export function applyQuantityOwnership(
+  items: MarketplaceAssetItem[],
+  playerListings: MarketplacePlayerListing[]
+): MarketplaceAssetItem[] {
+  const listedByAssetDetail = new Map<string, number>();
+
+  for (const listing of playerListings) {
+    if (!hasQuantityOwnership(listing.assetName)) continue;
+    const key = listingKey(listing.assetName, listing.detailId);
+    const quantityRemaining = Math.max(0, listing.quantityRemaining);
+    listedByAssetDetail.set(key, (listedByAssetDetail.get(key) ?? 0) + quantityRemaining);
+  }
+
+  return items.map((item) => {
+    const ownedQuantity = Math.max(0, item.ownedQuantity ?? item.numOwned);
+
+    if (!hasQuantityOwnership(item)) {
+      return {
+        ...item,
+        ownedQuantity,
+        actualOwned: ownedQuantity,
+        currentlyListed: 0,
+        availableToList: ownedQuantity,
+        numOwned: ownedQuantity,
+      };
+    }
+
+    const currentlyListed = listedByAssetDetail.get(listingKey(item.assetName, item.detailId)) ?? 0;
+    const actualOwned = ownedQuantity + currentlyListed;
+    const activeQuantity = item.assetName === "SKINS" && item.active ? 1 : 0;
+    const availableToList = Math.max(0, actualOwned - currentlyListed - activeQuantity);
+
+    return {
+      ...item,
+      ownedQuantity,
+      actualOwned,
+      currentlyListed,
+      availableToList,
+      numOwned: actualOwned,
+    };
+  });
 }
 
 /**
@@ -252,17 +415,19 @@ export function isSkinActive(item: Pick<MarketplaceAssetItem, "assetName" | "act
 
 /**
  * Quantity available to newly list for a skin entry.
- * Formula: owned - active(0|1) - already listed.
+ * Formula: actual owned - own listed - active(0|1).
  */
 export function getSkinListableQuantity(
-  item: Pick<MarketplaceAssetItem, "assetName" | "numOwned" | "numListed" | "active">
+  item: Pick<
+    MarketplaceAssetItem,
+    "assetName" | "numOwned" | "actualOwned" | "currentlyListed" | "availableToList" | "active"
+  >
 ): number {
   if (item.assetName !== "SKINS") {
-    return Math.max(0, item.numOwned);
+    return getAvailableToListQuantity(item);
   }
 
-  const activeQty = isSkinActive(item) ? 1 : 0;
-  return Math.max(0, item.numOwned - activeQty);
+  return getAvailableToListQuantity(item);
 }
 
 /** Lowest USD price across an asset's price entries, or null if none. */
@@ -398,4 +563,14 @@ export function selectCheapestListings(
   }
 
   return { plan, items, totalCost: Number(totalCost.toFixed(3)), fulfilled: true };
+}
+
+export function getDeedImg(displayName: string) {
+  const basePath = `${SPL_URL}assets/lands`;
+  const surveyedBase = `${basePath}/deedsSurveyed`;
+  const suffix = "_natural_common.jpg";
+
+  if (displayName === "Unsurveyed Deed") return `${WEB_URL}website/land/deed_unsurveyed.jpg`;
+
+  return `${surveyedBase}/${displayName.toLowerCase()}${suffix}`;
 }

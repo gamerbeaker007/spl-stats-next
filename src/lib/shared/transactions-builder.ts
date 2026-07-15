@@ -216,7 +216,7 @@ export function buildSetSkinPayload(args: { cardDetailId: number; skin: string }
   if (!Number.isInteger(args.cardDetailId) || args.cardDetailId < 1) {
     throw new Error("Card detail id is required");
   }
-  if (!args.skin) {
+  if (args.skin === undefined || args.skin === null) {
     throw new Error("Skin name is required");
   }
 

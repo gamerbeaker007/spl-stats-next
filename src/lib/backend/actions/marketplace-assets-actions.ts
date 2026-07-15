@@ -5,15 +5,20 @@ import { fetchPlayerBalances, fetchPlayerInventory } from "@/lib/backend/api/spl
 import { fetchMarketplaceListingItems } from "@/lib/backend/api/spl/vapi-spl";
 import {
   getCachedMarketplaceAssets,
+  getCachedMarketplacePlayerAllListings,
   getCachedPlayerSkins,
   getCachedSplPlayerBalances,
   getCachedSplPlayerInventory,
 } from "@/lib/backend/cache/spl-cache";
 import { getDetailedPlayerCardCollectionCached } from "@/lib/backend/services/collection-detailed";
 import {
-  getSkinListableQuantity,
+  DEFAULT_SKIN_NAME,
+  applyQuantityOwnership,
+  getActualOwnedQuantity,
+  getAvailableToListQuantity,
   groupMarketplaceAssetsByCardDetailId,
   isActionableInventoryItem,
+  isSkinActive,
   selectCheapestListings,
 } from "@/lib/shared/marketplace-assets";
 import {
@@ -52,6 +57,13 @@ function getTokenBalance(
   return balances.find((entry) => entry.token === token)?.balance ?? 0;
 }
 
+function validateCardDetailId(value: number | null | undefined): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1) {
+    throw new Error("Skin is missing card metadata required for activation");
+  }
+  return value;
+}
+
 /**
  * Validate that every requested uid is a currently-actionable copy the account
  * owns (re-checked against live inventory, since the page data may be cached).
@@ -86,10 +98,11 @@ export async function getMarketplaceAssetsPageDataAction(
 }> {
   const normalized = normalizeAccount(account);
 
-  const [items, detailedCollection, playerSkins] = await Promise.all([
+  const [items, detailedCollection, playerSkins, playerListings] = await Promise.all([
     getCachedMarketplaceAssets(normalized, assetName),
     getDetailedPlayerCardCollectionCached(normalized),
     assetName === "SKINS" ? getCachedPlayerSkins(normalized) : Promise.resolve([]),
+    getCachedMarketplacePlayerAllListings(normalized),
   ]);
 
   // Enrich SKINS items with the player's active status from /players/skins.
@@ -103,8 +116,9 @@ export async function getMarketplaceAssetsPageDataAction(
       active: Boolean(skinActiveById.get(item.detailIdNumber)),
     }));
   } else if (assetName === "SKINS") {
-    enrichedItems = items.map((item) => ({ ...item, numActive: 0 }));
+    enrichedItems = items.map((item) => ({ ...item, active: false }));
   }
+  enrichedItems = applyQuantityOwnership(enrichedItems, playerListings);
 
   return {
     account: normalized,
@@ -288,8 +302,25 @@ async function getOwnedAsset(
   assetName: MarketplaceAssetName,
   detailId: string
 ): Promise<MarketplaceAssetItem> {
-  const assets = await getCachedMarketplaceAssets(account, assetName);
-  const owned = assets.find((entry) => entry.detailId === detailId);
+  const [assets, playerListings, playerSkins] = await Promise.all([
+    getCachedMarketplaceAssets(account, assetName),
+    getCachedMarketplacePlayerAllListings(account),
+    assetName === "SKINS" ? getCachedPlayerSkins(account) : Promise.resolve([]),
+  ]);
+
+  const activeSkinByDetailId = new Map<number, boolean>(
+    playerSkins.map((skin) => [skin.skin_detail_id, skin.active])
+  );
+  const enrichedAssets =
+    assetName === "SKINS"
+      ? assets.map((asset) => ({
+          ...asset,
+          active: Boolean(activeSkinByDetailId.get(asset.detailIdNumber)),
+        }))
+      : assets;
+
+  const assetsWithOwnership = applyQuantityOwnership(enrichedAssets, playerListings);
+  const owned = assetsWithOwnership.find((entry) => entry.detailId === detailId);
   if (!owned) {
     throw new Error("Item not found for this account");
   }
@@ -331,17 +362,7 @@ export async function buildQuantityListPayloadAction(args: {
   validateUsdPrice(args.priceUsd);
 
   const owned = await getOwnedAsset(account, args.assetName, args.detailId);
-  let listableQty = owned.numOwned;
-  if (args.assetName === "SKINS") {
-    const playerSkins = await getCachedPlayerSkins(account);
-    const splSkin = playerSkins.find((s) => s.skin_detail_id === owned.detailIdNumber);
-    listableQty = getSkinListableQuantity({
-      assetName: "SKINS",
-      numOwned: owned.numOwned,
-      numListed: owned.numListed,
-      active: splSkin?.active ?? false,
-    });
-  }
+  const listableQty = getAvailableToListQuantity(owned);
 
   if (listableQty < args.quantity) {
     throw new Error("Listing quantity exceeds available amount");
@@ -358,35 +379,51 @@ export async function buildQuantityListPayloadAction(args: {
 
 /**
  * Build the payload to activate a skin (`sm_set_skin`).
- * Guard: player must own at least one copy, none listed, and not already active.
+ * Guard: player must own at least one copy and the skin must not already be active.
  */
-export async function buildActivateSkinPayloadAction(args: { account: string; detailId: string }) {
+export async function buildActivateSkinPayloadAction(args: {
+  account: string;
+  detailId: string;
+  cardDetailId?: number | null;
+  skinName?: string | null;
+  baseSkin?: boolean;
+}) {
   const account = normalizeAccount(args.account);
 
-  const [skin, playerSkins] = await Promise.all([
-    getOwnedAsset(account, "SKINS", args.detailId),
-    getCachedPlayerSkins(account),
-  ]);
+  if (args.baseSkin) {
+    const cardDetailId = validateCardDetailId(args.cardDetailId);
+    const playerSkins = await getCachedPlayerSkins(account);
+    const activeSkinForCard = playerSkins.find(
+      (skin) => skin.card_detail_id === cardDetailId && skin.active
+    );
 
-  if (skin.numOwned < 1) {
+    if (!activeSkinForCard) {
+      throw new Error("The base skin is already active");
+    }
+
+    return {
+      payload: buildSetSkinPayload({
+        cardDetailId,
+        skin: DEFAULT_SKIN_NAME,
+      }),
+    };
+  }
+
+  const skin = await getOwnedAsset(account, "SKINS", args.detailId);
+
+  if (getActualOwnedQuantity(skin) < 1) {
     throw new Error("You do not own this skin");
   }
-  if (skin.cardDetailId === null) {
-    throw new Error("Skin is missing card metadata required for activation");
-  }
+  const cardDetailId = validateCardDetailId(skin.cardDetailId);
 
-  const splSkin = playerSkins.find((s) => s.skin_detail_id === skin.detailIdNumber);
-  if (splSkin.active) {
+  if (isSkinActive(skin)) {
     throw new Error("This skin is already active");
-  }
-  if (skin.numListed > 0) {
-    throw new Error("This skin has listed copies and cannot be activated");
   }
 
   return {
     payload: buildSetSkinPayload({
-      cardDetailId: skin.cardDetailId,
-      skin: skin.setName || skin.displayName,
+      cardDetailId,
+      skin: args.skinName || skin.activationSkinName || skin.setName || skin.displayName,
     }),
   };
 }
@@ -409,7 +446,7 @@ export async function buildSkinTransferPayloadAction(args: {
   }
 
   const skin = await getOwnedAsset(account, "SKINS", args.detailId);
-  if (skin.numOwned < args.quantity) {
+  if (getActualOwnedQuantity(skin) < args.quantity) {
     throw new Error("Transfer quantity exceeds owned skins");
   }
   if (skin.cardDetailId === null) {
@@ -445,7 +482,7 @@ export async function buildTokenTransferPayloadAction(args: {
   }
 
   const owned = await getOwnedAsset(account, args.assetName, args.detailId);
-  if (owned.numOwned < args.quantity) {
+  if (getActualOwnedQuantity(owned) < args.quantity) {
     throw new Error("Transfer quantity exceeds owned amount");
   }
 

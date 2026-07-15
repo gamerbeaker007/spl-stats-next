@@ -3,10 +3,17 @@
 import type { MarketActionMode } from "@/components/collection/marketplace/MarketActionDialogHost";
 import {
   formatAssetPriceLabel,
-  getSkinListableQuantity,
+  getActivateTooltip,
+  getActualOwnedQuantity,
+  getAvailableToListQuantity,
+  getCurrentlyListedQuantity,
+  getDeedImg,
+  getListTooltip,
   isSkinActive,
 } from "@/lib/shared/marketplace-assets";
+import { largeNumberFormat } from "@/lib/utils";
 import type { MarketplaceAssetItem } from "@/types/marketplace-assets";
+import InfoIcon from "@mui/icons-material/Info";
 import { Box, Button, Chip, Stack, Tooltip, Typography } from "@mui/material";
 import { FaTag } from "react-icons/fa";
 import { IoMdSend } from "react-icons/io";
@@ -20,6 +27,18 @@ interface MarketAssetCardProps {
   showDescription?: boolean;
 }
 
+function getOwnedTooltip(actualOwned: number, currentlyListed: number) {
+  if (actualOwned > 0 && currentlyListed > 0) {
+    return `Owned x${actualOwned} (Listed x${currentlyListed})`;
+  }
+
+  if (actualOwned > 0) {
+    return `Owned x${actualOwned}`;
+  }
+
+  return "Not owned";
+}
+
 /** One tradeable asset tile (image, ownership, price, buy/transfer/list) — shared by skins, music & shopping pages. */
 export default function MarketAssetCard({
   item,
@@ -27,21 +46,29 @@ export default function MarketAssetCard({
   showDescription = false,
 }: Readonly<MarketAssetCardProps>) {
   const activeSkin = isSkinActive(item);
-  const listableQty = getSkinListableQuantity(item);
-  // TODO fix when item is listed it now removed from owned see way to cover that maybe even combine buy and list into one dialog!
-  // I think this special for skins!!
+  const actualOwned = getActualOwnedQuantity(item);
+  const currentlyListed = getCurrentlyListedQuantity(item);
+  const availableToList = getAvailableToListQuantity(item);
+  const listedItems = item.numListed;
 
-  const listDisabled = false; // item.assetName === "SKINS" ? listableQty < 1 : item.numOwned === 0;
-  const listTooltip =
-    item.assetName !== "SKINS"
-      ? "List"
-      : activeSkin && listableQty < 1
-        ? "Skin is currently active and cannot be listed."
-        : activeSkin
-          ? `1 active copy is locked. You can list up to ${listableQty}.`
-          : "List";
+  const listDisabled = availableToList < 1 && currentlyListed < 1;
 
-  const activateDisabled = item.assetName !== "SKINS" || item.numOwned < 1 || activeSkin;
+  const activateDisabled =
+    item.assetName !== "SKINS" ||
+    actualOwned < 1 ||
+    activeSkin ||
+    actualOwned - currentlyListed < 1;
+
+  const listTooltip = getListTooltip(item.assetName, availableToList, activeSkin);
+  const activeTooltip = getActivateTooltip(
+    item.assetName,
+    actualOwned,
+    currentlyListed,
+    activeSkin
+  );
+  const ownedTooltip = getOwnedTooltip(actualOwned, currentlyListed);
+
+  const image = item.assetName === "DEEDS" ? getDeedImg(item.displayName) : item.image;
 
   return (
     <Stack
@@ -62,13 +89,13 @@ export default function MarketAssetCard({
 
       <Box
         component="img"
-        src={item.image ?? ""}
+        src={image ?? ""}
         alt={item.displayName}
         sx={{
           width: "100%",
           height: 180,
           objectFit: "contain",
-          opacity: item.numOwned > 0 ? 1 : 0.5,
+          opacity: actualOwned > 0 ? 1 : 0.5,
         }}
       />
 
@@ -96,15 +123,24 @@ export default function MarketAssetCard({
       )}
 
       <Stack direction="row" spacing={0.5} justifyContent="center" flexWrap="wrap" useFlexGap>
-        {activeSkin && <Chip label="Active" color="success" size="small" />}
         <Chip
-          label={item.numOwned > 0 ? `Owned x${item.numOwned}` : "Not owned"}
-          color={item.numOwned > 0 ? "success" : "default"}
+          label={
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <span>{actualOwned > 0 ? `Owned x${actualOwned}` : "Not owned"}</span>
+
+              {ownedTooltip.includes("Listed") && (
+                <Tooltip title={ownedTooltip}>
+                  <InfoIcon fontSize="inherit" />
+                </Tooltip>
+              )}
+            </Stack>
+          }
+          color={actualOwned > 0 ? "success" : "default"}
           size="small"
         />
         <Chip
-          label={item.numListed > 0 ? `Listed x${item.numListed}` : "No listings"}
-          color={item.numListed > 0 ? "warning" : "default"}
+          label={listedItems > 0 ? `Market x${largeNumberFormat(listedItems)}` : "No market"}
+          color={listedItems > 0 ? "warning" : "default"}
           size="small"
         />
       </Stack>
@@ -118,7 +154,7 @@ export default function MarketAssetCard({
           variant="outlined"
           size="small"
           title="Buy"
-          disabled={item.numListed === 0}
+          disabled={listedItems === 0}
           onClick={() => onAction("buy", item)}
           fullWidth
         >
@@ -128,7 +164,7 @@ export default function MarketAssetCard({
           variant="outlined"
           size="small"
           title="Transfer"
-          disabled={item.numOwned === 0}
+          disabled={actualOwned === 0}
           onClick={() => onAction("transfer", item)}
           fullWidth
         >
@@ -155,17 +191,21 @@ export default function MarketAssetCard({
       </Stack>
 
       {item.assetName === "SKINS" && (
-        <Button
-          variant="outlined"
-          size="small"
-          color={activeSkin ? "success" : "primary"}
-          title="Activate"
-          disabled={activateDisabled}
-          onClick={() => onAction("activate", item)}
-          fullWidth
-        >
-          <MdCheckCircle style={{ width: "1.1rem", height: "1.1rem" }} />
-        </Button>
+        <Tooltip title={activeTooltip}>
+          <Box sx={{ width: "100%", display: "flex" }}>
+            <Button
+              variant="outlined"
+              size="small"
+              color={activeSkin ? "success" : "primary"}
+              title="Activate"
+              disabled={activateDisabled}
+              onClick={() => onAction("activate", item)}
+              fullWidth
+            >
+              <MdCheckCircle style={{ width: "1.1rem", height: "1.1rem" }} />
+            </Button>
+          </Box>
+        </Tooltip>
       )}
     </Stack>
   );

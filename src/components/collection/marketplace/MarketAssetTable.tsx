@@ -3,8 +3,11 @@
 import type { MarketActionMode } from "@/components/collection/marketplace/MarketActionDialogHost";
 import {
   formatAssetPriceLabel,
+  getActualOwnedQuantity,
+  getAvailableToListQuantity,
+  getDeedImg,
+  getListTooltip,
   getLowestPrice,
-  getSkinListableQuantity,
   isSkinActive,
 } from "@/lib/shared/marketplace-assets";
 import type { MarketplaceAssetItem } from "@/types/marketplace-assets";
@@ -20,12 +23,13 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import TableSortLabel from "@mui/material/TableSortLabel";
+import Image from "next/image";
+import { useMemo, useState } from "react";
 import { FaTag } from "react-icons/fa";
 import { IoMdSend } from "react-icons/io";
 import { MdCheckCircle } from "react-icons/md";
 import { SiHomeassistantcommunitystore } from "react-icons/si";
-import TableSortLabel from "@mui/material/TableSortLabel";
-import { useMemo, useState } from "react";
 
 interface MarketAssetTableProps {
   items: MarketplaceAssetItem[];
@@ -53,7 +57,7 @@ export default function MarketAssetTable({ items, onAction }: Readonly<MarketAss
           result = a.displayName.localeCompare(b.displayName);
           break;
         case "numOwned":
-          result = a.numOwned - b.numOwned;
+          result = getActualOwnedQuantity(a) - getActualOwnedQuantity(b);
           break;
         case "numListed":
           result = a.numListed - b.numListed;
@@ -76,6 +80,7 @@ export default function MarketAssetTable({ items, onAction }: Readonly<MarketAss
       setSortDirection("asc");
     }
   }
+
   return (
     <Box sx={{ overflowX: "auto", border: 1, borderColor: "divider", borderRadius: 2 }}>
       <Table size="small" sx={{ minWidth: 640 }}>
@@ -123,16 +128,13 @@ export default function MarketAssetTable({ items, onAction }: Readonly<MarketAss
         <TableBody>
           {sortedItems.map((item) => {
             const activeSkin = isSkinActive(item);
-            const listableQty = getSkinListableQuantity(item);
-            const listDisabled = item.assetName === "SKINS" ? listableQty < 1 : item.numOwned === 0;
-            const listTooltip =
-              item.assetName !== "SKINS"
-                ? "List"
-                : activeSkin && listableQty < 1
-                  ? "Skin is currently active and cannot be listed."
-                  : activeSkin
-                    ? `1 active copy is locked. You can list up to ${listableQty}.`
-                    : "List";
+            const actualOwned = getActualOwnedQuantity(item);
+            const availableToList = getAvailableToListQuantity(item);
+            const listedItems = item.numListed;
+            const listDisabled = availableToList < 1;
+            const listTooltip = getListTooltip(item.assetName, availableToList, activeSkin);
+
+            const image = item.assetName === "DEEDS" ? getDeedImg(item.displayName) : item.image;
 
             return (
               <TableRow
@@ -149,31 +151,48 @@ export default function MarketAssetTable({ items, onAction }: Readonly<MarketAss
                 }
               >
                 <TableCell>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Box
-                      component="img"
-                      src={item.image ?? ""}
-                      alt={item.displayName}
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        objectFit: "contain",
-                        flexShrink: 0,
-                        opacity: item.numOwned > 0 ? 1 : 0.5,
-                      }}
-                    />
-                    <Typography
-                      variant="body2"
-                      noWrap
-                      sx={{ maxWidth: 260 }}
-                      title={item.displayName}
-                    >
-                      {item.displayName}
-                      {activeSkin ? " (Active)" : ""}
-                    </Typography>
-                  </Stack>
+                  <Tooltip
+                    followCursor
+                    placement="right"
+                    title={
+                      <Image
+                        src={image ?? ""}
+                        alt={item.displayName}
+                        width={180}
+                        height={180} // required by Image
+                        style={{
+                          width: 180,
+                          height: "auto",
+                        }}
+                      />
+                    }
+                  >
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Box
+                        component="img"
+                        src={image ?? ""}
+                        alt={item.displayName}
+                        sx={{
+                          width: 36,
+                          height: 36,
+                          objectFit: "contain",
+                          flexShrink: 0,
+                          opacity: actualOwned > 0 ? 1 : 0.5,
+                        }}
+                      />
+                      <Typography
+                        variant="body2"
+                        noWrap
+                        sx={{ maxWidth: 260 }}
+                        title={item.displayName}
+                      >
+                        {item.displayName}
+                        {activeSkin ? " (Active)" : ""}
+                      </Typography>
+                    </Stack>
+                  </Tooltip>
                 </TableCell>
-                <TableCell align="right">{item.numOwned}</TableCell>
+                <TableCell align="right">{actualOwned}</TableCell>
                 <TableCell align="right">{item.numListed}</TableCell>
                 <TableCell align="right">
                   <Typography variant="body2" color="text.secondary" noWrap>
@@ -186,7 +205,7 @@ export default function MarketAssetTable({ items, onAction }: Readonly<MarketAss
                       variant="outlined"
                       size="small"
                       title="Buy"
-                      disabled={item.numListed === 0}
+                      disabled={listedItems === 0}
                       onClick={() => onAction("buy", item)}
                     >
                       <FaTag style={iconStyle} />
@@ -195,7 +214,7 @@ export default function MarketAssetTable({ items, onAction }: Readonly<MarketAss
                       variant="outlined"
                       size="small"
                       title="Transfer"
-                      disabled={item.numOwned === 0}
+                      disabled={actualOwned === 0}
                       onClick={() => onAction("transfer", item)}
                     >
                       <IoMdSend style={iconStyle} />
@@ -220,7 +239,7 @@ export default function MarketAssetTable({ items, onAction }: Readonly<MarketAss
                         size="small"
                         color={activeSkin ? "success" : "primary"}
                         title="Activate"
-                        disabled={item.numOwned < 1 || activeSkin || item.numListed > 0}
+                        disabled={actualOwned < 1 || activeSkin}
                         onClick={() => onAction("activate", item)}
                       >
                         <MdCheckCircle style={iconStyle} />

@@ -3,10 +3,9 @@
 import MarketAssetSummary from "@/components/collection/marketplace/MarketAssetSummary";
 import TransactionProgressPanel from "@/components/shared/TransactionProgressPanel";
 import { useMarketplaceTransaction } from "@/hooks/collection/useMarketplaceTransaction";
-import { useOwnedListings } from "@/hooks/collection/useOwnedListings";
 import { buildActivateSkinPayloadAction } from "@/lib/backend/actions/marketplace-assets-actions";
 import { broadcastSetSkin } from "@/lib/frontend/purchase/splBroadcast";
-import { isSkinActive } from "@/lib/shared/marketplace-assets";
+import { getActualOwnedQuantity, isSkinActive } from "@/lib/shared/marketplace-assets";
 import type { MarketplaceAssetItem } from "@/types/marketplace-assets";
 import {
   Alert,
@@ -34,20 +33,10 @@ export default function SkinActivateDialog({
   onCompleted,
 }: Readonly<SkinActivateDialogProps>) {
   const { busy, txProgress, error: submitError, run } = useMarketplaceTransaction(onCompleted);
-  const { listings, error, refresh } = useOwnedListings(account, "SKINS", item.detailId, open);
-
-  console.log("SkinActivateDialog", item.displayName, {
-    "item.assetName === 'SKINS'": item.assetName === "SKINS",
-    "item.active": item.active,
-    "isSkinActive(item)": isSkinActive(item),
-    "item.numOwned": item.numOwned,
-    "item.numListed": item.numListed,
-    listings,
-  });
 
   const active = isSkinActive(item);
-  const blockedByListing = item.numListed > 0;
-  const canActivate = item.numOwned > 0 && !active && !blockedByListing;
+  const actualOwned = getActualOwnedQuantity(item);
+  const canActivate = actualOwned > 0 && !active;
 
   async function handleActivate() {
     await run({
@@ -57,6 +46,9 @@ export default function SkinActivateDialog({
         const { payload } = await buildActivateSkinPayloadAction({
           account,
           detailId: item.detailId,
+          cardDetailId: item.cardDetailId,
+          skinName: item.activationSkinName ?? (item.setName || item.displayName),
+          baseSkin: item.baseSkin,
         });
         return broadcastSetSkin(account, payload);
       },
@@ -72,10 +64,8 @@ export default function SkinActivateDialog({
 
           {active && <Alert severity="info">This skin is already active.</Alert>}
 
-          {blockedByListing && (
-            <Alert severity="warning">
-              This skin has listed copies and cannot be activated until delisted.
-            </Alert>
+          {!active && actualOwned < 1 && (
+            <Alert severity="warning">You do not own this skin.</Alert>
           )}
 
           {submitError && <Alert severity="error">{submitError}</Alert>}

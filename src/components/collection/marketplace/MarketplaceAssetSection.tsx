@@ -16,6 +16,7 @@ import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import {
   applyMarketAssetFilters,
   DEFAULT_MARKET_ASSET_FILTER,
+  getActualOwnedQuantity,
   getLowestUsdPrice,
   type MarketAssetFilter,
 } from "@/lib/shared/marketplace-assets";
@@ -58,16 +59,17 @@ export default function MarketplaceAssetSection({
   const [filter, setFilter] = useState<MarketAssetFilter>(DEFAULT_MARKET_ASSET_FILTER);
   const [dialogState, setDialogState] = useState<MarketActionState | null>(null);
 
-  const { data, loading, error } = useMarketplaceAssetsPageData(
-    selectedAccount,
-    assetName,
-    collectionRefreshVersion
-  );
+  const {
+    data,
+    loading,
+    error,
+    refresh: refreshMarketplaceData,
+  } = useMarketplaceAssetsPageData(selectedAccount, assetName, collectionRefreshVersion);
 
   const items = useMemo<MarketplaceAssetItem[]>(() => {
     const query = search.trim().toLowerCase();
     const base = (data?.items ?? []).filter((item) => {
-      if (ownedOnly && item.numOwned < 1) return false;
+      if (ownedOnly && getActualOwnedQuantity(item) < 1) return false;
       if (query && !item.displayName.toLowerCase().includes(query)) return false;
       if (itemFilter && !itemFilter(item)) return false;
       return true;
@@ -78,6 +80,13 @@ export default function MarketplaceAssetSection({
   const handleAction = (mode: MarketActionMode, item: MarketplaceAssetItem) => {
     setDialogState({ mode, item, defaultListPriceUsd: getLowestUsdPrice(item.prices) });
   };
+
+  const resolvedDialogState = useMemo<MarketActionState | null>(() => {
+    if (!dialogState) return null;
+    const currentItem =
+      data?.items.find((item) => item.detailId === dialogState.item.detailId) ?? dialogState.item;
+    return { ...dialogState, item: currentItem };
+  }, [data?.items, dialogState]);
 
   const handleCompleted = async () => {
     // Invalidate the server caches first so the client re-fetch gets fresh data.
@@ -90,6 +99,7 @@ export default function MarketplaceAssetSection({
     }
 
     await revalidateTagsAction(tags);
+    await refreshMarketplaceData();
     notifyBalancesRefresh();
     notifyCollectionRefresh();
   };
@@ -148,7 +158,7 @@ export default function MarketplaceAssetSection({
       </Box>
 
       <MarketActionDialogHost
-        state={dialogState}
+        state={resolvedDialogState}
         assetName={assetName}
         account={selectedAccount}
         onClose={() => setDialogState(null)}

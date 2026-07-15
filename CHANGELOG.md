@@ -25,6 +25,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 - Supported buy, list, transfer, and delist across the new marketplace pages according to each asset's ownership model:
   - Instance/uid assets (titles, complete totems, collector stickers, deeds) list and transfer specific owned copies (per uid).
   - Fungible/quantity assets (packs, consumables, totem fragments, land resources, land) list and transfer by quantity — listing via `sm_marketplace_list` and transferring via `sm_token_transfer`.
+- Added active skin and the possibility to change it in the marketplace pages.
 
 ### Changed
 

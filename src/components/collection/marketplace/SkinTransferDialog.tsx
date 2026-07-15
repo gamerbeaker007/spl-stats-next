@@ -5,6 +5,7 @@ import TransactionProgressPanel from "@/components/shared/TransactionProgressPan
 import { useMarketplaceTransaction } from "@/hooks/collection/useMarketplaceTransaction";
 import { buildSkinTransferPayloadAction } from "@/lib/backend/actions/marketplace-assets-actions";
 import { broadcastTransferSkins } from "@/lib/frontend/purchase/splBroadcast";
+import { getActualOwnedQuantity } from "@/lib/shared/marketplace-assets";
 import type { MarketplaceAssetItem } from "@/types/marketplace-assets";
 import {
   Alert,
@@ -40,18 +41,21 @@ export default function SkinTransferDialog({
   const [recipient, setRecipient] = useState("");
   const [quantity, setQuantity] = useState(1);
 
-  const maxQuantity = Math.max(1, item.numOwned);
+  const actualOwned = getActualOwnedQuantity(item);
+  const maxQuantity = Math.max(1, actualOwned);
+
+  const effectiveQuantity = Math.min(Math.max(1, quantity), maxQuantity);
 
   async function handleTransfer() {
     await run({
       label: "Transfer",
-      message: `Sending ${quantity} skin${quantity === 1 ? "" : "s"} to ${recipient}...`,
+      message: `Sending ${effectiveQuantity} skin${effectiveQuantity === 1 ? "" : "s"} to ${recipient}...`,
       execute: async () => {
         const { payload } = await buildSkinTransferPayloadAction({
           account,
           detailId: item.detailId,
           recipient,
-          quantity,
+          quantity: effectiveQuantity,
         });
         return broadcastTransferSkins(account, payload);
       },
@@ -74,7 +78,7 @@ export default function SkinTransferDialog({
           <TextField
             label="Quantity"
             type="number"
-            value={quantity}
+            value={effectiveQuantity}
             onChange={(event) => {
               const next = Number(event.target.value);
               if (!Number.isFinite(next)) return;
@@ -95,9 +99,9 @@ export default function SkinTransferDialog({
         <Button
           onClick={handleTransfer}
           variant="contained"
-          disabled={busy || item.numOwned < 1 || recipient.trim().length === 0}
+          disabled={busy || actualOwned < 1 || recipient.trim().length === 0}
         >
-          Transfer {quantity}
+          Transfer {effectiveQuantity}
         </Button>
       </DialogActions>
     </Dialog>

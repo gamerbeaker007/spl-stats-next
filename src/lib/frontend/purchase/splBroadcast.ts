@@ -33,7 +33,8 @@ interface BroadcastResponse {
 async function broadcastCustomJson(
   account: string,
   operationId: string,
-  payload: object
+  payload: object,
+  method: "active" | "posting"
 ): Promise<string> {
   const win = window as HiveKeychainWindow;
   if (!win?.hive_keychain) {
@@ -42,20 +43,31 @@ async function broadcastCustomJson(
 
   const normalizedAccount = account.toLowerCase();
   const keychain = new KeychainSDK(win);
+
+  const requireAuth =
+    method === "active"
+      ? {
+          required_auths: [normalizedAccount],
+          required_posting_auths: [],
+        }
+      : {
+          required_auths: [],
+          required_posting_auths: [normalizedAccount],
+        };
+
   const result = (await keychain.broadcast({
     username: normalizedAccount,
     operations: [
       [
         "custom_json",
         {
-          required_auths: [normalizedAccount],
-          required_posting_auths: [],
+          ...requireAuth,
           id: withOperationPrefix(operationId),
           json: JSON.stringify(payload),
         },
       ],
     ],
-    method: KeychainKeyTypes.active,
+    method: method === "active" ? KeychainKeyTypes.active : KeychainKeyTypes.posting,
   })) as BroadcastResponse;
 
   if (!result?.success) {
@@ -97,58 +109,58 @@ export async function broadcastMarketPurchase({
   account,
   payload,
 }: BroadcastMarketPurchaseParams): Promise<string> {
-  return broadcastCustomJson(account, "sm_market_purchase", payload);
+  return broadcastCustomJson(account, "sm_market_purchase", payload, "active");
 }
 
 export async function broadcastCombineCards({
   account,
   payload,
 }: BroadcastCombineCardsParams): Promise<string> {
-  return broadcastCustomJson(account, "sm_combine_cards", payload);
+  return broadcastCustomJson(account, "sm_combine_cards", payload, "active");
 }
 
 export async function broadcastMarketplaceAssetPurchase(
   account: string,
   payload: MarketplacePurchasePayload
 ): Promise<string> {
-  return broadcastCustomJson(account, "sm_marketplace_purchase", payload);
+  return broadcastCustomJson(account, "sm_marketplace_purchase", payload, "active");
 }
 
 export async function broadcastTransferItems(
   account: string,
   payload: TransferItemsPayload
 ): Promise<string> {
-  return broadcastCustomJson(account, "sm_transfer_items", payload);
+  return broadcastCustomJson(account, "sm_transfer_items", payload, "active");
 }
 
 export async function broadcastTransferSkins(
   account: string,
   payload: TransferSkinsPayload
 ): Promise<string> {
-  return broadcastCustomJson(account, "sm_transfer_skins", payload);
+  return broadcastCustomJson(account, "sm_transfer_skins", payload, "active");
 }
 
 export async function broadcastTokenTransfer(
   account: string,
   payload: TokenTransferPayload
 ): Promise<string> {
-  return broadcastCustomJson(account, "sm_token_transfer", payload);
+  return broadcastCustomJson(account, "sm_token_transfer", payload, "active");
 }
 
 export async function broadcastMarketplaceList(
   account: string,
   payload: MarketplaceListPayload
 ): Promise<string> {
-  return broadcastCustomJson(account, "sm_marketplace_list", payload);
+  return broadcastCustomJson(account, "sm_marketplace_list", payload, "active");
 }
 
 export async function broadcastMarketplaceCancel(
   account: string,
   payload: MarketplaceCancelPayload
 ): Promise<string> {
-  return broadcastCustomJson(account, "sm_marketplace_cancel", payload);
+  return broadcastCustomJson(account, "sm_marketplace_cancel", payload, "active");
 }
 
 export async function broadcastSetSkin(account: string, payload: SetSkinPayload): Promise<string> {
-  return broadcastCustomJson(account, "sm_set_skin", payload);
+  return broadcastCustomJson(account, "sm_set_skin", payload, "posting");
 }

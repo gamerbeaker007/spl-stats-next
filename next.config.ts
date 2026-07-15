@@ -17,7 +17,7 @@ const securityHeaders = [
       // 'unsafe-eval' required in dev: React uses eval() for call stack reconstruction
       `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https://images.hive.blog https://d36mxiodymuqjm.cloudfront.net https://peakmonsters.com https://next.splinterlands.com https://files.peakd.com",
+      "img-src 'self' data: blob: https://images.hive.blog https://d36mxiodymuqjm.cloudfront.net https://peakmonsters.com https://splinterlands.com https://files.peakd.com",
       "connect-src 'self' https://api.hive.blog https://api.deathwing.me https://api.openhive.network",
       "font-src 'self'",
       "object-src 'none'",
@@ -58,8 +58,8 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "next.splinterlands.com",
-        pathname: "/assets/cards/**",
+        hostname: "splinterlands.com",
+        pathname: "/assets/**",
       },
       {
         protocol: "https",

@@ -7,7 +7,7 @@ import type {
   MarketplaceAssetItem,
   MarketplaceAssetName,
 } from "@/types/marketplace-assets";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 export interface MarketplaceAssetsPageData {
   account: string;
@@ -26,6 +26,33 @@ export function useMarketplaceAssetsPageData(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const load = useCallback(
+    async (active: () => boolean): Promise<MarketplaceAssetsPageData | null> => {
+      if (!account) {
+        setData(null);
+        setLoading(false);
+        setError(null);
+        return null;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const next = await getMarketplaceAssetsPageDataAction(account, assetName);
+        if (active()) setData(next);
+        return next;
+      } catch (err) {
+        if (active())
+          setError(err instanceof Error ? err.message : "Failed to load marketplace data");
+        return null;
+      } finally {
+        if (active()) setLoading(false);
+      }
+    },
+    [account, assetName]
+  );
+
   useEffect(() => {
     if (!account) {
       setData(null);
@@ -35,29 +62,14 @@ export function useMarketplaceAssetsPageData(
     }
 
     let active = true;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const next = await getMarketplaceAssetsPageDataAction(account, assetName);
-        if (!active) return;
-        setData(next);
-      } catch (err) {
-        if (!active) return;
-        setError(err instanceof Error ? err.message : "Failed to load marketplace data");
-      } finally {
-        if (active) setLoading(false);
-      }
-    }
-
-    load();
+    load(() => active);
 
     return () => {
       active = false;
     };
-  }, [account, assetName, refreshVersion]);
+  }, [account, load, refreshVersion]);
 
-  return { data, loading, error };
+  const refresh = useCallback(() => load(() => true), [load]);
+
+  return { data, loading, error, refresh };
 }

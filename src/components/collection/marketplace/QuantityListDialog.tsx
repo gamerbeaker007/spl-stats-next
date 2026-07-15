@@ -8,7 +8,7 @@ import {
   buildDelistAssetPayloadAction,
   buildQuantityListPayloadAction,
 } from "@/lib/backend/actions/marketplace-assets-actions";
-import { getSkinListableQuantity, isSkinActive } from "@/lib/shared/marketplace-assets";
+import { getAvailableToListQuantity, isSkinActive } from "@/lib/shared/marketplace-assets";
 import {
   broadcastMarketplaceCancel,
   broadcastMarketplaceList,
@@ -64,20 +64,22 @@ export default function QuantityListDialog({
   const [priceUsd, setPriceUsd] = useState(() => defaultListPriceUsd?.toFixed(3) ?? "1.000");
   const [delistingId, setDelistingId] = useState<number | null>(null);
 
-  const maxQuantity = Math.max(1, getSkinListableQuantity(item));
-  const listableQuantity = getSkinListableQuantity(item);
+  const listableQuantity = getAvailableToListQuantity(item);
+  const maxQuantity = Math.max(1, listableQuantity);
   const activeSkin = isSkinActive(item);
+
+  const effectiveQuantity = Math.min(Math.max(1, quantity), maxQuantity);
 
   async function handleList() {
     await run({
       label: "List",
-      message: `Listing ${quantity} item${quantity === 1 ? "" : "s"} for ${priceUsd} USD...`,
+      message: `Listing ${effectiveQuantity} item${effectiveQuantity === 1 ? "" : "s"} for ${priceUsd} USD...`,
       execute: async () => {
         const { payload } = await buildQuantityListPayloadAction({
           account,
           assetName,
           detailId: item.detailId,
-          quantity,
+          quantity: effectiveQuantity,
           priceUsd: Number(priceUsd),
         });
         return broadcastMarketplaceList(account, payload);
@@ -114,18 +116,22 @@ export default function QuantityListDialog({
 
           {item.assetName === "SKINS" && activeSkin && (
             <Alert severity="warning">
-              Skin is currently active and cannot be listed.
+              One active copy is reserved and cannot be listed.
               {listableQuantity > 0
                 ? ` You can still list up to ${listableQuantity} other copies.`
                 : ""}
             </Alert>
           )}
 
+          {listableQuantity < 1 && (
+            <Alert severity="info">No quantity is currently available to list.</Alert>
+          )}
+
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
             <TextField
               label="Quantity"
               type="number"
-              value={quantity}
+              value={effectiveQuantity}
               onChange={(event) => {
                 const next = Number(event.target.value);
                 if (!Number.isFinite(next)) return;
@@ -193,7 +199,7 @@ export default function QuantityListDialog({
           variant="contained"
           disabled={busy || listableQuantity < 1 || Number(priceUsd) <= 0}
         >
-          List {quantity}
+          List {effectiveQuantity}
         </Button>
       </DialogActions>
     </Dialog>
