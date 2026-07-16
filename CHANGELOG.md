@@ -9,6 +9,14 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## v1.9.1 - 2026-07-16
+
+### Added
+
+- **Buy Missing CC** Add warning when not the exact match (CC) is found on the market. potentially overbuying CC.
+
+---
+
 ## v1.9.0 - 2026-07-14
 
 ### Added

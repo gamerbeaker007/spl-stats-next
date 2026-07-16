@@ -19,6 +19,7 @@ import { findLeagueLogoUrl } from "@/lib/utils";
 import type { League } from "@/types/buy-missing-cc";
 import type { CardFoil, CardRarity } from "@/types/card";
 import type { CardStats } from "@/types/spl/cardDetails";
+import { WarningAmber } from "@mui/icons-material";
 import {
   Alert,
   Box,
@@ -191,6 +192,15 @@ export default function TargetLevelTabContent({
 
             const targetBottom = row.level === targetMin;
             const targetTop = row.level === targetMax;
+            const plannedCC = row.planItems.reduce((sum, item) => sum + item.cc, 0);
+
+            const totalAfterPurchase = row.ownedBcx + plannedCC;
+            const isOverbuying = row.targetCc !== null && totalAfterPurchase > row.targetCc;
+
+            const warning =
+              row.neededBcx && isOverbuying
+                ? `The cheapest available purchase is ${plannedCC} CC, while only ${row.neededBcx} CC is needed to reach this level.`
+                : null;
 
             return (
               <TableRow
@@ -269,7 +279,16 @@ export default function TargetLevelTabContent({
                 </TableCell>
                 <TableCell>{row.neededBcx ?? "N/A"}</TableCell>
                 <TableCell>
-                  {row.isTargetable ? (row.usd > 0 ? row.usd.toFixed(3) : "-") : "N/A"}
+                  <Box sx={{ display: "inline-flex", alignItems: "center" }} gap={0.5}>
+                    <Typography variant="caption" sx={{ mr: 0.5 }}>
+                      {row.isTargetable ? (row.usd > 0 ? row.usd.toFixed(3) : "-") : "N/A"}
+                    </Typography>
+                    {warning && (
+                      <Tooltip title={warning}>
+                        <WarningAmber color="warning" sx={{ width: 16, height: 16 }} />
+                      </Tooltip>
+                    )}
+                  </Box>
                 </TableCell>
                 <TableCell>
                   {onCombineAtLevel && row.level > accountHighestLevel && (
