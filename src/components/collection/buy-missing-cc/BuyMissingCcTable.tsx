@@ -112,17 +112,15 @@ export default function BuyMissingCcTable({
 
       const priceA = a.lowPricePerBcxUsd ?? Number.MAX_SAFE_INTEGER;
       const priceB = b.lowPricePerBcxUsd ?? Number.MAX_SAFE_INTEGER;
-      const costA = reqA.missingCc * priceA;
-      const costB = reqB.missingCc * priceB;
-
       const lowPriceA = a.lowPriceUsd ?? Number.MAX_SAFE_INTEGER;
       const lowPriceB = b.lowPriceUsd ?? Number.MAX_SAFE_INTEGER;
+
       const lowPriceCostA = reqA.missingCc * lowPriceA;
       const lowPriceCostB = reqB.missingCc * lowPriceB;
 
-      if (sortBy === "next") return costA - costB;
+      if (sortBy === "next") return lowPriceCostA - lowPriceCostB;
       if (sortBy === "cc") return priceA - priceB;
-      if (sortBy === "1bcx") return lowPriceCostA - lowPriceCostB;
+      if (sortBy === "1bcx") return lowPriceA - lowPriceB;
       if (sortBy === "bracket") {
         if (!selectedBracket || !ratesA || !ratesB) return 0;
         const [, bracketMaxA] = getBracketLevelRange(selectedBracket, a.rarity);
@@ -131,8 +129,8 @@ export default function BuyMissingCcTable({
         const targetB = Math.min(bracketMaxB, maxLevelB);
         const bracketReqA = calculateUpgradeRequirements(a.totalOwnedCc, targetA, ratesA);
         const bracketReqB = calculateUpgradeRequirements(b.totalOwnedCc, targetB, ratesB);
-        const bracketCostA = bracketReqA.missingCc * priceA;
-        const bracketCostB = bracketReqB.missingCc * priceB;
+        const bracketCostA = bracketReqA.missingCc * lowPriceA;
+        const bracketCostB = bracketReqB.missingCc * lowPriceB;
         return bracketCostA - bracketCostB;
       }
 

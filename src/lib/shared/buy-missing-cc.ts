@@ -96,7 +96,7 @@ export function getCombineRatesForCard(
   // Promo (2), Reward (3), and Extras (17) cards are cross-era and must resolve
   // their actual combine source from the card tier (set primary edition id).
   let resolvedEdition = edition;
-  if ((edition === 2 || edition === 3 || edition === 17) && typeof tier === "number" && tier > 0) {
+  if ((edition === 2 || edition === 3 || edition === 17) && typeof tier === "number" && tier >= 0) {
     resolvedEdition = tier;
   }
 

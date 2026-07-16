@@ -9,6 +9,16 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## v1.9.2 - 2026-07-16
+
+### Fixed
+
+- **Buy Missing CC** Sorting on 1 CC and Next Bracket.
+- Fixed combine rates for alpha promo >=0 iso > 0
+
+
+---
+
 ## v1.9.1 - 2026-07-16
 
 ### Added
