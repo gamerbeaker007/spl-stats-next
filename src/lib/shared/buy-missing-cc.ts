@@ -114,7 +114,7 @@ export function getCombineRatesForCard(
     return table?.[rarityIdx] ?? null;
   }
 
-  if (resolvedEdition >= 0 && resolvedEdition <= 1) {
+  if (resolvedEdition >= 0 && resolvedEdition <= 3) {
     const xpLevels = settings.xp_levels?.[rarityIdx] ?? [];
     const baseXp = getLegacyBaseXp(settings, resolvedEdition, normalizedFoil, rarityIdx);
     if (!baseXp || baseXp <= 0) return null;

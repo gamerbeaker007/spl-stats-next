@@ -1,8 +1,8 @@
-import { FILTER_STORAGE_KEYS, type UnifiedCardFilter } from "@/types/card-filter";
-import type { DetailedPlayerCardCollectionItem } from "@/types/card";
-import type { CardDistributionRow } from "@/types/card-stats";
 import { EDITION_OPTIONS, EDITION_SET_GROUPS } from "@/lib/shared/edition-utils";
 import { RARITY_DEFS } from "@/lib/shared/rarity-utils";
+import type { DetailedPlayerCardCollectionItem } from "@/types/card";
+import { FILTER_STORAGE_KEYS, type UnifiedCardFilter } from "@/types/card-filter";
+import type { CardDistributionRow } from "@/types/card-stats";
 
 // ---------------------------------------------------------------------------
 // Modern edition preset
@@ -63,6 +63,7 @@ function matchesEditionFilter(
   tier: number | null,
   filter: Pick<UnifiedCardFilter, "editions" | "promoTiers" | "rewardTiers" | "extraTiers">
 ): boolean {
+  tier === 3 ? console.log(`Checking edition filter for edition ${edition}, tier ${tier}`) : null;
   if (!hasEditionFilter(filter)) return true;
   if (edition === 2) return tier !== null && filter.promoTiers.includes(tier);
   if (edition === 3) return tier !== null && filter.rewardTiers.includes(tier);
@@ -90,7 +91,6 @@ export interface FilterableCard {
 
 export function matchesCardFilter(card: FilterableCard, filter: UnifiedCardFilter): boolean {
   if (!matchesEditionFilter(card.edition, card.tier ?? null, filter)) return false;
-
   if (filter.rarities.length > 0) {
     const rarityId = RARITY_DEFS.find((r) => r.name === card.rarity)?.id;
     if (!rarityId || !filter.rarities.includes(rarityId)) return false;
