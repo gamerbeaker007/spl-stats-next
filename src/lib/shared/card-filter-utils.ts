@@ -1,4 +1,4 @@
-import { EDITION_OPTIONS, EDITION_SET_GROUPS } from "@/lib/shared/edition-utils";
+import { EDITION_OPTIONS, EDITION_SET_GROUPS, getCardSetTier } from "@/lib/shared/edition-utils";
 import { RARITY_DEFS } from "@/lib/shared/rarity-utils";
 import type { DetailedPlayerCardCollectionItem } from "@/types/card";
 import { FILTER_STORAGE_KEYS, type UnifiedCardFilter } from "@/types/card-filter";
@@ -63,11 +63,13 @@ function matchesEditionFilter(
   tier: number | null,
   filter: Pick<UnifiedCardFilter, "editions" | "promoTiers" | "rewardTiers" | "extraTiers">
 ): boolean {
-  tier === 3 ? console.log(`Checking edition filter for edition ${edition}, tier ${tier}`) : null;
   if (!hasEditionFilter(filter)) return true;
-  if (edition === 2) return tier !== null && filter.promoTiers.includes(tier);
-  if (edition === 3) return tier !== null && filter.rewardTiers.includes(tier);
-  if (edition === 17) return tier !== null && filter.extraTiers.includes(tier);
+  // Cross-era prints (promo=2, reward=3, extra=17) filter by their set's era tier.
+  // getCardSetTier resolves the legacy tier=3 Untamed promos to the Untamed tier.
+  const eraTier = getCardSetTier(edition, tier);
+  if (edition === 2) return eraTier != null && filter.promoTiers.includes(eraTier);
+  if (edition === 3) return eraTier != null && filter.rewardTiers.includes(eraTier);
+  if (edition === 17) return eraTier != null && filter.extraTiers.includes(eraTier);
   return filter.editions.includes(edition);
 }
 

@@ -1,6 +1,16 @@
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 
+/**
+ * The DB stores the raw card `tier`. Halfling Alchemist (#237) and Mighty Dricken
+ * (#238) are Untamed promos (edition=2) minted with the legacy raw `tier=3`, but for
+ * filtering they belong to Untamed (tier=4) — see getCardSetName in edition-utils.ts.
+ * So when Untamed promo is selected, also match the legacy raw tier=3.
+ */
+function withLegacyUntamedPromoTier(promoTiers: number[]): number[] {
+  return promoTiers.includes(4) ? [...promoTiers, 3] : promoTiers;
+}
+
 // ---------------------------------------------------------------------------
 // Shared card fields (no team discriminator needed — separate tables)
 // ---------------------------------------------------------------------------
@@ -170,7 +180,9 @@ function buildPlayerWhere(filter: BattleQueryFilter): Prisma.PlayerBattleCardWhe
   const editionConds: Prisma.PlayerBattleCardWhereInput[] = [];
   if (filter.editions.length > 0) editionConds.push({ edition: { in: filter.editions } });
   if (filter.promoTiers.length > 0)
-    editionConds.push({ AND: [{ edition: 2 }, { tier: { in: filter.promoTiers } }] });
+    editionConds.push({
+      AND: [{ edition: 2 }, { tier: { in: withLegacyUntamedPromoTier(filter.promoTiers) } }],
+    });
   if (filter.rewardTiers.length > 0)
     editionConds.push({ AND: [{ edition: 3 }, { tier: { in: filter.rewardTiers } }] });
   if (filter.extraTiers.length > 0)
@@ -205,7 +217,9 @@ function buildOpponentWhere(filter: BattleQueryFilter): Prisma.OpponentBattleCar
   const oppEditionConds: Prisma.OpponentBattleCardWhereInput[] = [];
   if (filter.editions.length > 0) oppEditionConds.push({ edition: { in: filter.editions } });
   if (filter.promoTiers.length > 0)
-    oppEditionConds.push({ AND: [{ edition: 2 }, { tier: { in: filter.promoTiers } }] });
+    oppEditionConds.push({
+      AND: [{ edition: 2 }, { tier: { in: withLegacyUntamedPromoTier(filter.promoTiers) } }],
+    });
   if (filter.rewardTiers.length > 0)
     oppEditionConds.push({ AND: [{ edition: 3 }, { tier: { in: filter.rewardTiers } }] });
   if (filter.extraTiers.length > 0)
