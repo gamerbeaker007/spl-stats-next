@@ -9,6 +9,15 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.9.4] - 2026-07-17
+
+### Fixed
+
+- **Hive blog generation** Make title editable.
+
+
+---
+
 ## [v1.9.3] - 2026-07-17
 
 ### Fixed

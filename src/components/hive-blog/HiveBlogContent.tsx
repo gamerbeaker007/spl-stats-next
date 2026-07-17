@@ -72,11 +72,16 @@ function PostPanel({
   loggedInAs,
 }: PostPanelProps) {
   const [editedBody, setEditedBody] = useState(body);
+  const [editedTitle, setEditedTitle] = useState(title);
 
   // Sync when body prop changes externally (e.g. after market scan completes)
   useEffect(() => {
     setEditedBody(body);
   }, [body]);
+
+  useEffect(() => {
+    setEditedTitle(title);
+  }, [title]);
 
   return (
     <Box
@@ -100,13 +105,13 @@ function PostPanel({
           <Typography variant="body2" fontWeight={500}>
             Title
           </Typography>
-          <CopyButton text={title} label="title" />
+          <CopyButton text={editedTitle} label="title" />
         </Box>
         <TextField
           fullWidth
           size="small"
-          value={title}
-          slotProps={{ input: { readOnly: true } }}
+          value={editedTitle}
+          onChange={(e) => setEditedTitle(e.target.value)}
           sx={{ mb: 2 }}
         />
 
@@ -116,7 +121,7 @@ function PostPanel({
           </Typography>
           <CopyButton text={editedBody} label="body" />
           <Box sx={{ ml: "auto" }}>
-            <CopyButton text={`${title}\n\n${editedBody}`} label="all" />
+            <CopyButton text={`${editedTitle}\n\n${editedBody}`} label="all" />
             <Typography variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
               Copy all
             </Typography>
@@ -175,7 +180,7 @@ function PostPanel({
 
         <Paper variant="outlined" sx={{ p: 2, mb: 2 }}>
           <Typography variant="h6" gutterBottom>
-            {title}
+            {editedTitle}
           </Typography>
           <Divider sx={{ mb: 1.5 }} />
           <HiveMarkdownPreview markdown={editedBody} />
