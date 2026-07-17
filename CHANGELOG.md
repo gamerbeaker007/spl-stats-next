@@ -9,6 +9,14 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.9.3] - 2026-07-17
+
+### Fixed
+
+- Untamed promos minted with the legacy `tier=3` (Halfling Alchemist, Mighty Dricken) are now grouped, filtered and displayed as **Untamed** instead of falling through the filter. Their combine rates still resolve to legacy beta rates (the one intended exception).
+
+---
+
 ## [v1.9.2] - 2026-07-16
 
 ### Fixed

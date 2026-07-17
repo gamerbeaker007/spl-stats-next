@@ -96,9 +96,15 @@ export function getCombineRatesForCard(
   // Promo (2), Reward (3), and Extras (17) cards are cross-era and must resolve
   // their actual combine source from the card tier (set primary edition id).
   let resolvedEdition = edition;
-  if ((edition === 2 || edition === 3 || edition === 17) && typeof tier === "number" && tier >= 0) {
-    resolvedEdition = tier;
+  if (edition === 2 || edition === 3 || edition === 17) {
+    resolvedEdition = typeof tier === "number" && tier >= 0 ? tier : edition;
   }
+
+  // Legacy exception: Halfling Alchemist (#237) & Mighty Dricken (#238) are Untamed
+  // promos minted with tier=3, but they level up on legacy *beta* combine rates.
+  // This is the ONLY place tier=3 maps to beta — for set identity/display/filtering
+  // they are Untamed (see getCardSetName in edition-utils.ts).
+  if (resolvedEdition === 3) resolvedEdition = 1;
 
   // Foundation editions have special combine rates
   if (resolvedEdition === 15 || resolvedEdition === 16) {

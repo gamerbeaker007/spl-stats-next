@@ -1,8 +1,8 @@
-import { FILTER_STORAGE_KEYS, type UnifiedCardFilter } from "@/types/card-filter";
-import type { DetailedPlayerCardCollectionItem } from "@/types/card";
-import type { CardDistributionRow } from "@/types/card-stats";
-import { EDITION_OPTIONS, EDITION_SET_GROUPS } from "@/lib/shared/edition-utils";
+import { EDITION_OPTIONS, EDITION_SET_GROUPS, getCardSetTier } from "@/lib/shared/edition-utils";
 import { RARITY_DEFS } from "@/lib/shared/rarity-utils";
+import type { DetailedPlayerCardCollectionItem } from "@/types/card";
+import { FILTER_STORAGE_KEYS, type UnifiedCardFilter } from "@/types/card-filter";
+import type { CardDistributionRow } from "@/types/card-stats";
 
 // ---------------------------------------------------------------------------
 // Modern edition preset
@@ -64,9 +64,12 @@ function matchesEditionFilter(
   filter: Pick<UnifiedCardFilter, "editions" | "promoTiers" | "rewardTiers" | "extraTiers">
 ): boolean {
   if (!hasEditionFilter(filter)) return true;
-  if (edition === 2) return tier !== null && filter.promoTiers.includes(tier);
-  if (edition === 3) return tier !== null && filter.rewardTiers.includes(tier);
-  if (edition === 17) return tier !== null && filter.extraTiers.includes(tier);
+  // Cross-era prints (promo=2, reward=3, extra=17) filter by their set's era tier.
+  // getCardSetTier resolves the legacy tier=3 Untamed promos to the Untamed tier.
+  const eraTier = getCardSetTier(edition, tier);
+  if (edition === 2) return eraTier != null && filter.promoTiers.includes(eraTier);
+  if (edition === 3) return eraTier != null && filter.rewardTiers.includes(eraTier);
+  if (edition === 17) return eraTier != null && filter.extraTiers.includes(eraTier);
   return filter.editions.includes(edition);
 }
 
@@ -90,7 +93,6 @@ export interface FilterableCard {
 
 export function matchesCardFilter(card: FilterableCard, filter: UnifiedCardFilter): boolean {
   if (!matchesEditionFilter(card.edition, card.tier ?? null, filter)) return false;
-
   if (filter.rarities.length > 0) {
     const rarityId = RARITY_DEFS.find((r) => r.name === card.rarity)?.id;
     if (!rarityId || !filter.rarities.includes(rarityId)) return false;

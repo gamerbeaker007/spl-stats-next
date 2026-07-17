@@ -529,11 +529,31 @@ export function getSetLabel(setName: string): string | undefined {
 }
 
 /**
+ * One-off legacy print: Halfling Alchemist (#237) and Mighty Dricken (#238) are
+ * Untamed promos (edition=2) that were minted with `tier=3` — a value that is not
+ * a real set id (no set has primary edition id 3). For set identity (display,
+ * filtering, grouping) they belong to **Untamed** (tier=4).
+ *
+ * Their combine rates are the ONE exception: those follow legacy *beta* rules, and
+ * that switch lives separately in `getCombineRatesForCard` (buy-missing-cc.ts).
+ *
+ * This is a fixed historical quirk — not expected to grow — so it is handled as a
+ * single explicit special case rather than a general alias table.
+ */
+const LEGACY_UNTAMED_PROMO_TIER = 3;
+const UNTAMED_TIER = 4;
+
+/**
  * Set name for a specific card print. Native editions resolve directly from
  * `editionId`; cross-era editions (promo/reward/extra) resolve from `tier`.
  */
 export function getCardSetName(editionId: number, tier?: number | null): CardSetName | undefined {
-  return getSetName(editionId) ?? (typeof tier === "number" ? getSetName(tier) : undefined);
+  const direct = getSetName(editionId);
+  if (direct) return direct;
+  if (typeof tier !== "number") return undefined;
+  // See LEGACY_UNTAMED_PROMO_TIER: tier=3 promos are Untamed for set purposes.
+  const setTier = tier === LEGACY_UNTAMED_PROMO_TIER ? UNTAMED_TIER : tier;
+  return getSetName(setTier);
 }
 
 /** Display label for the set a specific card print belongs to. */
@@ -548,12 +568,15 @@ export function getCardSetIconUrl(editionId: number, tier?: number | null): stri
   return setName ? getSetIconUrl(setName) : undefined;
 }
 
-/** Era tier for the set a specific card print belongs to. */
+/**
+ * Era tier of the set a specific card print belongs to. Resolves the legacy
+ * tier=3 Untamed promos to the Untamed tier (see {@link getCardSetName}), so the
+ * value can be compared directly against the set tiers used by the edition filter.
+ */
 export function getCardSetTier(editionId: number, tier?: number | null): number | null | undefined {
-  if (typeof tier === "number") return tier;
-
   const setName = getCardSetName(editionId, tier);
-  return setName ? getTier(setName) : undefined;
+  if (setName) return getTier(setName);
+  return typeof tier === "number" ? tier : undefined;
 }
 
 /** Whether an edition is a soulbound edition. */
