@@ -1,7 +1,12 @@
 "use client";
 
+import OwnedCcBreakdownInfo from "@/components/collection/buy-missing-cc/OwnedCcBreakdownInfo";
 import ScrollableTableContainer from "@/components/shared/ScrollableTableContainer";
-import { getCombineTooltipText, type CombineDisabledReason } from "@/lib/shared/buy-missing-cc";
+import {
+  getCombineTooltipText,
+  type CombineDisabledReason,
+  type OwnedCcBreakdown,
+} from "@/lib/shared/buy-missing-cc";
 import { abilityIconUrl } from "@/lib/shared/card-utils";
 import { getBracketLevelRange, LEAGUE_BRACKETS } from "@/lib/shared/league-brackets";
 import {
@@ -69,6 +74,7 @@ export type TargetLevelRow = {
   combineOnWagonBcx: number;
   combineDelegatedBcx: number;
   combineOnLandBcx: number;
+  combineListedBcx: number;
   dec: number;
   credits: number;
   usd: number;
@@ -101,6 +107,7 @@ interface TargetLevelTabContentView {
   targetBracket: League | "";
   accountHighestLevel: number;
   accountTotalCc: number;
+  accountOwnedBreakdown: OwnedCcBreakdown;
   isHighestCcAtMaxLevel: boolean;
   buyBusy: boolean;
   balance: { DEC: number; CREDITS: number };
@@ -130,6 +137,7 @@ export default function TargetLevelTabContent({
     targetBracket,
     accountHighestLevel,
     accountTotalCc,
+    accountOwnedBreakdown,
     isHighestCcAtMaxLevel,
     buyBusy,
     balance,
@@ -275,20 +283,32 @@ export default function TargetLevelTabContent({
                       : undefined
                   }
                 >
-                  {accountTotalCc}
+                  <Box sx={{ display: "inline-flex", alignItems: "center" }}>
+                    {accountTotalCc}
+                    <OwnedCcBreakdownInfo breakdown={accountOwnedBreakdown} />
+                  </Box>
                 </TableCell>
                 <TableCell>{row.neededBcx ?? "N/A"}</TableCell>
                 <TableCell>
-                  <Box sx={{ display: "inline-flex", alignItems: "center" }} gap={0.5}>
-                    <Typography variant="caption" sx={{ mr: 0.5 }}>
-                      {row.isTargetable ? (row.usd > 0 ? row.usd.toFixed(3) : "-") : "N/A"}
-                    </Typography>
-                    {warning && (
-                      <Tooltip title={warning}>
-                        <WarningAmber color="warning" sx={{ width: 16, height: 16 }} />
+                  <Stack direction="column" spacing={0}>
+                    <Box sx={{ display: "inline-flex", alignItems: "center" }} gap={0.5}>
+                      <Typography variant="caption" sx={{ mr: 0.5 }}>
+                        {row.isTargetable ? (row.usd > 0 ? `$${row.usd.toFixed(2)}` : "-") : "N/A"}
+                      </Typography>
+                      {warning && (
+                        <Tooltip title={warning}>
+                          <WarningAmber color="warning" sx={{ width: 16, height: 16 }} />
+                        </Tooltip>
+                      )}
+                    </Box>
+                    {row.isTargetable && row.usd > 0 && plannedCC > 0 && (
+                      <Tooltip title="Average purchase price per BCX">
+                        <Typography variant="caption" color="text.secondary" fontSize={10}>
+                          (${(row.usd / plannedCC).toFixed(2)}/CC)
+                        </Typography>
                       </Tooltip>
                     )}
-                  </Box>
+                  </Stack>
                 </TableCell>
                 <TableCell>
                   {onCombineAtLevel && row.level > accountHighestLevel && (
@@ -306,6 +326,7 @@ export default function TargetLevelTabContent({
                                   onWagonCount: row.combineOnWagonBcx,
                                   delegatedOutCount: row.combineDelegatedBcx,
                                   onLandCount: row.combineOnLandBcx,
+                                  listedCount: row.combineListedBcx,
                                 }
                               : {
                                   canCombine: true,
@@ -314,6 +335,7 @@ export default function TargetLevelTabContent({
                                   onWagonCount: row.combineOnWagonBcx,
                                   delegatedOutCount: row.combineDelegatedBcx,
                                   onLandCount: row.combineOnLandBcx,
+                                  listedCount: row.combineListedBcx,
                                 },
                       })}
                     >
@@ -345,6 +367,7 @@ export default function TargetLevelTabContent({
                                 row.combineDisabledReason === "on-wagon" ||
                                 row.combineDisabledReason === "delegated-out" ||
                                 row.combineDisabledReason === "on-land" ||
+                                row.combineDisabledReason === "listed" ||
                                 row.combineDisabledReason === "in-set"
                                   ? "orange"
                                   : "inherit"

@@ -144,7 +144,8 @@ export default function CombineCardsDialog({
         isReachableByTotal &&
         (targetStatus?.disabledReason === "on-wagon" ||
           targetStatus?.disabledReason === "delegated-out" ||
-          targetStatus?.disabledReason === "on-land");
+          targetStatus?.disabledReason === "on-land" ||
+          targetStatus?.disabledReason === "listed");
 
       let tooltip = "";
       if (level === currentLevel) {
@@ -161,6 +162,7 @@ export default function CombineCardsDialog({
             onWagonCount: targetStatus.onWagonCount,
             delegatedOutCount: targetStatus.delegatedOutCount,
             onLandCount: targetStatus.onLandCount,
+            listedCount: targetStatus.listedCount,
           },
         });
       } else if (!isReachable) {

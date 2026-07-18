@@ -22,6 +22,7 @@ export interface SplPlayerCard {
   stake_ref_uid?: string | null;
   wagon_uid: string | null; // is card on wagon? if so, this is the wagon's uid
   set_id: string | null; // is card in a set? if so, this is the set's id
+  market_listing_type: string | null; // is card listed on the market (rent/sale)? non-null when listed
 }
 
 export interface EnrichedCollectionCard extends SplPlayerCard {

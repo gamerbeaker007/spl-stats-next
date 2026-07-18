@@ -135,6 +135,33 @@ export function getCombineRatesForCard(
   return null;
 }
 
+export interface OwnedCcBreakdown {
+  total: number;
+  delegated: number;
+  listed: number;
+}
+
+/**
+ * Breakdown of owned BCX into the total plus the portion that is currently
+ * delegated out or listed on the marketplace. A single copy can be counted in
+ * both `delegated` and `listed`; each sub-total is independent, so they may
+ * overlap and are not expected to sum to `total`.
+ */
+export function computeOwnedCcBreakdown(
+  cards: Array<Pick<CombineCardState, "bcx" | "delegatedTo" | "listed">>
+): OwnedCcBreakdown {
+  return cards.reduce<OwnedCcBreakdown>(
+    (acc, card) => {
+      const bcx = Math.max(0, card.bcx ?? 0);
+      acc.total += bcx;
+      if (card.delegatedTo) acc.delegated += bcx;
+      if (card.listed) acc.listed += bcx;
+      return acc;
+    },
+    { total: 0, delegated: 0, listed: 0 }
+  );
+}
+
 export function getCardMaxLevel(combineRates: number[]): number {
   return combineRates.length;
 }
@@ -305,7 +332,7 @@ export function selectCardsToCombine(options: {
 
   const usable = cards.filter((entry) => {
     if (!entry.uid || (entry.bcx ?? 0) <= 0 || entry.inSet) return false;
-    if (!entry.onWagon && !entry.delegatedTo && !entry.onLand) return true;
+    if (!entry.onWagon && !entry.delegatedTo && !entry.onLand && !entry.listed) return true;
     return entry.uid === baseUid;
   });
 
@@ -340,11 +367,12 @@ export type CombineDisabledReason =
   | "in-set"
   | "on-wagon"
   | "delegated-out"
-  | "on-land";
+  | "on-land"
+  | "listed";
 
 export type CombineCardState = Pick<
   CardDetail,
-  "uid" | "level" | "bcx" | "onWagon" | "onLand" | "inSet" | "delegatedTo"
+  "uid" | "level" | "bcx" | "onWagon" | "onLand" | "inSet" | "listed" | "delegatedTo"
 >;
 
 export interface CombineStatus {
@@ -368,6 +396,7 @@ export interface CombineStatus {
   onWagonCount: number;
   delegatedOutCount: number;
   onLandCount: number;
+  listedCount: number;
   unavailableCount: number;
 }
 
@@ -379,6 +408,7 @@ type CombineTooltipStatus = Pick<
   | "onWagonCount"
   | "delegatedOutCount"
   | "onLandCount"
+  | "listedCount"
 >;
 
 export function getCombineTooltipText(options: {
@@ -402,6 +432,7 @@ export function getCombineTooltipText(options: {
     "on-wagon": `Too many cards on wagon (${combineStatus?.onWagonCount ?? 0} BCX on wagons)`,
     "delegated-out": `Too many cards delegated out (${combineStatus?.delegatedOutCount ?? 0} BCX delegated)`,
     "on-land": `Too many cards on land (${combineStatus?.onLandCount ?? 0} BCX on land)`,
+    listed: "One or more required cards are currently listed on the marketplace.",
     "no-copies": "No copies available to combine",
   };
 
@@ -439,9 +470,14 @@ function buildCombineContext(allCards: CombineCardState[]) {
     return sum + Math.max(0, card.bcx ?? 0);
   }, 0);
 
+  const listedCount = allCards.reduce((sum, card) => {
+    if (!card.listed || card.uid === baseUid) return sum;
+    return sum + Math.max(0, card.bcx ?? 0);
+  }, 0);
+
   const unavailableCount = allCards.reduce((sum, card) => {
     if (card.uid === baseUid) return sum;
-    if (!card.onWagon && !card.delegatedTo && !card.onLand) return sum;
+    if (!card.onWagon && !card.delegatedTo && !card.onLand && !card.listed) return sum;
     return sum + Math.max(0, card.bcx ?? 0);
   }, 0);
 
@@ -451,6 +487,7 @@ function buildCombineContext(allCards: CombineCardState[]) {
     onWagonCount,
     delegatedOutCount,
     onLandCount,
+    listedCount,
     unavailableCount,
   };
 }
@@ -469,8 +506,15 @@ export function checkCombineStatus(options: {
 }): CombineStatus {
   const { combineRates, currentLevel, totalOwnedCc, allCards, targetLevel } = options;
   const maxLevel = getCardMaxLevel(combineRates);
-  const { cardUids, inSet, onWagonCount, delegatedOutCount, onLandCount, unavailableCount } =
-    buildCombineContext(allCards);
+  const {
+    cardUids,
+    inSet,
+    onWagonCount,
+    delegatedOutCount,
+    onLandCount,
+    listedCount,
+    unavailableCount,
+  } = buildCombineContext(allCards);
 
   const nextLevel = Math.min(currentLevel + 1, maxLevel);
   const desiredTargetLevel = targetLevel ?? nextLevel;
@@ -480,6 +524,7 @@ export function checkCombineStatus(options: {
   const usableCCAfterWagon = Math.max(0, totalOwnedCc - onWagonCount);
   const usableCCAfterDelegation = Math.max(0, usableCCAfterWagon - delegatedOutCount);
   const usableCCAfterLand = Math.max(0, usableCCAfterDelegation - onLandCount);
+  const usableCCAfterListed = Math.max(0, usableCCAfterLand - listedCount);
   const usableCC = Math.max(0, totalOwnedCc - unavailableCount);
 
   let maxLevelReachable = currentLevel;
@@ -518,6 +563,7 @@ export function checkCombineStatus(options: {
     onWagonCount,
     delegatedOutCount,
     onLandCount,
+    listedCount,
     unavailableCount,
   };
 
@@ -586,6 +632,16 @@ export function checkCombineStatus(options: {
       ...base,
       canCombine: false,
       disabledReason: "on-land",
+      currentCc: usableCC,
+      copiesNeeded: targetLevelCcRequired - usableCC,
+    };
+  }
+
+  if (usableCCAfterListed < targetLevelCcRequired) {
+    return {
+      ...base,
+      canCombine: false,
+      disabledReason: "listed",
       currentCc: usableCC,
       copiesNeeded: targetLevelCcRequired - usableCC,
     };

@@ -9,6 +9,28 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.10.0] - 2026-07-18
+
+### Fixed
+
+- **Buy CC – Combine to target level** The per-row **Combine** button now consumes only the minimum card UIDs required to reach that row's level, instead of combining the entire owned stack. Previously clicking "Combine to Level 5" could combine far more cards than needed (even past your highest reachable level).
+
+### Added
+
+- **Combine restriction – Listed cards** Cards currently listed on the marketplace (for rent or sale) can no longer be used for combining. Target levels that would require a listed card are disabled with an orange indicator and the tooltip _"One or more required cards are currently listed on the marketplace."_ — mirroring the existing delegated-card handling.
+- **Buy Missing CC & Buy CC – Total CC breakdown** An info icon now appears next to the **Total CC** value when part of the owned BCX is delegated out or listed. Its tooltip breaks down total owned BCX, delegated BCX and listed BCX so unavailable copies are visible at a glance.
+- **Buy CC – Upgrade Cost per BCX** The **Upgrade Cost** column now shows the average purchase price per BCX (e.g. `$3.00` / `($0.56 / BCX)`) with an explanatory tooltip.
+
+### Changed
+
+- **Buy CC – Manual Listings tab**
+  - Default sort is now **USD (DEC) / CC** (cheapest per BCX first).
+  - Removed the standalone **DEC** column.
+  - The **USD** column is now **USD (DEC)** — the USD price with the equivalent DEC amount shown underneath.
+  - The **DEC/CC** column is now **USD (DEC) / CC** — the per-BCX USD price with the equivalent DEC amount underneath, keeping both currencies visible in fewer columns.
+
+---
+
 ## [v1.9.4] - 2026-07-17
 
 ### Fixed

@@ -74,6 +74,7 @@ export interface CardDetail {
   onWagon: boolean;
   onLand: boolean;
   inSet: boolean;
+  listed: boolean;
   imgUrl: string;
 }
 

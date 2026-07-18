@@ -1,11 +1,13 @@
 "use client";
 
 import CardTableIcon from "@/components/collection/buy-missing-cc/CardTableIcon";
+import OwnedCcBreakdownInfo from "@/components/collection/buy-missing-cc/OwnedCcBreakdownInfo";
 import ScrollableTableContainer from "@/components/shared/ScrollableTableContainer";
 import {
   calculateUpgradeCostEstimate,
   calculateUpgradeRequirements,
   checkCombineStatus,
+  computeOwnedCcBreakdown,
   getCardFirstPlayableLevel,
   getCardMaxCc,
   getCardMaxLevel,
@@ -329,6 +331,12 @@ export default function BuyMissingCcTable({
                 row.highestOwnedCc > 0 && row.highestOwnedCc >= maxLevelCc;
               const isLevelOnMax = row.highestOwnedLevel > 0 && row.highestOwnedLevel >= maxLevel;
 
+              const ownedBreakdown = computeOwnedCcBreakdown(
+                row.allCards?.filter(
+                  (card) => card.edition === row.edition && card.foil === row.foil
+                ) ?? []
+              );
+
               const status =
                 selectedBracket && rates
                   ? bracketStatus(row.highestOwnedLevel, selectedBracket, row.rarity)
@@ -391,6 +399,7 @@ export default function BuyMissingCcTable({
                         combineStatus?.disabledReason === "on-wagon" ||
                         combineStatus?.disabledReason === "delegated-out" ||
                         combineStatus?.disabledReason === "on-land" ||
+                        combineStatus?.disabledReason === "listed" ||
                         combineStatus?.disabledReason === "in-set"
                           ? "orange"
                           : "";
@@ -453,7 +462,12 @@ export default function BuyMissingCcTable({
                   >
                     {row.highestOwnedCc}
                   </TableCell>
-                  <TableCell>{row.totalOwnedCc}</TableCell>
+                  <TableCell>
+                    <Box sx={{ display: "inline-flex", alignItems: "center" }}>
+                      {row.totalOwnedCc}
+                      <OwnedCcBreakdownInfo breakdown={ownedBreakdown} />
+                    </Box>
+                  </TableCell>
                   <TableCell>
                     {!status ? null : status === "max" ? (
                       <Tooltip title={`Max for ${bracketLabel}`}>

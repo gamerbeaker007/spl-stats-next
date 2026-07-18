@@ -112,6 +112,7 @@ export async function getDetailedPlayerCardCollectionCached(
       onWagon: playerCard.wagon_uid !== null,
       onLand: playerCard.stake_ref_uid !== null,
       inSet: playerCard.set_id !== null,
+      listed: playerCard.market_listing_type !== null,
       imgUrl: getCardImageByLevel(item.name, playerCard.edition, foil, playerCard.level),
     };
 

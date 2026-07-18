@@ -15,8 +15,10 @@ import {
   buildPurchasePlan,
   calculateUpgradeRequirements,
   checkCombineStatus,
+  computeOwnedCcBreakdown,
   getCardFirstPlayableLevel,
   getCombineRatesForCard,
+  selectCardsToCombine,
   selectCheapestListings,
   type CombineCardState,
 } from "@/lib/shared/buy-missing-cc";
@@ -187,7 +189,7 @@ export default function BuyCardDialog({
   const [shiftAnchorIndex, setShiftAnchorIndex] = useState<number | null>(null);
   const [sortBy, setSortBy] = useState<
     "level" | "cc" | "priceUsd" | "priceDec" | "priceCredits" | "pricePerCcDec"
-  >("priceDec");
+  >("pricePerCcDec");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [buyBusy, setBuyBusy] = useState(false);
   const [contextLoading, setContextLoading] = useState(false);
@@ -507,6 +509,11 @@ export default function BuyCardDialog({
   const isHighestCcAtMaxLevel =
     accountState.highestLevel > 0 && accountState.highestLevel >= numberOfLevels;
 
+  const accountOwnedBreakdown = useMemo(
+    () => computeOwnedCcBreakdown(dynamicCombineCards[selectedAccount] ?? []),
+    [dynamicCombineCards, selectedAccount]
+  );
+
   const dynamicStats = useMemo(() => {
     if (!cardStats) return [] as Array<{ key: keyof CardStats; label: string }>;
     const candidates: Array<{ key: keyof CardStats; label: string }> = [
@@ -556,6 +563,7 @@ export default function BuyCardDialog({
           combineOnWagonBcx: baseCombineStatus.onWagonCount,
           combineDelegatedBcx: baseCombineStatus.delegatedOutCount,
           combineOnLandBcx: baseCombineStatus.onLandCount,
+          combineListedBcx: baseCombineStatus.listedCount,
           dec: 0,
           credits: 0,
           usd: 0,
@@ -593,6 +601,7 @@ export default function BuyCardDialog({
         combineOnWagonBcx: combineStatus.onWagonCount,
         combineDelegatedBcx: combineStatus.delegatedOutCount,
         combineOnLandBcx: combineStatus.onLandCount,
+        combineListedBcx: combineStatus.listedCount,
         dec: plan.totals.dec,
         credits: plan.items.reduce((sum, item) => sum + item.priceCredits, 0),
         usd: plan.totals.usd,
@@ -621,12 +630,25 @@ export default function BuyCardDialog({
       return;
     }
 
+    // Select only the UIDs required to reach this specific target level — never
+    // combine the whole owned stack. Respects the same delegated/listed/on-wagon/
+    // in-set restrictions as the combine-status checks (single source of truth).
+    const combineCards = dynamicCombineCards[selectedAccount] ?? [];
+    const combinePlan = combineRates
+      ? selectCardsToCombine({ combineRates, targetLevel, cards: combineCards })
+      : null;
+
+    if (!combinePlan || combinePlan.cardUids.length === 0) {
+      setContextError("Not enough available cards to combine to this level. Try refreshing.");
+      return;
+    }
+
     setBuyBusy(true);
     setTxProgress({ status: "processing", message: `Combining to level ${targetLevel}...` });
     try {
       const txId = await broadcastCombineCards({
         account: selectedAccount,
-        payload: await buildCombineCardsPayloadAction({ cardUids: dynamicCardUids }),
+        payload: await buildCombineCardsPayloadAction({ cardUids: combinePlan.cardUids }),
       });
 
       const [confirmation] = await waitForTransactions([txId]);
@@ -820,6 +842,7 @@ export default function BuyCardDialog({
                 targetBracket,
                 accountHighestLevel: accountState.highestLevel,
                 accountTotalCc: accountState.totalCc,
+                accountOwnedBreakdown,
                 isHighestCcAtMaxLevel,
                 buyBusy,
                 balance,

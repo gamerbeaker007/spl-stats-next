@@ -2,6 +2,7 @@
 
 import CurrencyAmountChip from "@/components/collection/top-bar/CurrencyAmountChip";
 import ScrollableTableContainer from "@/components/shared/ScrollableTableContainer";
+import { dec_icon_url } from "@/lib/staticsIconUrls";
 import { BuyMissingCcListing } from "@/types/buy-missing-cc";
 import {
   Box,
@@ -11,6 +12,7 @@ import {
   MenuItem,
   Pagination,
   Select,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -20,7 +22,31 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import Image from "next/image";
 import ManualSelectionTotalsBar from "./ManualSelectionTotalsBar";
+
+/**
+ * Stacked cell: a USD value on top with the equivalent DEC amount (plus the DEC
+ * icon) underneath, keeping both currencies visible in a single narrow column.
+ */
+function UsdDecCell({
+  usd,
+  dec,
+  usdDecimals = 2,
+  decDecimals = 3,
+}: Readonly<{ usd: number; dec: number; usdDecimals?: number; decDecimals?: number }>) {
+  return (
+    <Stack direction="row" spacing={2} sx={{ lineHeight: 1.25 }}>
+      <Typography variant="caption">${usd.toFixed(usdDecimals)}</Typography>
+      <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.3 }}>
+        <Image src={dec_icon_url} alt="DEC" width={12} height={12} />
+        <Typography variant="caption" color="text.secondary">
+          {dec.toFixed(decDecimals)}
+        </Typography>
+      </Box>
+    </Stack>
+  );
+}
 
 type SortBy = "level" | "cc" | "priceUsd" | "priceDec" | "priceCredits" | "pricePerCcDec";
 
@@ -148,16 +174,7 @@ export default function ManualListingsTabContent({
                   direction={sortBy === "priceUsd" ? sortDir : "asc"}
                   onClick={() => actions.toggleSort("priceUsd")}
                 >
-                  USD
-                </TableSortLabel>
-              </TableCell>
-              <TableCell>
-                <TableSortLabel
-                  active={sortBy === "priceDec"}
-                  direction={sortBy === "priceDec" ? sortDir : "asc"}
-                  onClick={() => actions.toggleSort("priceDec")}
-                >
-                  DEC
+                  USD (DEC)
                 </TableSortLabel>
               </TableCell>
               <TableCell>
@@ -175,7 +192,7 @@ export default function ManualListingsTabContent({
                   direction={sortBy === "pricePerCcDec" ? sortDir : "asc"}
                   onClick={() => actions.toggleSort("pricePerCcDec")}
                 >
-                  DEC/CC
+                  USD (DEC) / CC
                 </TableSortLabel>
               </TableCell>
               <TableCell>Seller</TableCell>
@@ -227,22 +244,29 @@ export default function ManualListingsTabContent({
                   <TableCell>{row.level}</TableCell>
                   <TableCell>{row.cc}</TableCell>
                   <TableCell>
-                    <CurrencyAmountChip currency="USD" value={row.priceUsd} />
-                  </TableCell>
-                  <TableCell>
-                    <CurrencyAmountChip currency="DEC" value={row.priceDec} />
+                    <UsdDecCell usd={row.priceUsd} dec={row.priceDec} />
                   </TableCell>
                   <TableCell>
                     <CurrencyAmountChip currency="CREDITS" value={row.priceCredits ?? 0} />
                   </TableCell>
-                  <TableCell>{row.pricePerCcDec.toFixed(3)}</TableCell>
+                  <TableCell>
+                    {row.cc > 0 ? (
+                      <UsdDecCell
+                        usd={row.priceUsd / row.cc}
+                        dec={row.pricePerCcDec}
+                        usdDecimals={3}
+                      />
+                    ) : (
+                      "-"
+                    )}
+                  </TableCell>
                   <TableCell>{row.seller ?? "-"}</TableCell>
                 </TableRow>
               );
             })}
             {!loading && pagedRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8}>No listings found.</TableCell>
+                <TableCell colSpan={7}>No listings found.</TableCell>
               </TableRow>
             )}
           </TableBody>
