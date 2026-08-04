@@ -9,6 +9,16 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.1x.0] -
+
+### Added
+
+- **Jackpot prizes** add bucket COMMUNITY_JACKPOT
+- **Market Assets** add number circulation (directly from grouped api)
+
+
+---
+
 ## [v1.10.0] - 2026-07-18
 
 ### Fixed

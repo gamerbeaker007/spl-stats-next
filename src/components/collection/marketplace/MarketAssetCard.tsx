@@ -50,6 +50,7 @@ export default function MarketAssetCard({
   const currentlyListed = getCurrentlyListedQuantity(item);
   const availableToList = getAvailableToListQuantity(item);
   const listedItems = item.numListed;
+  const circulation = item.numCirculation;
 
   const listDisabled = availableToList < 1 && currentlyListed < 1;
 
@@ -83,10 +84,16 @@ export default function MarketAssetCard({
         boxShadow: activeSkin ? "0 0 0 1px rgba(76, 175, 80, 0.15)" : "none",
       }}
     >
-      <Typography variant="subtitle2" align="center" noWrap title={item.displayName}>
-        {item.displayName}
-      </Typography>
-
+      <Stack direction="column" justifyContent="center" alignItems="center" spacing={0.1}>
+        <Typography variant="subtitle2" align="center" noWrap title={item.displayName}>
+          {item.displayName}
+        </Typography>
+        <Tooltip title={`Circulation`}>
+          <Typography variant="caption" color="text.secondary" align="center" noWrap>
+            {`(x${largeNumberFormat(circulation)})`}
+          </Typography>
+        </Tooltip>
+      </Stack>
       <Box
         component="img"
         src={image ?? ""}

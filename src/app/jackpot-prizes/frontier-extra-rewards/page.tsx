@@ -10,6 +10,7 @@ export default function FrontierExtraRewardsPage() {
       <Container maxWidth="xl" sx={{ py: 3 }}>
         <Suspense fallback={<LoadingSkeleton />}>
           <BucketServer username="$FRONTIER_JACKPOT" />
+          <BucketServer username="$COMMUNITY_JACKPOT" />
         </Suspense>
       </Container>
       <Divider />
