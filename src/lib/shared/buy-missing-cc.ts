@@ -308,6 +308,71 @@ export function getNewAbilitiesAtLevel(
   return targetAbilities.filter((ability) => !currentAbilities.has(ability));
 }
 
+function compareByConsumePriority(a: CombineCardState, b: CombineCardState): number {
+  const levelDelta = (a.level ?? 0) - (b.level ?? 0);
+  if (levelDelta !== 0) return levelDelta;
+  return (a.bcx ?? 0) - (b.bcx ?? 0);
+}
+
+function isLockedByRestrictions(card: CombineCardState): boolean {
+  return Boolean(card.delegatedTo || card.onLand || card.listed || card.inSet);
+}
+
+function getBestEligibleWagonCard(cards: CombineCardState[]): CombineCardState | null {
+  if (cards.length === 0) return null;
+
+  return (
+    [...cards].sort((a, b) => {
+      const bcxDelta = (b.bcx ?? 0) - (a.bcx ?? 0);
+      if (bcxDelta !== 0) return bcxDelta;
+      return compareByConsumePriority(a, b);
+    })[0] ?? null
+  );
+}
+
+function buildCombinePools(cards: CombineCardState[]) {
+  const baseCard = [...cards]
+    .sort(compareByBasePriority)
+    .find((entry) => Boolean(entry.uid) && (entry.bcx ?? 0) > 0 && !entry.inSet);
+
+  if (!baseCard) {
+    return {
+      baseCard: null,
+      baseOnWagon: false,
+      walletCards: [] as CombineCardState[],
+      wagonCandidates: [] as CombineCardState[],
+      allowedWagonCard: null as CombineCardState | null,
+    };
+  }
+
+  const baseOnWagon = Boolean(baseCard.onWagon);
+  const baseUid = baseCard.uid;
+
+  const walletCards = cards.filter((entry) => {
+    if (!entry.uid || (entry.bcx ?? 0) <= 0) return false;
+    if (entry.uid === baseUid) return false;
+    if (entry.onWagon) return false;
+    return !isLockedByRestrictions(entry);
+  });
+
+  const wagonCandidates = cards.filter((entry) => {
+    if (!entry.uid || (entry.bcx ?? 0) <= 0) return false;
+    if (entry.uid === baseUid) return false;
+    if (!entry.onWagon) return false;
+    return !isLockedByRestrictions(entry);
+  });
+
+  const allowedWagonCard = baseOnWagon ? null : getBestEligibleWagonCard(wagonCandidates);
+
+  return {
+    baseCard,
+    baseOnWagon,
+    walletCards,
+    wagonCandidates,
+    allowedWagonCard,
+  };
+}
+
 /**
  * Pick the exact card copies to burn to reach `targetLevel`.
  *
@@ -328,31 +393,23 @@ export function selectCardsToCombine(options: {
   const requiredBcx = combineRates[targetLevel - 1] ?? 0;
   if (requiredBcx <= 0) return null;
 
-  const baseUid = [...cards].sort(compareByBasePriority)[0]?.uid;
-
-  const usable = cards.filter((entry) => {
-    if (!entry.uid || (entry.bcx ?? 0) <= 0 || entry.inSet) return false;
-    if (!entry.onWagon && !entry.delegatedTo && !entry.onLand && !entry.listed) return true;
-    return entry.uid === baseUid;
-  });
-
-  const sorted = [...usable].sort(compareByBasePriority);
-  const baseCard = sorted[0];
+  const { baseCard, walletCards, allowedWagonCard } = buildCombinePools(cards);
   if (!baseCard) return null;
 
-  const remaining = sorted.slice(1).sort((a, b) => {
-    const levelDelta = (a.level ?? 0) - (b.level ?? 0);
-    if (levelDelta !== 0) return levelDelta;
-    return (a.bcx ?? 0) - (b.bcx ?? 0);
-  });
+  const remainingWalletCards = [...walletCards].sort(compareByConsumePriority);
 
   const picked: CombineCardState[] = [baseCard];
   let totalBcx = baseCard.bcx ?? 0;
 
-  for (const candidate of remaining) {
+  for (const candidate of remainingWalletCards) {
     if (totalBcx >= requiredBcx) break;
     picked.push(candidate);
     totalBcx += candidate.bcx ?? 0;
+  }
+
+  if (totalBcx < requiredBcx && allowedWagonCard) {
+    picked.push(allowedWagonCard);
+    totalBcx += allowedWagonCard.bcx ?? 0;
   }
 
   if (totalBcx < requiredBcx) return null;
@@ -429,7 +486,7 @@ export function getCombineTooltipText(options: {
     "max-level": "Already at maximum level",
     "not-enough-copies": `Need ${combineStatus?.copiesNeeded ?? 0} more BCX to level up`,
     "in-set": "Some cards are part of a set",
-    "on-wagon": `Too many cards on wagon (${combineStatus?.onWagonCount ?? 0} BCX on wagons)`,
+    "on-wagon": `Too many cards on wagon (${combineStatus?.onWagonCount ?? 0} BCX blocked on wagons)`,
     "delegated-out": `Too many cards delegated out (${combineStatus?.delegatedOutCount ?? 0} BCX delegated)`,
     "on-land": `Too many cards on land (${combineStatus?.onLandCount ?? 0} BCX on land)`,
     listed: "One or more required cards are currently listed on the marketplace.",
@@ -454,11 +511,17 @@ function compareByBasePriority(a: CombineCardState, b: CombineCardState): number
 }
 
 function buildCombineContext(allCards: CombineCardState[]) {
-  const baseUid = [...allCards].sort(compareByBasePriority)[0]?.uid;
-  const onWagonCount = allCards.reduce((sum, card) => {
+  const { baseCard, baseOnWagon, walletCards, allowedWagonCard } = buildCombinePools(allCards);
+  const baseUid = baseCard?.uid;
+
+  const totalWagonBcx = allCards.reduce((sum, card) => {
     if (!card.onWagon || card.uid === baseUid) return sum;
     return sum + Math.max(0, card.bcx ?? 0);
   }, 0);
+
+  // One additional wagon card is allowed unless the base card is already on a wagon.
+  const allowedWagonBcx = baseOnWagon ? 0 : Math.max(0, allowedWagonCard?.bcx ?? 0);
+  const onWagonCount = Math.max(0, totalWagonBcx - allowedWagonBcx);
 
   const delegatedOutCount = allCards.reduce((sum, card) => {
     if (!card.delegatedTo || card.uid === baseUid) return sum;
@@ -475,11 +538,14 @@ function buildCombineContext(allCards: CombineCardState[]) {
     return sum + Math.max(0, card.bcx ?? 0);
   }, 0);
 
-  const unavailableCount = allCards.reduce((sum, card) => {
-    if (card.uid === baseUid) return sum;
-    if (!card.onWagon && !card.delegatedTo && !card.onLand && !card.listed) return sum;
-    return sum + Math.max(0, card.bcx ?? 0);
-  }, 0);
+  const totalOwnedCcFromCards = allCards.reduce((sum, card) => sum + Math.max(0, card.bcx ?? 0), 0);
+  const usableFromBase = Math.max(0, baseCard?.bcx ?? 0);
+  const usableFromWallet = walletCards.reduce((sum, card) => sum + Math.max(0, card.bcx ?? 0), 0);
+  const usableFromWagon = Math.max(0, allowedWagonCard?.bcx ?? 0);
+  const unavailableCount = Math.max(
+    0,
+    totalOwnedCcFromCards - (usableFromBase + usableFromWallet + usableFromWagon)
+  );
 
   return {
     cardUids: allCards.map((card) => card.uid),

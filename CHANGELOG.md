@@ -9,12 +9,16 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
-## [v1.1x.0] -
+## [v1.11.0] -
 
 ### Added
 
 - **Jackpot prizes** add bucket COMMUNITY_JACKPOT
 - **Market Assets** add number circulation (directly from grouped api)
+
+### Fixed
+
+- **Combine availability (wagon cards)** Combine validation and card-selection now apply the same wagon rule: at most one wagon card can be used for a combine, and wallet cards are always consumed first. This fixes false "too many cards on wagon" rejections when only one wagon card was actually needed/allowed.
 
 
 ---
