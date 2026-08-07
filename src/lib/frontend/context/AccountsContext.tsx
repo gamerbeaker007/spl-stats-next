@@ -126,6 +126,15 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
   }, [refreshMonitoredAccounts]);
 
   useEffect(() => {
+    // If an account is now monitored, it is no longer considered a removable local account.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSavedAccounts((current) => {
+      const filtered = current.filter((account) => !monitoredAccounts.includes(account));
+      return arraysEqual(filtered, current) ? current : filtered;
+    });
+  }, [monitoredAccounts]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
 
     const handleStorage = (event: StorageEvent) => {

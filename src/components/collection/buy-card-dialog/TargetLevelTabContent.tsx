@@ -29,7 +29,9 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   CircularProgress,
+  FormControlLabel,
   Stack,
   Table,
   TableBody,
@@ -109,6 +111,7 @@ interface TargetLevelTabContentView {
   accountTotalCc: number;
   accountOwnedBreakdown: OwnedCcBreakdown;
   isHighestCcAtMaxLevel: boolean;
+  allowExtraCopies: boolean;
   buyBusy: boolean;
   balance: { DEC: number; CREDITS: number };
 }
@@ -117,6 +120,7 @@ interface TargetLevelTabContentActions {
   onAddToPurchasePlan: (items: TargetLevelRow["planItems"]) => void;
   onRunCheckoutForPlan: (items: TargetLevelRow["planItems"], currency: "DEC" | "CREDITS") => void;
   onCombineAtLevel?: (level: number) => Promise<void>;
+  onAllowExtraCopiesChange: (v: boolean) => void;
 }
 
 interface TargetLevelTabContentProps {
@@ -139,10 +143,12 @@ export default function TargetLevelTabContent({
     accountTotalCc,
     accountOwnedBreakdown,
     isHighestCcAtMaxLevel,
+    allowExtraCopies,
     buyBusy,
     balance,
   } = view;
-  const { onAddToPurchasePlan, onRunCheckoutForPlan, onCombineAtLevel } = actions;
+  const { onAddToPurchasePlan, onRunCheckoutForPlan, onCombineAtLevel, onAllowExtraCopiesChange } =
+    actions;
   const [combiningLevel, setCombiningLevel] = React.useState<number | null>(null);
   if (!combineRatesAvailable) {
     return (
@@ -153,288 +159,311 @@ export default function TargetLevelTabContent({
   }
 
   return (
-    <ScrollableTableContainer>
-      <Table size="small" stickyHeader>
-        <TableHead>
-          <TableRow>
-            <TableCell>Target Bracket</TableCell>
-            <TableCell>
-              <Tooltip title="Level">
-                <Typography variant="body2">L</Typography>
-              </Tooltip>
-            </TableCell>
-            {dynamicStats.map((row) => (
-              <TableCell key={row.key}>
-                <Tooltip title={row.label}>
-                  <Box sx={{ display: "inline-flex", alignItems: "center" }}>
-                    <Image
-                      src={STAT_ICON_URL[row.key as Exclude<keyof CardStats, "abilities">]}
-                      alt={row.label}
-                      width={18}
-                      height={18}
-                    />
-                  </Box>
+    <>
+      {isHighestCcAtMaxLevel && (
+        <FormControlLabel
+          control={
+            <Checkbox
+              size="small"
+              checked={allowExtraCopies}
+              onChange={(e) => onAllowExtraCopiesChange(e.target.checked)}
+            />
+          }
+          label={
+            <Tooltip title="Buy additional copies even when you already own the maximum level — useful for Land where extra copies may be required.">
+              <Typography variant="body2">Buy Extra Copies</Typography>
+            </Tooltip>
+          }
+          sx={{ mb: 1 }}
+        />
+      )}
+      <ScrollableTableContainer>
+        <Table size="small" stickyHeader>
+          <TableHead>
+            <TableRow>
+              <TableCell>Target Bracket</TableCell>
+              <TableCell>
+                <Tooltip title="Level">
+                  <Typography variant="body2">L</Typography>
                 </Tooltip>
               </TableCell>
-            ))}
-            <TableCell>Abilities</TableCell>
-            <TableCell>Target BCX</TableCell>
-            <TableCell>Owned BCX</TableCell>
-            <TableCell>Needed BCX</TableCell>
-            <TableCell>Upgrade Cost ($)</TableCell>
-            <TableCell>Combine</TableCell>
-            <TableCell>Add to Cart</TableCell>
-            <TableCell>Buy Credits</TableCell>
-            <TableCell>Buy DEC</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {targetRows.map((row) => {
-            const highlighted = row.level === accountHighestLevel;
-            const canPurchaseRow = row.isTargetable && row.planItems.length > 0 && row.fulfilled;
+              {dynamicStats.map((row) => (
+                <TableCell key={row.key}>
+                  <Tooltip title={row.label}>
+                    <Box sx={{ display: "inline-flex", alignItems: "center" }}>
+                      <Image
+                        src={STAT_ICON_URL[row.key as Exclude<keyof CardStats, "abilities">]}
+                        alt={row.label}
+                        width={18}
+                        height={18}
+                      />
+                    </Box>
+                  </Tooltip>
+                </TableCell>
+              ))}
+              <TableCell>Abilities</TableCell>
+              <TableCell>Target BCX</TableCell>
+              <TableCell>Owned BCX</TableCell>
+              <TableCell>Needed BCX</TableCell>
+              <TableCell>Upgrade Cost ($)</TableCell>
+              <TableCell>Combine</TableCell>
+              <TableCell>Add to Cart</TableCell>
+              <TableCell>Buy Credits</TableCell>
+              <TableCell>Buy DEC</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {targetRows.map((row) => {
+              const highlighted = row.level === accountHighestLevel;
+              const canPurchaseRow = row.isTargetable && row.planItems.length > 0 && row.fulfilled;
 
-            const [targetMin, targetMax] =
-              rarity && targetBracket !== ""
-                ? getBracketLevelRange(targetBracket, rarity)
-                : [null, null];
+              const [targetMin, targetMax] =
+                rarity && targetBracket !== ""
+                  ? getBracketLevelRange(targetBracket, rarity)
+                  : [null, null];
 
-            const targetBottom = row.level === targetMin;
-            const targetTop = row.level === targetMax;
-            const plannedCC = row.planItems.reduce((sum, item) => sum + item.cc, 0);
+              const targetBottom = row.level === targetMin;
+              const targetTop = row.level === targetMax;
+              const plannedCC = row.planItems.reduce((sum, item) => sum + item.cc, 0);
 
-            const totalAfterPurchase = row.ownedBcx + plannedCC;
-            const isOverbuying = row.targetCc !== null && totalAfterPurchase > row.targetCc;
+              const totalAfterPurchase = row.ownedBcx + plannedCC;
+              const isOverbuying = row.targetCc !== null && totalAfterPurchase > row.targetCc;
 
-            const warning =
-              row.neededBcx && isOverbuying
-                ? `The cheapest available purchase is ${plannedCC} CC, while only ${row.neededBcx} CC is needed to reach this level.`
-                : null;
+              const warning =
+                row.neededBcx && isOverbuying
+                  ? `The cheapest available purchase is ${plannedCC} CC, while only ${row.neededBcx} CC is needed to reach this level.`
+                  : null;
 
-            return (
-              <TableRow
-                key={row.level}
-                selected={highlighted}
-                sx={{
-                  "& td": {
-                    ...(targetBottom && {
-                      borderTop: "2px solid",
-                      borderTopColor: "error.main",
-                    }),
+              return (
+                <TableRow
+                  key={row.level}
+                  selected={highlighted}
+                  sx={{
+                    "& td": {
+                      ...(targetBottom && {
+                        borderTop: "2px solid",
+                        borderTopColor: "error.main",
+                      }),
 
-                    ...(targetTop && {
-                      borderBottom: "2px solid",
-                      borderBottomColor: "error.main",
-                    }),
-                  },
-                }}
-              >
-                <TableCell>
-                  <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap">
-                    {row.playableBrackets.map((bracket) => {
-                      const logo = findLeagueLogoUrl("modern", BRACKET_LOGO_LEAGUE[bracket]);
-                      if (!logo) return null;
-                      return (
-                        <Tooltip
-                          key={`${row.level}-${bracket}`}
-                          title={LEAGUE_BRACKETS[bracket].label}
-                        >
+                      ...(targetTop && {
+                        borderBottom: "2px solid",
+                        borderBottomColor: "error.main",
+                      }),
+                    },
+                  }}
+                >
+                  <TableCell>
+                    <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap">
+                      {row.playableBrackets.map((bracket) => {
+                        const logo = findLeagueLogoUrl("modern", BRACKET_LOGO_LEAGUE[bracket]);
+                        if (!logo) return null;
+                        return (
+                          <Tooltip
+                            key={`${row.level}-${bracket}`}
+                            title={LEAGUE_BRACKETS[bracket].label}
+                          >
+                            <Box sx={{ display: "inline-flex" }}>
+                              <Image
+                                src={logo}
+                                alt={LEAGUE_BRACKETS[bracket].label}
+                                width={18}
+                                height={18}
+                              />
+                            </Box>
+                          </Tooltip>
+                        );
+                      })}
+                    </Stack>
+                  </TableCell>
+                  <TableCell>{row.level}</TableCell>
+                  {dynamicStats.map((stat) => (
+                    <TableCell key={stat.key}>
+                      {cardStats?.[stat.key][Math.max(0, row.statsLevel - 1)] ?? 0}
+                    </TableCell>
+                  ))}
+                  <TableCell>
+                    <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                      {row.abilities.map((ability) => (
+                        <Tooltip key={`${row.level}-${ability}`} title={ability}>
                           <Box sx={{ display: "inline-flex" }}>
                             <Image
-                              src={logo}
-                              alt={LEAGUE_BRACKETS[bracket].label}
-                              width={18}
-                              height={18}
+                              src={abilityIconUrl(ability)}
+                              alt={ability}
+                              width={22}
+                              height={22}
+                              style={{ borderRadius: 4 }}
                             />
                           </Box>
                         </Tooltip>
-                      );
-                    })}
-                  </Stack>
-                </TableCell>
-                <TableCell>{row.level}</TableCell>
-                {dynamicStats.map((stat) => (
-                  <TableCell key={stat.key}>
-                    {cardStats?.[stat.key][Math.max(0, row.statsLevel - 1)] ?? 0}
+                      ))}
+                      {row.abilities.length === 0 && <Typography variant="caption">-</Typography>}
+                    </Stack>
                   </TableCell>
-                ))}
-                <TableCell>
-                  <Stack direction="row" spacing={0.5} flexWrap="wrap">
-                    {row.abilities.map((ability) => (
-                      <Tooltip key={`${row.level}-${ability}`} title={ability}>
-                        <Box sx={{ display: "inline-flex" }}>
-                          <Image
-                            src={abilityIconUrl(ability)}
-                            alt={ability}
-                            width={22}
-                            height={22}
-                            style={{ borderRadius: 4 }}
-                          />
-                        </Box>
-                      </Tooltip>
-                    ))}
-                    {row.abilities.length === 0 && <Typography variant="caption">-</Typography>}
-                  </Stack>
-                </TableCell>
-                <TableCell>{row.targetCc ?? "N/A"}</TableCell>
-                <TableCell
-                  sx={
-                    row.level === accountHighestLevel && isHighestCcAtMaxLevel
-                      ? { color: "success.main", fontWeight: 700 }
-                      : undefined
-                  }
-                >
-                  <Box sx={{ display: "inline-flex", alignItems: "center" }}>
-                    {accountTotalCc}
-                    <OwnedCcBreakdownInfo breakdown={accountOwnedBreakdown} />
-                  </Box>
-                </TableCell>
-                <TableCell>{row.neededBcx ?? "N/A"}</TableCell>
-                <TableCell>
-                  <Stack direction="column" spacing={0}>
-                    <Box sx={{ display: "inline-flex", alignItems: "center" }} gap={0.5}>
-                      <Typography variant="caption" sx={{ mr: 0.5 }}>
-                        {row.isTargetable ? (row.usd > 0 ? `$${row.usd.toFixed(2)}` : "-") : "N/A"}
-                      </Typography>
-                      {warning && (
-                        <Tooltip title={warning}>
-                          <WarningAmber color="warning" sx={{ width: 16, height: 16 }} />
+                  <TableCell>{row.targetCc ?? "N/A"}</TableCell>
+                  <TableCell
+                    sx={
+                      row.level === accountHighestLevel && isHighestCcAtMaxLevel
+                        ? { color: "success.main", fontWeight: 700 }
+                        : undefined
+                    }
+                  >
+                    <Box sx={{ display: "inline-flex", alignItems: "center" }}>
+                      {accountTotalCc}
+                      <OwnedCcBreakdownInfo breakdown={accountOwnedBreakdown} />
+                    </Box>
+                  </TableCell>
+                  <TableCell>{row.neededBcx ?? "N/A"}</TableCell>
+                  <TableCell>
+                    <Stack direction="column" spacing={0}>
+                      <Box sx={{ display: "inline-flex", alignItems: "center" }} gap={0.5}>
+                        <Typography variant="caption" sx={{ mr: 0.5 }}>
+                          {row.isTargetable
+                            ? row.usd > 0
+                              ? `$${row.usd.toFixed(2)}`
+                              : "-"
+                            : "N/A"}
+                        </Typography>
+                        {warning && (
+                          <Tooltip title={warning}>
+                            <WarningAmber color="warning" sx={{ width: 16, height: 16 }} />
+                          </Tooltip>
+                        )}
+                      </Box>
+                      {row.isTargetable && row.usd > 0 && plannedCC > 0 && (
+                        <Tooltip title="Average purchase price per BCX">
+                          <Typography variant="caption" color="text.secondary" fontSize={10}>
+                            (${(row.usd / plannedCC).toFixed(2)}/CC)
+                          </Typography>
                         </Tooltip>
                       )}
-                    </Box>
-                    {row.isTargetable && row.usd > 0 && plannedCC > 0 && (
-                      <Tooltip title="Average purchase price per BCX">
-                        <Typography variant="caption" color="text.secondary" fontSize={10}>
-                          (${(row.usd / plannedCC).toFixed(2)}/CC)
-                        </Typography>
+                    </Stack>
+                  </TableCell>
+                  <TableCell>
+                    {onCombineAtLevel && row.level > accountHighestLevel && (
+                      <Tooltip
+                        title={getCombineTooltipText({
+                          isLoading: false,
+                          combineStatus:
+                            row.combineMissingBcx === null
+                              ? null
+                              : row.combineDisabledReason !== null
+                                ? {
+                                    canCombine: false,
+                                    disabledReason: row.combineDisabledReason,
+                                    copiesNeeded: row.combineMissingBcx,
+                                    onWagonCount: row.combineOnWagonBcx,
+                                    delegatedOutCount: row.combineDelegatedBcx,
+                                    onLandCount: row.combineOnLandBcx,
+                                    listedCount: row.combineListedBcx,
+                                  }
+                                : {
+                                    canCombine: true,
+                                    disabledReason: null,
+                                    copiesNeeded: 0,
+                                    onWagonCount: row.combineOnWagonBcx,
+                                    delegatedOutCount: row.combineDelegatedBcx,
+                                    onLandCount: row.combineOnLandBcx,
+                                    listedCount: row.combineListedBcx,
+                                  },
+                        })}
+                      >
+                        <span>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            disabled={
+                              combiningLevel !== null ||
+                              buyBusy ||
+                              row.combineMissingBcx === null ||
+                              row.combineDisabledReason !== null
+                            }
+                            onClick={async () => {
+                              setCombiningLevel(row.level);
+                              try {
+                                await onCombineAtLevel(row.level);
+                              } finally {
+                                setCombiningLevel(null);
+                              }
+                            }}
+                          >
+                            {combiningLevel === row.level ? (
+                              <CircularProgress size={16} />
+                            ) : (
+                              <TbCopyPlusFilled
+                                size={15}
+                                color={
+                                  row.combineDisabledReason === "on-wagon" ||
+                                  row.combineDisabledReason === "delegated-out" ||
+                                  row.combineDisabledReason === "on-land" ||
+                                  row.combineDisabledReason === "listed" ||
+                                  row.combineDisabledReason === "in-set"
+                                    ? "orange"
+                                    : "inherit"
+                                }
+                              />
+                            )}
+                          </Button>
+                        </span>
                       </Tooltip>
                     )}
-                  </Stack>
-                </TableCell>
-                <TableCell>
-                  {onCombineAtLevel && row.level > accountHighestLevel && (
-                    <Tooltip
-                      title={getCombineTooltipText({
-                        isLoading: false,
-                        combineStatus:
-                          row.combineMissingBcx === null
-                            ? null
-                            : row.combineDisabledReason !== null
-                              ? {
-                                  canCombine: false,
-                                  disabledReason: row.combineDisabledReason,
-                                  copiesNeeded: row.combineMissingBcx,
-                                  onWagonCount: row.combineOnWagonBcx,
-                                  delegatedOutCount: row.combineDelegatedBcx,
-                                  onLandCount: row.combineOnLandBcx,
-                                  listedCount: row.combineListedBcx,
-                                }
-                              : {
-                                  canCombine: true,
-                                  disabledReason: null,
-                                  copiesNeeded: 0,
-                                  onWagonCount: row.combineOnWagonBcx,
-                                  delegatedOutCount: row.combineDelegatedBcx,
-                                  onLandCount: row.combineOnLandBcx,
-                                  listedCount: row.combineListedBcx,
-                                },
-                      })}
-                    >
-                      <span>
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          disabled={
-                            combiningLevel !== null ||
-                            buyBusy ||
-                            row.combineMissingBcx === null ||
-                            row.combineDisabledReason !== null
-                          }
-                          onClick={async () => {
-                            setCombiningLevel(row.level);
-                            try {
-                              await onCombineAtLevel(row.level);
-                            } finally {
-                              setCombiningLevel(null);
-                            }
-                          }}
-                        >
-                          {combiningLevel === row.level ? (
-                            <CircularProgress size={16} />
-                          ) : (
-                            <TbCopyPlusFilled
-                              size={15}
-                              color={
-                                row.combineDisabledReason === "on-wagon" ||
-                                row.combineDisabledReason === "delegated-out" ||
-                                row.combineDisabledReason === "on-land" ||
-                                row.combineDisabledReason === "listed" ||
-                                row.combineDisabledReason === "in-set"
-                                  ? "orange"
-                                  : "inherit"
-                              }
-                            />
-                          )}
-                        </Button>
-                      </span>
-                    </Tooltip>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {row.isTargetable && (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      disabled={!canPurchaseRow}
-                      onClick={() => onAddToPurchasePlan(row.planItems)}
-                    >
-                      Add
-                    </Button>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {row.isTargetable && (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      disabled={
-                        !canPurchaseRow ||
-                        buyBusy ||
-                        row.planItems.reduce((sum, item) => sum + item.priceCredits, 0) >
-                          balance.CREDITS
-                      }
-                      onClick={() => onRunCheckoutForPlan(row.planItems, "CREDITS")}
-                    >
-                      <Stack direction="row" spacing={0.5} alignItems="center">
-                        <Image src={credits_icon_url} alt="Credits" width={14} height={14} />
-                        <Typography variant="caption">{row.credits.toFixed(0)}</Typography>
-                      </Stack>
-                    </Button>
-                  )}
-                </TableCell>
-                <TableCell>
-                  {row.isTargetable && (
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      disabled={
-                        !canPurchaseRow ||
-                        buyBusy ||
-                        row.planItems.reduce((sum, item) => sum + item.priceDec, 0) > balance.DEC
-                      }
-                      onClick={() => onRunCheckoutForPlan(row.planItems, "DEC")}
-                    >
-                      <Stack direction="row" spacing={0.5} alignItems="center">
-                        <Image src={dec_icon_url} alt="DEC" width={14} height={14} />
-                        <Typography variant="caption">{row.dec.toFixed(3)}</Typography>
-                      </Stack>
-                    </Button>
-                  )}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </ScrollableTableContainer>
+                  </TableCell>
+                  <TableCell>
+                    {row.isTargetable && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        disabled={!canPurchaseRow}
+                        onClick={() => onAddToPurchasePlan(row.planItems)}
+                      >
+                        Add
+                      </Button>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {row.isTargetable && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        disabled={
+                          !canPurchaseRow ||
+                          buyBusy ||
+                          row.planItems.reduce((sum, item) => sum + item.priceCredits, 0) >
+                            balance.CREDITS
+                        }
+                        onClick={() => onRunCheckoutForPlan(row.planItems, "CREDITS")}
+                      >
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          <Image src={credits_icon_url} alt="Credits" width={14} height={14} />
+                          <Typography variant="caption">{row.credits.toFixed(0)}</Typography>
+                        </Stack>
+                      </Button>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {row.isTargetable && (
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        disabled={
+                          !canPurchaseRow ||
+                          buyBusy ||
+                          row.planItems.reduce((sum, item) => sum + item.priceDec, 0) > balance.DEC
+                        }
+                        onClick={() => onRunCheckoutForPlan(row.planItems, "DEC")}
+                      >
+                        <Stack direction="row" spacing={0.5} alignItems="center">
+                          <Image src={dec_icon_url} alt="DEC" width={14} height={14} />
+                          <Typography variant="caption">{row.dec.toFixed(3)}</Typography>
+                        </Stack>
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </ScrollableTableContainer>
+    </>
   );
 }

@@ -142,3 +142,27 @@ export async function getBuyMissingCcDetailedCollectionAction(account: string) {
     balances,
   };
 }
+
+/** Fetch grouped market prices keyed by `${cardDetailId}-${foilInt}`. */
+export async function getCollectionMarketPricesAction(): Promise<
+  Record<string, { qty: number; lowPriceBcx: number; lowPrice: number }>
+> {
+  const grouped = await getCachedSplGroupedMarket();
+  const result: Record<string, { qty: number; lowPriceBcx: number; lowPrice: number }> = {};
+  for (const entry of grouped) {
+    const key = `${entry.card_detail_id}-${entry.foil}`;
+    const lpBcx = Number(entry.low_price_bcx) || 0;
+    const lp = Number(entry.low_price) || 0;
+    const qty = Number(entry.qty) || 0;
+    const existing = result[key];
+    if (!existing) {
+      result[key] = { qty, lowPriceBcx: lpBcx, lowPrice: lp };
+    } else {
+      existing.qty += qty;
+      if (lpBcx > 0 && (existing.lowPriceBcx === 0 || lpBcx < existing.lowPriceBcx))
+        existing.lowPriceBcx = lpBcx;
+      if (lp > 0 && (existing.lowPrice === 0 || lp < existing.lowPrice)) existing.lowPrice = lp;
+    }
+  }
+  return result;
+}

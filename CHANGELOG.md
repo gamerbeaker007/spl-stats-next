@@ -15,6 +15,16 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 - **Jackpot prizes** add bucket COMMUNITY_JACKPOT
 - **Market Assets** add number circulation (directly from grouped api)
+- **Investment notes** — Each investment entry now has an optional free-text notes field (max 140 chars). Notes can be set when recording a deposit/withdrawal and edited inline from the investment dialog.
+- **Investment dialog pagination** — The investment entry list is now paginated (20 rows per page) instead of a fixed-height scrollable table.
+- **Portfolio chart Y-axis** — All portfolio charts now use SI-prefix formatting (`$1.25M`, `$500k`) so large values are readable and no longer overflow the axis area.
+- **Portfolio performance** — Portfolio snapshot and investment queries are now cached (`cacheLife("hours")`) per username. Cache is invalidated on investment mutations. Reduces repeated full-history DB scans on every page load.
+- **Allow Extra Copies** — The Target Level tab in the Buy Card dialog shows an **Allow Extra Copies** checkbox when a card is already at max level. When enabled, all target levels show the cost to purchase a full BCX set from scratch, allowing users to buy additional copies (e.g. for Land).
+- **Hard refresh collection** — A **Refresh** button with a 60-second cooldown is available on Collection → Cards and Collection → Buy Missing CC. Clicking it invalidates the Next.js collection cache for the selected account(s) and reloads the data.
+- **Account X/remove button** — Locally-saved accounts in the account selector now show a ✕ button for direct removal, without needing to select the account first.
+- **Collection cards – Show Prices** — A **Show Prices** checkbox on the Collection → Cards page fetches grouped market data and displays the number of listings, lowest price per BCX, and lowest 1-BCX price on each card tile (and in table mode columns).
+- **Collection cards – Table mode** — The card grid on Collection → Cards now has a grid/table toggle. Table mode displays all visible cards in a sortable table with Name, Edition, Foil, Level, BCX, and optional price columns.
+- Added reference to land.spl-stats.com
 
 ### Fixed
 

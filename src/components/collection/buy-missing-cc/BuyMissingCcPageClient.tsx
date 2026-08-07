@@ -28,6 +28,7 @@ import type { DetailedPlayerCardCollectionItem } from "@/types/card";
 import {
   Alert,
   Box,
+  Button,
   Chip,
   FormControlLabel,
   IconButton,
@@ -39,8 +40,8 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
-import { MdInfoOutline } from "react-icons/md";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MdInfoOutline, MdRefresh } from "react-icons/md";
 import BracketFilter from "./BracketFilter";
 import type {
   AccountCardState,
@@ -81,9 +82,27 @@ export default function BuyMissingCcPageClient() {
     accountOptions,
     addLocalAccount,
     removeLocalAccount,
+    savedAccounts,
   } = useAccounts();
 
   const [addAccountInput, setAddAccountInput] = useState("");
+  const [refreshCooldown, setRefreshCooldown] = useState(false);
+  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleHardRefresh = useCallback(async () => {
+    if (refreshCooldown || !selectedAccount) return;
+    setRefreshCooldown(true);
+    await revalidateTagsAction([{ type: "collection", usernames: [selectedAccount] }]);
+    notifyCollectionRefresh();
+    cooldownTimerRef.current = setTimeout(() => setRefreshCooldown(false), 60_000);
+  }, [refreshCooldown, selectedAccount, notifyCollectionRefresh]);
+
+  useEffect(
+    () => () => {
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+    },
+    []
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
@@ -471,16 +490,36 @@ export default function BuyMissingCcPageClient() {
             addAccountInput={addAccountInput}
             onAddAccountInputChange={setAddAccountInput}
             onAddAccount={handleAddAccount}
-            onRemoveSelected={() => removeLocalAccount(selectedAccount)}
-            removeDisabled={!selectedAccount || monitoredAccounts.includes(selectedAccount)}
+            monitoredAccounts={monitoredAccounts}
+            localAccounts={savedAccounts}
+            onRemoveAccount={removeLocalAccount}
             extraContent={
-              <TextField
-                size="small"
-                label="Search card"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                sx={{ minWidth: 220 }}
-              />
+              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                <TextField
+                  size="small"
+                  label="Search card"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  sx={{ minWidth: 220 }}
+                />
+                <Tooltip
+                  title={
+                    refreshCooldown ? "Refresh available in ~60s" : "Force refresh collection data"
+                  }
+                >
+                  <span>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<MdRefresh />}
+                      disabled={refreshCooldown || !selectedAccount}
+                      onClick={handleHardRefresh}
+                    >
+                      Refresh
+                    </Button>
+                  </span>
+                </Tooltip>
+              </Stack>
             }
           />
 

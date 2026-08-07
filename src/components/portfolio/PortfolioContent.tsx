@@ -46,27 +46,35 @@ export default function PortfolioContent({ allAccounts }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const { theme } = useTheme();
 
-  const refresh = useCallback(async () => {
-    if (selected.length === 0) {
-      setOverview(null);
-      setHistoryData(null);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const [ov, hist] = await Promise.all([
-        getPortfolioOverviewAction(selected),
-        getPortfolioHistoryAction(selected),
-      ]);
-      setOverview(ov);
-      setHistoryData(hist);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load portfolio");
-    } finally {
-      setLoading(false);
-    }
-  }, [selected]);
+  const refresh = useCallback(
+    async (options?: { silent?: boolean }) => {
+      const silent = options?.silent ?? false;
+      if (selected.length === 0) {
+        setOverview(null);
+        setHistoryData(null);
+        return;
+      }
+      if (!silent) {
+        setLoading(true);
+      }
+      setError(null);
+      try {
+        const [ov, hist] = await Promise.all([
+          getPortfolioOverviewAction(selected),
+          getPortfolioHistoryAction(selected),
+        ]);
+        setOverview(ov);
+        setHistoryData(hist);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to load portfolio");
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+      }
+    },
+    [selected]
+  );
 
   useEffect(() => {
     refresh();
@@ -223,12 +231,10 @@ export default function PortfolioContent({ allAccounts }: Props) {
       <AddInvestmentDialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
+        selectedAccounts={selected}
         accounts={allAccounts}
         investments={overview?.investments ?? []}
-        onSuccess={() => {
-          setDialogOpen(false);
-          refresh();
-        }}
+        onSuccess={refresh}
       />
     </Box>
   );
