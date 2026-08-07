@@ -106,7 +106,7 @@ export default function CollectionChart({ history, theme }: Props) {
     yaxis: {
       title: { text: "Value (USD)" },
       tickprefix: "$",
-      tickformat: ",.0f",
+      tickformat: "~s",
       showgrid: false,
     },
     yaxis2: {
@@ -114,7 +114,7 @@ export default function CollectionChart({ history, theme }: Props) {
       overlaying: "y" as const,
       side: "right" as const,
       showgrid: false,
-      tickformat: ",.0f",
+      tickformat: "~s",
     },
     legendgroupclick: "togglegroup",
   } as Partial<Layout>;

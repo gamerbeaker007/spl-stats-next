@@ -67,7 +67,7 @@ export default function PortfolioTotalChart({ history, cumulativeInvestments, th
     yaxis: {
       title: { text: "USD ($)" },
       tickprefix: "$",
-      tickformat: ",.3f",
+      tickformat: "~s",
       showgrid: false,
     },
   };

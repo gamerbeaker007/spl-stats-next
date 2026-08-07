@@ -26,6 +26,7 @@ export default function MarketplaceAccountBar({
     accountOptions,
     addLocalAccount,
     removeLocalAccount,
+    savedAccounts,
   } = useAccounts();
 
   const [addAccountInput, setAddAccountInput] = useState("");
@@ -51,8 +52,9 @@ export default function MarketplaceAccountBar({
             addLocalAccount(addAccountInput);
             setAddAccountInput("");
           }}
-          onRemoveSelected={() => removeLocalAccount(selectedAccount)}
-          removeDisabled={!selectedAccount || monitoredAccounts.includes(selectedAccount)}
+          monitoredAccounts={monitoredAccounts}
+          localAccounts={savedAccounts}
+          onRemoveAccount={removeLocalAccount}
           extraContent={
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
               {extraContent}

@@ -211,6 +211,7 @@ export default function BuyCardDialog({
     message?: string;
   } | null>(null);
   const [dynamicCardUids, setDynamicCardUids] = useState<string[]>([]);
+  const [allowExtraCopies, setAllowExtraCopies] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -575,7 +576,8 @@ export default function BuyCardDialog({
       }
 
       const req = calculateUpgradeRequirements(accountState.totalCc, level, combineRates);
-      const selection = selectCheapestListings(rows, req.missingCc);
+      const effectiveMissingCc = allowExtraCopies ? req.targetCc : req.missingCc;
+      const selection = selectCheapestListings(rows, effectiveMissingCc);
       const plan = buildPurchasePlan({
         account: selectedAccount,
         cardName: name,
@@ -622,6 +624,7 @@ export default function BuyCardDialog({
     rows,
     selectedAccount,
     selectedFoil,
+    allowExtraCopies,
   ]);
 
   async function handleCombineAtLevel(targetLevel: number) {
@@ -844,6 +847,7 @@ export default function BuyCardDialog({
                 accountTotalCc: accountState.totalCc,
                 accountOwnedBreakdown,
                 isHighestCcAtMaxLevel,
+                allowExtraCopies,
                 buyBusy,
                 balance,
               }}
@@ -852,6 +856,7 @@ export default function BuyCardDialog({
                 onRunCheckoutForPlan: runCheckoutForPlan,
                 onCombineAtLevel:
                   dynamicCardUids.length > 0 && combineRates ? handleCombineAtLevel : undefined,
+                onAllowExtraCopiesChange: setAllowExtraCopies,
               }}
             />
           ) : (

@@ -37,7 +37,7 @@ interface MarketAssetTableProps {
 }
 
 const iconStyle = { width: "1.05rem", height: "1.05rem" } as const;
-type SortField = "displayName" | "numOwned" | "numListed" | "price";
+type SortField = "displayName" | "circulation" | "numOwned" | "numListed" | "price";
 
 /**
  * Dense table view of marketplace assets — the same items and actions as
@@ -55,6 +55,9 @@ export default function MarketAssetTable({ items, onAction }: Readonly<MarketAss
       switch (sortBy) {
         case "displayName":
           result = a.displayName.localeCompare(b.displayName);
+          break;
+        case "circulation":
+          result = a.numCirculation - b.numCirculation;
           break;
         case "numOwned":
           result = getActualOwnedQuantity(a) - getActualOwnedQuantity(b);
@@ -93,6 +96,15 @@ export default function MarketAssetTable({ items, onAction }: Readonly<MarketAss
                 onClick={() => handleSort("displayName")}
               >
                 Item
+              </TableSortLabel>
+            </TableCell>
+            <TableCell align="right">
+              <TableSortLabel
+                active={sortBy === "circulation"}
+                direction={sortBy === "circulation" ? sortDirection : "asc"}
+                onClick={() => handleSort("circulation")}
+              >
+                Circulation
               </TableSortLabel>
             </TableCell>
             <TableCell align="right">
@@ -192,6 +204,7 @@ export default function MarketAssetTable({ items, onAction }: Readonly<MarketAss
                     </Stack>
                   </Tooltip>
                 </TableCell>
+                <TableCell align="right">{item.numCirculation}</TableCell>
                 <TableCell align="right">{actualOwned}</TableCell>
                 <TableCell align="right">{item.numListed}</TableCell>
                 <TableCell align="right">

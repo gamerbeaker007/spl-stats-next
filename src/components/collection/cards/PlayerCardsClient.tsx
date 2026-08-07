@@ -2,12 +2,26 @@
 
 import { CardFilterDrawer } from "@/components/collection/cards/CardFilterDrawer";
 import { PlayerCardsContent } from "@/components/collection/cards/PlayerCardsContent";
+import MarketViewToggle from "@/components/collection/marketplace/MarketViewToggle";
 import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
+import { getCollectionMarketPricesAction } from "@/lib/backend/actions/buy-missing-cc-actions";
+import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import { CardFilterProvider } from "@/lib/frontend/context/CardFilterContext";
-import { Box, Skeleton, Typography } from "@mui/material";
+import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
+import {
+  Box,
+  Button,
+  Checkbox,
+  FormControlLabel,
+  Skeleton,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MdRefresh } from "react-icons/md";
 
 function PlayerCardsSkeleton() {
   return (
@@ -42,8 +56,16 @@ function DashboardContent() {
     accountOptions,
     addLocalAccount,
     removeLocalAccount,
+    savedAccounts,
   } = useAccounts();
+  const { notifyCollectionRefresh } = usePurchasePlan();
   const [addAccountInput, setAddAccountInput] = useState("");
+  const [refreshCooldown, setRefreshCooldown] = useState(false);
+  const [showPrices, setShowPrices] = useState(false);
+  const [marketPrices, setMarketPrices] = useState<
+    Record<string, { qty: number; lowPriceBcx: number; lowPrice: number }> | undefined
+  >(undefined);
+  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selectedUsersFromUrl = useMemo(() => {
     if (!userParam) return [];
@@ -67,6 +89,21 @@ function DashboardContent() {
     return [];
   }, [accountOptions, collectionSelectedAccounts, selectedAccount, selectedUsersFromUrl]);
 
+  const handleHardRefresh = useCallback(async () => {
+    if (refreshCooldown || selectedUsers.length === 0) return;
+    setRefreshCooldown(true);
+    await revalidateTagsAction([{ type: "collection", usernames: selectedUsers }]);
+    notifyCollectionRefresh();
+    cooldownTimerRef.current = setTimeout(() => setRefreshCooldown(false), 60_000);
+  }, [refreshCooldown, selectedUsers, notifyCollectionRefresh]);
+
+  useEffect(
+    () => () => {
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+    },
+    []
+  );
+
   useEffect(() => {
     if (selectedUsersFromUrl.length === 0) return;
     setCollectionSelectedAccounts(selectedUsersFromUrl);
@@ -79,6 +116,15 @@ function DashboardContent() {
     if (currentParam === nextParam) return;
     router.replace(`${pathname}?users=${encodeURIComponent(nextParam)}`);
   }, [pathname, router, selectedUsers, userParam]);
+
+  useEffect(() => {
+    if (!showPrices) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMarketPrices(undefined);
+      return;
+    }
+    getCollectionMarketPricesAction().then(setMarketPrices);
+  }, [showPrices]);
 
   return (
     <Box>
@@ -107,14 +153,51 @@ function DashboardContent() {
             addLocalAccount(addAccountInput);
             setAddAccountInput("");
           }}
-          onRemoveSelected={() => removeLocalAccount(selectedUsers[0] ?? "")}
-          removeDisabled={!selectedUsers[0] || monitoredAccounts.includes(selectedUsers[0])}
+          monitoredAccounts={monitoredAccounts}
+          localAccounts={savedAccounts}
+          onRemoveAccount={removeLocalAccount}
+          extraContent={
+            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={showPrices}
+                    onChange={(e) => setShowPrices(e.target.checked)}
+                  />
+                }
+                label="Show Prices"
+              />
+              <MarketViewToggle />
+              <Tooltip
+                title={
+                  refreshCooldown ? "Refresh available in ~60s" : "Force refresh collection data"
+                }
+              >
+                <span>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<MdRefresh />}
+                    disabled={refreshCooldown || selectedUsers.length === 0}
+                    onClick={handleHardRefresh}
+                  >
+                    Refresh
+                  </Button>
+                </span>
+              </Tooltip>
+            </Stack>
+          }
         />
       </Box>
 
       {selectedUsers.length > 0 ? (
         <CardFilterProvider key="filter-provider">
-          <DrawerAndContent selectedUsers={selectedUsers} />
+          <DrawerAndContent
+            selectedUsers={selectedUsers}
+            showPrices={showPrices}
+            marketPrices={marketPrices}
+          />
         </CardFilterProvider>
       ) : (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="35vh">
@@ -125,7 +208,15 @@ function DashboardContent() {
   );
 }
 
-function DrawerAndContent({ selectedUsers }: Readonly<{ selectedUsers: string[] }>) {
+function DrawerAndContent({
+  selectedUsers,
+  showPrices,
+  marketPrices,
+}: Readonly<{
+  selectedUsers: string[];
+  showPrices?: boolean;
+  marketPrices?: Record<string, { qty: number; lowPriceBcx: number; lowPrice: number }>;
+}>) {
   const multipleSelected = selectedUsers.length > 1;
 
   return (
@@ -149,6 +240,8 @@ function DrawerAndContent({ selectedUsers }: Readonly<{ selectedUsers: string[] 
                 username={username}
                 showHeader={multipleSelected}
                 selectableAccounts={selectedUsers}
+                showPrices={showPrices}
+                marketPrices={marketPrices}
               />
             </Suspense>
           </Box>

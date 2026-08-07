@@ -6,6 +6,7 @@ import {
   MdDashboard,
   MdGridOn,
   MdHome,
+  MdMap,
   MdPeople,
   MdRssFeed,
   MdShowChart,
@@ -16,6 +17,7 @@ export interface NavLink {
   href: string;
   label: string;
   icon: React.ReactNode;
+  target?: string;
 }
 
 export const navLinks: NavLink[] = [
@@ -30,6 +32,12 @@ export const navLinks: NavLink[] = [
   { href: "/hive-blog", label: "Hive Blog", icon: <MdRssFeed size={22} /> },
   { href: "/spl-metrics", label: "SPL Metrics", icon: <MdShowChart size={22} /> },
   { href: "/users", label: "Users", icon: <MdPeople size={22} /> },
+  {
+    href: "https://land.spl-stats.com",
+    label: "Land",
+    icon: <MdMap size={22} />,
+    target: "_blank",
+  },
   { href: "/admin", label: "Admin", icon: <MdAdminPanelSettings size={22} /> },
 ];
 

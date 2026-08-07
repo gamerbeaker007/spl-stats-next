@@ -17,4 +17,5 @@ export type CacheInvalidationTarget =
   | { type: "card-details" }
   | { type: "settings" }
   | { type: "maintenance" }
-  | { type: "grouped-market" };
+  | { type: "grouped-market" }
+  | { type: "portfolio"; usernames: string[] };

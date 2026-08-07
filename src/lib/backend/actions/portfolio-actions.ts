@@ -1,18 +1,23 @@
 "use server";
 
 import {
+  getCachedPortfolioInvestments,
+  getCachedPortfolioSnapshots,
+} from "@/lib/backend/cache/portfolio-cache";
+import {
   addPortfolioInvestment,
   deletePortfolioInvestment,
   getPortfolioInvestmentById,
   getPortfolioInvestments,
+  updatePortfolioInvestmentNotes,
 } from "@/lib/backend/db/portfolio-investments";
-import { getPortfolioSnapshots } from "@/lib/backend/db/portfolio-snapshots";
 import type {
   CollectionEditionDetail,
   InventoryItemDetail,
   PortfolioData,
 } from "@/types/portfolio";
 import { getCurrentUser, getMonitoredAccounts } from "./auth-actions";
+import { revalidateTagsAction } from "./cache-actions";
 
 // ---------------------------------------------------------------------------
 // Types returned to the client
@@ -62,6 +67,7 @@ export interface InvestmentEntry {
   date: string; // ISO date string "YYYY-MM-DD"
   username: string;
   amount: number;
+  notes: string | null;
 }
 
 export interface PortfolioOverviewResult {
@@ -69,6 +75,32 @@ export interface PortfolioOverviewResult {
   investments: InvestmentEntry[];
   /** Running cumulative investment total at each entry, in chronological order. */
   totalInvested: number;
+}
+
+/**
+ * Returns portfolio investment entries for the selected monitored usernames.
+ */
+export async function getPortfolioInvestmentsAction(
+  usernames: string[]
+): Promise<InvestmentEntry[]> {
+  if (!usernames || usernames.length === 0) return [];
+
+  const user = await getCurrentUser();
+  if (!user) return [];
+
+  const monitoredAccounts = await getMonitoredAccounts();
+  const monitoredSet = new Set(monitoredAccounts.map((a) => a.username));
+  const safeUsernames = usernames.filter((u) => monitoredSet.has(u));
+  if (safeUsernames.length === 0) return [];
+
+  const rawInvestments = await getCachedPortfolioInvestments(safeUsernames);
+  return rawInvestments.map((inv) => ({
+    id: inv.id,
+    date: inv.date.toISOString().slice(0, 10),
+    username: inv.username,
+    amount: inv.amount,
+    notes: inv.notes ?? null,
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -110,7 +142,7 @@ export async function getPortfolioOverviewAction(
   // Fetch latest snapshot for each username
   const snapshotsByAccount = await Promise.all(
     safeUsernames.map(async (username) => {
-      const all = await getPortfolioSnapshots(username);
+      const all = await getCachedPortfolioSnapshots(username);
       return all.length > 0 ? all[all.length - 1] : null;
     })
   );
@@ -201,12 +233,13 @@ export async function getPortfolioOverviewAction(
   }
 
   // Investments
-  const rawInvestments = await getPortfolioInvestments(safeUsernames);
+  const rawInvestments = await getCachedPortfolioInvestments(safeUsernames);
   const investments: InvestmentEntry[] = rawInvestments.map((inv) => ({
     id: inv.id,
     date: inv.date.toISOString().slice(0, 10),
     username: inv.username,
     amount: inv.amount,
+    notes: inv.notes ?? null,
   }));
 
   const totalInvested = investments.reduce((acc, inv) => acc + inv.amount, 0);
@@ -297,7 +330,7 @@ export async function getPortfolioHistoryAction(
   }
 
   const allSnapshots = (
-    await Promise.all(safeUsernames.map((u) => getPortfolioSnapshots(u)))
+    await Promise.all(safeUsernames.map((u) => getCachedPortfolioSnapshots(u)))
   ).flat();
 
   // Group snapshots by date string
@@ -441,35 +474,105 @@ export async function getPortfolioHistoryAction(
 
 export type UserInvestmentResult = { success: true } | { success: false; error: string };
 
+const INVESTMENT_NOTES_MAX_LENGTH = 140;
+
+function normalizeUsernameInput(username: string): string {
+  return username.trim().toLowerCase();
+}
+
+function parseDateOnly(dateStr: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
+  const [yearStr, monthStr, dayStr] = dateStr.split("-");
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
+
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return date;
+}
+
+function normalizeInvestmentNotes(notes?: string | null): string | null {
+  if (typeof notes !== "string") return null;
+
+  const normalized = notes
+    .replace(/\r\n/g, "\n")
+    .replace(/\u0000/g, "")
+    .trim()
+    .slice(0, INVESTMENT_NOTES_MAX_LENGTH);
+
+  return normalized.length > 0 ? normalized : null;
+}
+
 export async function addUserInvestmentAction(
   dateStr: string,
   username: string,
   amount: number,
-  type: "deposit" | "withdraw"
+  type: "deposit" | "withdraw",
+  notes?: string
 ): Promise<UserInvestmentResult> {
   const user = await getCurrentUser();
   if (!user) return { success: false, error: "Unauthorized" };
 
-  if (!dateStr || !username || !amount || isNaN(amount) || amount <= 0) {
+  const normalizedUsername = normalizeUsernameInput(username);
+
+  if (!dateStr || !normalizedUsername || !Number.isFinite(amount) || amount <= 0) {
     return { success: false, error: "Date, username and a positive amount are required" };
   }
 
   // Verify the account is monitored by this user
   const accounts = await getMonitoredAccounts();
-  const usernames = accounts.map((a) => a.username);
-  if (!usernames.includes(username.toLowerCase().trim())) {
+  const usernames = new Set(accounts.map((a) => a.username));
+  if (!usernames.has(normalizedUsername)) {
     return { success: false, error: "Account not in your monitored list" };
   }
 
-  const dateParts = dateStr.split("-");
-  if (dateParts.length !== 3) return { success: false, error: `Invalid date: ${dateStr}` };
-  const date = new Date(Date.UTC(+dateParts[0], +dateParts[1] - 1, +dateParts[2]));
-  if (isNaN(date.getTime())) return { success: false, error: `Unparseable date: ${dateStr}` };
+  const date = parseDateOnly(dateStr);
+  if (!date) return { success: false, error: `Invalid date: ${dateStr}` };
 
   const storedAmount = type === "withdraw" ? -Math.abs(amount) : Math.abs(amount);
+  const trimmedNotes = normalizeInvestmentNotes(notes);
 
   try {
-    await addPortfolioInvestment(date, username, storedAmount);
+    await addPortfolioInvestment(date, normalizedUsername, storedAmount, trimmedNotes ?? undefined);
+    await revalidateTagsAction([{ type: "portfolio", usernames: [normalizedUsername] }]);
+    return { success: true };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { success: false, error: msg };
+  }
+}
+
+export async function updateUserInvestmentNotesAction(
+  id: string,
+  notes: string
+): Promise<UserInvestmentResult> {
+  const user = await getCurrentUser();
+  if (!user) return { success: false, error: "Unauthorized" };
+
+  if (!id) return { success: false, error: "ID required" };
+
+  const inv = await getPortfolioInvestmentById(id);
+  if (!inv) return { success: false, error: "Investment not found" };
+
+  const accounts = await getMonitoredAccounts();
+  const monitoredUsernames = accounts.map((a) => a.username);
+  if (!monitoredUsernames.includes(inv.username)) {
+    return { success: false, error: "Access denied" };
+  }
+
+  try {
+    await updatePortfolioInvestmentNotes(id, normalizeInvestmentNotes(notes));
+    await revalidateTagsAction([{ type: "portfolio", usernames: [inv.username] }]);
     return { success: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -495,6 +598,7 @@ export async function deleteUserInvestmentAction(id: string): Promise<UserInvest
 
   try {
     await deletePortfolioInvestment(id);
+    await revalidateTagsAction([{ type: "portfolio", usernames: [inv.username] }]);
     return { success: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

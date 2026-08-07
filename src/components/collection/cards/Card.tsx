@@ -13,6 +13,7 @@ interface Props {
   opacity?: number;
   priority?: boolean;
   onClick?: () => void;
+  priceInfo?: { qty: number; lowPriceBcx: number; lowPrice: number };
 }
 
 // Fixed dimensions for card images to prevent layout shift
@@ -30,6 +31,7 @@ export const Card = ({
   opacity = 1,
   priority = false,
   onClick,
+  priceInfo,
 }: Props) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -187,6 +189,23 @@ export const Card = ({
         <Typography variant="body1" sx={{ mt: 0.5 }}>
           {subTitle}
         </Typography>
+        {priceInfo && (
+          <Box sx={{ mt: 0.25, textAlign: "center" }}>
+            <Typography variant="caption" color="text.secondary" display="block">
+              Listed: {priceInfo.qty}
+            </Typography>
+            {priceInfo.lowPriceBcx > 0 && (
+              <Typography variant="caption" color="text.secondary" display="block">
+                ${priceInfo.lowPriceBcx.toFixed(3)}/BCX
+              </Typography>
+            )}
+            {priceInfo.lowPrice > 0 && (
+              <Typography variant="caption" color="text.secondary" display="block">
+                ${priceInfo.lowPrice.toFixed(3)} 1 BCX
+              </Typography>
+            )}
+          </Box>
+        )}
       </Box>
     </Tooltip>
   );

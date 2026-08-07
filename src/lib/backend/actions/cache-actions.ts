@@ -1,6 +1,7 @@
 "use server";
 
 import { CACHE_TAGS, CacheInvalidationTarget } from "@/lib/backend/cache/cache-tags";
+import { PORTFOLIO_CACHE_TAGS } from "@/lib/backend/cache/portfolio-cache-tags";
 import { revalidateTag } from "next/cache";
 
 const REVALIDATE_PROFILE = "max";
@@ -56,6 +57,14 @@ export async function revalidateTagsAction(targets: CacheInvalidationTarget[]) {
 
     if (target.type === "grouped-market") {
       revalidateTag(CACHE_TAGS.splGroupedMarket, REVALIDATE_PROFILE);
+      continue;
+    }
+
+    if (target.type === "portfolio") {
+      for (const username of uniqueLower(target.usernames)) {
+        revalidateTag(PORTFOLIO_CACHE_TAGS.snapshots(username), REVALIDATE_PROFILE);
+        revalidateTag(PORTFOLIO_CACHE_TAGS.investments(username), REVALIDATE_PROFILE);
+      }
       continue;
     }
   }

@@ -12,10 +12,14 @@ export function PlayerCardsContent({
   username,
   showHeader = false,
   selectableAccounts,
+  showPrices,
+  marketPrices,
 }: Readonly<{
   username: string;
   showHeader?: boolean;
   selectableAccounts?: string[];
+  showPrices?: boolean;
+  marketPrices?: Record<string, { qty: number; lowPriceBcx: number; lowPrice: number }>;
 }>) {
   const [cardCollection, setCardCollection] = useState<DetailedPlayerCardCollection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -82,6 +86,8 @@ export function PlayerCardsContent({
         username={username}
         playerCards={cardCollection}
         selectableAccounts={selectableAccounts}
+        showPrices={showPrices}
+        marketPrices={marketPrices}
       />
     </Box>
   );

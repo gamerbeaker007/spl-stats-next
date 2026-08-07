@@ -326,19 +326,20 @@ model PortfolioSnapshot {
 
 // Investment entries: deposits and withdrawals tracked per account.
 // Positive amount = deposit, negative = withdrawal.
-// No unique constraint on (username, date) — multiple entries per day are allowed.
-// Unique on (username, date, amount) to prevent exact duplicate imports.
+// Multiple entries with identical (username, date, amount) are allowed
+// because users may intentionally split transactions.
 model PortfolioInvestment {
   id        String   @id @default(cuid())
   date      DateTime @db.Date
   username  String
   amount    Float    // positive = deposit, negative = withdrawal
+  notes     String?  @db.VarChar(140)
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  @@unique([username, date, amount])
   @@index([username])
   @@index([date])
+  @@index([username, date, amount])
   @@map("portfolio_investments")
 }
 

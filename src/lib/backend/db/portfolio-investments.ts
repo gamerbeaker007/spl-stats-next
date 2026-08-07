@@ -5,6 +5,7 @@ export interface PortfolioInvestmentRow {
   date: Date;
   username: string;
   amount: number;
+  notes: string | null;
   createdAt: Date;
 }
 
@@ -12,44 +13,83 @@ export interface PortfolioInvestmentRow {
 export async function upsertPortfolioInvestment(
   date: Date,
   username: string,
-  amount: number
+  amount: number,
+  notes?: string
 ): Promise<"created" | "skipped"> {
   const dateOnly = toDateOnly(date);
-  try {
-    await prisma.portfolioInvestment.create({
-      data: { date: dateOnly, username: username.toLowerCase().trim(), amount },
-    });
-    return "created";
-  } catch (err: unknown) {
-    // Unique constraint violation → duplicate, skip
-    if (isPrismaUniqueViolation(err)) return "skipped";
-    throw err;
-  }
+  const normalizedUsername = username.toLowerCase().trim();
+
+  const existing = await prisma.portfolioInvestment.findFirst({
+    where: {
+      username: normalizedUsername,
+      date: dateOnly,
+      amount,
+    },
+    select: { id: true },
+  });
+
+  if (existing) return "skipped";
+
+  await prisma.portfolioInvestment.create({
+    data: {
+      date: dateOnly,
+      username: normalizedUsername,
+      amount,
+      notes: notes ?? null,
+    },
+  });
+
+  return "created";
 }
 
-/** Add a manual deposit (positive) or withdrawal (negative amount).
- *  If an entry already exists for the same date + username, its amount is updated (accumulated). */
+function buildInvestmentSignature(username: string, date: Date, amount: number): string {
+  return `${username.toLowerCase().trim()}|${date.toISOString().slice(0, 10)}|${amount}`;
+}
+
+function uniqueBySignature(
+  items: { date: Date; username: string; amount: number }[]
+): { date: Date; username: string; amount: number }[] {
+  const out: { date: Date; username: string; amount: number }[] = [];
+  const seen = new Set<string>();
+
+  for (const item of items) {
+    const normalized = {
+      date: toDateOnly(item.date),
+      username: item.username.toLowerCase().trim(),
+      amount: item.amount,
+    };
+    const sig = buildInvestmentSignature(normalized.username, normalized.date, normalized.amount);
+    if (seen.has(sig)) continue;
+    seen.add(sig);
+    out.push(normalized);
+  }
+
+  return out;
+}
+
+/** Add a manual deposit (positive) or withdrawal (negative amount). Always inserts a new row. */
 export async function addPortfolioInvestment(
   date: Date,
   username: string,
-  amount: number
+  amount: number,
+  notes?: string
 ): Promise<PortfolioInvestmentRow> {
   const dateOnly = toDateOnly(date);
   const user = username.toLowerCase().trim();
 
-  const existing = await prisma.portfolioInvestment.findFirst({
-    where: { username: user, date: dateOnly },
-  });
-
-  if (existing) {
-    return prisma.portfolioInvestment.update({
-      where: { id: existing.id },
-      data: { amount: existing.amount + amount },
-    });
-  }
-
   return prisma.portfolioInvestment.create({
-    data: { date: dateOnly, username: user, amount },
+    data: { date: dateOnly, username: user, amount, notes: notes ?? null },
+  });
+}
+
+/** Update the notes on an existing investment entry. */
+export async function updatePortfolioInvestmentNotes(
+  id: string,
+  notes: string | null
+): Promise<PortfolioInvestmentRow> {
+  return prisma.portfolioInvestment.update({
+    where: { id },
+    data: { notes },
   });
 }
 
@@ -66,12 +106,39 @@ export async function createPortfolioInvestmentsBatch(
   items: { date: Date; username: string; amount: number }[]
 ): Promise<number> {
   if (items.length === 0) return 0;
-  const data = items.map(({ date, username, amount }) => ({
-    date: toDateOnly(date),
-    username: username.toLowerCase().trim(),
-    amount,
-  }));
-  const { count } = await prisma.portfolioInvestment.createMany({ data, skipDuplicates: true });
+
+  const normalized = uniqueBySignature(items);
+  if (normalized.length === 0) return 0;
+
+  const usernames = Array.from(new Set(normalized.map((i) => i.username)));
+  const dates = Array.from(new Set(normalized.map((i) => i.date.toISOString().slice(0, 10)))).map(
+    (d) => new Date(`${d}T00:00:00.000Z`)
+  );
+
+  const existing = await prisma.portfolioInvestment.findMany({
+    where: {
+      username: { in: usernames },
+      date: { in: dates },
+    },
+    select: {
+      username: true,
+      date: true,
+      amount: true,
+    },
+  });
+
+  const existingSignatures = new Set(
+    existing.map((row) => buildInvestmentSignature(row.username, row.date, row.amount))
+  );
+
+  const data = normalized.filter(
+    (item) =>
+      !existingSignatures.has(buildInvestmentSignature(item.username, item.date, item.amount))
+  );
+
+  if (data.length === 0) return 0;
+
+  const { count } = await prisma.portfolioInvestment.createMany({ data });
   return count;
 }
 
@@ -108,13 +175,4 @@ function toDateOnly(d: Date): Date {
   const out = new Date(d);
   out.setUTCHours(0, 0, 0, 0);
   return out;
-}
-
-function isPrismaUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === "object" &&
-    err !== null &&
-    "code" in err &&
-    (err as { code: string }).code === "P2002"
-  );
 }
