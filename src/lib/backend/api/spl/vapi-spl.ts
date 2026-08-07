@@ -73,9 +73,13 @@ export interface VapiStakedDecEntry {
 }
 
 export interface VapiResourcePool {
+  id: number;
   token_symbol: string;
+  is_external_resource?: boolean;
+  resource_quantity: number | string;
+  dec_quantity?: number | string;
   resource_price: number; // DEC per 1 resource unit
-  total_shares: number;
+  total_shares: number | string;
 }
 
 export interface VapiResourcesResponse {
@@ -84,6 +88,54 @@ export interface VapiResourcesResponse {
 
 export interface VapiLandResourcePool {
   data: VapiResourcePool[];
+}
+
+interface VapiPlayerLiquidityEntry {
+  player: string;
+  token: string;
+  balance: number | string;
+}
+
+interface VapiPlayerLiquidityResponse {
+  status: string;
+  data?: {
+    single?: VapiPlayerLiquidityEntry[];
+  };
+}
+
+export interface VapiPlayerLiquidityPosition {
+  token: string;
+  shares: number;
+}
+
+interface VapiLiquidityPoolInfo {
+  id: number;
+  token_symbol: string;
+  resource_quantity: number | string;
+  dec_quantity: number | string;
+  total_shares: number | string;
+}
+
+interface VapiLiquidityPoolInfoResponse {
+  status: string;
+  data?: VapiLiquidityPoolInfo;
+}
+
+export interface DecSpsLiquidityPoolResult {
+  decQty: number;
+  spsQty: number;
+  decValue: number;
+  spsValue: number;
+  hasPosition: boolean;
+}
+
+function parseNumeric(value: number | string | null | undefined): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value === "string") {
+    const parsed = parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -153,6 +205,118 @@ export async function fetchLandResourcePools(): Promise<VapiResourcePool[]> {
     logger.error(`vapi: fetchLandResourcePools: ${error instanceof Error ? error.message : error}`);
     throw error;
   }
+}
+
+/**
+ * Fetch a player's LP entries for SPS-related in-game pools.
+ * The DEC-SPS entry is expected under token "DEC-SPS".
+ */
+export async function fetchPlayerLiquidityPoolsSps(
+  player: string
+): Promise<VapiPlayerLiquidityEntry[]> {
+  try {
+    const res = await vapiClient.get<VapiPlayerLiquidityResponse>(
+      `/land/liquidity/pools/${encodeURIComponent(player)}/SPS`
+    );
+    return res.data?.data?.single ?? [];
+  } catch (error) {
+    logger.error(
+      `vapi: fetchPlayerLiquidityPoolsSps(${player}): ${error instanceof Error ? error.message : error}`
+    );
+    throw error;
+  }
+}
+
+/**
+ * Fetch a player's share count for a specific pool symbol.
+ * For land resources this is token DEC-<SYMBOL> (e.g. DEC-WOOD).
+ */
+export async function fetchPlayerLiquidityPoolShares(
+  player: string,
+  poolSymbol: string
+): Promise<VapiPlayerLiquidityPosition | null> {
+  try {
+    const res = await vapiClient.get<VapiPlayerLiquidityResponse>(
+      `/land/liquidity/pools/${encodeURIComponent(player)}/${encodeURIComponent(poolSymbol)}`
+    );
+
+    const expectedToken = `DEC-${poolSymbol.toUpperCase()}`;
+    const entry = res.data?.data?.single?.find((item) => item.token === expectedToken);
+    if (!entry) return null;
+
+    return {
+      token: entry.token,
+      shares: parseNumeric(entry.balance),
+    };
+  } catch (error) {
+    logger.warn(
+      `vapi: fetchPlayerLiquidityPoolShares(${player}, ${poolSymbol}): ${
+        error instanceof Error ? error.message : error
+      }`
+    );
+    return null;
+  }
+}
+
+/**
+ * Fetch in-game DEC-SPS pool totals (pool id 100).
+ */
+export async function fetchDecSpsLiquidityPoolInfo(): Promise<VapiLiquidityPoolInfo | null> {
+  try {
+    const res = await vapiClient.get<VapiLiquidityPoolInfoResponse>("/land/liquidity/pools/100");
+    const info = res.data?.data;
+    if (!info || info.token_symbol !== "SPS") return null;
+    return info;
+  } catch (error) {
+    logger.error(
+      `vapi: fetchDecSpsLiquidityPoolInfo: ${error instanceof Error ? error.message : error}`
+    );
+    throw error;
+  }
+}
+
+/**
+ * Calculate a player's underlying DEC/SPS from in-game DEC-SPS LP shares.
+ */
+export async function calculateDECSPSPoolValue(
+  player: string,
+  decPriceUsd: number,
+  spsPriceUsd: number
+): Promise<DecSpsLiquidityPoolResult> {
+  const [playerEntries, poolInfo] = await Promise.all([
+    fetchPlayerLiquidityPoolsSps(player),
+    fetchDecSpsLiquidityPoolInfo(),
+  ]);
+
+  if (!poolInfo) {
+    return { decQty: 0, spsQty: 0, decValue: 0, spsValue: 0, hasPosition: false };
+  }
+
+  const decSpsEntry = playerEntries.find((entry) => entry.token === "DEC-SPS");
+  if (!decSpsEntry) {
+    return { decQty: 0, spsQty: 0, decValue: 0, spsValue: 0, hasPosition: false };
+  }
+
+  const userShares = parseNumeric(decSpsEntry.balance);
+  const totalShares = parseNumeric(poolInfo.total_shares);
+  const poolSpsQty = parseNumeric(poolInfo.resource_quantity);
+  const poolDecQty = parseNumeric(poolInfo.dec_quantity);
+
+  if (userShares <= 0 || totalShares <= 0) {
+    return { decQty: 0, spsQty: 0, decValue: 0, spsValue: 0, hasPosition: false };
+  }
+
+  const ownership = userShares / totalShares;
+  const decQty = poolDecQty * ownership;
+  const spsQty = poolSpsQty * ownership;
+
+  return {
+    decQty,
+    spsQty,
+    decValue: decQty * decPriceUsd,
+    spsValue: spsQty * spsPriceUsd,
+    hasPosition: true,
+  };
 }
 
 /** Fetch how much of a given resource a player currently holds. */

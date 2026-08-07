@@ -41,6 +41,7 @@ function buildSnapshotFields(data: PortfolioData) {
     liqPoolDecQty: data.liqPoolDecQty,
     liqPoolSpsValue: data.liqPoolSpsValue,
     liqPoolSpsQty: data.liqPoolSpsQty,
+    liqPoolDetailed: data.liqPoolDetailed as unknown as Prisma.InputJsonValue,
     inventoryValue: data.inventoryValue,
     inventoryQty: data.inventoryQty,
     inventoryDetail: data.inventoryDetail as unknown as Prisma.InputJsonValue,

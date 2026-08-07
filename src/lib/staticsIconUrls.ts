@@ -113,3 +113,8 @@ export const magic_icon_url = `${WEB_URL}website/stats/2.0/128/magic.webp`;
 export const armor_icon_url = `${WEB_URL}website/stats/2.0/128/armor.webp`;
 export const health_icon_url = `${WEB_URL}website/stats/2.0/128/health.webp`;
 export const speed_icon_url = `${WEB_URL}website/stats/2.0/128/speed.webp`;
+
+export const resource_grain_icon_url = `${WEB_URL}website/land/resources/grain.png`;
+export const resource_stone_icon_url = `${WEB_URL}website/land/resources/stone_500.webp`;
+export const resource_wood_icon_url = `${WEB_URL}website/land/resources/wood_500.webp`;
+export const resource_iron_icon_url = `${WEB_URL}website/land/resources/iron_500.webp`;

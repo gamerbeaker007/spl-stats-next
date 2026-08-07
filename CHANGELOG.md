@@ -9,6 +9,18 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.12.0] - 2026-08-07
+
+### Added
+
+- **Portfolio DEC-SPS detail split** — The DEC-SPS info dialog now shows explicit source rows (`DEC (InGame)`, `DEC (HE)`, `SPS (InGame)`, `SPS (HE)`) instead of combined fallback entries.
+
+### Fixed
+
+- **Land resource pool share detection** — Portfolio land resource pooling now reads player LP balances from symbol endpoints (for example `/land/liquidity/pools/<player>/WOOD`) and uses `DEC-<SYMBOL>` balances for share ownership, fixing `poolQty`/`poolValue` being zero when pool positions exist.
+- **Land resource pool math typing** — Pool totals are now parsed numerically from vAPI payloads before ownership math, preventing malformed calculations when numeric fields arrive as strings.
+- **Land pool valuation model** — Land resource portfolio values now exclude non-land pools (for example SPS) and include the DEC side of each resource pool ownership, so pool valuation reflects both underlying assets.
+
 ## [v1.11.0] -
 
 ### Added

@@ -7,7 +7,7 @@
  */
 
 import {
-  calculateDECSPSPoolValue,
+  calculateDECSPSPoolValue as calculateDECSPSPoolValueHE,
   fetchHETokenPriceHive,
 } from "@/lib/backend/api/hive-engine/hive-engine-api";
 import { fetchPeakmonstersMarketPrices } from "@/lib/backend/api/peakmonsters/peakmonsters-api";
@@ -18,11 +18,13 @@ import {
   fetchSplPrices,
 } from "@/lib/backend/api/spl/spl-api";
 import {
+  calculateDECSPSPoolValue as calculateDECSPSPoolValueInGame,
   fetchLandResourcePools,
   fetchMarketDeeds,
   fetchMarketLanding,
   fetchOwnedDeeds,
   fetchOwnedResource,
+  fetchPlayerLiquidityPoolShares,
   fetchStakedDec,
   VapiDeed,
 } from "@/lib/backend/api/spl/vapi-spl";
@@ -32,15 +34,13 @@ import type {
   DeedDetail,
   InventoryItemDetail,
   LandResourceDetail,
+  LiquidityPoolDetail,
   PortfolioData,
 } from "@/types/portfolio";
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-// LAND_SWAP_FEE: 10% swap fee applied when computing resource value via the land pool.
-const LAND_SWAP_FEE = 0.9;
 
 // ---------------------------------------------------------------------------
 // Token balances & values
@@ -278,13 +278,43 @@ async function computeLandResourceValues(
   for (const pool of pools) {
     if (shouldStop()) break;
 
-    const qty = await fetchOwnedResource(username, pool.token_symbol);
-    if (qty <= 0) continue;
+    if (pool.token_symbol === "SPS") continue; // SPS is not a land resource, skip
 
-    const value = qty * pool.resource_price * LAND_SWAP_FEE * decPriceUsd;
+    const [liquidQty, poolPosition] = await Promise.all([
+      fetchOwnedResource(username, pool.token_symbol),
+      fetchPlayerLiquidityPoolShares(username, pool.token_symbol),
+    ]);
+
+    const totalShares = Number(pool.total_shares ?? 0);
+    const shares = poolPosition?.shares ?? 0;
+    const ownership = totalShares > 0 && shares > 0 ? shares / totalShares : 0;
+    const resourceQuantity = Number(pool.resource_quantity ?? 0);
+    const decQuantity = Number(pool.dec_quantity ?? 0);
+    const poolQty = ownership > 0 ? resourceQuantity * ownership : 0;
+    const poolDecQty = ownership > 0 ? decQuantity * ownership : 0;
+
+    const swapFeeOneSize = 0.95; // 5% swap fee applied when computing resource value via the land pool
+    const liquidValue = liquidQty * pool.resource_price * swapFeeOneSize * decPriceUsd;
+    const poolValue = poolQty * pool.resource_price * swapFeeOneSize * decPriceUsd;
+    const poolDecValue = poolDecQty * swapFeeOneSize * decPriceUsd;
+
+    const qty = liquidQty + poolQty;
+    const value = liquidValue + poolValue + poolDecValue;
+    if (qty <= 0 && value <= 0) continue;
+
     totalValue += value;
     totalQty += qty;
-    detailed.push({ resource: pool.token_symbol, qty, value });
+    detailed.push({
+      resource: pool.token_symbol,
+      qty,
+      value,
+      liquidQty,
+      liquidValue,
+      poolQty,
+      poolValue,
+      poolDecQty,
+      poolDecValue,
+    });
   }
 
   return {
@@ -383,7 +413,49 @@ export async function computePortfolioData(
 
   // ── Step 7: liquidity pool ───────────────────────────────────────────────
   if (shouldStop()) return null;
-  const liqResult = await calculateDECSPSPoolValue(username, decPriceUsd, spsPriceUsd);
+  let liqInGame = { decQty: 0, spsQty: 0, decValue: 0, spsValue: 0 };
+  let liqHE = { decQty: 0, spsQty: 0, decValue: 0, spsValue: 0 };
+
+  try {
+    const inGamePool = await calculateDECSPSPoolValueInGame(username, decPriceUsd, spsPriceUsd);
+    liqInGame = {
+      decQty: inGamePool.decQty,
+      spsQty: inGamePool.spsQty,
+      decValue: inGamePool.decValue,
+      spsValue: inGamePool.spsValue,
+    };
+  } catch (error) {
+    console.warn(
+      `portfolio: in-game DEC-SPS pool lookup failed for ${username}: ${
+        error instanceof Error ? error.message : error
+      }`
+    );
+  }
+
+  try {
+    liqHE = await calculateDECSPSPoolValueHE(username, decPriceUsd, spsPriceUsd);
+  } catch (error) {
+    console.warn(
+      `portfolio: Hive Engine DEC-SPS pool lookup failed for ${username}: ${
+        error instanceof Error ? error.message : error
+      }`
+    );
+  }
+
+  const liqResult = {
+    decQty: liqInGame.decQty + liqHE.decQty,
+    spsQty: liqInGame.spsQty + liqHE.spsQty,
+    decValue: liqInGame.decValue + liqHE.decValue,
+    spsValue: liqInGame.spsValue + liqHE.spsValue,
+  };
+
+  const liqPoolDetailedBase: LiquidityPoolDetail[] = [
+    { token: "DEC", source: "InGame", qty: liqInGame.decQty, value: liqInGame.decValue },
+    { token: "SPS", source: "InGame", qty: liqInGame.spsQty, value: liqInGame.spsValue },
+    { token: "DEC", source: "HE", qty: liqHE.decQty, value: liqHE.decValue },
+    { token: "SPS", source: "HE", qty: liqHE.spsQty, value: liqHE.spsValue },
+  ];
+  const liqPoolDetailed = liqPoolDetailedBase.filter((row) => row.qty > 0 || row.value > 0);
 
   // ── Step 8: inventory ───────────────────────────────────────────────────
   // Market landing already includes numOwned per asset — no extra API call needed.
@@ -429,6 +501,7 @@ export async function computePortfolioData(
     liqPoolDecValue: liqResult.decValue,
     liqPoolSpsQty: liqResult.spsQty,
     liqPoolSpsValue: liqResult.spsValue,
+    liqPoolDetailed,
 
     inventoryValue,
     inventoryQty,

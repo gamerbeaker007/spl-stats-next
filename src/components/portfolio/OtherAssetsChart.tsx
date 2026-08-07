@@ -37,7 +37,7 @@ const ASSET_DEFS: AssetDef[] = [
   { name: "SPS Staked", key: "spspValue", qtyKey: "spspQty", color: "#6a1b9a", dash: "dash" },
   { name: "Deeds", key: "deedsValue", qtyKey: "deedsQty", color: "#2e7d32" },
   { name: "Land Resources", key: "landResourceValue", qtyKey: "landResourceQty", color: "#558b2f" },
-  { name: "Liq. Pool", key: "liqPoolValue", qtyKey: "liqPoolQty", color: "#f57f17" },
+  { name: "DEC-SPS Pool", key: "liqPoolValue", qtyKey: "liqPoolQty", color: "#f57f17" },
   { name: "VOUCHER", key: "voucherValue", qtyKey: "voucherQty", color: "#ad1457" },
   { name: "Credits", key: "creditsValue", qtyKey: "creditsQty", color: "#00695c" },
   { name: "DEC-B", key: "decBValue", qtyKey: "decBQty", color: "#0277bd" },

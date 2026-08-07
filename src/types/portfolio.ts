@@ -21,6 +21,19 @@ export interface LandResourceDetail {
   resource: string;
   qty: number;
   value: number;
+  liquidQty: number;
+  liquidValue: number;
+  poolQty: number;
+  poolValue: number;
+  poolDecQty: number;
+  poolDecValue: number;
+}
+
+export interface LiquidityPoolDetail {
+  token: "DEC" | "SPS";
+  source: "InGame" | "HE";
+  qty: number;
+  value: number;
 }
 
 export interface InventoryItemDetail {
@@ -75,6 +88,7 @@ export interface PortfolioData {
   liqPoolDecQty: number;
   liqPoolSpsValue: number;
   liqPoolSpsQty: number;
+  liqPoolDetailed: LiquidityPoolDetail[];
 
   // Inventory items (packs, skins, totems, etc.)
   inventoryValue: number;

@@ -11,9 +11,12 @@ import {
   getPortfolioInvestments,
   updatePortfolioInvestmentNotes,
 } from "@/lib/backend/db/portfolio-investments";
+import { getLatestPortfolioSnapshot } from "@/lib/backend/db/portfolio-snapshots";
 import type {
   CollectionEditionDetail,
   InventoryItemDetail,
+  LandResourceDetail,
+  LiquidityPoolDetail,
   PortfolioData,
 } from "@/types/portfolio";
 import { getCurrentUser, getMonitoredAccounts } from "./auth-actions";
@@ -51,11 +54,13 @@ export interface CombinedPortfolioSnapshot {
   deedsQty: number;
   landResourceValue: number;
   landResourceQty: number;
+  landResourceDetails: LandResourceDetail[];
 
   liqPoolDecValue: number;
   liqPoolDecQty: number;
   liqPoolSpsValue: number;
   liqPoolSpsQty: number;
+  liqPoolDetailed: LiquidityPoolDetail[];
 
   inventoryValue: number;
   inventoryQty: number;
@@ -142,8 +147,7 @@ export async function getPortfolioOverviewAction(
   // Fetch latest snapshot for each username
   const snapshotsByAccount = await Promise.all(
     safeUsernames.map(async (username) => {
-      const all = await getCachedPortfolioSnapshots(username);
-      return all.length > 0 ? all[all.length - 1] : null;
+      return await getLatestPortfolioSnapshot(username);
     })
   );
 
@@ -203,11 +207,69 @@ export async function getPortfolioOverviewAction(
       deedsQty: sum("deedsQty"),
       landResourceValue: sum("landResourceValue"),
       landResourceQty: sum("landResourceQty"),
+      landResourceDetails: (() => {
+        const resourceMap = new Map<string, LandResourceDetail>();
+        for (const snap of validSnapshots) {
+          const details = (snap.landResourceDetailed ?? []) as unknown as LandResourceDetail[];
+          for (const d of details) {
+            const key = d.resource;
+            const existing = resourceMap.get(key);
+            if (existing) {
+              existing.qty += d.qty;
+              existing.value += d.value;
+              existing.liquidQty += d.liquidQty ?? d.qty;
+              existing.liquidValue += d.liquidValue ?? d.value;
+              existing.poolQty += d.poolQty ?? 0;
+              existing.poolValue += d.poolValue ?? 0;
+              existing.poolDecQty += d.poolDecQty ?? 0;
+              existing.poolDecValue += d.poolDecValue ?? 0;
+            } else {
+              resourceMap.set(key, {
+                ...d,
+                liquidQty: d.liquidQty ?? d.qty,
+                liquidValue: d.liquidValue ?? d.value,
+                poolQty: d.poolQty ?? 0,
+                poolValue: d.poolValue ?? 0,
+                poolDecQty: d.poolDecQty ?? 0,
+                poolDecValue: d.poolDecValue ?? 0,
+              });
+            }
+          }
+        }
+
+        return Array.from(resourceMap.values())
+          .filter((d) => d.value > 0 || d.qty > 0)
+          .sort((a, b) => b.value - a.value);
+      })(),
 
       liqPoolDecValue: sum("liqPoolDecValue"),
       liqPoolDecQty: sum("liqPoolDecQty"),
       liqPoolSpsValue: sum("liqPoolSpsValue"),
       liqPoolSpsQty: sum("liqPoolSpsQty"),
+      liqPoolDetailed: (() => {
+        const liqMap = new Map<string, LiquidityPoolDetail>();
+        for (const snap of validSnapshots) {
+          const details = (snap.liqPoolDetailed ?? []) as unknown as LiquidityPoolDetail[];
+          for (const d of details) {
+            if (!d || !d.token || !d.source) continue;
+            const key = `${d.token}|${d.source}`;
+            const existing = liqMap.get(key);
+            if (existing) {
+              existing.qty += d.qty;
+              existing.value += d.value;
+            } else {
+              liqMap.set(key, { ...d });
+            }
+          }
+        }
+
+        return Array.from(liqMap.values())
+          .filter((d) => d.value > 0 || d.qty > 0)
+          .sort((a, b) => {
+            if (a.token === b.token) return a.source.localeCompare(b.source);
+            return a.token.localeCompare(b.token);
+          });
+      })(),
 
       inventoryValue: sum("inventoryValue"),
       inventoryQty: sum("inventoryQty"),

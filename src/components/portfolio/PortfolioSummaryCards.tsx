@@ -1,15 +1,19 @@
 "use client";
 
-import type { CombinedPortfolioSnapshot } from "@/lib/backend/actions/portfolio-actions";
 import PortfolioDetailDialog, {
   type DetailRow,
 } from "@/components/portfolio/PortfolioDetailDialog";
+import type { CombinedPortfolioSnapshot } from "@/lib/backend/actions/portfolio-actions";
 import {
   cards_icon_url,
   coins_icon_url,
   dec_icon_url,
   land_icon_url,
   other_icon_url,
+  resource_grain_icon_url,
+  resource_iron_icon_url,
+  resource_stone_icon_url,
+  resource_wood_icon_url,
   sps_icon_url,
 } from "@/lib/staticsIconUrls";
 import Box from "@mui/material/Box";
@@ -103,6 +107,16 @@ function usd(value: number): string {
   return `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+function landResourceIconUrl(resource: string): string {
+  const resourceUrls: Record<string, string> = {
+    grain: resource_grain_icon_url,
+    stone: resource_stone_icon_url,
+    wood: resource_wood_icon_url,
+    iron: resource_iron_icon_url,
+  };
+  return resourceUrls[resource.toLowerCase()] ?? "";
+}
+
 interface DialogState {
   title: string;
   rows: DetailRow[];
@@ -127,6 +141,40 @@ export default function PortfolioSummaryCards({ snapshot, totalInvested }: Props
     qty: d.qty,
     value: d.value,
   }));
+
+  const liqPoolDetailed = Array.isArray(snapshot.liqPoolDetailed) ? snapshot.liqPoolDetailed : [];
+
+  const liqPoolRows: DetailRow[] = liqPoolDetailed
+    .map((row) => ({
+      name: `${row.token} (${row.source})`,
+      qty: row.qty,
+      value: row.value,
+      iconUrl: row.token === "DEC" ? dec_icon_url : sps_icon_url,
+    }))
+    .filter((r) => r.value > 0 || r.qty > 0);
+
+  const landResourceRows: DetailRow[] = snapshot.landResourceDetails
+    .flatMap((resource) => [
+      {
+        name: `${resource.resource} (Liquid)`,
+        qty: resource.liquidQty ?? resource.qty,
+        value: resource.liquidValue ?? resource.value,
+        iconUrl: landResourceIconUrl(resource.resource),
+      },
+      {
+        name: `${resource.resource} (Pool)`,
+        qty: resource.poolQty ?? 0,
+        value: resource.poolValue ?? 0,
+        iconUrl: landResourceIconUrl(resource.resource),
+      },
+      {
+        name: `DEC (Pool via ${resource.resource})`,
+        qty: resource.poolDecQty ?? 0,
+        value: resource.poolDecValue ?? 0,
+        iconUrl: dec_icon_url,
+      },
+    ])
+    .filter((r) => r.value > 0 || r.qty > 0);
   const totalValue =
     snapshot.collectionMarketValue +
     snapshot.decValue +
@@ -189,7 +237,14 @@ export default function PortfolioSummaryCards({ snapshot, totalInvested }: Props
       imageUrl: land_icon_url,
       lines: [
         { label: "Deeds", value: usd(snapshot.deedsValue) },
-        { label: "Resources", value: usd(snapshot.landResourceValue) },
+        {
+          label: "Resources",
+          value: usd(snapshot.landResourceValue),
+          onInfo:
+            landResourceRows.length > 0
+              ? () => openDialog("Resources for Land", landResourceRows)
+              : undefined,
+        },
         { label: "Total", value: usd(landValue) },
       ],
       color: "success.main",
@@ -204,7 +259,12 @@ export default function PortfolioSummaryCards({ snapshot, totalInvested }: Props
           onInfo:
             inventoryRows.length > 0 ? () => openDialog("Inventory", inventoryRows) : undefined,
         },
-        { label: "Liq. Pool", value: usd(snapshot.liqPoolDecValue + snapshot.liqPoolSpsValue) },
+        {
+          label: "DEC-SPS Pool",
+          value: usd(snapshot.liqPoolDecValue + snapshot.liqPoolSpsValue),
+          onInfo:
+            liqPoolRows.length > 0 ? () => openDialog("DEC-SPS Pool", liqPoolRows) : undefined,
+        },
         {
           label: "Tokens",
           value: usd(

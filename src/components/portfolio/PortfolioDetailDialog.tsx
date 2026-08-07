@@ -1,5 +1,6 @@
 "use client";
 
+import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -15,6 +16,7 @@ export interface DetailRow {
   name: string;
   qty: number;
   value: number;
+  iconUrl?: string;
 }
 
 interface Props {
@@ -48,7 +50,19 @@ export default function PortfolioDetailDialog({ open, onClose, title, rows }: Pr
           <TableBody>
             {rows.map((row) => (
               <TableRow key={row.name} hover>
-                <TableCell>{row.name}</TableCell>
+                <TableCell>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    {row.iconUrl ? (
+                      <Box
+                        component="img"
+                        src={row.iconUrl}
+                        alt={row.name}
+                        sx={{ width: 18, height: 18, objectFit: "contain" }}
+                      />
+                    ) : null}
+                    <span>{row.name}</span>
+                  </Box>
+                </TableCell>
                 <TableCell align="right">{fmtQty(row.qty)}</TableCell>
                 <TableCell align="right">{fmtUsd(row.value)}</TableCell>
               </TableRow>

@@ -304,6 +304,8 @@ model PortfolioSnapshot {
   liqPoolDecQty   Float @default(0) @map("liq_pool_dec_qty")
   liqPoolSpsValue Float @default(0) @map("liq_pool_sps_value")
   liqPoolSpsQty   Float @default(0) @map("liq_pool_sps_qty")
+  // [{token, source, qty, value}]
+  liqPoolDetailed Json? @map("liq_pool_detailed")
 
   // Inventory items (packs, skins, totems, etc.) → [{name, assetName, qty, value}]
   inventoryValue  Float @default(0) @map("inventory_value")
