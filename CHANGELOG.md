@@ -9,6 +9,27 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.13.0] - 2026-08-11
+
+### Added
+
+- **Pool balances in dashboard DEC/SPS** — The multi-account dashboard DEC and SPS cards now include the player's underlying DEC/SPS held in DEC-SPS liquidity pools, using the same pool-share math as the portfolio snapshot (`calculateDECSPSPoolValue` for in-game vAPI pool 100 and for Hive Engine `marketpools`). Each card carries a `Wallet + Bound + Pool` / `Wallet + Staked + Pool` subtitle, and the tooltip breaks the total down per source (wallet, bound/staked, delegations, pool in-game, pool Hive Engine). `/players/balances` covers only the in-game wallet, so pool quantities are strictly additive — nothing is double-counted.
+- **Per-account force refresh** — The dashboard card refresh button now performs a real force refresh: `forceRefreshDashboardAccount(username)` expires every cached dashboard read for **that account only** (`dashboard-account` cache-invalidation target) before re-fetching balances, pool balances, details, draws, season rewards, daily progress and collection. Other accounts' caches are untouched, so refresh stays cheap on a many-account dashboard.
+
+### Changed
+
+- **Dashboard reads now cached** — All multi-account dashboard data goes through `"use cache"` wrappers instead of hitting Splinterlands on every mount:
+  - `hours`: DEC-SPS pool balances (collapses 4 upstream requests per account into one entry), global card listing prices, global PeakMonsters market prices, card collection.
+  - `minutes`: player balances, player details, ranked/frontier draws, current-season rewards, daily progress (3 requests → 1 entry), brawl details.
+- **Global price fetches shared across accounts** — `getPlayersCardCollection` previously re-fetched listing prices and PeakMonsters market prices once per dashboard card. Both are now globally cached, so a 10-account dashboard makes 2 of these calls instead of 20.
+- **Energy deliberately not heavily cached** — Ranked/frontier energy is derived from the `ECR`/`FECR` entries of `/players/balances`, and energy is consumed per battle. Because one response feeds both the slow-moving wallet tokens and energy, the balances cache stays on the short `minutes` profile — the strictest freshness requirement wins. Same reasoning keeps player details, draws, season rewards and daily progress on `minutes`.
+- **Single fetch per data source** — `CardCollection` and `PlayerDailies` no longer fetch on their own; `PlayerCard` owns `usePlayerCardCollection` and `useDailyProgress` and passes the results down. This removes the duplicate collection hook instance and lets the force refresh re-fetch daily progress along with everything else.
+- **Authenticated cache wrappers** — New `lib/backend/cache/spl-authenticated-cache.ts` resolves the SPL JWT *inside* the cached function, so the token never becomes part of a cache key. The shared `getDecryptedJwt` helper moved from `player-actions.ts` to `lib/backend/auth/jwt.ts`.
+
+### Fixed
+
+- **Swallowed prerender bailout in auth actions** — `getCurrentUser` and `getMonitoredAccounts` caught the internal abort signal Next throws when `cookies()` is reached during prerendering, and returned `null`/`[]` instead of letting the render bail out to its dynamic hole. Because `PageGuard` treats a null user as logged out, the prerendered shell for `/battles/*`, `/hive-blog`, `/portfolio`, `/season`, `/spl-metrics` and `/users` baked in the "Log in to view this page" alert (masked at runtime by the dynamic re-render). `getCurrentUser`'s guard also matched the obsolete `Dynamic server usage` message rather than Next 16's PPR wording, so the signal was logged as an `[ERROR]` on every build — 26 lines across 11 routes. Every `catch` in `auth-actions.ts` now calls the new `rethrowFrameworkErrors` helper (`lib/backend/next-errors.ts`, wrapping `unstable_rethrow`) before its own handling, so framework control-flow errors propagate while genuine errors keep the existing logging and fallback return. Build output is now free of `[ERROR]` lines and all routes keep their previous prerender mode.
+
 ## [v1.12.0] - 2026-08-07
 
 ### Added

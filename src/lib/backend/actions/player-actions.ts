@@ -1,25 +1,25 @@
 "use server";
 
-import { fetchPeakmonstersMarketPrices } from "@/lib/backend/api/peakmonsters/peakmonsters-api";
+import { fetchPlayerHistoryByDateRange } from "@/lib/backend/api/spl/spl-authenticated-api";
+import { getDecryptedJwt } from "@/lib/backend/auth/jwt";
+import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import {
-  fetchCardCollection,
-  fetchCurrentRewards,
-  fetchFrontierDraws,
-  fetchListingPrices,
-  fetchPlayerBalances,
-  fetchPlayerDetails,
-  fetchRankedDraws,
-} from "@/lib/backend/api/spl/spl-api";
+  getCachedBrawlDetails,
+  getCachedDailyProgress,
+} from "@/lib/backend/cache/spl-authenticated-cache";
 import {
-  fetchBrawlDetails,
-  fetchDailyProgress,
-  fetchPlayerHistoryByDateRange,
-} from "@/lib/backend/api/spl/spl-authenticated-api";
-import { decryptToken } from "@/lib/backend/auth/encryption";
-import { getCachedSplCardDetails } from "@/lib/backend/cache/spl-cache";
+  getCachedPeakmonstersMarketPrices,
+  getCachedPlayerPoolBalances,
+  getCachedSplCardCollection,
+  getCachedSplCardDetails,
+  getCachedSplListingPrices,
+  getCachedSplPlayerBalances,
+  getCachedSplPlayerDetails,
+  getCachedSplPlayerDraws,
+  getCachedSplSeasonRewards,
+} from "@/lib/backend/cache/spl-cache";
 import { getSeasonBalances } from "@/lib/backend/db/season-balances";
 import { getAllSeasons, getLatestSeason, getSeasonById } from "@/lib/backend/db/seasons";
-import { getSplAccountCredentials } from "@/lib/backend/db/spl-accounts";
 import { getDetailedPlayerCardCollectionCached } from "@/lib/backend/services/collection-detailed";
 import { getPlayerCollectionValue } from "@/lib/collectionUtils";
 import {
@@ -32,40 +32,36 @@ import { ParsedHistory, ParsedPlayerRewardHistory, PurchaseResult } from "@/type
 import { PlayerCardCollectionData } from "@/types/playerCardCollection";
 import { DailyProgressData } from "@/types/playerDailyProgress";
 import { SeasonBalanceHistory, TokenBalanceSummary } from "@/types/spl/balanceHistory";
+import { PlayerPoolBalances } from "@/types/spl/balances";
 import { getCurrentUser, getMonitoredAccounts } from "./auth-actions";
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-async function getDecryptedJwt(username: string): Promise<string | undefined> {
-  const creds = await getSplAccountCredentials(username);
-  if (!creds) return undefined;
-  return decryptToken(creds.encryptedToken, creds.iv, creds.authTag);
-}
-
-// ---------------------------------------------------------------------------
 // Public actions (no token required)
+//
+// All reads go through the `"use cache"` wrappers in `cache/spl-cache.ts` so
+// repeated dashboard mounts and multiple accounts share cached data instead of
+// hitting Splinterlands on every render.
 // ---------------------------------------------------------------------------
 
 export async function getPlayerDetails(username: string) {
-  return fetchPlayerDetails(username);
+  return getCachedSplPlayerDetails(username);
 }
 
 export async function getPlayerBalances(username: string) {
-  return fetchPlayerBalances(username);
+  return getCachedSplPlayerBalances(username);
 }
 
 export async function getPlayerDraws(username: string) {
-  const [ranked, frontier] = await Promise.all([
-    fetchRankedDraws(username),
-    fetchFrontierDraws(username),
-  ]);
-  return { ranked, frontier };
+  return getCachedSplPlayerDraws(username);
 }
 
 export async function getPlayerSeasonRewards(username: string) {
-  return fetchCurrentRewards(username);
+  return getCachedSplSeasonRewards(username);
+}
+
+/** Underlying DEC/SPS held in the player's DEC-SPS liquidity pool positions. */
+export async function getPlayerPoolBalances(username: string): Promise<PlayerPoolBalances> {
+  return getCachedPlayerPoolBalances(username);
 }
 
 export async function getCardDetails() {
@@ -85,39 +81,21 @@ async function assertMonitorsAccount(username: string): Promise<boolean> {
 
 export async function getPlayerBrawl(username: string, guildId: string, tournamentId: string) {
   if (!(await assertMonitorsAccount(username))) return null;
-  const token = await getDecryptedJwt(username);
-  return fetchBrawlDetails(guildId, tournamentId, username, token);
+  return getCachedBrawlDetails(username, guildId, tournamentId);
 }
 
 export async function getPlayersDailyProgress(username: string): Promise<DailyProgressData | null> {
   if (!(await assertMonitorsAccount(username))) return null;
-  const token = await getDecryptedJwt(username);
-  if (!token) return null;
-
-  const [modern, wild, foundation] = await Promise.allSettled([
-    fetchDailyProgress(username, token, "modern"),
-    fetchDailyProgress(username, token, "wild"),
-    fetchDailyProgress(username, token, "foundation"),
-  ]);
-
-  return {
-    username,
-    timestamp: new Date().toISOString(),
-    format: {
-      modern: modern.status === "fulfilled" ? modern.value : undefined,
-      wild: wild.status === "fulfilled" ? wild.value : undefined,
-      foundation: foundation.status === "fulfilled" ? foundation.value : undefined,
-    },
-  };
+  return getCachedDailyProgress(username);
 }
 
 export async function getPlayersCardCollection(
   username: string
 ): Promise<PlayerCardCollectionData> {
   const [collection, listPrices, marketPrices] = await Promise.all([
-    fetchCardCollection(username),
-    fetchListingPrices(),
-    fetchPeakmonstersMarketPrices(),
+    getCachedSplCardCollection(username),
+    getCachedSplListingPrices(),
+    getCachedPeakmonstersMarketPrices(),
   ]);
   const playerCollectionValue = await getPlayerCollectionValue(
     collection,
@@ -130,6 +108,23 @@ export async function getPlayersCardCollection(
     collectionPower: collection.collection_power,
     playerCollectionValue,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Force refresh (per account)
+// ---------------------------------------------------------------------------
+
+/**
+ * Expire every cached dashboard read for a single monitored account so the next
+ * fetch goes to Splinterlands. Scoped per account on purpose — refreshing one
+ * card must not invalidate the other accounts' cached data.
+ *
+ * Returns `false` when the caller does not monitor `username`.
+ */
+export async function forceRefreshDashboardAccount(username: string): Promise<boolean> {
+  if (!(await assertMonitorsAccount(username))) return false;
+  await revalidateTagsAction([{ type: "dashboard-account", usernames: [username] }]);
+  return true;
 }
 
 export async function getDetailedPlayerCardCollection(

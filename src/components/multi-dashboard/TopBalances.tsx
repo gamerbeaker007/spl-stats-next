@@ -1,10 +1,11 @@
 import { credits_icon_url, dec_icon_url, sps_icon_url } from "@/lib/staticsIconUrls";
 import { largeNumberFormat } from "@/lib/utils";
-import { SplBalance } from "@/types/spl/balances";
-import { Avatar, Box, Card, Tooltip, Typography } from "@mui/material";
+import { PlayerPoolBalances, SplBalance } from "@/types/spl/balances";
+import { Avatar, Box, Card, Divider, Tooltip, Typography } from "@mui/material";
 
 interface Props {
   balances?: SplBalance[];
+  poolBalances?: PlayerPoolBalances;
 }
 
 const iconSize = 20;
@@ -27,7 +28,7 @@ const MyCard = ({ iconUrl, title, value }: { iconUrl: string; title: string; val
   </Card>
 );
 
-export default function TopBalances({ balances }: Props) {
+export default function TopBalances({ balances, poolBalances }: Props) {
   // Extract balance values
   const credits = balances?.find((b) => b.token === "CREDITS")?.balance || 0;
   const dec = balances?.find((b) => b.token === "DEC")?.balance || 0;
@@ -36,22 +37,39 @@ export default function TopBalances({ balances }: Props) {
   const spsp = balances?.find((b) => b.token === "SPSP")?.balance || 0;
   const spspIn = balances?.find((b) => b.token === "SPSP-IN")?.balance || 0;
   const spspOut = balances?.find((b) => b.token === "SPSP-OUT")?.balance || 0;
+  const rankedSPS = spsp + spspIn - spspOut;
+
+  // Liquidity pool holdings. `/players/balances` covers the in-game wallet only,
+  // so pool quantities are additive — nothing is double-counted here.
+  const poolDecInGame = poolBalances?.inGameDecQty ?? 0;
+  const poolDecHE = poolBalances?.heDecQty ?? 0;
+  const poolSpsInGame = poolBalances?.inGameSpsQty ?? 0;
+  const poolSpsHE = poolBalances?.heSpsQty ?? 0;
+  const poolDec = poolBalances?.decQty ?? 0;
+  const poolSps = poolBalances?.spsQty ?? 0;
 
   // Calculate totals
-  const totalDec = dec + decBound;
-  const totalSps = sps + spsp;
+  const totalDec = dec + decBound + poolDec;
+  const totalSps = sps + spsp + poolSps;
 
   return (
     <Box sx={{ display: "flex", gap: 1, width: "100%" }}>
       {/* Box 1: Credits */}
       <MyCard iconUrl={credits_icon_url} title="Credits" value={largeNumberFormat(credits)} />
-
       {/* Box 2: DEC Total */}
       <Tooltip
         title={
           <Box>
             <Typography variant="body2">DEC: {largeNumberFormat(dec)}</Typography>
             <Typography variant="body2">DEC-B: {largeNumberFormat(decBound)}</Typography>
+            <Typography variant="body2">
+              DEC Pool (in-game): {largeNumberFormat(poolDecInGame)}
+            </Typography>
+            <Typography variant="body2">DEC Pool (HE): {largeNumberFormat(poolDecHE)}</Typography>
+
+            <Box sx={{ mt: 1 }}>
+              <Divider />
+            </Box>
           </Box>
         }
         arrow
@@ -61,7 +79,6 @@ export default function TopBalances({ balances }: Props) {
           <MyCard iconUrl={dec_icon_url} title="DEC" value={largeNumberFormat(totalDec)} />
         </Box>
       </Tooltip>
-
       {/* Box 3: SPS Total */}
       <Tooltip
         title={
@@ -70,6 +87,15 @@ export default function TopBalances({ balances }: Props) {
             <Typography variant="body2">SPS Staked: {largeNumberFormat(spsp)}</Typography>
             <Typography variant="body2">SPS Delegated In: {largeNumberFormat(spspIn)}</Typography>
             <Typography variant="body2">SPS Delegated Out: {largeNumberFormat(spspOut)}</Typography>
+            <Typography variant="body2">
+              SPS Pool (in-game): {largeNumberFormat(poolSpsInGame)}
+            </Typography>
+            <Typography variant="body2">SPS Pool (HE): {largeNumberFormat(poolSpsHE)}</Typography>
+
+            <Box sx={{ mt: 1 }}>
+              <Divider />
+            </Box>
+            <Typography variant="body2">SPS for Rewards: {largeNumberFormat(rankedSPS)}</Typography>
           </Box>
         }
         arrow

@@ -1,8 +1,8 @@
 "use client";
 
-import { useDailyProgress } from "@/hooks/multi-account-dashboard/useDailyProgress";
 import { largeNumberFormat } from "@/lib/utils";
 import { SplBalance } from "@/types/spl/balances";
+import { DailyProgressData } from "@/types/playerDailyProgress";
 import { SplDailyProgress } from "@/types/spl/dailies";
 import { SplPlayerDetails } from "@/types/spl/details";
 import { Timer as TimerIcon, EmojiEvents as TrophyIcon } from "@mui/icons-material";
@@ -20,10 +20,15 @@ import {
 } from "@mui/material";
 import { useEffect, useState } from "react";
 
+/**
+ * Presentational — daily progress is fetched once per account by `PlayerCard`
+ * so the per-card force refresh can re-fetch it together with the rest.
+ */
 interface Props {
-  username: string;
   playerDetails?: SplPlayerDetails;
   balances?: SplBalance[];
+  dailyProgress?: DailyProgressData | null;
+  dailyProgressLoading?: boolean;
 }
 
 const maxEntriesPerDay = 15;
@@ -193,9 +198,12 @@ const DailyProgressCard = ({
   );
 };
 
-export default function PlayerDailies({ username, balances, playerDetails }: Props) {
-  const { data, loading } = useDailyProgress(username);
-
+export default function PlayerDailies({
+  balances,
+  playerDetails,
+  dailyProgress: data,
+  dailyProgressLoading: loading,
+}: Props) {
   const hasWildMatches = (playerDetails?.season_details?.wild?.battles ?? 0) > 0;
   const hasModernMatches = (playerDetails?.season_details?.modern?.battles ?? 0) > 0;
   const hasFrontierMatches = (playerDetails?.season_details?.foundation?.battles ?? 0) > 0;

@@ -1,6 +1,10 @@
 "use server";
 
-import { CACHE_TAGS, CacheInvalidationTarget } from "@/lib/backend/cache/cache-tags";
+import {
+  CACHE_TAGS,
+  CacheInvalidationTarget,
+  dashboardAccountTags,
+} from "@/lib/backend/cache/cache-tags";
 import { PORTFOLIO_CACHE_TAGS } from "@/lib/backend/cache/portfolio-cache-tags";
 import { revalidateTag } from "next/cache";
 
@@ -57,6 +61,15 @@ export async function revalidateTagsAction(targets: CacheInvalidationTarget[]) {
 
     if (target.type === "grouped-market") {
       revalidateTag(CACHE_TAGS.splGroupedMarket, REVALIDATE_PROFILE);
+      continue;
+    }
+
+    if (target.type === "dashboard-account") {
+      for (const username of uniqueLower(target.usernames)) {
+        for (const tag of dashboardAccountTags(username)) {
+          revalidateTag(tag, REVALIDATE_PROFILE);
+        }
+      }
       continue;
     }
 

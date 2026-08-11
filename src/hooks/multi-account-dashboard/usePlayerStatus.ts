@@ -3,6 +3,7 @@ import {
   getPlayerBrawl,
   getPlayerDetails,
   getPlayerDraws,
+  getPlayerPoolBalances,
 } from "@/lib/backend/actions/player-actions";
 import { PlayerStatusData } from "@/types/playerStatus";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -35,11 +36,13 @@ export function usePlayerStatus(username: string): UsePlayerStatusReturn {
     setError(null);
 
     try {
-      const [balancesResult, drawsResult, detailsResult] = await Promise.allSettled([
-        getPlayerBalances(username),
-        getPlayerDraws(username),
-        getPlayerDetails(username),
-      ]);
+      const [balancesResult, drawsResult, detailsResult, poolBalancesResult] =
+        await Promise.allSettled([
+          getPlayerBalances(username),
+          getPlayerDraws(username),
+          getPlayerDetails(username),
+          getPlayerPoolBalances(username),
+        ]);
 
       if (!isMountedRef.current) return;
 
@@ -55,6 +58,15 @@ export function usePlayerStatus(username: string): UsePlayerStatusReturn {
           balancesResult.reason instanceof Error
             ? balancesResult.reason.message
             : "Failed to fetch balances";
+      }
+
+      if (poolBalancesResult.status === "fulfilled") {
+        result.poolBalances = poolBalancesResult.value;
+      } else {
+        result.poolBalancesError =
+          poolBalancesResult.reason instanceof Error
+            ? poolBalancesResult.reason.message
+            : "Failed to fetch pool balances";
       }
 
       if (drawsResult.status === "fulfilled") {

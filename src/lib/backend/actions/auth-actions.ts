@@ -43,6 +43,7 @@ import {
 } from "@/lib/backend/db/spl-accounts";
 import { getUserById, upsertUser } from "@/lib/backend/db/users";
 import logger from "@/lib/backend/log/logger.server";
+import { rethrowFrameworkErrors } from "@/lib/backend/next-errors";
 import { JWT_WARN_DAYS } from "@/lib/shared/token-constants";
 
 function errorMessage(err: unknown): string {
@@ -69,6 +70,7 @@ export async function getAuthStatus() {
     if (!user) return { authenticated: false, username: null };
     return { authenticated: true, username: user.username };
   } catch (error) {
+    rethrowFrameworkErrors(error);
     logger.error(`getAuthStatus error: ${error}`);
     return { authenticated: false, username: null };
   }
@@ -100,6 +102,7 @@ export async function loginAction(username: string, timestamp: number, signature
     logger.info(`User ${username} logged in successfully (Hive-only auth)`);
     return { success: true, username: user.username };
   } catch (error) {
+    rethrowFrameworkErrors(error);
     logger.error(`loginAction error: ${error}`);
     return { success: false, error: errorMessage(error) };
   }
@@ -114,6 +117,7 @@ export async function logoutAction() {
     await deleteUserCookie();
     return { success: true };
   } catch (error) {
+    rethrowFrameworkErrors(error);
     logger.error(`logout error: ${error}`);
     return { success: false, error: errorMessage(error) };
   }
@@ -211,6 +215,7 @@ export async function addMonitoredAccountWithKeychain(
     logger.info(`Monitored account '${lc}' added for user ${userId}`);
     return { success: true, accountId: link.id, username: lc, jwtExpiresAt };
   } catch (error) {
+    rethrowFrameworkErrors(error);
     logger.error(`addMonitoredAccountWithKeychain error: ${error}`);
     return { success: false, error: errorMessage(error) };
   }
@@ -225,11 +230,8 @@ export async function getCurrentUser() {
 
     return await getUserById(userId);
   } catch (error) {
-    // Suppress Next.js static-render probe errors (expected during build)
-    const msg = errorMessage(error);
-    if (!msg.includes("Dynamic server usage")) {
-      logger.error(`getCurrentUser error: ${error}`);
-    }
+    rethrowFrameworkErrors(error);
+    logger.error(`getCurrentUser error: ${error}`);
     return null;
   }
 }
@@ -241,6 +243,7 @@ export async function getMonitoredAccounts() {
 
     return await listMonitoredAccounts(userId);
   } catch (error) {
+    rethrowFrameworkErrors(error);
     logger.error(`getMonitoredAccounts error: ${error}`);
     return [];
   }
@@ -306,6 +309,7 @@ export async function reAuthMonitoredAccount(
     logger.info(`JWT refreshed for '${lc}', expires ${jwtExpiresAt?.toISOString() ?? "unknown"}`);
     return { success: true, username: lc, jwtExpiresAt };
   } catch (error) {
+    rethrowFrameworkErrors(error);
     logger.error(`reAuthMonitoredAccount error: ${error}`);
     return { success: false, error: errorMessage(error) };
   }
@@ -349,6 +353,7 @@ export async function verifyMonitoredAccountToken(monitoredAccountId: string) {
 
     return { success: true, status };
   } catch (error) {
+    rethrowFrameworkErrors(error);
     logger.error(`verifyMonitoredAccountToken error: ${error}`);
     return { success: false, error: errorMessage(error) };
   }
@@ -411,6 +416,7 @@ export async function removeMonitoredAccount(accountId: string) {
     logger.info(`Monitored account ${record.username} removed`);
     return { success: true };
   } catch (error) {
+    rethrowFrameworkErrors(error);
     logger.error(`removeMonitoredAccount error: ${error}`);
     return { success: false, error: errorMessage(error) };
   }
@@ -470,6 +476,7 @@ export async function getTokenAlertAccounts(): Promise<TokenAlertAccount[]> {
         tokenStatus: a.splAccount.tokenStatus as "valid" | "invalid" | "unknown",
       }));
   } catch (error) {
+    rethrowFrameworkErrors(error);
     logger.error(`getTokenAlertAccounts error: ${error}`);
     return [];
   }

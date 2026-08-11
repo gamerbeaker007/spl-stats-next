@@ -1,4 +1,4 @@
-import { SplBalance } from "@/types/spl/balances";
+import { PlayerPoolBalances, SplBalance } from "@/types/spl/balances";
 import { SplBrawlDetails } from "@/types/spl/brawl";
 import { SplPlayerDetails } from "@/types/spl/details";
 import { SplFrontierDrawStatus, SplRankedDrawStatus } from "@/types/spl/draws";
@@ -8,6 +8,9 @@ export interface PlayerStatusData {
   timestamp: string;
   balances?: SplBalance[];
   balancesError?: string;
+  /** DEC/SPS held in DEC-SPS liquidity pools — additive to `balances`. */
+  poolBalances?: PlayerPoolBalances;
+  poolBalancesError?: string;
   draws?: {
     frontier: SplFrontierDrawStatus;
     ranked: SplRankedDrawStatus;

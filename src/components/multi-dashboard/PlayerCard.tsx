@@ -1,16 +1,18 @@
 "use client";
 
 import GuildInfo from "@/components/multi-dashboard/PlayerBrawl";
+import { useDailyProgress } from "@/hooks/multi-account-dashboard/useDailyProgress";
 import { usePlayerCardCollection } from "@/hooks/multi-account-dashboard/usePlayerCardCollection";
 import { usePlayerSeasonRewards } from "@/hooks/multi-account-dashboard/usePlayerSeasonRewards";
 import { usePlayerStatus } from "@/hooks/multi-account-dashboard/usePlayerStatus";
 import { useLatestSeasonId } from "@/hooks/useLatestSeasonId";
+import { forceRefreshDashboardAccount } from "@/lib/backend/actions/player-actions";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { Alert, Box, CircularProgress, IconButton, Typography } from "@mui/material";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Leaderboard from "./Leaderboard";
 import PlayerBalances from "./PlayerBalances";
 import PlayerDailies from "./PlayerDailies";
@@ -27,6 +29,7 @@ export const PlayerCard = ({ username }: Props) => {
   const {
     data: collectionData,
     loading: collectionLoading,
+    error: collectionError,
     refetch: collectionRefetch,
   } = usePlayerCardCollection(username);
   const {
@@ -35,6 +38,13 @@ export const PlayerCard = ({ username }: Props) => {
     error: seasonRewardsError,
     refetch: seasonRewardsRefetch,
   } = usePlayerSeasonRewards(username);
+  const {
+    data: dailyProgress,
+    loading: dailyProgressLoading,
+    fetchDailyProgress,
+  } = useDailyProgress(username);
+
+  const [forceRefreshing, setForceRefreshing] = useState(false);
 
   // currentSeasonId is not available without a seasons context;
   // pass undefined so PlayerHistoryButtons handles it gracefully.
@@ -45,11 +55,35 @@ export const PlayerCard = ({ username }: Props) => {
     collectionRefetch();
   }, [collectionRefetch]);
 
-  const handleRefresh = () => {
-    refetch();
-    collectionRefetch();
-    seasonRewardsRefetch();
-  };
+  /**
+   * True force refresh, scoped to this account: expire this account's cached
+   * dashboard reads server-side first, then re-fetch. Other accounts' caches are
+   * untouched, so refreshing one card stays cheap on a many-account dashboard.
+   */
+  const handleRefresh = useCallback(async () => {
+    if (forceRefreshing) return;
+    setForceRefreshing(true);
+    try {
+      await forceRefreshDashboardAccount(username);
+      await Promise.allSettled([
+        refetch(),
+        collectionRefetch(),
+        seasonRewardsRefetch(),
+        fetchDailyProgress(),
+      ]);
+    } finally {
+      setForceRefreshing(false);
+    }
+  }, [
+    forceRefreshing,
+    username,
+    refetch,
+    collectionRefetch,
+    seasonRewardsRefetch,
+    fetchDailyProgress,
+  ]);
+
+  const refreshBusy = forceRefreshing || loading || collectionLoading;
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: username,
@@ -159,13 +193,13 @@ export const PlayerCard = ({ username }: Props) => {
       {/* Per-card Refresh Button */}
       <IconButton
         onClick={handleRefresh}
-        disabled={loading || collectionLoading}
-        title="Refresh"
+        disabled={refreshBusy}
+        title="Force refresh this account"
         sx={{
           position: "absolute",
           top: 8,
           right: 40,
-          opacity: loading || collectionLoading ? 1 : 0.3,
+          opacity: refreshBusy ? 1 : 0.3,
           transition: "opacity 0.2s ease",
           zIndex: 10,
           "&:hover": { opacity: 1 },
@@ -175,7 +209,7 @@ export const PlayerCard = ({ username }: Props) => {
         <RefreshIcon
           fontSize="small"
           sx={
-            loading || collectionLoading
+            refreshBusy
               ? {
                   animation: "spin 1s linear infinite",
                   "@keyframes spin": {
@@ -200,13 +234,14 @@ export const PlayerCard = ({ username }: Props) => {
       <Box>
         {/* Balances Section */}
         <PlayerBalances
-          username={player.username}
           balances={player.balances}
+          poolBalances={player.poolBalances}
           seasonRewards={seasonRewards ?? undefined}
           glintLoading={seasonRewardsLoading}
           glintError={seasonRewardsError}
           collectionData={collectionData}
           collectionLoading={collectionLoading}
+          collectionError={collectionError}
         />
       </Box>
 
@@ -234,9 +269,10 @@ export const PlayerCard = ({ username }: Props) => {
       <Box width={"100%"}>
         {/* Daily Progress Section */}
         <PlayerDailies
-          username={player.username}
           balances={player.balances}
           playerDetails={player.playerDetails}
+          dailyProgress={dailyProgress}
+          dailyProgressLoading={dailyProgressLoading}
         />
       </Box>
       <Box width={"100%"}>

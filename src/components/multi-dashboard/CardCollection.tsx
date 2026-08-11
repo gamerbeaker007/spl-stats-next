@@ -1,7 +1,6 @@
 "use client";
 
 import CardEditionDetails from "@/components/multi-dashboard/CardEditionDetails";
-import { usePlayerCardCollection } from "@/hooks/multi-account-dashboard/usePlayerCardCollection";
 import { hammer_icon_url } from "@/lib/staticsIconUrls";
 import { largeNumberFormat } from "@/lib/utils";
 import { PlayerCardCollectionData } from "@/types/playerCardCollection";
@@ -17,37 +16,23 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { AiFillDollarCircle } from "react-icons/ai";
 import { TbCards } from "react-icons/tb";
 import { BalanceItem } from "./BalanceItem";
 
+/**
+ * Presentational — the collection is fetched once per account by `PlayerCard`
+ * (`usePlayerCardCollection`) and passed down, so this component never issues an
+ * API call of its own.
+ */
 interface Props {
-  username: string;
-  externalData?: PlayerCardCollectionData | null;
-  externalLoading?: boolean;
+  data?: PlayerCardCollectionData | null;
+  loading?: boolean;
+  error?: string | null;
 }
 
-export default function CardCollection({ username, externalData, externalLoading }: Props) {
-  // Internal hook — used only for initial mount fetch; during queue/per-card refresh
-  // data flows in from PlayerCard via externalData to avoid duplicate API calls.
-  const {
-    data: internalData,
-    loading: internalLoading,
-    error,
-    refetch,
-  } = usePlayerCardCollection(username);
-
-  // Fetch on mount if no external data is provided yet
-  useEffect(() => {
-    if (externalData === undefined) {
-      refetch();
-    }
-  }, [refetch, externalData]);
-
-  const data = externalData !== undefined ? externalData : internalData;
-  const loading = externalLoading !== undefined ? externalLoading : internalLoading;
-
+export default function CardCollection({ data, loading, error }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleOpenDialog = () => setDialogOpen(true);
