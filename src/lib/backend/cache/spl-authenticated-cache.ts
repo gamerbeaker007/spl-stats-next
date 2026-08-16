@@ -3,8 +3,10 @@
 import { fetchBrawlDetails, fetchDailyProgress } from "@/lib/backend/api/spl/spl-authenticated-api";
 import { getDecryptedJwt } from "@/lib/backend/auth/jwt";
 import { CACHE_TAGS } from "@/lib/backend/cache/cache-tags";
+import { LandHarvestData } from "@/types/land/landHarvest";
 import { DailyProgressData } from "@/types/playerDailyProgress";
 import { cacheLife, cacheTag } from "next/cache";
+import { fetchLandProductionOverview } from "../api/spl/spl-authenticated-vapi";
 
 /**
  * Cached wrappers for token-authenticated SPL endpoints.
@@ -66,4 +68,33 @@ export async function getCachedBrawlDetails(
 
   const token = await getDecryptedJwt(normalized);
   return fetchBrawlDetails(guildId, tournamentId, normalized, token);
+}
+
+/**
+ * Per-region last_claimed timestamps from the land production overview.
+ *
+ * Land harvests are infrequent (players are advised every 7 days), so an
+ * hourly cache avoids hitting the SPL VAPI on every dashboard mount while
+ * keeping the data fresh enough to be actionable.
+ */
+export async function getCachedLandHarvestData(username: string): Promise<LandHarvestData | null> {
+  "use cache";
+  cacheLife("hours");
+  const normalized = username.trim().toLowerCase();
+  cacheTag(CACHE_TAGS.splLandHarvest(normalized));
+
+  const token = await getDecryptedJwt(normalized);
+  if (!token) return null;
+
+  const regions = await fetchLandProductionOverview(normalized, token);
+  return {
+    username: normalized,
+    regions: regions.map((r) => ({
+      name: r.name,
+      region_number: r.region_number,
+      region_uid: r.region_uid,
+      last_claimed: r.last_claimed ?? null,
+    })),
+    fetchedAt: new Date().toISOString(),
+  };
 }

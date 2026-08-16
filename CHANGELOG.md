@@ -9,6 +9,14 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.14.0] - 2026-08-16
+
+### Added
+
+- **Land Harvest Status in multi-account dashboard** — Each player card now shows how long ago the player last harvested their land. The status is determined by the oldest `last_claimed` timestamp across all of the player's regions (fetched from `vapi.splinterlands.com/land/resources/production/overview`). A colour-coded chip indicates urgency: green (`< 5 d`), orange (`5 d – < 7 d`), red (`≥ 7 d`). Age is displayed in hours when under 1 day, and in days (1 decimal) thereafter. An info icon opens a details dialog that lists every region with its own age and status chip, and shows how old the cached data is.
+- **Land harvest data cached for 1 hour** — The land overview API response is wrapped in a `"use cache"` function (`getCachedLandHarvestData`) tagged with `spl:land-harvest:<username>` and using the `hours` cache profile. Normal re-renders and opening the details dialog do not trigger additional API calls. The `dashboard-account` cache-invalidation target now includes the land harvest tag so a per-card force refresh also refreshes land data.
+- **60-second refresh cooldown** — The per-card force-refresh button is now rate-limited to once per 60 seconds. The guard lives in the refresh callback (not only the button's disabled state), so rapid clicks cannot bypass it. After a refresh completes the button shows a tooltip explaining the cooldown period until it expires.
+
 ## [v1.13.0] - 2026-08-11
 
 ### Added

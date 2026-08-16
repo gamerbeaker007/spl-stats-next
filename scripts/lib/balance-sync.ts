@@ -242,8 +242,7 @@ export async function syncSeasonBalances(
   const newSeasonDetected =
     !!latestCompletedSeason && latestCompletedSeason.id > metaState.lastSeasonProcessed;
   const dailyCheckDue =
-    !!metaState.lastRunAt &&
-    now.getTime() - metaState.lastRunAt.getTime() > RESCAN_MIN_INTERVAL_MS;
+    !!metaState.lastRunAt && now.getTime() - metaState.lastRunAt.getTime() > RESCAN_MIN_INTERVAL_MS;
 
   // Claim trigger: only API-check when no cheaper trigger already fired.
   let claimDetected = false;

@@ -1,7 +1,9 @@
 "use client";
 
+import { LandHarvestStatus } from "@/components/multi-dashboard/LandHarvestStatus";
 import GuildInfo from "@/components/multi-dashboard/PlayerBrawl";
 import { useDailyProgress } from "@/hooks/multi-account-dashboard/useDailyProgress";
+import { useLandHarvest } from "@/hooks/multi-account-dashboard/useLandHarvest";
 import { usePlayerCardCollection } from "@/hooks/multi-account-dashboard/usePlayerCardCollection";
 import { usePlayerSeasonRewards } from "@/hooks/multi-account-dashboard/usePlayerSeasonRewards";
 import { usePlayerStatus } from "@/hooks/multi-account-dashboard/usePlayerStatus";
@@ -11,8 +13,8 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import { Alert, Box, CircularProgress, IconButton, Typography } from "@mui/material";
-import { useCallback, useEffect, useState } from "react";
+import { Alert, Box, CircularProgress, IconButton, Tooltip, Typography } from "@mui/material";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Leaderboard from "./Leaderboard";
 import PlayerBalances from "./PlayerBalances";
 import PlayerDailies from "./PlayerDailies";
@@ -44,7 +46,17 @@ export const PlayerCard = ({ username }: Props) => {
     fetchDailyProgress,
   } = useDailyProgress(username);
 
+  const {
+    data: landHarvest,
+    loading: landHarvestLoading,
+    error: landHarvestError,
+    fetchLandHarvest,
+  } = useLandHarvest(username);
+
   const [forceRefreshing, setForceRefreshing] = useState(false);
+  const [refreshCoolingDown, setRefreshCoolingDown] = useState(false);
+  const lastRefreshAtRef = useRef<number>(0);
+  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // currentSeasonId is not available without a seasons context;
   // pass undefined so PlayerHistoryButtons handles it gracefully.
@@ -55,13 +67,27 @@ export const PlayerCard = ({ username }: Props) => {
     collectionRefetch();
   }, [collectionRefetch]);
 
+  // Clear cooldown timer on unmount
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+    };
+  }, []);
+
   /**
    * True force refresh, scoped to this account: expire this account's cached
    * dashboard reads server-side first, then re-fetch. Other accounts' caches are
    * untouched, so refreshing one card stays cheap on a many-account dashboard.
+   *
+   * Rate-limited to once per 60 s — the guard lives in the callback so rapid
+   * clicks cannot bypass it even if the button is visually re-enabled.
    */
   const handleRefresh = useCallback(async () => {
     if (forceRefreshing) return;
+
+    const now = Date.now();
+    if (now - lastRefreshAtRef.current < 60_000) return;
+
     setForceRefreshing(true);
     try {
       await forceRefreshDashboardAccount(username);
@@ -70,7 +96,12 @@ export const PlayerCard = ({ username }: Props) => {
         collectionRefetch(),
         seasonRewardsRefetch(),
         fetchDailyProgress(),
+        fetchLandHarvest(),
       ]);
+      lastRefreshAtRef.current = Date.now();
+      setRefreshCoolingDown(true);
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+      cooldownTimerRef.current = setTimeout(() => setRefreshCoolingDown(false), 60_000);
     } finally {
       setForceRefreshing(false);
     }
@@ -81,9 +112,10 @@ export const PlayerCard = ({ username }: Props) => {
     collectionRefetch,
     seasonRewardsRefetch,
     fetchDailyProgress,
+    fetchLandHarvest,
   ]);
 
-  const refreshBusy = forceRefreshing || loading || collectionLoading;
+  const refreshBusy = forceRefreshing || loading || collectionLoading || refreshCoolingDown;
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: username,
@@ -191,36 +223,51 @@ export const PlayerCard = ({ username }: Props) => {
       </IconButton>
 
       {/* Per-card Refresh Button */}
-      <IconButton
-        onClick={handleRefresh}
-        disabled={refreshBusy}
-        title="Force refresh this account"
-        sx={{
-          position: "absolute",
-          top: 8,
-          right: 40,
-          opacity: refreshBusy ? 1 : 0.3,
-          transition: "opacity 0.2s ease",
-          zIndex: 10,
-          "&:hover": { opacity: 1 },
-        }}
-        size="small"
+      <Tooltip
+        title={
+          refreshCoolingDown
+            ? "Refresh unavailable — please wait 60 s between refreshes"
+            : "Force refresh this account"
+        }
+        placement="left"
       >
-        <RefreshIcon
-          fontSize="small"
-          sx={
-            refreshBusy
-              ? {
-                  animation: "spin 1s linear infinite",
-                  "@keyframes spin": {
-                    from: { transform: "rotate(0deg)" },
-                    to: { transform: "rotate(360deg)" },
-                  },
-                }
-              : {}
-          }
-        />
-      </IconButton>
+        <span
+          style={{
+            position: "absolute",
+            top: 8,
+            right: 40,
+            zIndex: 10,
+            display: "inline-flex",
+          }}
+        >
+          <IconButton
+            onClick={handleRefresh}
+            disabled={refreshBusy || refreshCoolingDown}
+            sx={{
+              opacity: refreshBusy ? 1 : 0.3,
+              transition: "opacity 0.2s ease",
+              zIndex: 10,
+              "&:hover": { opacity: 1 },
+            }}
+            size="small"
+          >
+            <RefreshIcon
+              fontSize="small"
+              sx={
+                forceRefreshing
+                  ? {
+                      animation: "spin 1s linear infinite",
+                      "@keyframes spin": {
+                        from: { transform: "rotate(0deg)" },
+                        to: { transform: "rotate(360deg)" },
+                      },
+                    }
+                  : {}
+              }
+            />
+          </IconButton>
+        </span>
+      </Tooltip>
 
       <PlayerInfo username={player.username} playerDetails={player.playerDetails} />
 
@@ -242,6 +289,14 @@ export const PlayerCard = ({ username }: Props) => {
           collectionData={collectionData}
           collectionLoading={collectionLoading}
           collectionError={collectionError}
+        />
+      </Box>
+
+      <Box width={"100%"}>
+        <LandHarvestStatus
+          data={landHarvest}
+          loading={landHarvestLoading}
+          error={landHarvestError}
         />
       </Box>
 

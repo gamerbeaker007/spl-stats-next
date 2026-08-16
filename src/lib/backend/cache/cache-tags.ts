@@ -15,6 +15,7 @@ export const CACHE_TAGS = {
   splPoolBalances: (username: string) => `spl:pool-balances:${username.toLowerCase()}`,
   splDailyProgress: (username: string) => `spl:daily-progress:${username.toLowerCase()}`,
   splBrawl: (username: string) => `spl:brawl:${username.toLowerCase()}`,
+  splLandHarvest: (username: string) => `spl:land-harvest:${username.toLowerCase()}`,
 } as const;
 
 /**
@@ -33,6 +34,7 @@ export function dashboardAccountTags(username: string): string[] {
     CACHE_TAGS.splDailyProgress(normalized),
     CACHE_TAGS.splBrawl(normalized),
     CACHE_TAGS.splCollection(normalized),
+    CACHE_TAGS.splLandHarvest(normalized),
   ];
 }
 

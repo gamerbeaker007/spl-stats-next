@@ -6,6 +6,7 @@ import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import {
   getCachedBrawlDetails,
   getCachedDailyProgress,
+  getCachedLandHarvestData,
 } from "@/lib/backend/cache/spl-authenticated-cache";
 import {
   getCachedPeakmonstersMarketPrices,
@@ -33,6 +34,7 @@ import { PlayerCardCollectionData } from "@/types/playerCardCollection";
 import { DailyProgressData } from "@/types/playerDailyProgress";
 import { SeasonBalanceHistory, TokenBalanceSummary } from "@/types/spl/balanceHistory";
 import { PlayerPoolBalances } from "@/types/spl/balances";
+import { LandHarvestData } from "@/types/land/landHarvest";
 import { getCurrentUser, getMonitoredAccounts } from "./auth-actions";
 
 // ---------------------------------------------------------------------------
@@ -125,6 +127,15 @@ export async function forceRefreshDashboardAccount(username: string): Promise<bo
   if (!(await assertMonitorsAccount(username))) return false;
   await revalidateTagsAction([{ type: "dashboard-account", usernames: [username] }]);
   return true;
+}
+
+/**
+ * Cached land harvest data for the player's monitored account.
+ * Returns null when the caller does not monitor `username`.
+ */
+export async function getPlayerLandHarvest(username: string): Promise<LandHarvestData | null> {
+  if (!(await assertMonitorsAccount(username))) return null;
+  return getCachedLandHarvestData(username);
 }
 
 export async function getDetailedPlayerCardCollection(
