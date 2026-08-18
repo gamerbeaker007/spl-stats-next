@@ -263,10 +263,11 @@ export const CardSection = ({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setVisibleCount(GRID_BATCH_SIZE);
-  }, [sortedItems, viewMode]);
+  }, [sortedItems.length, sortBy, sortDir, viewMode]);
 
   useEffect(() => {
     if (viewMode !== "card") return;
+    if (visibleCount >= sortedItems.length) return;
     const sentinel = gridSentinelRef.current;
     if (!sentinel) return;
 
@@ -275,12 +276,15 @@ export const CardSection = ({
         if (!entries.some((entry) => entry.isIntersecting)) return;
         setVisibleCount((current) => Math.min(current + GRID_BATCH_SIZE, sortedItems.length));
       },
-      { root: null, rootMargin: "200px 0px", threshold: 0 }
+      // Re-created on every visibleCount change, so the callback fires again while the
+      // sentinel stays in view (happens in multi-account columns, where one batch does
+      // not fill the viewport). Large margin loads the next batch before hitting bottom.
+      { root: null, rootMargin: "800px 0px", threshold: 0 }
     );
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [sortedItems.length, viewMode]);
+  }, [sortedItems.length, viewMode, visibleCount]);
 
   const visibleGridItems = sortedItems.slice(0, visibleCount);
 
@@ -546,7 +550,10 @@ export const CardSection = ({
               />
             ))}
           </Box>
-          {visibleCount < sortedItems.length && <Box ref={gridSentinelRef} sx={{ height: 1 }} />}
+          {visibleCount < sortedItems.length && (
+            // "1px" — sx height 1 would resolve to 100% (MUI sizing transform).
+            <Box ref={gridSentinelRef} sx={{ height: "1px", width: "100%" }} />
+          )}
         </>
       )}
 

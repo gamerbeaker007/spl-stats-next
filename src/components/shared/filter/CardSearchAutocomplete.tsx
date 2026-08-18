@@ -26,7 +26,10 @@ export default function CardSearchAutocomplete({
       getOptionLabel={(o) => o.cardName}
       filterOptions={(opts, { inputValue }) => {
         const lower = inputValue.toLowerCase();
-        return opts.filter((o) => o.cardName.toLowerCase().includes(lower)).slice(0, 5);
+        return opts.filter((o) => o.cardName.toLowerCase().includes(lower));
+      }}
+      slotProps={{
+        listbox: { sx: { maxHeight: 320, overflowY: "auto" } },
       }}
       isOptionEqualToValue={(o, v) => o.cardDetailId === v.cardDetailId}
       value={value}

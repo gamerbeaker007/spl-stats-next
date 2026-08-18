@@ -1,7 +1,11 @@
 "use server";
 
 import { getCurrentUser } from "@/lib/backend/actions/auth-actions";
-import { fetchPlayerBalances, fetchPlayerInventory } from "@/lib/backend/api/spl/spl-api";
+import {
+  fetchPlayerBalances,
+  fetchPlayerInventory,
+  fetchSplPrices,
+} from "@/lib/backend/api/spl/spl-api";
 import { fetchMarketplaceListingItems } from "@/lib/backend/api/spl/vapi-spl";
 import {
   getCachedMarketplaceAssets,
@@ -19,6 +23,7 @@ import {
   groupMarketplaceAssetsByCardDetailId,
   isActionableInventoryItem,
   isSkinActive,
+  priceSelectionInCurrency,
   selectCheapestListings,
 } from "@/lib/shared/marketplace-assets";
 import {
@@ -209,6 +214,15 @@ export async function getPlayerMarketBalancesAction(account: string): Promise<{
   };
 }
 
+/**
+ * Live USD-per-DEC rate from the prices API, used to convert USD listing prices
+ * into the DEC amount shown on the buy button and broadcast in the purchase.
+ */
+export async function getDecPriceUsdAction(): Promise<number> {
+  const prices = await fetchSplPrices();
+  return prices.dec;
+}
+
 export async function buildMarketplaceAssetPurchasePayloadAction(args: {
   account: string;
   assetName: MarketplaceAssetName;
@@ -219,32 +233,33 @@ export async function buildMarketplaceAssetPurchasePayloadAction(args: {
   const account = normalizeAccount(args.account);
   validatePositiveInteger(args.quantity, "Quantity");
 
-  // Live listings + balances for the authoritative pre-broadcast affordability check.
-  const [listings, balances] = await Promise.all([
+  // Live listings + balances + DEC rate for the authoritative pre-broadcast
+  // affordability check. The rate is re-read here so the broadcast amount is
+  // converted at the current rate, not the one the dialog previewed with.
+  const [listings, balances, prices] = await Promise.all([
     getMarketplaceAssetListingsAction(args.assetName, args.detailId),
     fetchPlayerBalances(account),
+    fetchSplPrices(),
   ]);
 
-  const selection = selectCheapestListings(listings, args.quantity, args.currency, account);
+  const selection = selectCheapestListings(listings, args.quantity, account);
   if (!selection.fulfilled) {
     throw new Error("Not enough listing quantity available for requested purchase");
   }
 
+  const priced = priceSelectionInCurrency(selection, args.currency, prices.dec);
+  if (!priced) {
+    throw new Error(`Could not price this purchase in ${args.currency}`);
+  }
+
   const availableBalance = getTokenBalance(balances, args.currency);
-  if (availableBalance < selection.totalCost) {
+  if (availableBalance < priced.totalCost) {
     throw new Error(`Insufficient ${args.currency}`);
   }
 
   return {
-    payload: buildMarketplacePurchasePayload({
-      items: selection.items.map((entry) => ({
-        listingItemId: entry.listingItemId,
-        quantity: entry.quantity,
-        currency: args.currency,
-        estimatedCost: entry.estimatedCost,
-      })),
-    }),
-    estimatedCost: selection.totalCost,
+    payload: buildMarketplacePurchasePayload({ items: priced.items }),
+    estimatedCost: priced.totalCost,
     availableBalance,
   };
 }

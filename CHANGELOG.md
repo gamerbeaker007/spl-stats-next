@@ -9,6 +9,26 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.15.0] - 2026-08-17
+
+### Changed
+
+- **Marketplace DEC prices now use the live DEC/USD rate**
+  - DEC purchase amounts are now calculated from the listing's USD price using the live DEC rate instead of the DEC value returned by the listing API (wich has smmoothing average).
+  - Marketplace listing selection is now consistently based on USD, with payment amounts converted to DEC or CREDITS afterward.
+  - DEC purchases are disabled if a valid live DEC rate is unavailable.
+  - The buy dialog now displays the USD total and applied DEC rate.
+
+### Fixed
+
+- Fixed Top Balances not appearing on certain tabs, including the Land Marketplace.
+- **Card search now shows up to 50 results in a scrollable list**, instead of silently limiting results to 5.
+- **Fixed card grid infinite scrolling stopping prematurely**, particularly when multiple accounts are selected.
+  - Improved loading behavior while the scroll sentinel remains visible.
+  - Increased the preload distance so additional cards load sooner.
+  - Fixed market price updates resetting an already-scrolled grid back to the first batch.
+---
+
 ## [v1.14.0] - 2026-08-16
 
 ### Added

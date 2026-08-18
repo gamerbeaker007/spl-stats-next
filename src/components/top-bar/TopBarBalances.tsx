@@ -28,6 +28,7 @@ export default function TopBarBalances() {
   const pathname = usePathname();
 
   const selectedAccounts = useMemo(() => {
+    //For collection/cards you can have multiple selected accounts else singe
     if (pathname.startsWith("/collection/cards")) {
       if (collectionSelectedAccounts.length > 0) {
         return collectionSelectedAccounts;
@@ -37,12 +38,7 @@ export default function TopBarBalances() {
       }
     }
 
-    if (
-      (pathname.startsWith("/collection/buy-missing-cc") ||
-        pathname.startsWith("/collection/skins") ||
-        pathname.startsWith("/collection/music")) &&
-      selectedAccount
-    ) {
+    if (selectedAccount) {
       return [selectedAccount];
     }
 

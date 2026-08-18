@@ -493,76 +493,140 @@ export function applyMarketAssetFilters<
   });
 }
 
-function toUnitPrice(listing: MarketplaceListingItem, currency: PurchaseCurrency): number | null {
-  if (currency === "DEC") return listing.priceDec;
-  if (currency === "CREDITS") return listing.priceCredits;
-  return null;
+/**
+ * USD unit price of a listing. Every marketplace listing is USD-denominated
+ * (`currency: "USD"`, `price` in USD); the `otherCurrencies` lookup is a fallback
+ * for a listing quoted in something else.
+ */
+function toUsdUnitPrice(listing: MarketplaceListingItem): number | null {
+  if (listing.currency === "USD" && Number.isFinite(listing.price)) return listing.price;
+  return findOtherCurrency(listing.otherCurrencies, "USD");
 }
 
 export interface CheapestListingSelectionItem {
   listingItemId: number;
   quantity: number;
-  estimatedCost: number;
+  /** USD cost of this line (USD unit price × quantity). */
+  costUsd: number;
 }
 
 export interface CheapestListingSelection {
   /** listingItemId → quantity to buy from that listing (for UI selection highlight). */
   plan: Map<number, number>;
-  /** Per-listing breakdown used to build the purchase payload. */
+  /** Per-listing breakdown, priced in USD. */
   items: CheapestListingSelectionItem[];
-  totalCost: number;
+  totalUsd: number;
   fulfilled: boolean;
 }
 
 /**
- * Greedily pick the cheapest listings (by unit price in `currency`) to fulfil
- * `quantity`, skipping the buyer's own listings. Single source of truth shared by
- * the client (cost preview) and the server action (authoritative payload) so the
- * quoted price and the broadcast price can never diverge.
+ * Greedily pick the cheapest listings (by USD unit price) to fulfil `quantity`,
+ * skipping the buyer's own listings. Single source of truth shared by the client
+ * (cost preview) and the server action (authoritative payload) so the quoted
+ * price and the broadcast price can never diverge.
+ *
+ * Selection is always by USD — listings are USD-denominated, so USD order is the
+ * true cheapest order regardless of which currency the buyer pays in. Converting
+ * to the payment currency happens afterwards in `priceSelectionInCurrency`.
  */
 export function selectCheapestListings(
   listings: MarketplaceListingItem[],
   quantity: number,
-  currency: PurchaseCurrency,
   account: string
 ): CheapestListingSelection {
   const normalizedAccount = account.trim().toLowerCase();
 
   const sorted = listings
     .filter((listing) => {
-      const unit = toUnitPrice(listing, currency);
+      const unit = toUsdUnitPrice(listing);
       const isOwnListing = listing.seller.trim().toLowerCase() === normalizedAccount;
       return unit !== null && listing.quantityRemaining > 0 && !isOwnListing;
     })
     .sort((left, right) => {
-      const leftUnit = toUnitPrice(left, currency) ?? Number.MAX_SAFE_INTEGER;
-      const rightUnit = toUnitPrice(right, currency) ?? Number.MAX_SAFE_INTEGER;
+      const leftUnit = toUsdUnitPrice(left) ?? Number.MAX_SAFE_INTEGER;
+      const rightUnit = toUsdUnitPrice(right) ?? Number.MAX_SAFE_INTEGER;
       return leftUnit - rightUnit;
     });
 
   const plan = new Map<number, number>();
   const items: CheapestListingSelectionItem[] = [];
   let remaining = quantity;
-  let totalCost = 0;
+  let totalUsd = 0;
 
   for (const listing of sorted) {
     if (remaining <= 0) break;
     const buyQty = Math.min(remaining, listing.quantityRemaining);
-    const unit = toUnitPrice(listing, currency);
+    const unit = toUsdUnitPrice(listing);
     if (unit === null || buyQty < 1) continue;
 
-    const estimatedCost = Number((unit * buyQty).toFixed(3));
     plan.set(listing.listingItemId, buyQty);
-    items.push({ listingItemId: listing.listingItemId, quantity: buyQty, estimatedCost });
-    totalCost += unit * buyQty;
+    items.push({
+      listingItemId: listing.listingItemId,
+      quantity: buyQty,
+      costUsd: unit * buyQty,
+    });
+    totalUsd += unit * buyQty;
     remaining -= buyQty;
   }
 
   if (remaining > 0 || quantity < 1) {
-    return { plan: new Map(), items: [], totalCost: 0, fulfilled: false };
+    return { plan: new Map(), items: [], totalUsd: 0, fulfilled: false };
   }
 
-  return { plan, items, totalCost: Number(totalCost.toFixed(3)), fulfilled: true };
+  return { plan, items, totalUsd, fulfilled: true };
+}
+
+export interface PricedSelectionItem {
+  listingItemId: number;
+  quantity: number;
+  currency: PurchaseCurrency;
+  estimatedCost: number;
+}
+
+export interface PricedSelection {
+  items: PricedSelectionItem[];
+  totalCost: number;
+}
+
+/**
+ * Convert a USD selection into the buyer's payment currency.
+ *
+ * USD is the source of truth and every currency is derived from it:
+ * - `DEC` at `decPriceUsd` (USD per 1 DEC, from the prices API). Deliberately not
+ *   the DEC price the marketplace API reports per listing — that value carries a
+ *   uniform ~1.5–1.7% premium over the live DEC rate.
+ * - `CREDITS` at the fixed 1000-per-USD peg.
+ *
+ * Amounts are rounded to 3 decimals: the precision the purchase payload is
+ * broadcast with. Returns `null` when the DEC rate is unusable, so callers must
+ * handle a missing rate rather than broadcast a zero-cost purchase.
+ */
+export function priceSelectionInCurrency(
+  selection: CheapestListingSelection,
+  currency: PurchaseCurrency,
+  decPriceUsd: number | null
+): PricedSelection | null {
+  if (!selection.fulfilled) return null;
+
+  let toCost: (costUsd: number) => number;
+  if (currency === "DEC") {
+    if (decPriceUsd === null || !Number.isFinite(decPriceUsd) || decPriceUsd <= 0) return null;
+    toCost = (costUsd) => costUsd / decPriceUsd;
+  } else {
+    toCost = (costUsd) => costUsd * 1000;
+  }
+
+  const items = selection.items.map((item) => ({
+    listingItemId: item.listingItemId,
+    quantity: item.quantity,
+    currency,
+    estimatedCost: Number(toCost(item.costUsd).toFixed(3)),
+  }));
+
+  return {
+    items,
+    totalCost: Number(toCost(selection.totalUsd).toFixed(3)),
+  };
 }
 
 export function getDeedImg(displayName: string) {

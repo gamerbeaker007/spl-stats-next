@@ -2,12 +2,13 @@
 
 import MarketAssetSummary from "@/components/collection/marketplace/MarketAssetSummary";
 import TransactionProgressPanel from "@/components/shared/TransactionProgressPanel";
+import { useDecPriceUsd } from "@/hooks/collection/useDecPriceUsd";
 import { useMarketAssetBalances } from "@/hooks/collection/useMarketAssetBalances";
 import { useMarketplaceAssetListings } from "@/hooks/collection/useMarketplaceAssetListings";
 import { useMarketplaceTransaction } from "@/hooks/collection/useMarketplaceTransaction";
 import { buildMarketplaceAssetPurchasePayloadAction } from "@/lib/backend/actions/marketplace-assets-actions";
 import { broadcastMarketplaceAssetPurchase } from "@/lib/frontend/purchase/splBroadcast";
-import { selectCheapestListings } from "@/lib/shared/marketplace-assets";
+import { priceSelectionInCurrency, selectCheapestListings } from "@/lib/shared/marketplace-assets";
 import { credits_icon_url, dec_icon_url } from "@/lib/staticsIconUrls";
 import { largeNumberFormat } from "@/lib/utils";
 import type { MarketplaceAssetItem, MarketplaceAssetName } from "@/types/marketplace-assets";
@@ -73,6 +74,8 @@ export default function BuyAssetDialog({
     refresh: refreshBalances,
   } = useMarketAssetBalances(account, open);
 
+  const { decPriceUsd, error: decPriceError } = useDecPriceUsd(open);
+
   const { busy, txProgress, error: submitError, run } = useMarketplaceTransaction(onCompleted);
 
   const [rawQuantity, setRawQuantity] = useState(1);
@@ -102,17 +105,21 @@ export default function BuyAssetDialog({
   const pageCount = Math.max(1, Math.ceil(sortedListings.length / LISTINGS_PAGE_SIZE));
   const safePage = Math.min(buyPage, pageCount - 1);
 
-  const decSelection = useMemo(
-    () => selectCheapestListings(sortedListings, quantity, "DEC", account),
-    [account, quantity, sortedListings]
-  );
-  const creditsSelection = useMemo(
-    () => selectCheapestListings(sortedListings, quantity, "CREDITS", account),
+  // One USD selection drives both currencies — listings are USD-priced, so the
+  // cheapest set is the same set whichever currency the buyer pays in.
+  const selection = useMemo(
+    () => selectCheapestListings(sortedListings, quantity, account),
     [account, quantity, sortedListings]
   );
 
-  const estimatedCostDec = decSelection.fulfilled ? decSelection.totalCost : null;
-  const estimatedCostCredits = creditsSelection.fulfilled ? creditsSelection.totalCost : null;
+  const estimatedCostDec = useMemo(
+    () => priceSelectionInCurrency(selection, "DEC", decPriceUsd)?.totalCost ?? null,
+    [decPriceUsd, selection]
+  );
+  const estimatedCostCredits = useMemo(
+    () => priceSelectionInCurrency(selection, "CREDITS", decPriceUsd)?.totalCost ?? null,
+    [decPriceUsd, selection]
+  );
   const canBuyDec = estimatedCostDec !== null && balances.dec >= estimatedCostDec;
   const canBuyCredits = estimatedCostCredits !== null && balances.credits >= estimatedCostCredits;
 
@@ -158,7 +165,7 @@ export default function BuyAssetDialog({
       </DialogTitle>
 
       <DialogContent dividers>
-        <Stack spacing={2.5}>
+        <Stack spacing={2}>
           <MarketAssetSummary item={item} />
 
           {listingsLoading && <Alert severity="info">Loading live marketplace listings...</Alert>}
@@ -169,12 +176,8 @@ export default function BuyAssetDialog({
 
           {listings.length > 0 && (
             <>
-              <Typography variant="body2" color="text.secondary">
-                Using cheapest listing combinations across all marketplace sellers.
-              </Typography>
-
               <TextField
-                label="Quantity"
+                label="Select Quantity"
                 type="number"
                 value={quantity}
                 onChange={(event) => {
@@ -188,6 +191,9 @@ export default function BuyAssetDialog({
 
               {balancesLoading && <Alert severity="info">Loading account balances...</Alert>}
               {balancesError && <Alert severity="error">{balancesError}</Alert>}
+              {decPriceError && (
+                <Alert severity="error">{`Live DEC price unavailable: ${decPriceError}`}</Alert>
+              )}
 
               <TableContainer component={Paper} variant="outlined">
                 <Table size="small">
@@ -202,9 +208,7 @@ export default function BuyAssetDialog({
                     {pagedListings.map((listing) => {
                       const isOwnListing =
                         normalizeAccount(listing.seller) === normalizeAccount(account);
-                      const isSelected =
-                        (decSelection.plan.get(listing.listingItemId) ?? 0) > 0 ||
-                        (creditsSelection.plan.get(listing.listingItemId) ?? 0) > 0;
+                      const isSelected = (selection.plan.get(listing.listingItemId) ?? 0) > 0;
 
                       return (
                         <TableRow
@@ -240,11 +244,18 @@ export default function BuyAssetDialog({
                 />
               </TableContainer>
 
+              <Typography variant="body2" color="text.secondary">
+                {selection.fulfilled && ` Total $${selection.totalUsd.toFixed(3)}.`}
+                {decPriceUsd !== null && ` DEC at $${decPriceUsd}.`}
+              </Typography>
+
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.25}>
                 <Tooltip
                   title={
                     estimatedCostDec === null
-                      ? "Not enough DEC-priced listing quantity for this amount"
+                      ? decPriceUsd === null
+                        ? "Live DEC price unavailable — cannot quote a DEC amount"
+                        : "Not enough listing quantity for this amount"
                       : !canBuyDec
                         ? `Insufficient DEC (${estimatedCostDec.toFixed(3)} required)`
                         : ""
@@ -274,7 +285,7 @@ export default function BuyAssetDialog({
                 <Tooltip
                   title={
                     estimatedCostCredits === null
-                      ? "Not enough Credits-priced listing quantity for this amount"
+                      ? "Not enough listing quantity for this amount"
                       : !canBuyCredits
                         ? `Insufficient Credits (${estimatedCostCredits.toFixed(0)} required)`
                         : ""

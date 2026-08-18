@@ -5,6 +5,7 @@ import {
   getActualOwnedQuantity,
   getAvailableToListQuantity,
   getCurrentlyListedQuantity,
+  getDeedImg,
   hasQuantityOwnership,
   isSkinActive,
 } from "@/lib/shared/marketplace-assets";
@@ -22,11 +23,13 @@ export default function MarketAssetSummary({ item }: Readonly<MarketAssetSummary
   const availableToList = getAvailableToListQuantity(item);
   const quantityOwned = hasQuantityOwnership(item);
 
+  const image = item.assetName === "DEEDS" ? getDeedImg(item.displayName) : item.image;
+
   return (
     <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
       <Box
         component="img"
-        src={item.image ?? ""}
+        src={image ?? ""}
         alt={item.displayName}
         sx={{ width: 160, height: 160, objectFit: "contain", alignSelf: "center" }}
       />
