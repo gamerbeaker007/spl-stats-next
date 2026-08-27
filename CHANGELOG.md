@@ -9,6 +9,18 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.16.0] - 2026-
+
+### Added
+
+- Added Role to Buy Missing CC page
+
+### Changed
+
+- Update from Foil letter to Foil image in the Buy missing CC page
+
+---
+
 ## [v1.15.0] - 2026-08-17
 
 ### Changed

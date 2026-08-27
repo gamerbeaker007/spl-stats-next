@@ -3,6 +3,7 @@
 import CardTableIcon from "@/components/collection/buy-missing-cc/CardTableIcon";
 import OwnedCcBreakdownInfo from "@/components/collection/buy-missing-cc/OwnedCcBreakdownInfo";
 import ScrollableTableContainer from "@/components/shared/ScrollableTableContainer";
+import { renderCardFoil } from "@/components/ui/CardFoil";
 import {
   calculateUpgradeCostEstimate,
   calculateUpgradeRequirements,
@@ -19,6 +20,7 @@ import { getCardSetLabel, getEditionIconUrl, getEditionLabel } from "@/lib/share
 import { getBracketLevelRange, LEAGUE_BRACKETS } from "@/lib/shared/league-brackets";
 import { getRarityIconUrl } from "@/lib/shared/rarity-utils";
 import type { League } from "@/types/buy-missing-cc";
+import { CardRole, cardRoleIconMap } from "@/types/card";
 import type { SplSettings } from "@/types/spl/season";
 import {
   Box,
@@ -41,7 +43,7 @@ import { useMemo, useState } from "react";
 import { MdCheckCircle, MdErrorOutline, MdLocalOffer, MdWarningAmber } from "react-icons/md";
 import { TbCopyPlusFilled } from "react-icons/tb";
 import type { BuyMissingCcSortField, DisplayRow } from "./types";
-import { bracketStatus, getShortFoilLabel, isMaxOnlyFoil } from "./utils";
+import { bracketStatus, isMaxOnlyFoil } from "./utils";
 
 const PAGE_SIZE_OPTIONS = [50, 100, 1000] as const;
 
@@ -62,6 +64,12 @@ interface BuyMissingCcTableProps {
    */
   fillHeight?: boolean;
 }
+
+const renderRole = (role: CardRole) => {
+  if (!role) return "-";
+  const img = cardRoleIconMap[role];
+  return <Image src={img} alt={role} width={24} height={24} />;
+};
 
 export default function BuyMissingCcTable({
   rows,
@@ -193,17 +201,22 @@ export default function BuyMissingCcTable({
                   Name
                 </TableSortLabel>
               </TableCell>
-              <TableCell>
+              <TableCell align="center">
+                <Tooltip title="Role: Archon/Unit">
+                  <span>T</span>
+                </Tooltip>
+              </TableCell>
+              <TableCell align="center">
                 <Tooltip title="Rarity">
                   <span>R</span>
                 </Tooltip>
               </TableCell>
-              <TableCell>
+              <TableCell align="center">
                 <Tooltip title="Edition and set">
                   <span>E</span>
                 </Tooltip>
               </TableCell>
-              <TableCell>
+              <TableCell align="center">
                 <Tooltip title="Foil">
                   <span>F</span>
                 </Tooltip>
@@ -427,14 +440,19 @@ export default function BuyMissingCcTable({
                     })()}
                   </TableCell>
                   <TableCell>{row.name}</TableCell>
-                  <TableCell>
+                  <TableCell align="center">
+                    <Tooltip title="Role: Archon/Unit">
+                      <span>{renderRole(row.role)}</span>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell align="center">
                     {rarityIcon ? (
                       <Image src={rarityIcon} alt="rarity" width={16} height={16} />
                     ) : (
                       row.rarity
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="center">
                     <Tooltip
                       title={`Set: ${getCardSetLabel(row.edition, row.tier) ?? row.tier} | Edition: ${getEditionLabel(row.edition) ?? `Edition ${row.edition}`}`}
                     >
@@ -445,9 +463,9 @@ export default function BuyMissingCcTable({
                       )}
                     </Tooltip>
                   </TableCell>
-                  <TableCell>
+                  <TableCell align="center">
                     <Tooltip title={getFoilLabel(row.foil)}>
-                      <span>{getShortFoilLabel(row.foil)}</span>
+                      {renderCardFoil(row.foil, 35, false)}
                     </Tooltip>
                   </TableCell>
                   <TableCell
