@@ -9,6 +9,16 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.1x.x] - 2026-xx-xx
+
+### Fixed
+
+- Remove age from land harvest dialog
+- Remove border from multiaccount dashboard
+
+
+---
+
 ## [v1.16.0] - 2026-08-28
 
 ### Added
@@ -43,7 +53,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 ### Changed
 
 - **Marketplace DEC prices now use the live DEC/USD rate**
-  - DEC purchase amounts are now calculated from the listing's USD price using the live DEC rate instead of the DEC value returned by the listing API (wich has smmoothing average).
+  - DEC purchase amounts are now calculated from the listing's USD price using the live DEC rate instead of the DEC value returned by the listing API (wich has smmoothing averge).
   - Marketplace listing selection is now consistently based on USD, with payment amounts converted to DEC or CREDITS afterward.
   - DEC purchases are disabled if a valid live DEC rate is unavailable.
   - The buy dialog now displays the USD total and applied DEC rate.

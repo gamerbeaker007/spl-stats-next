@@ -101,7 +101,6 @@ function RegionRow({ region, now }: { region: LandRegionHarvest; now: number }) 
   return (
     <TableRow>
       <TableCell sx={{ py: 0.5 }}>{region.name}</TableCell>
-      <TableCell sx={{ py: 0.5 }}>{formatAge(ageMs)}</TableCell>
       <TableCell sx={{ py: 0.5 }}>
         <Chip label={formatAge(ageMs)} color={status} size="small" />
       </TableCell>
@@ -174,11 +173,6 @@ function LandHarvestDialog({ open, onClose, data, now }: DialogProps) {
               <TableCell>
                 <Typography variant="caption" fontWeight="bold">
                   Region
-                </Typography>
-              </TableCell>
-              <TableCell>
-                <Typography variant="caption" fontWeight="bold">
-                  Age
                 </Typography>
               </TableCell>
               <TableCell>
