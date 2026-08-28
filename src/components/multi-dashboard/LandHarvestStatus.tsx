@@ -1,5 +1,7 @@
 "use client";
 
+import NeedsReAuthNotice from "@/components/shared/NeedsReAuthNotice";
+import type { SectionAuthState } from "@/lib/shared/authenticated-result";
 import type { LandHarvestData, LandRegionHarvest } from "@/types/land/landHarvest";
 import AgricultureIcon from "@mui/icons-material/Agriculture";
 import InfoIcon from "@mui/icons-material/Info";
@@ -202,12 +204,26 @@ function LandHarvestDialog({ open, onClose, data, now }: DialogProps) {
 // ---------------------------------------------------------------------------
 
 interface Props {
+  username: string;
   data: LandHarvestData | null;
   loading: boolean;
   error: string | null;
+  /** Set when the account's SPL token needs a re-auth. */
+  authState?: SectionAuthState | null;
 }
 
-export function LandHarvestStatus({ data, loading, error }: Props) {
+function renderTitle() {
+  return (
+    <>
+      <AgricultureIcon fontSize="small" color="action" />
+      <Typography variant="body2" color="text.secondary">
+        Land harvested
+      </Typography>
+    </>
+  );
+}
+
+export function LandHarvestStatus({ username, data, loading, error, authState }: Props) {
   const [now, setNow] = useState(() => Date.now());
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -221,10 +237,7 @@ export function LandHarvestStatus({ data, loading, error }: Props) {
   if (loading && !data) {
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <AgricultureIcon fontSize="small" color="action" />
-        <Typography variant="body2" color="text.secondary">
-          Land harvested
-        </Typography>
+        {renderTitle()}
         <CircularProgress size={14} />
       </Box>
     );
@@ -234,16 +247,28 @@ export function LandHarvestStatus({ data, loading, error }: Props) {
   if (error && !data) {
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <AgricultureIcon fontSize="small" color="action" />
-        <Typography variant="body2" color="text.secondary">
-          Land harvested
-        </Typography>
+        {renderTitle()}
         <Chip label="Error" color="error" size="small" variant="outlined" />
       </Box>
     );
   }
 
-  // Not authenticated / no data returned by the action
+  // Token needs a re-auth — say so instead of silently vanishing.
+  if (authState?.needsReAuth && !data) {
+    return (
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        {renderTitle()}
+        <NeedsReAuthNotice
+          username={username}
+          label="Land harvest"
+          reason={authState.reason}
+          jwtExpiresAt={authState.jwtExpiresAt}
+        />
+      </Box>
+    );
+  }
+
+  // No data returned by the action
   if (!data) {
     return null;
   }
@@ -254,10 +279,7 @@ export function LandHarvestStatus({ data, loading, error }: Props) {
   if (oldestMs === null) {
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <AgricultureIcon fontSize="small" color="action" />
-        <Typography variant="body2" color="text.secondary">
-          Land harvested
-        </Typography>
+        {renderTitle()}
         <Typography variant="body2" color="text.secondary">
           No harvest data
         </Typography>
@@ -271,10 +293,7 @@ export function LandHarvestStatus({ data, loading, error }: Props) {
   return (
     <>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <AgricultureIcon fontSize="small" color="action" />
-        <Typography variant="body2" color="text.secondary">
-          Land harvested
-        </Typography>
+        {renderTitle()}
         <Chip label={formatAge(oldestMs)} color={status} size="small" sx={{ fontWeight: "bold" }} />
         <Tooltip title="View land harvest details">
           <IconButton size="small" onClick={() => setDialogOpen(true)} sx={{ p: 0.25 }}>

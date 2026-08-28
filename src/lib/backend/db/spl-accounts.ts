@@ -144,27 +144,6 @@ export async function markExpiredJwtsInvalid(): Promise<number> {
 }
 
 /**
- * Returns distinct SPL accounts that are monitored by at least one user
- * and have a valid token. Used by the worker to know which accounts to sync.
- */
-export async function getDistinctAccountsWithCredentials() {
-  return prisma.splAccount.findMany({
-    where: {
-      tokenStatus: "valid",
-      monitoredBy: { some: {} },
-    },
-    select: {
-      id: true,
-      username: true,
-      encryptedToken: true,
-      iv: true,
-      authTag: true,
-    },
-    orderBy: { createdAt: "asc" },
-  });
-}
-
-/**
  * Returns distinct usernames for all SPL accounts monitored by at least one user,
  * regardless of token status. Used by the worker for token-independent syncs
  * (leaderboard + portfolio) so those still run even when the token is invalid.

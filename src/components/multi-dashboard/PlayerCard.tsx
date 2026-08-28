@@ -2,6 +2,7 @@
 
 import { LandHarvestStatus } from "@/components/multi-dashboard/LandHarvestStatus";
 import GuildInfo from "@/components/multi-dashboard/PlayerBrawl";
+import NeedsReAuthNotice from "@/components/shared/NeedsReAuthNotice";
 import { useDailyProgress } from "@/hooks/multi-account-dashboard/useDailyProgress";
 import { useLandHarvest } from "@/hooks/multi-account-dashboard/useLandHarvest";
 import { usePlayerCardCollection } from "@/hooks/multi-account-dashboard/usePlayerCardCollection";
@@ -43,6 +44,8 @@ export const PlayerCard = ({ username }: Props) => {
   const {
     data: dailyProgress,
     loading: dailyProgressLoading,
+    error: dailyProgressError,
+    authState: dailyProgressAuthState,
     fetchDailyProgress,
   } = useDailyProgress(username);
 
@@ -50,6 +53,7 @@ export const PlayerCard = ({ username }: Props) => {
     data: landHarvest,
     loading: landHarvestLoading,
     error: landHarvestError,
+    authState: landHarvestAuthState,
     fetchLandHarvest,
   } = useLandHarvest(username);
 
@@ -116,6 +120,23 @@ export const PlayerCard = ({ username }: Props) => {
   ]);
 
   const refreshBusy = forceRefreshing || loading || collectionLoading || refreshCoolingDown;
+
+  /**
+   * Sections whose data is unavailable purely because this account's SPL token
+   * needs a re-auth. Collected here so the card shows ONE banner with ONE
+   * Re-authenticate button; the sections themselves only show a muted hint.
+   */
+  const reAuthSections: string[] = [];
+  if (dailyProgressAuthState?.needsReAuth) reAuthSections.push("Daily Progress");
+  if (landHarvestAuthState?.needsReAuth) reAuthSections.push("Land harvest");
+  if (player?.brawlAuthState?.needsReAuth) reAuthSections.push("Fray selection");
+
+  const reAuthState =
+    dailyProgressAuthState ?? landHarvestAuthState ?? player?.brawlAuthState ?? null;
+
+  const handleReAuthenticated = useCallback(async () => {
+    await Promise.allSettled([refetch(), fetchDailyProgress(), fetchLandHarvest()]);
+  }, [refetch, fetchDailyProgress, fetchLandHarvest]);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: username,
@@ -271,6 +292,17 @@ export const PlayerCard = ({ username }: Props) => {
 
       <PlayerInfo username={player.username} playerDetails={player.playerDetails} />
 
+      {reAuthSections.length > 0 && reAuthState && (
+        <NeedsReAuthNotice
+          username={player.username}
+          label={reAuthSections.join(", ")}
+          variant="banner"
+          reason={reAuthState.reason}
+          jwtExpiresAt={reAuthState.jwtExpiresAt}
+          onReAuthenticated={handleReAuthenticated}
+        />
+      )}
+
       {/* History Button - Shows only when authorized */}
       <PlayerHistoryButtons
         username={player.username}
@@ -294,9 +326,11 @@ export const PlayerCard = ({ username }: Props) => {
 
       <Box width={"100%"}>
         <LandHarvestStatus
+          username={player.username}
           data={landHarvest}
           loading={landHarvestLoading}
           error={landHarvestError}
+          authState={landHarvestAuthState}
         />
       </Box>
 
@@ -318,16 +352,20 @@ export const PlayerCard = ({ username }: Props) => {
           username={player.username}
           playerDetails={player.playerDetails}
           brawlDetails={player.brawlDetails}
+          brawlAuthState={player.brawlAuthState}
         />
       </Box>
 
       <Box width={"100%"}>
         {/* Daily Progress Section */}
         <PlayerDailies
+          username={player.username}
           balances={player.balances}
           playerDetails={player.playerDetails}
           dailyProgress={dailyProgress}
           dailyProgressLoading={dailyProgressLoading}
+          dailyProgressError={dailyProgressError}
+          dailyProgressAuthState={dailyProgressAuthState}
         />
       </Box>
       <Box width={"100%"}>

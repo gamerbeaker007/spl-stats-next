@@ -20,7 +20,7 @@ import { getCardSetLabel, getEditionIconUrl, getEditionLabel } from "@/lib/share
 import { getBracketLevelRange, LEAGUE_BRACKETS } from "@/lib/shared/league-brackets";
 import { getRarityIconUrl } from "@/lib/shared/rarity-utils";
 import type { League } from "@/types/buy-missing-cc";
-import { CardRole, cardRoleIconMap } from "@/types/card";
+import { CardRole, cardRoleIconMap, cardRoleLabelMap } from "@/types/card";
 import type { SplSettings } from "@/types/spl/season";
 import {
   Box,
@@ -441,7 +441,7 @@ export default function BuyMissingCcTable({
                   </TableCell>
                   <TableCell>{row.name}</TableCell>
                   <TableCell align="center">
-                    <Tooltip title="Role: Archon/Unit">
+                    <Tooltip title={cardRoleLabelMap[row.role] ?? ""}>
                       <span>{renderRole(row.role)}</span>
                     </Tooltip>
                   </TableCell>

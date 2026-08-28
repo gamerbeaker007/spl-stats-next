@@ -5,6 +5,7 @@ import {
   getPlayerDraws,
   getPlayerPoolBalances,
 } from "@/lib/backend/actions/player-actions";
+import { toSectionAuthState } from "@/lib/shared/authenticated-result";
 import { PlayerStatusData } from "@/types/playerStatus";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -96,13 +97,35 @@ export function usePlayerStatus(username: string): UsePlayerStatusReturn {
       if (detailsResult.status === "fulfilled" && detailsResult.value.guild?.id) {
         const guild = detailsResult.value.guild;
         try {
-          const brawlDetails =
-            (await getPlayerBrawl(username, guild.id, guild.tournament_id)) ?? undefined;
+          const brawl = await getPlayerBrawl(username, guild.id, guild.tournament_id);
           if (isMountedRef.current) {
-            setData((prev) => (prev ? { ...prev, brawlDetails } : prev));
+            // `partial` = the public brawl response: cycle/status/battles are
+            // real, only fray selection needs a token. Keep the data AND flag it.
+            setData((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    brawlDetails:
+                      brawl.status === "ok" || brawl.status === "partial" ? brawl.data : undefined,
+                    brawlAuthState: toSectionAuthState(brawl) ?? undefined,
+                    brawlError: brawl.status === "error" ? brawl.message : undefined,
+                  }
+                : prev
+            );
           }
-        } catch {
-          // Brawl details are non-critical, silently ignore failures
+        } catch (err) {
+          // Non-critical: surface it on the card instead of swallowing it.
+          if (isMountedRef.current) {
+            setData((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    brawlError:
+                      err instanceof Error ? err.message : "Failed to fetch brawl details",
+                  }
+                : prev
+            );
+          }
         }
       }
     } catch (err) {

@@ -1,3 +1,4 @@
+import type { SectionAuthState } from "@/lib/shared/authenticated-result";
 import { PlayerPoolBalances, SplBalance } from "@/types/spl/balances";
 import { SplBrawlDetails } from "@/types/spl/brawl";
 import { SplPlayerDetails } from "@/types/spl/details";
@@ -18,6 +19,9 @@ export interface PlayerStatusData {
   drawsError?: string;
   playerDetails?: SplPlayerDetails;
   brawlDetails?: SplBrawlDetails;
+  /** Set when the brawl response is the public one — fray selection is missing. */
+  brawlAuthState?: SectionAuthState;
+  brawlError?: string;
   detailsError?: string;
   error?: string;
 }

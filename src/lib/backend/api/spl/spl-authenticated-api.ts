@@ -9,19 +9,9 @@
  * Public (unauthenticated) API calls remain in spl-api.ts.
  */
 
+import { isAuthFailure } from "@/lib/backend/api/spl/spl-errors";
 import logger from "@/lib/backend/log/logger.server";
 import { splApiConfig } from "@/lib/shared/config/splApiConfig";
-import {
-  BalanceHistoryTokenType,
-  SplBalanceHistoryItem,
-  SplBalanceHistoryResponse,
-  SplUnclaimedBalanceHistoryItem,
-  UnclaimedTokenType,
-} from "@/types/spl/balance";
-import { BATTLE_FORMATS, SplBattle, SplBattleHistoryResponse } from "@/types/spl/battle";
-import { SplBrawlDetails } from "@/types/spl/brawl";
-import { SplDailyProgress } from "@/types/spl/dailies";
-import { SplFormat } from "@/types/spl/format";
 import {
   ClaimDailyData,
   ClaimDailyResult,
@@ -36,6 +26,17 @@ import {
   RewardDraw,
   RewardMerits,
 } from "@/types/parsedHistory";
+import {
+  BalanceHistoryTokenType,
+  SplBalanceHistoryItem,
+  SplBalanceHistoryResponse,
+  SplUnclaimedBalanceHistoryItem,
+  UnclaimedTokenType,
+} from "@/types/spl/balance";
+import { BATTLE_FORMATS, SplBattle, SplBattleHistoryResponse } from "@/types/spl/battle";
+import { SplBrawlDetails } from "@/types/spl/brawl";
+import { SplDailyProgress } from "@/types/spl/dailies";
+import { SplFormat } from "@/types/spl/format";
 import { SplHistory } from "@/types/spl/history";
 import axios, { AxiosRequestConfig } from "axios";
 import * as rax from "retry-axios";
@@ -224,6 +225,10 @@ export async function fetchBattleHistory(
         }
       }
     } catch (error) {
+      // A dead token fails every format, and swallowing it would make the account
+      // look idle ("no battles returned") instead of broken — so auth failures
+      // propagate. Any other per-format failure stays non-fatal.
+      if (isAuthFailure(error)) throw error;
       logger.warn(
         `fetchBattleHistory: format=${format} player=${player}: ${error instanceof Error ? error.message : String(error)}`
       );

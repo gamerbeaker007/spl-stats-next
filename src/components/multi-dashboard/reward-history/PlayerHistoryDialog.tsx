@@ -1,6 +1,7 @@
 "use client";
 
-import { usePlayerHistory } from "@/hooks/usePlayerHistory";
+import NeedsReAuthNotice from "@/components/shared/NeedsReAuthNotice";
+import { usePlayerHistory } from "@/hooks/multi-account-dashboard/usePlayerHistory";
 import { SplCardDetail } from "@/types/spl/cardDetails";
 import { EmojiEvents as RewardIcon } from "@mui/icons-material";
 import {
@@ -36,7 +37,7 @@ export function PlayerHistoryDialog({
 }: PlayerHistoryDialogProps) {
   const [currentSeasonId] = useState(seasonId);
   const [loadedSeasonId, setLoadedSeasonId] = useState<number | null>(null);
-  const { isLoading, error, rewardHistory, fetchHistory, clearHistory, clearError } =
+  const { isLoading, error, authState, rewardHistory, fetchHistory, clearHistory, clearError } =
     usePlayerHistory();
 
   const handleFetchCurrentSeason = async () => {
@@ -112,6 +113,17 @@ export function PlayerHistoryDialog({
         </Paper>
 
         {/* Error Display */}
+        {authState?.needsReAuth && (
+          <NeedsReAuthNotice
+            username={player}
+            label="Reward history"
+            variant="alert"
+            reason={authState.reason}
+            jwtExpiresAt={authState.jwtExpiresAt}
+            onReAuthenticated={handleFetchCurrentSeason}
+          />
+        )}
+
         {error && (
           <Alert severity="error" sx={{ mb: 2 }} onClose={clearError}>
             {error}

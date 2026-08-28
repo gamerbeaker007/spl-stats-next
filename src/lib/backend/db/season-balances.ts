@@ -1,50 +1,5 @@
 import prisma from "@/lib/prisma";
 
-export async function upsertSeasonBalance(
-  username: string,
-  seasonId: number,
-  token: string,
-  type: string,
-  earned: number,
-  cost: number,
-  count: number
-) {
-  return prisma.seasonBalance.upsert({
-    where: { username_seasonId_token_type: { username, seasonId, token, type } },
-    create: { username, seasonId, token, type, earned, cost, count },
-    update: { earned, cost, count },
-  });
-}
-
-export async function upsertSeasonBalanceBatch(
-  rows: Array<{
-    username: string;
-    seasonId: number;
-    token: string;
-    type: string;
-    earned: number;
-    cost: number;
-    count: number;
-  }>
-) {
-  return prisma.$transaction(
-    rows.map((row) =>
-      prisma.seasonBalance.upsert({
-        where: {
-          username_seasonId_token_type: {
-            username: row.username,
-            seasonId: row.seasonId,
-            token: row.token,
-            type: row.type,
-          },
-        },
-        create: row,
-        update: { earned: row.earned, cost: row.cost, count: row.count },
-      })
-    )
-  );
-}
-
 /**
  * Increment existing season balance aggregates by the given delta amounts.
  * Creates the row if it doesn't exist yet. Safe to call repeatedly — never overwrites,
@@ -109,12 +64,11 @@ export async function getSeasonBalancesByToken(
   username: string,
   token: string
 ): Promise<Array<{ seasonId: number; type: string; earned: number; cost: number }>> {
-  const rows = await prisma.seasonBalance.findMany({
+  return await prisma.seasonBalance.findMany({
     where: { username, token },
     orderBy: [{ seasonId: "asc" }, { type: "asc" }],
     select: { seasonId: true, type: true, earned: true, cost: true },
   });
-  return rows;
 }
 
 /**

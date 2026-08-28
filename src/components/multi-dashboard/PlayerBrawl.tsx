@@ -1,6 +1,8 @@
 "use client";
 
 import BrawlTime from "@/components/multi-dashboard/BrawlTime";
+import NeedsReAuthNotice from "@/components/shared/NeedsReAuthNotice";
+import type { SectionAuthState } from "@/lib/shared/authenticated-result";
 import { SplBrawlDetails } from "@/types/spl/brawl";
 import { SplPlayerDetails } from "@/types/spl/details";
 import { Alert, Box, Card, CardContent, Typography } from "@mui/material";
@@ -10,6 +12,8 @@ interface Props {
   username: string;
   playerDetails?: SplPlayerDetails;
   brawlDetails?: SplBrawlDetails;
+  /** Set when only the public brawl response was available (no fray selection). */
+  brawlAuthState?: SectionAuthState | null;
 }
 
 const statusMap: Record<number, string> = {
@@ -28,7 +32,12 @@ const statusColor: Record<number, string> = {
   4: "error.main",
 };
 
-export default function GuildInfo({ username, playerDetails, brawlDetails }: Props) {
+export default function GuildInfo({
+  username,
+  playerDetails,
+  brawlDetails,
+  brawlAuthState,
+}: Props) {
   const playerBrawls = brawlDetails?.players?.find((p) => p.player === username) || null;
   const brawlCycleRAW = brawlDetails?.id?.split("-").find((id) => id.startsWith("BC")) ?? "";
   const brawlCycle = brawlCycleRAW.split("BC")[1] ?? "";
@@ -101,9 +110,20 @@ export default function GuildInfo({ username, playerDetails, brawlDetails }: Pro
                       {username}
                     </Typography>
                     {!validFrays ? (
-                      <Alert severity="info" sx={{ mt: 1 }}>
-                        Login to view fray selection
-                      </Alert>
+                      brawlAuthState?.needsReAuth ? (
+                        <Box sx={{ mt: 1 }}>
+                          <NeedsReAuthNotice
+                            username={username}
+                            label="Fray selection"
+                            reason={brawlAuthState.reason}
+                            jwtExpiresAt={brawlAuthState.jwtExpiresAt}
+                          />
+                        </Box>
+                      ) : (
+                        <Alert severity="info" sx={{ mt: 1 }}>
+                          Fray selection unavailable
+                        </Alert>
+                      )
                     ) : (
                       <Typography variant={"body1"}>
                         {selectedFray

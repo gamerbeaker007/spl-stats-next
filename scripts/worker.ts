@@ -1,4 +1,5 @@
 import { fetchSettings } from "@/lib/backend/api/spl/spl-api";
+import { isAuthFailure } from "@/lib/backend/api/spl/spl-errors";
 import { decryptToken } from "@/lib/backend/auth/encryption";
 import {
   markBalanceMetaSyncFailed,
@@ -47,8 +48,23 @@ registerShutdownHandlers();
 type AccountDueForSync = Awaited<ReturnType<typeof getAccountsDueForSync>>[number];
 
 /**
+ * Park an account whose token turned out to be dead: mark it `invalid` so
+ * `getAccountsDueForSync` stops selecting it (and the dashboard shows the
+ * re-auth prompt) until the user re-authenticates, which clears the flag.
+ */
+async function parkAccountWithDeadToken(username: string, msg: string): Promise<void> {
+  logger.warn(`Worker: SPL token rejected for ${username} (${msg}) — marking invalid`);
+  await updateSplAccountStatusByUsername(username, "invalid");
+  await markBalanceMetaSyncFailed(username, `Token rejected: ${msg}`);
+}
+
+/**
  * Processes a single account's token-dependent syncs (balance + battle history).
- * JWT expiry is pre-filtered by getAccountsDueForSync, so no API verify needed.
+ *
+ * JWT *expiry* is pre-filtered by getAccountsDueForSync, so no API verify is
+ * needed up front. A token can still die mid-run (natural expiry during a long
+ * sync, or revoked because the player logged in elsewhere) — that surfaces as a
+ * 401/403, which parks the account instead of being logged and retried forever.
  */
 async function processAccount(account: AccountDueForSync, allSeasons: Season[]): Promise<boolean> {
   let jwtDecrypted = "";
@@ -69,6 +85,11 @@ async function processAccount(account: AccountDueForSync, allSeasons: Season[]):
     anySuccess = true;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
+    if (isAuthFailure(error)) {
+      // The token is dead: battle history would fail identically, so skip it.
+      await parkAccountWithDeadToken(account.username, msg);
+      return anySuccess;
+    }
     logger.error(`Worker: failed to sync balances ${account.username}: ${msg}`);
   }
 
@@ -79,6 +100,10 @@ async function processAccount(account: AccountDueForSync, allSeasons: Season[]):
     anySuccess = true;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
+    if (isAuthFailure(error)) {
+      await parkAccountWithDeadToken(account.username, msg);
+      return anySuccess;
+    }
     logger.error(`Worker: failed to sync battle history ${account.username}: ${msg}`);
   }
 

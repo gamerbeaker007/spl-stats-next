@@ -31,8 +31,6 @@ import {
 import { useEffect, useState } from "react";
 import { BalanceHistorySection } from "./BalanceHistorySection";
 
-const OLD_SEASON_THRESHOLD = 5;
-
 interface DbSeason {
   id: number;
   endsAt: Date;
@@ -80,8 +78,8 @@ function seasonLabel(s: DbSeason, currentSeasonId: number): string {
     year: "numeric",
   });
   const suffix =
-    s.id === currentSeasonId ? " (Current)" : s.id === currentSeasonId - 1 ? " (Previous)" : "";
-  return `Season ${s.id} — ends ${date}${suffix}`;
+    s.id === currentSeasonId ? " - Current" : s.id === currentSeasonId - 1 ? " - Previous" : "";
+  return `Season ${s.id} (${date}${suffix})`;
 }
 
 export function BalanceHistoryDialog({
@@ -123,19 +121,11 @@ export function BalanceHistoryDialog({
     setSelectedSeasonId("");
     fetchBalanceHistory(player, currentSeasonId - 1);
   };
-  const handleFetchSelectedSeason = () => {
-    if (selectedSeasonId !== "") fetchBalanceHistory(player, selectedSeasonId);
-  };
 
   const loadedSeasonId = balanceHistory?.seasonId ?? null;
   const prevLoaded = loadedSeasonId === currentSeasonId - 1;
   const currLoaded = loadedSeasonId === currentSeasonId;
   const noneLoaded = loadedSeasonId === null;
-  const selectedLoaded = selectedSeasonId !== "" && loadedSeasonId === selectedSeasonId;
-
-  const isOldSeason =
-    selectedSeasonId !== "" &&
-    currentSeasonId - (selectedSeasonId as number) > OLD_SEASON_THRESHOLD;
 
   const doneCount = progress.filter((p) => p.status === "done" || p.status === "error").length;
   const totalCount = progress.length;
@@ -190,7 +180,11 @@ export function BalanceHistoryDialog({
                 <Select
                   value={selectedSeasonId}
                   label="Older season"
-                  onChange={(e) => setSelectedSeasonId(e.target.value as number)}
+                  onChange={(e) => {
+                    const seasonId = Number(e.target.value);
+                    setSelectedSeasonId(seasonId);
+                    fetchBalanceHistory(player, seasonId);
+                  }}
                   MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
                 >
                   {seasonsLoading && (
@@ -198,39 +192,18 @@ export function BalanceHistoryDialog({
                       <CircularProgress size={14} sx={{ mr: 1 }} /> Loading seasons…
                     </MenuItem>
                   )}
-                  {seasons.map((s) => (
-                    <MenuItem key={s.id} value={s.id}>
-                      {seasonLabel(s, currentSeasonId)}
-                    </MenuItem>
-                  ))}
+                  {seasons
+                    .toSorted((a, b) => b.id - a.id)
+                    .map((s) => (
+                      <MenuItem key={s.id} value={s.id}>
+                        {seasonLabel(s, currentSeasonId)}
+                      </MenuItem>
+                    ))}
                 </Select>
               </FormControl>
-              <Button
-                variant={selectedLoaded ? "contained" : "outlined"}
-                onClick={handleFetchSelectedSeason}
-                disabled={isLoading || selectedSeasonId === ""}
-                startIcon={
-                  isLoading && selectedLoaded ? (
-                    <CircularProgress size={20} />
-                  ) : (
-                    <AccountBalanceWalletIcon />
-                  )
-                }
-                color={selectedLoaded ? "success" : "secondary"}
-              >
-                {isLoading && selectedLoaded ? "Fetching…" : "Load"}
-              </Button>
             </Stack>
           </Stack>
         </Paper>
-
-        {/* Old season warning */}
-        {isOldSeason && (
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            Season {selectedSeasonId} is far in the past — fetching may take longer due to the
-            amount of history to paginate through.
-          </Alert>
-        )}
 
         {/* Progress chips */}
         {progress.length > 0 && (
