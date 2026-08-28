@@ -9,6 +9,35 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.16.0] - 2026-08-28
+
+### Added
+
+- Added Role to Buy Missing CC page
+
+### Changed
+
+- Update from Foil letter to Foil image in the Buy missing CC page
+- **Multi-account dashboard: consistent SPL token handling.** Sections that need a JWT (daily progress, land harvest, brawl fray selection, reward history) no longer issue calls that are bound to fail, and all report the same way.
+  - Expired tokens are detected locally (`resolveUsableJwt`) before any authenticated request — no more 401/403 round trips, and failures are no longer cached for the cache window.
+  - Token-dependent actions return one `AuthenticatedResult` shape, so "needs re-authentication" is distinguishable from a genuine error (a missing season row no longer reads as "not authenticated").
+  - New shared `NeedsReAuthNotice`: one card-level banner with a Re-authenticate button plus a muted hint per affected section, replacing the previous mix of a blank section, a bare red "Error" chip, and a dropped error message.
+  - Brawl degrades to the public response instead of vanishing — cycle/status/battles stay visible, only fray selection is flagged.
+  - Token status is fetched once per dashboard via `AccountsContext` instead of once per card, and re-authenticating now expires that account's cached dashboard reads.
+- **Worker: a token that dies mid-run now parks the account.** Expired tokens were already filtered out before a cycle starts, but a token expiring or being revoked *during* a run was logged and retried indefinitely.
+  - 401/403 responses (`isAuthFailure`) now propagate instead of being swallowed per token type / per battle format, so one dead token no longer produces a doomed request for every remaining token type.
+  - The account is marked `invalid`, so the next cycle skips it and the dashboard shows the re-auth prompt; re-authenticating clears the flag and re-queues it.
+  - `BALANCE_META.lastRunAt` and `lastSeasonProcessed` are no longer advanced by a run that collected nothing — previously the 24 h skip gate closed on a fully failed run and the season-rollover trigger was consumed.
+- **Balance History: ** No longer need to press the load button, and older seasons are just as quick (now retrieved from db iso spl api). Changed sorting of the Older seasons Descending.
+
+### Fixed
+
+- Buy Missing CC: with Cross-Foil Progress on, missing cards now show the cheapest selected foil (regular first) instead of an arbitrary premium foil.
+- `getPlayerSeasonHistory` now verifies the caller monitors the account before using its stored JWT, matching the other token-backed actions.
+- Worker: battle-history sync no longer reports a rejected token as a successful, idle account ("no battles returned").
+
+---
+
 ## [v1.15.0] - 2026-08-17
 
 ### Changed

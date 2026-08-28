@@ -1,8 +1,9 @@
 "use server";
 
-import { fetchPlayerHistoryByDateRange } from "@/lib/backend/api/spl/spl-authenticated-api";
-import { getDecryptedJwt } from "@/lib/backend/auth/jwt";
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
+import { fetchPlayerHistoryByDateRange } from "@/lib/backend/api/spl/spl-authenticated-api";
+import { isAuthFailure } from "@/lib/backend/api/spl/spl-errors";
+import { MissingJwtError, resolveUsableJwt, type JwtResolution } from "@/lib/backend/auth/jwt";
 import {
   getCachedBrawlDetails,
   getCachedDailyProgress,
@@ -21,6 +22,7 @@ import {
 } from "@/lib/backend/cache/spl-cache";
 import { getSeasonBalances } from "@/lib/backend/db/season-balances";
 import { getAllSeasons, getLatestSeason, getSeasonById } from "@/lib/backend/db/seasons";
+import { rethrowFrameworkErrors } from "@/lib/backend/next-errors";
 import { getDetailedPlayerCardCollectionCached } from "@/lib/backend/services/collection-detailed";
 import { getPlayerCollectionValue } from "@/lib/collectionUtils";
 import {
@@ -28,13 +30,21 @@ import {
   aggregateRewards,
   mergeRewardSummaries,
 } from "@/lib/rewardAggregator";
+import {
+  authError,
+  authNeedsReAuth,
+  authOk,
+  authPartial,
+  type AuthenticatedResult,
+} from "@/lib/shared/authenticated-result";
 import { DetailedPlayerCardCollection } from "@/types/card";
+import { LandHarvestData } from "@/types/land/landHarvest";
 import { ParsedHistory, ParsedPlayerRewardHistory, PurchaseResult } from "@/types/parsedHistory";
 import { PlayerCardCollectionData } from "@/types/playerCardCollection";
 import { DailyProgressData } from "@/types/playerDailyProgress";
 import { SeasonBalanceHistory, TokenBalanceSummary } from "@/types/spl/balanceHistory";
 import { PlayerPoolBalances } from "@/types/spl/balances";
-import { LandHarvestData } from "@/types/land/landHarvest";
+import { SplBrawlDetails } from "@/types/spl/brawl";
 import { getCurrentUser, getMonitoredAccounts } from "./auth-actions";
 
 // ---------------------------------------------------------------------------
@@ -81,14 +91,70 @@ async function assertMonitorsAccount(username: string): Promise<boolean> {
   return accounts.some((a) => a.username === username.toLowerCase());
 }
 
-export async function getPlayerBrawl(username: string, guildId: string, tournamentId: string) {
-  if (!(await assertMonitorsAccount(username))) return null;
-  return getCachedBrawlDetails(username, guildId, tournamentId);
+/**
+ * Run a token-dependent read behind two gates: the caller must monitor the
+ * account, and the stored JWT must still be usable.
+ *
+ * The expiry gate runs *outside* the `"use cache"` wrappers on purpose — no
+ * authenticated request is issued for a dead token (so no 401/403), and no
+ * unauthenticated outcome can be written into the cache.
+ */
+async function withUsableJwt<T>(
+  username: string,
+  run: (resolution: Extract<JwtResolution, { ok: true }>) => Promise<T>
+): Promise<AuthenticatedResult<T>> {
+  if (!(await assertMonitorsAccount(username))) {
+    return authError("Account is not in your monitored list");
+  }
+
+  const resolution = await resolveUsableJwt(username);
+  if (!resolution.ok) {
+    return authNeedsReAuth(resolution.reason, resolution.jwtExpiresAt);
+  }
+
+  try {
+    return authOk(await run(resolution));
+  } catch (error) {
+    rethrowFrameworkErrors(error);
+    // The token was revoked between the gate and the (uncached) fetch.
+    if (error instanceof MissingJwtError) return authNeedsReAuth("no_token", null);
+    // Revoked but not yet expired: the expiry gate cannot see this, only SPL can.
+    if (isAuthFailure(error)) return authNeedsReAuth("token_expired", null);
+    return authError(error instanceof Error ? error.message : "Request failed");
+  }
 }
 
-export async function getPlayersDailyProgress(username: string): Promise<DailyProgressData | null> {
-  if (!(await assertMonitorsAccount(username))) return null;
-  return getCachedDailyProgress(username);
+/**
+ * Brawl details. Degrades to the public (tokenless) response when the JWT is
+ * unusable — cycle/status/battles stay visible, only fray selection is missing —
+ * so this returns `partial` rather than refusing outright.
+ */
+export async function getPlayerBrawl(
+  username: string,
+  guildId: string,
+  tournamentId: string
+): Promise<AuthenticatedResult<SplBrawlDetails>> {
+  if (!(await assertMonitorsAccount(username))) {
+    return authError("Account is not in your monitored list");
+  }
+
+  const resolution = await resolveUsableJwt(username);
+
+  try {
+    const details = await getCachedBrawlDetails(username, guildId, tournamentId, resolution.ok);
+    return resolution.ok
+      ? authOk(details)
+      : authPartial(details, resolution.reason, resolution.jwtExpiresAt);
+  } catch (error) {
+    rethrowFrameworkErrors(error);
+    return authError(error instanceof Error ? error.message : "Failed to fetch brawl details");
+  }
+}
+
+export async function getPlayersDailyProgress(
+  username: string
+): Promise<AuthenticatedResult<DailyProgressData>> {
+  return withUsableJwt(username, () => getCachedDailyProgress(username));
 }
 
 export async function getPlayersCardCollection(
@@ -129,13 +195,11 @@ export async function forceRefreshDashboardAccount(username: string): Promise<bo
   return true;
 }
 
-/**
- * Cached land harvest data for the player's monitored account.
- * Returns null when the caller does not monitor `username`.
- */
-export async function getPlayerLandHarvest(username: string): Promise<LandHarvestData | null> {
-  if (!(await assertMonitorsAccount(username))) return null;
-  return getCachedLandHarvestData(username);
+/** Cached land harvest data for the player's monitored account. */
+export async function getPlayerLandHarvest(
+  username: string
+): Promise<AuthenticatedResult<LandHarvestData>> {
+  return withUsableJwt(username, () => getCachedLandHarvestData(username));
 }
 
 export async function getDetailedPlayerCardCollection(
@@ -201,46 +265,47 @@ const REWARD_HISTORY_TYPES = "claim_reward,claim_daily,purchase";
 export async function getPlayerSeasonHistory(
   username: string,
   seasonId: number
-): Promise<ParsedPlayerRewardHistory | null> {
+): Promise<AuthenticatedResult<ParsedPlayerRewardHistory>> {
   const [season, prevSeason] = await Promise.all([
     getSeasonById(seasonId),
     getSeasonById(seasonId - 1),
   ]);
-  if (!season) return null;
+  // Reported as an error, not as "needs re-auth" — a missing season row is not
+  // something re-authenticating can fix.
+  if (!season) return authError(`Season ${seasonId} not found`);
   const endDate = new Date(season.endsAt);
   const startDate = prevSeason ? new Date(prevSeason.endsAt) : new Date(0);
 
-  const token = await getDecryptedJwt(username);
-  if (!token) return null;
+  return withUsableJwt(username, async ({ token }) => {
+    const allHistory: ParsedHistory[] = await fetchPlayerHistoryByDateRange(
+      username,
+      token,
+      REWARD_HISTORY_TYPES,
+      startDate,
+      endDate
+    );
 
-  const allHistory: ParsedHistory[] = await fetchPlayerHistoryByDateRange(
-    username,
-    token,
-    REWARD_HISTORY_TYPES,
-    startDate,
-    endDate
-  );
+    const purchaseEntries = allHistory
+      .filter(
+        (e): e is ParsedHistory & { type: "purchase"; result: PurchaseResult } =>
+          e.type === "purchase" && e.result !== null
+      )
+      .map((e) => e.result as PurchaseResult);
 
-  const purchaseEntries = allHistory
-    .filter(
-      (e): e is ParsedHistory & { type: "purchase"; result: PurchaseResult } =>
-        e.type === "purchase" && e.result !== null
-    )
-    .map((e) => e.result as PurchaseResult);
+    const aggregation = mergeRewardSummaries(
+      aggregateRewards(allHistory),
+      aggregatePurchaseRewards(purchaseEntries)
+    );
 
-  const aggregation = mergeRewardSummaries(
-    aggregateRewards(allHistory),
-    aggregatePurchaseRewards(purchaseEntries)
-  );
-
-  return {
-    allEntries: allHistory,
-    totalEntries: allHistory.length,
-    seasonId,
-    aggregation,
-    dateRange: {
-      start: startDate.toISOString(),
-      end: endDate.toISOString(),
-    },
-  };
+    return {
+      allEntries: allHistory,
+      totalEntries: allHistory.length,
+      seasonId,
+      aggregation,
+      dateRange: {
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
+      },
+    };
+  });
 }

@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { splLogin } from "@/lib/backend/api/spl/spl-api";
 import { verifySplJwt } from "@/lib/backend/api/spl/spl-authenticated-api";
 import { deleteUserCookie, getSessionIdFromCookie, setUserCookie } from "@/lib/backend/auth/cookie";
@@ -305,6 +306,10 @@ export async function reAuthMonitoredAccount(
     // Clear the worker sync timestamp so this account is picked up immediately
     // in the next worker queue check.
     await resetSplAccountWorkerSync(lc);
+    // Expire this account's cached dashboard reads — otherwise the fresh token
+    // still serves entries fetched while the old one was dead and the re-auth
+    // looks like it did nothing.
+    await revalidateTagsAction([{ type: "dashboard-account", usernames: [lc] }]);
 
     logger.info(`JWT refreshed for '${lc}', expires ${jwtExpiresAt?.toISOString() ?? "unknown"}`);
     return { success: true, username: lc, jwtExpiresAt };

@@ -20,8 +20,16 @@ type StoredAccountsState = {
   collectionSelectedAccounts: string[];
 };
 
+/** SPL token state per monitored account, as stored in the DB. */
+export type MonitoredAccountToken = {
+  tokenStatus: "valid" | "invalid" | "unknown";
+  jwtExpiresAt: Date | null;
+};
+
 type AccountsContextType = {
   monitoredAccounts: string[];
+  /** Keyed by lowercase username. Empty until the monitored accounts load. */
+  monitoredAccountTokens: Record<string, MonitoredAccountToken>;
   savedAccounts: string[];
   accountOptions: string[];
   selectedAccount: string;
@@ -89,12 +97,15 @@ function readStoredState(): StoredAccountsState {
 }
 
 export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const { user } = useAuth();
+  const { user, reAuthVersion, tokenStatusVersion } = useAuth();
 
   const [savedAccounts, setSavedAccounts] = useState<string[]>([]);
   const [selectedAccount, setSelectedAccountState] = useState("");
   const [collectionSelectedAccounts, setCollectionSelectedAccountsState] = useState<string[]>([]);
   const [monitoredAccounts, setMonitoredAccounts] = useState<string[]>([]);
+  const [monitoredAccountTokens, setMonitoredAccountTokens] = useState<
+    Record<string, MonitoredAccountToken>
+  >({});
 
   const loggedInAccount = normalizeAccount(user?.username);
 
@@ -102,7 +113,7 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
     // Hydrate from localStorage after mount — reading it during render would
     // cause an SSR/client hydration mismatch, so the sync must live in an effect.
     const stored = readStoredState();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+
     setSavedAccounts(stored.savedAccounts);
     setSelectedAccountState(stored.selectedAccount);
     setCollectionSelectedAccountsState(stored.collectionSelectedAccounts);
@@ -111,23 +122,45 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
   const refreshMonitoredAccounts = useCallback(async () => {
     if (!loggedInAccount) {
       setMonitoredAccounts([]);
+      setMonitoredAccountTokens({});
       return;
     }
 
     const rows = await getMonitoredAccounts();
     setMonitoredAccounts(normalizeAccounts(rows.map((entry) => entry.username)));
-  }, [loggedInAccount]);
+    // The same rows already carry the SPL token state, so publishing it here
+    // costs no extra round trip and replaces the per-card `getAccountTokenStatus`
+    // call that every `AuthenticationStatus` used to make.
+    setMonitoredAccountTokens(
+      Object.fromEntries(
+        rows.map((entry) => [
+          normalizeAccount(entry.username),
+          {
+            tokenStatus: (entry.splAccount?.tokenStatus ?? "unknown") as
+              | "valid"
+              | "invalid"
+              | "unknown",
+            jwtExpiresAt: entry.splAccount?.jwtExpiresAt ?? null,
+          },
+        ])
+      )
+    );
+    // `reAuthVersion` / `tokenStatusVersion` are intentional "refetch triggers":
+    // they are not read in the body, but bumping either must re-read the token
+    // state so the dashboard reflects a fresh JWT without a page reload.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loggedInAccount, reAuthVersion, tokenStatusVersion]);
 
   useEffect(() => {
     // Loads server-side monitored accounts (and clears them on logout) — an
     // external-data sync that necessarily updates state from within the effect.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+
     refreshMonitoredAccounts();
   }, [refreshMonitoredAccounts]);
 
   useEffect(() => {
     // If an account is now monitored, it is no longer considered a removable local account.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+
     setSavedAccounts((current) => {
       const filtered = current.filter((account) => !monitoredAccounts.includes(account));
       return arraysEqual(filtered, current) ? current : filtered;
@@ -175,7 +208,6 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
       safeCollection.length > 0 ? safeCollection : safeSelected ? [safeSelected] : [];
 
     if (safeSelected !== selectedAccount) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedAccountState(safeSelected);
     }
 
@@ -258,6 +290,7 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
   const value = useMemo<AccountsContextType>(
     () => ({
       monitoredAccounts,
+      monitoredAccountTokens,
       savedAccounts,
       accountOptions,
       selectedAccount,
@@ -273,6 +306,7 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
       addLocalAccount,
       collectionSelectedAccounts,
       monitoredAccounts,
+      monitoredAccountTokens,
       refreshMonitoredAccounts,
       removeLocalAccount,
       savedAccounts,

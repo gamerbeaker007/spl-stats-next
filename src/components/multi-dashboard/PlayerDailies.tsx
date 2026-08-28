@@ -1,8 +1,10 @@
 "use client";
 
+import NeedsReAuthNotice from "@/components/shared/NeedsReAuthNotice";
+import type { SectionAuthState } from "@/lib/shared/authenticated-result";
 import { largeNumberFormat } from "@/lib/utils";
-import { SplBalance } from "@/types/spl/balances";
 import { DailyProgressData } from "@/types/playerDailyProgress";
+import { SplBalance } from "@/types/spl/balances";
 import { SplDailyProgress } from "@/types/spl/dailies";
 import { SplPlayerDetails } from "@/types/spl/details";
 import { Timer as TimerIcon, EmojiEvents as TrophyIcon } from "@mui/icons-material";
@@ -25,10 +27,14 @@ import { useEffect, useState } from "react";
  * so the per-card force refresh can re-fetch it together with the rest.
  */
 interface Props {
+  username: string;
   playerDetails?: SplPlayerDetails;
   balances?: SplBalance[];
   dailyProgress?: DailyProgressData | null;
   dailyProgressLoading?: boolean;
+  dailyProgressError?: string | null;
+  /** Set when the account's SPL token needs a re-auth. */
+  dailyProgressAuthState?: SectionAuthState | null;
 }
 
 const maxEntriesPerDay = 15;
@@ -199,10 +205,13 @@ const DailyProgressCard = ({
 };
 
 export default function PlayerDailies({
+  username,
   balances,
   playerDetails,
   dailyProgress: data,
   dailyProgressLoading: loading,
+  dailyProgressError: error,
+  dailyProgressAuthState: authState,
 }: Props) {
   const hasWildMatches = (playerDetails?.season_details?.wild?.battles ?? 0) > 0;
   const hasModernMatches = (playerDetails?.season_details?.modern?.battles ?? 0) > 0;
@@ -220,9 +229,20 @@ export default function PlayerDailies({
         </Box>
       </Box>
 
-      {!data ? (
+      {authState?.needsReAuth ? (
+        <NeedsReAuthNotice
+          username={username}
+          label="Daily Progress"
+          reason={authState.reason}
+          jwtExpiresAt={authState.jwtExpiresAt}
+        />
+      ) : error ? (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      ) : !data ? (
         <Alert severity="info" sx={{ mb: 2 }}>
-          No daily progress data available. Login to view daily quest progress.
+          No daily progress data available.
         </Alert>
       ) : (
         <Box sx={{ display: "flex", flexDirection: "row", gap: 1, width: "100%" }}>

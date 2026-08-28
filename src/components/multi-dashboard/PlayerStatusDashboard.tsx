@@ -11,8 +11,8 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
-import { getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
 import { useReAuth } from "@/hooks/useReAuth";
+import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import KeyIcon from "@mui/icons-material/Key";
 import { Alert, Box, Button, CircularProgress, Container, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
@@ -30,6 +30,7 @@ function applyStoredOrder(usernames: string[], stored: string[]): string[] {
 }
 
 export default function PlayerStatusDashboard() {
+  const { monitoredAccounts } = useAccounts();
   const [usernames, setUsernames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [reAuthAllBusy, setReAuthAllBusy] = useState(false);
@@ -39,20 +40,18 @@ export default function PlayerStatusDashboard() {
   } | null>(null);
   const { reAuth } = useReAuth();
 
+  // Accounts (and their SPL token state) come from AccountsContext, which
+  // already fetched them — one request for the whole dashboard.
   useEffect(() => {
-    getMonitoredAccounts()
-      .then((accounts) => {
-        const names = accounts.map((a) => a.username);
-        try {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          const stored: string[] = raw ? JSON.parse(raw) : [];
-          setUsernames(applyStoredOrder(names, stored));
-        } catch {
-          setUsernames(names);
-        }
-      })
-      .finally(() => setLoading(false));
-  }, []);
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const stored: string[] = raw ? JSON.parse(raw) : [];
+      setUsernames(applyStoredOrder(monitoredAccounts, stored));
+    } catch {
+      setUsernames(monitoredAccounts);
+    }
+    setLoading(false);
+  }, [monitoredAccounts]);
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
 
@@ -103,7 +102,7 @@ export default function PlayerStatusDashboard() {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ px: { xs: 2, md: 6, lg: 8 } }}>
+    <Container maxWidth={false} sx={{ border: "1px solid #ccc", px: 2 }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
         <Typography variant="h4">Splinterlands Multi-Account Dashboard</Typography>
         <Button

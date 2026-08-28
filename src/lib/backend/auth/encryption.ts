@@ -75,10 +75,3 @@ export function decryptToken(encryptedValue: string, iv: string, authTag: string
     );
   }
 }
-
-/**
- * Generates a random encryption key (for setup purposes)
- */
-export function generateEncryptionKey(): string {
-  return crypto.randomBytes(KEY_LENGTH).toString("hex");
-}

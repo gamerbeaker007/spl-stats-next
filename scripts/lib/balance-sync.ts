@@ -1,16 +1,17 @@
+import { fetchPlayerHistory } from "@/lib/backend/api/spl/spl-authenticated-api";
+import { isAuthFailure } from "@/lib/backend/api/spl/spl-errors";
 import { getOrCreateSyncState, updateSyncState } from "@/lib/backend/db/account-sync-states";
 import { incrementSeasonBalanceBatch } from "@/lib/backend/db/season-balances";
 import logger from "@/lib/backend/log/logger.server";
-import { fetchPlayerHistory } from "@/lib/backend/api/spl/spl-authenticated-api";
+import { ClaimSeasonLeagueRewardData } from "@/types/parsedHistory";
+import { BALANCE_HISTORY_TOKEN_TYPES } from "@/types/spl/balance";
+import { Season } from "@prisma/client";
+import { shouldShutdown } from "./graceful-shutdown";
 import { fetchBalanceHistoryDelta, IncrementalResult } from "./service/balance-history";
 import {
   fetchIncrementalUnclaimedHistory,
   UNCLAIMED_MIN_SEASON,
 } from "./service/unclaimed-balance-history";
-import { BALANCE_HISTORY_TOKEN_TYPES } from "@/types/spl/balance";
-import { ClaimSeasonLeagueRewardData } from "@/types/parsedHistory";
-import { Season } from "@prisma/client";
-import { shouldShutdown } from "./graceful-shutdown";
 import { getPlayerFirstSeasonId } from "./sync-utils";
 import { RESCAN_MIN_INTERVAL_MS } from "./worker-config";
 
@@ -132,6 +133,11 @@ async function syncBalancesForToken(
     const msg = error instanceof Error ? error.message : String(error);
     logger.error(`syncBalances ${username}/${tokenKey}: ${msg}`);
     await updateSyncState(syncState.id, { status: "failed", errorMessage: msg });
+    // A dead token fails every remaining token type the same way, so stop the
+    // account here instead of issuing one doomed request per type. Propagating
+    // also skips the BALANCE_META checkpoints in `syncSeasonBalances`, keeping
+    // the retry gates open for the next cycle.
+    if (isAuthFailure(error)) throw error;
   }
 }
 
@@ -178,6 +184,9 @@ async function syncUnclaimedBalances(
     const msg = error instanceof Error ? error.message : String(error);
     logger.error(`syncUnclaimedBalances ${username}: ${msg}`);
     await updateSyncState(syncState.id, { status: "failed", errorMessage: msg });
+    // Propagate so the `lastRunAt` write below is skipped — this is what the
+    // "a failed unclaimed pass keeps the old timestamp" contract depends on.
+    if (isAuthFailure(error)) throw error;
   }
 }
 
@@ -201,8 +210,11 @@ async function wasSeasonRewardClaimed(
         (entry.data as ClaimSeasonLeagueRewardData).season === seasonId &&
         new Date(entry.created_date) > lastSyncDate
     );
-  } catch {
-    // On error don't trigger an extra sync — the daily scan covers it.
+  } catch (error) {
+    // An auth failure here is the cheapest possible signal that the token is
+    // dead — propagate it so the account is parked instead of silently skipped.
+    if (isAuthFailure(error)) throw error;
+    // On any other error don't trigger an extra sync — the daily scan covers it.
     return false;
   }
 }

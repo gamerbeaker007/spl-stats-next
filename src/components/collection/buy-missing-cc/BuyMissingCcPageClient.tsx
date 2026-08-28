@@ -305,8 +305,16 @@ export default function BuyMissingCcPageClient() {
       const ownedRows = groupRows.filter((row) => row.totalOwnedCc > 0);
 
       if (ownedRows.length === 0) {
+        // Missing card: `availableFoils` comes from the API in arbitrary order, so
+        // picking the first match would surface a random (often premium) foil.
+        // Prefer the cheapest foil instead — lowest foil rank, i.e. regular first.
+        const candidates = filter.foilCategories.length
+          ? groupRows.filter((row) => filter.foilCategories.includes(row.foil))
+          : groupRows;
         const fallbackRow =
-          groupRows.find((row) => filter.foilCategories.includes(row.foil)) ?? groupRows[0];
+          [...(candidates.length > 0 ? candidates : groupRows)].sort(
+            (a, b) => FOIL_RANK[a.foil] - FOIL_RANK[b.foil]
+          )[0] ?? groupRows[0];
         mergedRows.push({
           ...fallbackRow,
           key: `${fallbackRow.key}-cross-foil-missing`,

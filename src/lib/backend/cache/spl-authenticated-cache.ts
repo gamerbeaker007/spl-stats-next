@@ -1,7 +1,7 @@
 "use server";
 
 import { fetchBrawlDetails, fetchDailyProgress } from "@/lib/backend/api/spl/spl-authenticated-api";
-import { getDecryptedJwt } from "@/lib/backend/auth/jwt";
+import { getDecryptedJwt, MissingJwtError } from "@/lib/backend/auth/jwt";
 import { CACHE_TAGS } from "@/lib/backend/cache/cache-tags";
 import { LandHarvestData } from "@/types/land/landHarvest";
 import { DailyProgressData } from "@/types/playerDailyProgress";
@@ -15,6 +15,12 @@ import { fetchLandProductionOverview } from "../api/spl/spl-authenticated-vapi";
  * argument would make the token part of the cache key and persist it in the
  * cache store. Callers must still do the authorization check
  * (`assertMonitorsAccount`) before calling these.
+ *
+ * These functions **throw** rather than return an empty result when the token is
+ * missing or every authenticated request failed. Next does not write a cache
+ * entry for a throwing `"use cache"` function, so an unauthenticated outcome can
+ * never be persisted for the cache window. Callers gate with `resolveUsableJwt`
+ * first and map `MissingJwtError` to a "needs re-auth" result.
  */
 
 /**
@@ -24,20 +30,31 @@ import { fetchLandProductionOverview } from "../api/spl/spl-authenticated-vapi";
  * the win counters would look wrong if held longer. Collapses three upstream
  * requests into one cached entry per account.
  */
-export async function getCachedDailyProgress(username: string): Promise<DailyProgressData | null> {
+export async function getCachedDailyProgress(username: string): Promise<DailyProgressData> {
   "use cache";
   cacheLife("minutes");
   const normalized = username.trim().toLowerCase();
   cacheTag(CACHE_TAGS.splDailyProgress(normalized));
 
   const token = await getDecryptedJwt(normalized);
-  if (!token) return null;
+  if (!token) throw new MissingJwtError(normalized);
 
   const [modern, wild, foundation] = await Promise.allSettled([
     fetchDailyProgress(normalized, token, "modern"),
     fetchDailyProgress(normalized, token, "wild"),
     fetchDailyProgress(normalized, token, "foundation"),
   ]);
+
+  // All three rejected — almost always an expired/revoked token. Throwing keeps
+  // the empty result out of the cache; returning it would render as
+  // "no daily progress" for the whole cache window.
+  if (
+    modern.status === "rejected" &&
+    wild.status === "rejected" &&
+    foundation.status === "rejected"
+  ) {
+    throw modern.reason instanceof Error ? modern.reason : new Error(String(modern.reason));
+  }
 
   return {
     username: normalized,
@@ -59,14 +76,21 @@ export async function getCachedDailyProgress(username: string): Promise<DailyPro
 export async function getCachedBrawlDetails(
   username: string,
   guildId: string,
-  tournamentId: string
+  tournamentId: string,
+  authenticated: boolean
 ) {
   "use cache";
   cacheLife("minutes");
   const normalized = username.trim().toLowerCase();
   cacheTag(CACHE_TAGS.splBrawl(normalized));
 
-  const token = await getDecryptedJwt(normalized);
+  // `authenticated` is part of the cache key on purpose (the token itself never
+  // is): the authenticated response carries `frays`, the public one does not, so
+  // they must not share an entry — otherwise one tokenless fetch hides fray
+  // selection for the whole cache window even after a successful re-auth.
+  const token = authenticated ? await getDecryptedJwt(normalized) : undefined;
+  if (authenticated && !token) throw new MissingJwtError(normalized);
+
   return fetchBrawlDetails(guildId, tournamentId, normalized, token);
 }
 
@@ -77,14 +101,14 @@ export async function getCachedBrawlDetails(
  * hourly cache avoids hitting the SPL VAPI on every dashboard mount while
  * keeping the data fresh enough to be actionable.
  */
-export async function getCachedLandHarvestData(username: string): Promise<LandHarvestData | null> {
+export async function getCachedLandHarvestData(username: string): Promise<LandHarvestData> {
   "use cache";
   cacheLife("hours");
   const normalized = username.trim().toLowerCase();
   cacheTag(CACHE_TAGS.splLandHarvest(normalized));
 
   const token = await getDecryptedJwt(normalized);
-  if (!token) return null;
+  if (!token) throw new MissingJwtError(normalized);
 
   const regions = await fetchLandProductionOverview(normalized, token);
   return {

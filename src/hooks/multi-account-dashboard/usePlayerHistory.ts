@@ -1,10 +1,15 @@
+"use client";
+
 import { getPlayerSeasonHistory } from "@/lib/backend/actions/player-actions";
+import { toSectionAuthState, type SectionAuthState } from "@/lib/shared/authenticated-result";
 import { ParsedPlayerRewardHistory } from "@/types/parsedHistory";
 import { useCallback, useState } from "react";
 
 interface UsePlayerHistoryState {
   isLoading: boolean;
+  /** Genuine failures only — an unusable token reports through `authState`. */
   error: string | null;
+  authState: SectionAuthState | null;
   rewardHistory: ParsedPlayerRewardHistory | null;
 }
 
@@ -18,27 +23,23 @@ export function usePlayerHistory(): UsePlayerHistoryReturn {
   const [state, setState] = useState<UsePlayerHistoryState>({
     isLoading: false,
     error: null,
+    authState: null,
     rewardHistory: null,
   });
 
   const fetchHistory = useCallback(async (player: string, seasonId: number) => {
-    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+    setState((prev) => ({ ...prev, isLoading: true, error: null, authState: null }));
 
     try {
       const result = await getPlayerSeasonHistory(player, seasonId);
-      if (!result) {
-        setState((prev) => ({
-          ...prev,
-          isLoading: false,
-          error: "Not authenticated — log in to view reward history",
-        }));
-        return;
-      }
       setState((prev) => ({
         ...prev,
         isLoading: false,
-        rewardHistory: result,
-        error: null,
+        // A missing season row now arrives as `error`, no longer conflated with
+        // "not authenticated".
+        error: result.status === "error" ? result.message : null,
+        authState: toSectionAuthState(result),
+        rewardHistory: result.status === "ok" ? result.data : null,
       }));
     } catch (error) {
       setState((prev) => ({
@@ -50,11 +51,11 @@ export function usePlayerHistory(): UsePlayerHistoryReturn {
   }, []);
 
   const clearHistory = useCallback(() => {
-    setState({ isLoading: false, rewardHistory: null, error: null });
+    setState({ isLoading: false, rewardHistory: null, error: null, authState: null });
   }, []);
 
   const clearError = useCallback(() => {
-    setState((prev) => ({ ...prev, error: null }));
+    setState((prev) => ({ ...prev, error: null, authState: null }));
   }, []);
 
   return {

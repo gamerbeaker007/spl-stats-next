@@ -1,6 +1,6 @@
 import { getSeasonBalanceSummary } from "@/lib/backend/actions/player-actions";
 import { SeasonBalanceHistory } from "@/types/spl/balanceHistory";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 export type TokenFetchStatus = "pending" | "fetching" | "done" | "error";
 
@@ -32,25 +32,38 @@ const emptyState: UseBalanceHistoryState = {
 
 export function useBalanceHistory(): UseBalanceHistoryReturn {
   const [state, setState] = useState<UseBalanceHistoryState>(emptyState);
+  const latestRequestId = useRef(0);
 
   const fetchBalanceHistory = useCallback(async (username: string, seasonId: number) => {
-    setState({ ...emptyState, isLoading: true });
+    const requestId = ++latestRequestId.current;
+
+    // Preserve the currently displayed chart during the refresh.
+    setState((previous) => ({
+      ...previous,
+      isLoading: true,
+      error: null,
+    }));
 
     try {
       const balanceHistory = await getSeasonBalanceSummary(username, seasonId);
 
-      setState((prev) => ({
-        ...prev,
+      // A newer selection was made while this request was pending.
+      if (requestId !== latestRequestId.current) return;
+
+      setState({
         isLoading: false,
+        error: null,
         balanceHistory,
-        progress: balanceHistory.summaries.map((s) => ({
-          token: s.token,
-          status: "done" as TokenFetchStatus,
+        progress: balanceHistory.summaries.map((summary) => ({
+          token: summary.token,
+          status: "done",
         })),
-      }));
+      });
     } catch (error) {
-      setState((prev) => ({
-        ...prev,
+      if (requestId !== latestRequestId.current) return;
+
+      setState((previous) => ({
+        ...previous,
         isLoading: false,
         error: error instanceof Error ? error.message : "Unknown error occurred",
       }));
@@ -58,11 +71,16 @@ export function useBalanceHistory(): UseBalanceHistoryReturn {
   }, []);
 
   const clearBalanceHistory = useCallback(() => {
+    // Ensure an already-running request cannot restore cleared data.
+    latestRequestId.current += 1;
     setState(emptyState);
   }, []);
 
   const clearError = useCallback(() => {
-    setState((prev) => ({ ...prev, error: null }));
+    setState((previous) => ({
+      ...previous,
+      error: null,
+    }));
   }, []);
 
   return {
