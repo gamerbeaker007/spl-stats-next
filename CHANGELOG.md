@@ -9,13 +9,13 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
-## [v1.1x.x] - 2026-xx-xx
+## [v1.17.0] - 2026-09-03
 
 ### Fixed
 
 - Remove age from land harvest dialog
 - Remove border from multiaccount dashboard
-
+- Add donation support + vote for validator
 
 ---
 

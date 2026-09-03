@@ -17,6 +17,10 @@ export const unbind_ca_e_icon_url = `${WEB_URL}website/icons/unbind_epic.webp`;
 export const unbind_ca_l_icon_url = `${WEB_URL}website/icons/unbind_legendary.webp`;
 export const license_icon_url = `${WEB_URL}website/ui_elements/shop/nodes/power_node_activated.png`;
 export const sps_icon_url = `${WEB_URL}website/land/resources/sps.png`;
+export const hive_icon_url =
+  "https://files.peakd.com/file/peakd-hive/beaker007/23uQvcmsjvnggrKbKehjGjBVvGxQPxpb5r9v32Wj31NrowggLm6qggCtHT4qw3v8Ts6sX.png";
+export const hbd_icon_url =
+  "https://files.peakd.com/file/peakd-hive/beaker007/23tGK3s22hqcrutR68KYswUXQ8DxbAViaxDWxu5tM45JgiStSFMqL8AivUCqAjwGrcoRL.png";
 export const cards_icon_url = `${WEB_URL}website/ui_elements/open_packs/packsv2/img_pack_chaos-legion_opt.png`;
 export const land_icon_url = `${WEB_URL}website/ui_elements/popups/land_presale/img_plot.svg`;
 export const evp_icon_url = `${WEB_URL}website/electroneum/img_evp_100.webp`;

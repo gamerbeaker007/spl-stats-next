@@ -387,3 +387,18 @@ model FortuneWinner {
   @@map("fortune_winners")
 
 }
+
+model SupportDonation {
+  id        String   @id @default(cuid())
+  date      DateTime @default(now())
+  username  String
+  currency  String
+  amount    Decimal  @db.Decimal(18, 8)
+  usdValue  Decimal  @map("usd_value") @db.Decimal(18, 8)
+  tx        String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([username])
+  @@index([date])
+  @@map("support_donations")
+}

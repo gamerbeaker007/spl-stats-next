@@ -8,10 +8,13 @@ import Toolbar from "@mui/material/Toolbar";
 import Tooltip from "@mui/material/Tooltip";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { MdMenu } from "react-icons/md";
+import { MdFavorite } from "react-icons/md";
 import InvalidTokenAlert from "./InvalidTokenAlert";
 import LoginComponent from "./LoginComponent";
 import SplMaintenanceIndicator from "./SplMaintenanceIndicator";
+import SupportDialog from "@/components/support/SupportDialog";
 import ThemeToggle from "./ThemeToggle";
 
 export const APP_BAR_HEIGHT = 50;
@@ -24,6 +27,7 @@ interface TopBarProps {
 
 export default function TopBar({ onHamburgerClick }: Readonly<TopBarProps>) {
   const pathname = usePathname();
+  const [supportOpen, setSupportOpen] = useState(false);
 
   return (
     <AppBar
@@ -90,9 +94,21 @@ export default function TopBar({ onHamburgerClick }: Readonly<TopBarProps>) {
           <SplMaintenanceIndicator />
           <InvalidTokenAlert />
           <ThemeToggle />
+          <Tooltip title="Support / Donate">
+            <IconButton
+              size="small"
+              color="error"
+              aria-label="Open support and donation dialog"
+              onClick={() => setSupportOpen(true)}
+            >
+              <MdFavorite size={18} />
+            </IconButton>
+          </Tooltip>
           <LoginComponent />
         </Box>
       </Toolbar>
+
+      <SupportDialog open={supportOpen} onClose={() => setSupportOpen(false)} />
     </AppBar>
   );
 }
