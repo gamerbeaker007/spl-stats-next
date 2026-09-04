@@ -79,8 +79,30 @@ export interface SplTransactionLookupInfo {
   failed?: boolean;
   error?: string | null;
   message?: string | null;
+  created_date?: string | null;
 }
 
 export interface SplTransactionLookupResponse {
   trx_info: SplTransactionLookupInfo;
 }
+
+/**
+ * A confirmed `sm_token_transfer`, read back off the SPL engine. These are the
+ * facts a caller is allowed to act on — never what the browser claimed it sent.
+ */
+export interface TokenTransferLookupData {
+  from: string;
+  to: string;
+  /** The symbol the engine confirms ("DEC", "SPS", ...), not the one requested. */
+  token: string;
+  amount: number;
+  /** When the engine settled the transfer; falls back to the envelope date. */
+  date: Date;
+}
+
+export type TokenTransferLookup =
+  | { status: "success"; transfer: TokenTransferLookupData }
+  /** Not indexed yet, or still without a result — safe to retry. */
+  | { status: "pending" }
+  /** Rejected, malformed, or not a token transfer at all — never retry. */
+  | { status: "failed"; error: string };
