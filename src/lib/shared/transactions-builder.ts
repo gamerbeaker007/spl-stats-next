@@ -33,6 +33,12 @@ export function validatePositiveInteger(value: number, label: string): void {
   }
 }
 
+export function validatePositiveAmount(value: number, label: string): void {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error(`${label} must be greater than 0`);
+  }
+}
+
 export function validateUsdPrice(priceUsd: number): void {
   if (!Number.isFinite(priceUsd) || priceUsd <= 0) {
     throw new Error("Price per skin must be greater than 0 USD");
@@ -151,12 +157,19 @@ export function buildMarketplaceListPayload(args: {
 
 /**
  * `sm_token_transfer` — transfer a quantity of a fungible token (by symbol) to
- * another player. `memo` mirrors the recipient, matching the Splinterlands client.
+ * another player. `memo` defaults to the recipient, matching the Splinterlands
+ * client.
+ *
+ * Quantities are whole units by default because inventory assets (packs,
+ * consumables, totem fragments) only exist in whole units. Currency tokens
+ * (DEC, SPS) genuinely divide, so those callers opt in with `allowFractional`.
  */
 export function buildTokenTransferPayload(args: {
   token: string;
   recipient: string;
   quantity: number;
+  allowFractional?: boolean;
+  memo?: string;
 }): TokenTransferPayload {
   const recipient = normalizeRecipient(args.recipient);
   if (!recipient) {
@@ -165,13 +178,17 @@ export function buildTokenTransferPayload(args: {
   if (!args.token) {
     throw new Error("Token is required");
   }
-  validatePositiveInteger(args.quantity, "Quantity");
+  if (args.allowFractional) {
+    validatePositiveAmount(args.quantity, "Quantity");
+  } else {
+    validatePositiveInteger(args.quantity, "Quantity");
+  }
 
   return {
     token: args.token,
     to: recipient,
     qty: args.quantity,
-    memo: recipient,
+    memo: args.memo ?? recipient,
     app: getAppName(),
     n: getNonce(),
   };

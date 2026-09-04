@@ -1,65 +1,32 @@
-import { DONATION_MEMO } from "@/constants/support";
-import { getAppName, getNonce } from "@/lib/shared/transactions-builder";
+import { DONATION_ACCOUNT, DONATION_MEMO, type DonationCurrency } from "@/constants/support";
+import { buildTokenTransferPayload, getAppName, getNonce } from "@/lib/shared/transactions-builder";
+import type { TokenTransferPayload } from "@/types/skin-transactions";
 
-type HiveOperation = [string, object];
-
-function buildActiveCustomJsonOp(username: string, id: string, payload: object): HiveOperation {
-  return [
-    "custom_json",
-    {
-      required_auths: [username.toLowerCase()],
-      required_posting_auths: [],
-      id,
-      json: JSON.stringify(payload),
-    },
-  ];
+/** `sm_approve_validator` / `sm_unapprove_validator` share one payload shape. */
+export interface ValidatorVotePayload {
+  account_name: string;
+  app: string;
+  n: number;
 }
 
-export function buildApproveValidatorOp(username: string, validatorName: string): HiveOperation {
-  return buildActiveCustomJsonOp(username, "sm_approve_validator", {
+export function buildValidatorVotePayload(validatorName: string): ValidatorVotePayload {
+  return {
     account_name: validatorName.toLowerCase(),
     app: getAppName(),
     n: getNonce(),
-  });
+  };
 }
 
-export function buildUnapproveValidatorOp(username: string, validatorName: string): HiveOperation {
-  return buildActiveCustomJsonOp(username, "sm_unapprove_validator", {
-    account_name: validatorName.toLowerCase(),
-    app: getAppName(),
-    n: getNonce(),
-  });
-}
-
-export function buildTokenTransferOp(args: {
-  username: string;
-  token: "DEC" | "SPS";
-  to: string;
-  qty: number;
-}): HiveOperation {
-  return buildActiveCustomJsonOp(args.username, "sm_token_transfer", {
-    token: args.token,
-    to: args.to.toLowerCase(),
-    qty: args.qty,
+/** DEC/SPS donation: the shared token-transfer payload, with the donation memo. */
+export function buildDonationTokenTransferPayload(
+  token: Extract<DonationCurrency, "DEC" | "SPS">,
+  amount: number
+): TokenTransferPayload {
+  return buildTokenTransferPayload({
+    token,
+    recipient: DONATION_ACCOUNT,
+    quantity: amount,
+    allowFractional: true,
     memo: DONATION_MEMO,
-    app: getAppName(),
-    n: getNonce(),
   });
-}
-
-export function buildHiveTransferOp(args: {
-  from: string;
-  to: string;
-  amount: number;
-  currency: "HIVE" | "HBD";
-}): ["transfer", { from: string; to: string; amount: string; memo: string }] {
-  return [
-    "transfer",
-    {
-      from: args.from.toLowerCase(),
-      to: args.to.toLowerCase(),
-      amount: `${args.amount.toFixed(3)} ${args.currency}`,
-      memo: DONATION_MEMO,
-    },
-  ];
 }

@@ -7,11 +7,8 @@ import {
 } from "@/constants/support";
 import { getValidatorVotes } from "@/lib/backend/actions/support-actions";
 import type { ValidatorVote } from "@/lib/backend/api/spl/spl-validator-api";
-import { broadcastSupportOperation } from "@/lib/frontend/supportBroadcast";
-import {
-  buildApproveValidatorOp,
-  buildUnapproveValidatorOp,
-} from "@/lib/shared/support-op-builders";
+import { broadcastCustomJson } from "@/lib/frontend/purchase/splBroadcast";
+import { buildValidatorVotePayload } from "@/lib/shared/support-op-builders";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import HowToVoteIcon from "@mui/icons-material/HowToVote";
 import Alert from "@mui/material/Alert";
@@ -65,23 +62,9 @@ export default function ValidatorSupport({
   }, [username]);
 
   useEffect(() => {
-    if (!authLoading && username) {
-      void getValidatorVotes().then((result) => {
-        if (result.error) {
-          setState({ kind: "error", error: result.error });
-          return;
-        }
-        setState({ kind: "ready", votes: result.votes });
-      });
-      return;
-    }
-
-    if (!authLoading && !username) {
-      void Promise.resolve().then(() => {
-        setState({ kind: "idle" });
-      });
-    }
-  }, [authLoading, username]);
+    if (authLoading) return;
+    void refreshVotes();
+  }, [authLoading, refreshVotes]);
 
   const waitForVotes = useCallback(async (isVerified: (votes: ValidatorVote[]) => boolean) => {
     const maxAttempts = 15;
@@ -105,64 +88,47 @@ export default function ValidatorSupport({
     return false;
   }, []);
 
-  const voteForSupportValidator = async () => {
+  /**
+   * Broadcast an (un)vote and poll until the validator API reflects it. The
+   * validator API is eventually consistent, so a broadcast that lands can still
+   * take a few seconds to show up — hence "still syncing" rather than an error.
+   */
+  const changeVote = async (validator: string, approve: boolean) => {
     if (!username) return;
 
-    setPendingValidator(SUPPORT_VALIDATOR);
-    const result = await broadcastSupportOperation(
-      username,
-      buildApproveValidatorOp(username, SUPPORT_VALIDATOR),
-      "active"
-    );
-
-    if (!result.success) {
-      onMessage(result.error ?? "Vote was cancelled or failed", "error");
-      setPendingValidator(null);
-      return;
-    }
-
-    const verified = await waitForVotes((votes) =>
-      votes.some((vote) => vote.validator.toLowerCase() === SUPPORT_VALIDATOR.toLowerCase())
-    );
-
-    if (verified) {
-      onMessage(`Vote for ${SUPPORT_VALIDATOR_BRAND} was recorded.`, "success");
-    } else {
-      onMessage("Vote was broadcast, but validator data is still syncing.", "info");
-      await refreshVotes();
-    }
-
-    setPendingValidator(null);
-  };
-
-  const unvoteValidator = async (validator: string) => {
-    if (!username) return;
+    const isVoted = (votes: ValidatorVote[]) =>
+      votes.some((vote) => vote.validator.toLowerCase() === validator.toLowerCase());
 
     setPendingValidator(validator);
-    const result = await broadcastSupportOperation(
-      username,
-      buildUnapproveValidatorOp(username, validator),
-      "active"
-    );
+    try {
+      await broadcastCustomJson(
+        username,
+        approve ? "sm_approve_validator" : "sm_unapprove_validator",
+        buildValidatorVotePayload(validator),
+        "active"
+      );
 
-    if (!result.success) {
-      onMessage(result.error ?? `Unvote ${validator} failed`, "error");
+      const verified = await waitForVotes((votes) => isVoted(votes) === approve);
+      if (verified) {
+        onMessage(
+          approve ? `Vote for ${SUPPORT_VALIDATOR_BRAND} was recorded.` : `Unvoted ${validator}`,
+          "success"
+        );
+      } else {
+        onMessage(
+          `${approve ? "Vote" : "Unvote"} was broadcast, but validator data is still syncing.`,
+          "info"
+        );
+        await refreshVotes();
+      }
+    } catch (error) {
+      onMessage(
+        error instanceof Error ? error.message : `${approve ? "Vote" : "Unvote"} failed`,
+        "error"
+      );
+    } finally {
       setPendingValidator(null);
-      return;
     }
-
-    const verified = await waitForVotes(
-      (votes) => !votes.some((vote) => vote.validator.toLowerCase() === validator.toLowerCase())
-    );
-
-    if (verified) {
-      onMessage(`Unvoted ${validator}`, "success");
-    } else {
-      onMessage("Unvote was broadcast, but validator data is still syncing.", "info");
-      await refreshVotes();
-    }
-
-    setPendingValidator(null);
   };
 
   const renderBody = () => {
@@ -217,7 +183,7 @@ export default function ValidatorSupport({
           <Button
             variant="contained"
             size="large"
-            onClick={voteForSupportValidator}
+            onClick={() => void changeVote(SUPPORT_VALIDATOR, true)}
             disabled={pendingValidator !== null}
             startIcon={
               pendingValidator ? <CircularProgress size={16} color="inherit" /> : <HowToVoteIcon />
@@ -246,7 +212,7 @@ export default function ValidatorSupport({
                   color="warning"
                   size="small"
                   disabled={pendingValidator !== null}
-                  onClick={() => unvoteValidator(vote.validator)}
+                  onClick={() => void changeVote(vote.validator, false)}
                   startIcon={
                     pendingValidator === vote.validator ? (
                       <CircularProgress size={14} color="inherit" />

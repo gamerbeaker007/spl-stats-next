@@ -9,13 +9,28 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
-## [v1.17.0] - 2026-09-03
+## [v1.17.0] - 2026-09-04
+
+### Added
+
+- **Support page and dialog** — donate DEC, SPS, HIVE or HBD to `beaker007`, and vote for the
+  `spl-stats.com` validator.
+  - Donations are recorded only after the transaction is verified server-side: DEC/SPS through the
+    shared SPL transaction-lookup parser, HIVE/HBD by reading the transfer back off the Hive chain.
+    The amount, token, sender and recipient all come from the chain, never from the browser.
+- **Skin market skin count** — the skin market now shows how many skins match the active filters,
+  and how many of those the selected account owns.
+
+### Changed
+
+- Updated prisma dependencies
 
 ### Fixed
 
 - Remove age from land harvest dialog
 - Remove border from multiaccount dashboard
-- Add donation support + vote for validator
+- Skin market flat and table layouts now honour the card filter (edition/rarity/element), matching
+  the grouped layout and the displayed skin count.
 
 ---
 
@@ -53,7 +68,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 ### Changed
 
 - **Marketplace DEC prices now use the live DEC/USD rate**
-  - DEC purchase amounts are now calculated from the listing's USD price using the live DEC rate instead of the DEC value returned by the listing API (wich has smmoothing averge).
+  - DEC purchase amounts are now calculated from the listing's USD price using the live DEC rate instead of the DEC value returned by the listing API (wich has smmoothing average).
   - Marketplace listing selection is now consistently based on USD, with payment amounts converted to DEC or CREDITS afterward.
   - DEC purchases are disabled if a valid live DEC rate is unavailable.
   - The buy dialog now displays the USD total and applied DEC rate.

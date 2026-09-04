@@ -30,7 +30,11 @@ interface BroadcastResponse {
   };
 }
 
-async function broadcastCustomJson(
+/**
+ * Single Keychain entry point for every `custom_json` the app broadcasts.
+ * Applies the dev-mode operation prefix and returns the broadcast tx id.
+ */
+export async function broadcastCustomJson(
   account: string,
   operationId: string,
   payload: object,
@@ -159,6 +163,55 @@ export async function broadcastMarketplaceCancel(
   payload: MarketplaceCancelPayload
 ): Promise<string> {
   return broadcastCustomJson(account, "sm_marketplace_cancel", payload, "active");
+}
+
+/**
+ * A native Hive `transfer` (HIVE/HBD). Not an SPL operation — it never reaches
+ * the SPL engine — but it goes through the same Keychain broadcast, so it lives
+ * beside the custom_json broadcasts rather than in a second Keychain wrapper.
+ */
+export async function broadcastHiveTransfer(args: {
+  account: string;
+  to: string;
+  amount: number;
+  currency: "HIVE" | "HBD";
+  memo: string;
+}): Promise<string> {
+  const win = window as HiveKeychainWindow;
+  if (!win?.hive_keychain) {
+    throw new Error("Hive Keychain extension not found.");
+  }
+
+  const from = args.account.toLowerCase();
+  const keychain = new KeychainSDK(win);
+
+  const result = (await keychain.broadcast({
+    username: from,
+    operations: [
+      [
+        "transfer",
+        {
+          from,
+          to: args.to.toLowerCase(),
+          // Hive requires exactly 3 decimals for HIVE/HBD amounts.
+          amount: `${args.amount.toFixed(3)} ${args.currency}`,
+          memo: args.memo,
+        },
+      ],
+    ],
+    method: KeychainKeyTypes.active,
+  })) as BroadcastResponse;
+
+  if (!result?.success) {
+    throw new Error(result?.message || result?.error || "Transaction broadcast failed");
+  }
+
+  const txId = result.result?.id ?? result.result?.tx_id;
+  if (!txId) {
+    throw new Error("No transaction id returned from Keychain broadcast");
+  }
+
+  return txId;
 }
 
 export async function broadcastSetSkin(account: string, payload: SetSkinPayload): Promise<string> {

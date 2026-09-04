@@ -188,17 +188,32 @@ export default function SkinsPageClient() {
     marketFilter,
   ]);
 
-  // Flat skin list used when a listing filter is active (no base card).
-  const flatSkins = useMemo(() => {
-    const base = (data?.groups ?? [])
-      .flatMap((group) => group.items)
-      .filter((skin) => {
-        if (selectedSkinSet && skin.setName !== selectedSkinSet) return false;
-        if (ownedOnly && getActualOwnedQuantity(skin) < 1) return false;
-        return true;
-      });
-    return applyMarketAssetFilters(base, marketFilter);
-  }, [data?.groups, selectedSkinSet, ownedOnly, marketFilter]);
+  // Flat skin list (no base card), used by the flat and table layouts.
+  //
+  // Derived from `rows` rather than re-filtering `data.groups`, so every layout —
+  // and the totals below — shows exactly the same set of skins. Re-running
+  // `applyMarketAssetFilters` is only for the global sort; the rows are already
+  // filtered, so it drops nothing.
+  const flatSkins = useMemo(
+    () =>
+      applyMarketAssetFilters(
+        rows.flatMap((row) => row.visibleSkins),
+        marketFilter
+      ),
+    [rows, marketFilter]
+  );
+
+  // "How many skins match what I'm currently looking at?" — one skin definition
+  // per entry, not per owned copy or per market listing, matching what the grid
+  // renders. `owned` counts how many of those same matching skins the selected
+  // account holds at least one copy of.
+  const skinTotals = useMemo(
+    () => ({
+      total: flatSkins.length,
+      owned: flatSkins.filter((skin) => getActualOwnedQuantity(skin) >= 1).length,
+    }),
+    [flatSkins]
+  );
 
   const handleAction = (mode: MarketActionMode, item: MarketplaceAssetItem) => {
     setDialogState({ mode, item, defaultListPriceUsd: getLowestUsdPrice(item.prices) });
@@ -316,6 +331,19 @@ export default function SkinsPageClient() {
 
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
                 <MarketFilterBar filter={marketFilter} onChange={setMarketFilter} />
+                {/* Hidden while reloading: the hook keeps the previous account's
+                    data, and a stale exact number misleads more than a missing one. */}
+                {data && !loading && (
+                  <Chip
+                    size="small"
+                    variant="outlined"
+                    label={
+                      selectedAccount
+                        ? `Number of skins: ${skinTotals.total} (${skinTotals.owned} owned)`
+                        : `Number of skins: ${skinTotals.total}`
+                    }
+                  />
+                )}
                 {/* Grouped/flat only applies to the card layout. */}
                 {!tableMode && (
                   <ToggleButtonGroup
