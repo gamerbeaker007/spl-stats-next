@@ -13,6 +13,7 @@ import {
   type MarketplaceListingItemRaw,
   type MarketplacePlayerListing,
   type MarketplacePlayerListingRaw,
+  type OutbidStatus,
   marketplaceAssetNames,
 } from "@/types/marketplace-assets";
 import type { PurchaseCurrency } from "@/types/purchase/purchase-plan";
@@ -214,7 +215,59 @@ export function normalizeMarketplacePlayerListing(
       typeof raw.quantityRemaining === "number" && Number.isFinite(raw.quantityRemaining)
         ? raw.quantityRemaining
         : 0,
+    status: typeof raw.status === "number" ? raw.status : 1,
+    currency:
+      typeof raw.currency === "string" && raw.currency.trim().length > 0 ? raw.currency : "USD",
+    listingPrice:
+      typeof raw.listingPrice === "number" && Number.isFinite(raw.listingPrice)
+        ? raw.listingPrice
+        : 0,
   };
+}
+
+/**
+ * Compute per-skin outbid status by comparing the player's own active listing prices
+ * against the global market minimum for each asset.
+ *
+ * A listing is outbid when a lower-priced competing listing exists (strict less-than).
+ * Ties at the minimum price are NOT considered outbid.
+ */
+export function computeOutbidStatuses(
+  playerListings: MarketplacePlayerListing[],
+  items: MarketplaceAssetItem[],
+  assetName: MarketplaceAssetName
+): Map<string, OutbidStatus> {
+  const result = new Map<string, OutbidStatus>();
+  const itemByDetailId = new Map(items.map((item) => [item.detailId, item]));
+
+  for (const listing of playerListings) {
+    if (listing.assetName !== assetName) continue;
+    if (listing.quantityRemaining < 1) continue;
+    if (listing.listingPrice <= 0) continue;
+
+    const item = itemByDetailId.get(listing.detailId);
+    if (!item) continue;
+
+    const marketPrice = item.prices.find((p) => p.currency === listing.currency);
+    if (!marketPrice || !Number.isFinite(marketPrice.minPrice) || marketPrice.minPrice <= 0)
+      continue;
+
+    const isOutbid = marketPrice.minPrice < listing.listingPrice;
+    const existing = result.get(listing.detailId);
+
+    // Prefer showing outbid status; when not-outbid already recorded, keep it.
+    if (!existing || (isOutbid && !existing.isOutbid)) {
+      result.set(listing.detailId, {
+        detailId: listing.detailId,
+        myPrice: listing.listingPrice,
+        currency: listing.currency,
+        lowestMarketPrice: marketPrice.minPrice,
+        isOutbid,
+      });
+    }
+  }
+
+  return result;
 }
 
 export function hasQuantityOwnership(
@@ -447,6 +500,8 @@ export interface MarketAssetFilter {
   minPrice: number | null;
   maxPrice: number | null;
   listedOnly: boolean;
+  /** Only show assets where at least one own active listing is undercut. */
+  outbidOnly: boolean;
   sortBy: MarketAssetSortField;
   sortDir: "asc" | "desc";
 }
@@ -455,6 +510,7 @@ export const DEFAULT_MARKET_ASSET_FILTER: MarketAssetFilter = {
   minPrice: null,
   maxPrice: null,
   listedOnly: false,
+  outbidOnly: false,
   sortBy: "name",
   sortDir: "asc",
 };

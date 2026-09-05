@@ -6,19 +6,23 @@ import type {
   MarketplaceAssetGroup,
   MarketplaceAssetItem,
   MarketplaceAssetName,
+  MarketplacePlayerListing,
+  OutbidStatus,
 } from "@/types/marketplace-assets";
 import { useCallback, useEffect, useState } from "react";
 
 export interface MarketplaceAssetsPageData {
-  account: string;
+  account: string | null;
   assetName: MarketplaceAssetName;
   items: MarketplaceAssetItem[];
   groups: MarketplaceAssetGroup[];
   detailedCollection: DetailedPlayerCardCollection;
+  playerListings: MarketplacePlayerListing[];
+  outbidStatuses: OutbidStatus[];
 }
 
 export function useMarketplaceAssetsPageData(
-  account: string,
+  account: string | null,
   assetName: MarketplaceAssetName,
   refreshVersion = 0
 ) {
@@ -28,18 +32,11 @@ export function useMarketplaceAssetsPageData(
 
   const load = useCallback(
     async (active: () => boolean): Promise<MarketplaceAssetsPageData | null> => {
-      if (!account) {
-        setData(null);
-        setLoading(false);
-        setError(null);
-        return null;
-      }
-
       setLoading(true);
       setError(null);
 
       try {
-        const next = await getMarketplaceAssetsPageDataAction(account, assetName);
+        const next = await getMarketplaceAssetsPageDataAction(account ?? null, assetName);
         if (active()) setData(next);
         return next;
       } catch (err) {
@@ -54,13 +51,6 @@ export function useMarketplaceAssetsPageData(
   );
 
   useEffect(() => {
-    if (!account) {
-      setData(null);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
     let active = true;
     load(() => active);
 

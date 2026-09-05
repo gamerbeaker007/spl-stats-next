@@ -9,6 +9,17 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.18.0] - 2026-09-05
+
+### Added
+
+- **Outbid indicator for skin market listings** — when a competing seller lists the same skin at a lower price, the skin card and table row now display a prominent **Outbid** warning chip showing the lowest competing price.
+  - Outbid is determined by comparing the player's own active listing price against the global market minimum price for the matching currency.
+  - A listing is marked outbid only when a strictly lower-priced competing listing exists; ties at the lowest price are not considered outbid.
+  - Status is computed client-side from data already loaded by the marketplace page action — no extra API calls.
+  - The `MarketplacePlayerListing` type now carries `currency`, `listingPrice`, and `status` fields (sourced from `/market/player/all_listings`).
+  - Logic lives in `computeOutbidStatuses()` in `lib/shared/marketplace-assets.ts`, keyed on `assetName` so other non-card asset types can reuse it later.
+
 ## [v1.17.0] - 2026-09-04
 
 ### Added

@@ -183,6 +183,21 @@ export async function getCachedMarketplaceAssets(
 }
 
 /**
+ * Public marketplace landing data for guest browsing (no account context).
+ * Ownership-specific fields remain zero/empty while market-wide pricing and
+ * circulation/listed counts stay available.
+ */
+export async function getCachedMarketplaceAssetsPublic(
+  assetName: MarketplaceAssetName
+): Promise<MarketplaceAssetItem[]> {
+  "use cache";
+  cacheLife("minutes");
+  cacheTag(`spl:marketplace:public:${assetName.toLowerCase()}`);
+
+  return fetchMarketplaceAssets(null, assetName);
+}
+
+/**
  * Player's own marketplace listings across all marketplace asset types.
  * Cached with the same tag/lifetime as marketplace landing assets because these
  * quantities are part of marketplace ownership for quantity-based assets.

@@ -13,6 +13,7 @@ import { LoadingSpinnerOverlay } from "@/components/ui/LoadingSpinnerOverlay";
 import { useMarketplaceAssetsPageData } from "@/hooks/collection/useMarketplaceAssetsPageData";
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
+import { useAuth } from "@/lib/frontend/context/AuthContext";
 import { useCardFilter } from "@/lib/frontend/context/CardFilterContext";
 import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
@@ -35,7 +36,6 @@ import {
   Box,
   Button,
   Chip,
-  Divider,
   FormControlLabel,
   MenuItem,
   Select,
@@ -113,6 +113,7 @@ function buildBaseSkinItem(args: {
 }
 
 export default function SkinsPageClient() {
+  const { isAuthenticated } = useAuth();
   const { collectionRefreshVersion, notifyBalancesRefresh, notifyCollectionRefresh } =
     usePurchasePlan();
   const { selectedAccount } = useAccounts();
@@ -130,7 +131,11 @@ export default function SkinsPageClient() {
     loading,
     error,
     refresh: refreshMarketplaceData,
-  } = useMarketplaceAssetsPageData(selectedAccount, "SKINS", collectionRefreshVersion);
+  } = useMarketplaceAssetsPageData(
+    isAuthenticated ? selectedAccount : null,
+    "SKINS",
+    collectionRefreshVersion
+  );
 
   // Grouped shows base card + its skins; flat shows only skin cards.
   const flatMode = viewMode === "flat";
@@ -142,6 +147,20 @@ export default function SkinsPageClient() {
       ).sort(),
     [data?.groups]
   );
+
+  const outbidStatuses = useMemo(
+    () => new Map((data?.outbidStatuses ?? []).map((status) => [status.detailId, status])),
+    [data?.outbidStatuses]
+  );
+
+  const myListingCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const listing of data?.playerListings ?? []) {
+      if (listing.status !== 1 || listing.quantityRemaining < 1) continue;
+      counts.set(listing.detailId, (counts.get(listing.detailId) ?? 0) + listing.quantityRemaining);
+    }
+    return counts;
+  }, [data?.playerListings]);
 
   // Grouped (default) rows: base card + its skins.
   const rows = useMemo<SkinGroupViewModel[]>(() => {
@@ -160,7 +179,10 @@ export default function SkinsPageClient() {
 
         const setOwnedSkins = group.items.filter((skin) => {
           if (selectedSkinSet && skin.setName !== selectedSkinSet) return false;
-          if (ownedOnly && getActualOwnedQuantity(skin) < 1) return false;
+          if (isAuthenticated && ownedOnly && getActualOwnedQuantity(skin) < 1) return false;
+          if (isAuthenticated && marketFilter.outbidOnly && !outbidStatuses.has(skin.detailId)) {
+            return false;
+          }
           return true;
         });
 
@@ -175,7 +197,7 @@ export default function SkinsPageClient() {
       .filter((row) => {
         if (row.visibleSkins.length === 0) return false;
         if (row.card && !matchesCardFilter(row.card, cardFilter)) return false;
-        if (cardFilter.hideMissingCards && row.totalOwnedCards < 1) return false;
+        if (isAuthenticated && cardFilter.hideMissingCards && row.totalOwnedCards < 1) return false;
         return true;
       })
       .sort((left, right) => left.group.groupName.localeCompare(right.group.groupName));
@@ -183,6 +205,8 @@ export default function SkinsPageClient() {
     data?.detailedCollection,
     data?.groups,
     cardFilter,
+    isAuthenticated,
+    outbidStatuses,
     selectedSkinSet,
     ownedOnly,
     marketFilter,
@@ -263,6 +287,8 @@ export default function SkinsPageClient() {
   }, [data?.detailedCollection, data?.groups, dialogState]);
 
   const handleCompleted = async () => {
+    if (!selectedAccount) return;
+
     await revalidateTagsAction([
       { type: "marketplace", usernames: [selectedAccount] },
       { type: "balances", usernames: [selectedAccount] },
@@ -294,20 +320,24 @@ export default function SkinsPageClient() {
           >
             <Stack spacing={1.25}>
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={ownedOnly}
-                      onChange={(_event, checked) => setOwnedOnly(checked)}
-                    />
-                  }
-                  label="Owned skins only"
-                />
-                <Tooltip title="Only show cards where the selected account owns at least one skin.">
-                  <Box sx={{ display: "inline-flex" }}>
-                    <MdInfoOutline size={18} />
-                  </Box>
-                </Tooltip>
+                {isAuthenticated && (
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={ownedOnly}
+                        onChange={(_event, checked) => setOwnedOnly(checked)}
+                      />
+                    }
+                    label="Owned skins only"
+                  />
+                )}
+                {isAuthenticated && (
+                  <Tooltip title="Only show cards where the selected account owns at least one skin.">
+                    <Box sx={{ display: "inline-flex" }}>
+                      <MdInfoOutline size={18} />
+                    </Box>
+                  </Tooltip>
+                )}
                 <FormControlLabel
                   control={
                     <Select
@@ -330,7 +360,11 @@ export default function SkinsPageClient() {
               </Stack>
 
               <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                <MarketFilterBar filter={marketFilter} onChange={setMarketFilter} />
+                <MarketFilterBar
+                  filter={marketFilter}
+                  onChange={setMarketFilter}
+                  showOutbidFilter={isAuthenticated}
+                />
                 {/* Hidden while reloading: the hook keeps the previous account's
                     data, and a stale exact number misleads more than a missing one. */}
                 {data && !loading && (
@@ -338,7 +372,7 @@ export default function SkinsPageClient() {
                     size="small"
                     variant="outlined"
                     label={
-                      selectedAccount
+                      isAuthenticated && selectedAccount
                         ? `Number of skins: ${skinTotals.total} (${skinTotals.owned} owned)`
                         : `Number of skins: ${skinTotals.total}`
                     }
@@ -374,24 +408,47 @@ export default function SkinsPageClient() {
 
           {!loading && error && <Alert severity="error">{error}</Alert>}
 
-          {!loading && !error && isEmpty && (
-            <Alert severity="info">No skin data matches the selected filters.</Alert>
-          )}
+          {!loading &&
+            !error &&
+            isEmpty &&
+            (isAuthenticated && marketFilter.outbidOnly ? (
+              <Alert severity="info">
+                No outbid skin listings found. Try turning off the Outbid filter.
+              </Alert>
+            ) : (
+              <Alert severity="info">No skin data matches the selected filters.</Alert>
+            ))}
 
           {/* Table layout — flat rows, no base card. */}
           {tableMode ? (
-            <MarketAssetTable items={flatSkins} onAction={handleAction} />
+            <MarketAssetTable
+              items={flatSkins}
+              onAction={handleAction}
+              outbidStatuses={outbidStatuses}
+              isAuthenticated={isAuthenticated}
+            />
           ) : flatMode ? (
             /* Flat card mode — only skin cards, no base card. */
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
               {flatSkins.map((skin) => (
-                <MarketAssetCard key={skin.detailId} item={skin} onAction={handleAction} />
+                <MarketAssetCard
+                  key={skin.detailId}
+                  item={skin}
+                  onAction={handleAction}
+                  outbidStatus={outbidStatuses.get(skin.detailId)}
+                  myListingCount={myListingCounts.get(skin.detailId) ?? 0}
+                  isAuthenticated={isAuthenticated}
+                />
               ))}
             </Box>
           ) : (
             <Stack spacing={3}>
               {rows.map((row) => {
-                const cardEdition = row.card?.highestLevelCard?.edition ?? row.card?.edition ?? 1;
+                const fallbackSkin = row.group.items[0];
+                const fallbackEdition =
+                  fallbackSkin?.imageCardEditionId ?? fallbackSkin?.cardEditionIds[0] ?? 1;
+                const cardEdition =
+                  row.card?.highestLevelCard?.edition ?? row.card?.edition ?? fallbackEdition;
                 const cardFoil = row.card?.highestLevelCard?.foil ?? "regular";
                 const cardLevel = row.card?.highestLevelCard?.level ?? 1;
                 const baseCardImage = getCardImageByLevel(
@@ -410,44 +467,71 @@ export default function SkinsPageClient() {
 
                 return (
                   <Box key={`${row.group.cardDetailId}-${row.group.groupName}`}>
-                    <Stack
-                      direction={{ xs: "column", lg: "row" }}
-                      spacing={{ xs: 2, lg: 3 }}
-                      alignItems="stretch"
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: {
+                          xs: "1fr",
+                          lg: "240px 1fr",
+                        },
+                        gap: {
+                          xs: 2,
+                          lg: 3,
+                        },
+                        alignItems: "stretch",
+                      }}
                     >
-                      {/* Base card column — omitted entirely when there is no card for this row. */}
-                      {row.card ? (
-                        <Box
+                      {/* Base card */}
+                      <Box
+                        sx={{
+                          borderRadius: 2,
+                          border: baseSkinActive ? 2 : 1,
+                          borderColor: baseSkinActive ? "success.main" : "divider",
+                          backgroundColor: "background.paper",
+                          boxShadow: baseSkinActive ? "0 0 0 1px rgba(76, 175, 80, 0.15)" : "none",
+
+                          display: "flex",
+                          flexDirection: "column",
+                          height: "100%",
+                        }}
+                      >
+                        <Stack
+                          spacing={2.5}
+                          alignItems="center"
                           sx={{
-                            borderRadius: 2,
-                            border: baseSkinActive ? 2 : 1,
-                            borderColor: baseSkinActive ? "success.main" : "divider",
-                            backgroundColor: "background.paper",
-                            boxShadow: baseSkinActive
-                              ? "0 0 0 1px rgba(76, 175, 80, 0.15)"
-                              : "none",
+                            width: "100%",
+                            height: "100%",
+                            p: 1,
                           }}
                         >
+                          <Typography variant="h6" align="center" sx={{ width: "100%" }}>
+                            {row.group.groupName}
+                          </Typography>
+
+                          <Box
+                            component="img"
+                            src={baseCardImage}
+                            alt={row.group.groupName}
+                            sx={{
+                              width: "100%",
+                              maxWidth: 210,
+                              height: 220,
+                              objectFit: "contain",
+                              opacity: isAuthenticated && row.totalOwnedCards < 1 ? 0.5 : 1,
+                            }}
+                          />
+
+                          {/* This spacer consumes all remaining height */}
+                          <Box sx={{ flexGrow: 1 }} />
+
+                          {/* Always at bottom */}
                           <Stack
-                            spacing={1.25}
+                            spacing={1}
                             alignItems="center"
-                            sx={{ width: { xs: "100%", lg: 240 } }}
+                            sx={{
+                              width: "100%",
+                            }}
                           >
-                            <Typography variant="h6" align="center" sx={{ width: "100%" }}>
-                              {row.group.groupName}
-                            </Typography>
-                            <Box
-                              component="img"
-                              src={baseCardImage}
-                              alt={row.group.groupName}
-                              sx={{
-                                width: "100%",
-                                maxWidth: 210,
-                                height: 220,
-                                objectFit: "contain",
-                                opacity: row.totalOwnedCards > 0 ? 1 : 0.5,
-                              }}
-                            />
                             <Stack
                               direction="row"
                               spacing={1}
@@ -455,46 +539,60 @@ export default function SkinsPageClient() {
                               flexWrap="wrap"
                               justifyContent="center"
                             >
-                              <Chip label={`${row.totalOwnedCards} cards`} size="small" />
                               <Chip
-                                label={`${row.totalOwnedSkins} skins owned`}
-                                color={row.totalOwnedSkins > 0 ? "success" : "default"}
+                                label={`${row.visibleSkins.length} visible skins`}
                                 size="small"
                               />
+
+                              {isAuthenticated && (
+                                <Chip
+                                  label={`${row.totalOwnedSkins} skins owned`}
+                                  color={row.totalOwnedSkins > 0 ? "success" : "default"}
+                                  size="small"
+                                />
+                              )}
                             </Stack>
+
                             <Button
                               variant="outlined"
                               size="small"
                               title="List"
                               color={baseSkinActive ? "warning" : "primary"}
-                              disabled={baseSkinActive}
+                              disabled={!isAuthenticated || baseSkinActive}
                               onClick={() => handleAction("activate", baseSkinItem)}
                             >
-                              <MdCheckCircle style={{ width: "150px", height: "1.1rem" }} />
+                              <MdCheckCircle
+                                style={{
+                                  width: "150px",
+                                  height: "1.1rem",
+                                }}
+                              />
                             </Button>
                           </Stack>
-                          <Divider
-                            orientation="vertical"
-                            flexItem
-                            sx={{ display: { xs: "none", lg: "block" }, borderColor: "divider" }}
-                          />
-                        </Box>
-                      ) : (
-                        <Typography variant="h6">{row.group.groupName}</Typography>
-                      )}
-
-                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-                        {row.visibleSkins.map((skin) => {
-                          return (
-                            <MarketAssetCard
-                              key={skin.detailId}
-                              item={skin}
-                              onAction={handleAction}
-                            />
-                          );
-                        })}
+                        </Stack>
                       </Box>
-                    </Stack>
+
+                      {/* Skins */}
+                      <Box
+                        sx={{
+                          display: "flex",
+                          flexWrap: "wrap",
+                          gap: 2,
+                          alignContent: "flex-start",
+                        }}
+                      >
+                        {row.visibleSkins.map((skin) => (
+                          <MarketAssetCard
+                            key={skin.detailId}
+                            item={skin}
+                            onAction={handleAction}
+                            outbidStatus={outbidStatuses.get(skin.detailId)}
+                            myListingCount={myListingCounts.get(skin.detailId) ?? 0}
+                            isAuthenticated={isAuthenticated}
+                          />
+                        ))}
+                      </Box>
+                    </Box>
                   </Box>
                 );
               })}

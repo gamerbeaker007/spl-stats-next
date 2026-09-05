@@ -10,10 +10,11 @@ import {
   getLowestPrice,
   isSkinActive,
 } from "@/lib/shared/marketplace-assets";
-import type { MarketplaceAssetItem } from "@/types/marketplace-assets";
+import type { MarketplaceAssetItem, OutbidStatus } from "@/types/marketplace-assets";
 import {
   Box,
   Button,
+  Chip,
   Stack,
   Table,
   TableBody,
@@ -28,12 +29,15 @@ import Image from "next/image";
 import { useMemo, useState } from "react";
 import { FaTag } from "react-icons/fa";
 import { IoMdSend } from "react-icons/io";
-import { MdCheckCircle } from "react-icons/md";
+import { MdCheckCircle, MdOutlinePriceChange } from "react-icons/md";
 import { SiHomeassistantcommunitystore } from "react-icons/si";
 
 interface MarketAssetTableProps {
   items: MarketplaceAssetItem[];
   onAction: (mode: MarketActionMode, item: MarketplaceAssetItem) => void;
+  /** Per-item outbid statuses keyed by detailId. */
+  outbidStatuses?: ReadonlyMap<string, OutbidStatus>;
+  isAuthenticated?: boolean;
 }
 
 const iconStyle = { width: "1.05rem", height: "1.05rem" } as const;
@@ -44,7 +48,12 @@ type SortField = "displayName" | "circulation" | "numOwned" | "numListed" | "pri
  * `MarketAssetCard`, laid out as rows with buy/transfer/list buttons in the last
  * column. Used when the user prefers table layout over cards.
  */
-export default function MarketAssetTable({ items, onAction }: Readonly<MarketAssetTableProps>) {
+export default function MarketAssetTable({
+  items,
+  onAction,
+  outbidStatuses,
+  isAuthenticated = true,
+}: Readonly<MarketAssetTableProps>) {
   const [sortBy, setSortBy] = useState<SortField>("price");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
@@ -107,15 +116,17 @@ export default function MarketAssetTable({ items, onAction }: Readonly<MarketAss
                 Circulation
               </TableSortLabel>
             </TableCell>
-            <TableCell align="right">
-              <TableSortLabel
-                active={sortBy === "numOwned"}
-                direction={sortBy === "numOwned" ? sortDirection : "asc"}
-                onClick={() => handleSort("numOwned")}
-              >
-                Owned
-              </TableSortLabel>
-            </TableCell>
+            {isAuthenticated && (
+              <TableCell align="right">
+                <TableSortLabel
+                  active={sortBy === "numOwned"}
+                  direction={sortBy === "numOwned" ? sortDirection : "asc"}
+                  onClick={() => handleSort("numOwned")}
+                >
+                  Owned
+                </TableSortLabel>
+              </TableCell>
+            )}
             <TableCell align="right">
               <TableSortLabel
                 active={sortBy === "numListed"}
@@ -145,6 +156,7 @@ export default function MarketAssetTable({ items, onAction }: Readonly<MarketAss
             const listedItems = item.numListed;
             const listDisabled = availableToList < 1;
             const listTooltip = getListTooltip(item.assetName, availableToList, activeSkin);
+            const outbid = outbidStatuses?.get(item.detailId) ?? null;
 
             const image = item.assetName === "DEEDS" ? getDeedImg(item.displayName) : item.image;
 
@@ -159,7 +171,9 @@ export default function MarketAssetTable({ items, onAction }: Readonly<MarketAss
                         borderLeftColor: "success.main",
                         backgroundColor: "rgba(76, 175, 80, 0.06)",
                       }
-                    : undefined
+                    : isAuthenticated && outbid?.isOutbid
+                      ? { borderLeft: 2, borderLeftColor: "warning.main" }
+                      : undefined
                 }
               >
                 <TableCell>
@@ -189,7 +203,7 @@ export default function MarketAssetTable({ items, onAction }: Readonly<MarketAss
                           height: 36,
                           objectFit: "contain",
                           flexShrink: 0,
-                          opacity: actualOwned > 0 ? 1 : 0.5,
+                          opacity: isAuthenticated && actualOwned < 1 ? 0.5 : 1,
                         }}
                       />
                       <Typography
@@ -205,41 +219,64 @@ export default function MarketAssetTable({ items, onAction }: Readonly<MarketAss
                   </Tooltip>
                 </TableCell>
                 <TableCell align="right">{item.numCirculation}</TableCell>
-                <TableCell align="right">{actualOwned}</TableCell>
+                {isAuthenticated && <TableCell align="right">{actualOwned}</TableCell>}
                 <TableCell align="right">{item.numListed}</TableCell>
                 <TableCell align="right">
-                  <Typography variant="body2" color="text.secondary" noWrap>
-                    {formatAssetPriceLabel(item)}
-                  </Typography>
+                  <Stack direction="column" spacing={0.5} alignItems="flex-end">
+                    <Typography variant="body2" color="text.secondary" noWrap>
+                      {formatAssetPriceLabel(item)}
+                    </Typography>
+                    {isAuthenticated && outbid?.isOutbid && (
+                      <Tooltip
+                        title={`Your listing ($${outbid.myPrice.toFixed(2)} ${outbid.currency}) is undercut — lowest competing price is $${outbid.lowestMarketPrice.toFixed(2)} ${outbid.currency}`}
+                      >
+                        <Chip
+                          icon={<MdOutlinePriceChange style={{ fontSize: "0.85rem" }} />}
+                          label={`Outbid $${outbid.lowestMarketPrice.toFixed(2)}`}
+                          color="warning"
+                          size="small"
+                          sx={{ fontWeight: "bold", cursor: "help" }}
+                        />
+                      </Tooltip>
+                    )}
+                  </Stack>
                 </TableCell>
                 <TableCell align="right">
                   <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      title="Buy"
-                      disabled={listedItems === 0}
-                      onClick={() => onAction("buy", item)}
-                    >
-                      <FaTag style={iconStyle} />
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      title="Transfer"
-                      disabled={actualOwned === 0}
-                      onClick={() => onAction("transfer", item)}
-                    >
-                      <IoMdSend style={iconStyle} />
-                    </Button>
-                    <Tooltip title={listTooltip}>
+                    <Tooltip title={isAuthenticated ? "Buy" : "Log in to buy"}>
+                      <Box sx={{ display: "inline-flex" }}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          title="Buy"
+                          disabled={!isAuthenticated || listedItems === 0}
+                          onClick={() => onAction("buy", item)}
+                        >
+                          <FaTag style={iconStyle} />
+                        </Button>
+                      </Box>
+                    </Tooltip>
+                    <Tooltip title={isAuthenticated ? "Transfer" : "Log in to transfer"}>
+                      <Box sx={{ display: "inline-flex" }}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          title="Transfer"
+                          disabled={!isAuthenticated || actualOwned === 0}
+                          onClick={() => onAction("transfer", item)}
+                        >
+                          <IoMdSend style={iconStyle} />
+                        </Button>
+                      </Box>
+                    </Tooltip>
+                    <Tooltip title={isAuthenticated ? listTooltip : "Log in to list"}>
                       <Box sx={{ display: "inline-flex" }}>
                         <Button
                           variant="outlined"
                           size="small"
                           title="List"
                           color={activeSkin ? "warning" : "primary"}
-                          disabled={listDisabled}
+                          disabled={!isAuthenticated || listDisabled}
                           onClick={() => onAction("list", item)}
                         >
                           <SiHomeassistantcommunitystore style={iconStyle} />
@@ -247,16 +284,20 @@ export default function MarketAssetTable({ items, onAction }: Readonly<MarketAss
                       </Box>
                     </Tooltip>
                     {item.assetName === "SKINS" && (
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        color={activeSkin ? "success" : "primary"}
-                        title="Activate"
-                        disabled={actualOwned < 1 || activeSkin}
-                        onClick={() => onAction("activate", item)}
-                      >
-                        <MdCheckCircle style={iconStyle} />
-                      </Button>
+                      <Tooltip title={isAuthenticated ? "Activate" : "Log in to activate"}>
+                        <Box sx={{ display: "inline-flex" }}>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            color={activeSkin ? "success" : "primary"}
+                            title="Activate"
+                            disabled={!isAuthenticated || actualOwned < 1 || activeSkin}
+                            onClick={() => onAction("activate", item)}
+                          >
+                            <MdCheckCircle style={iconStyle} />
+                          </Button>
+                        </Box>
+                      </Tooltip>
                     )}
                   </Stack>
                 </TableCell>

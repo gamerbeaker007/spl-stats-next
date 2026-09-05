@@ -3,7 +3,8 @@
 import MarketViewToggle from "@/components/collection/marketplace/MarketViewToggle";
 import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
-import { Box, Stack } from "@mui/material";
+import { useAuth } from "@/lib/frontend/context/AuthContext";
+import { Alert, Box, Stack } from "@mui/material";
 import { useState, type ReactNode } from "react";
 
 interface MarketplaceAccountBarProps {
@@ -19,6 +20,7 @@ interface MarketplaceAccountBarProps {
 export default function MarketplaceAccountBar({
   extraContent,
 }: Readonly<MarketplaceAccountBarProps>) {
+  const { isAuthenticated } = useAuth();
   const {
     monitoredAccounts,
     selectedAccount,
@@ -30,6 +32,30 @@ export default function MarketplaceAccountBar({
   } = useAccounts();
 
   const [addAccountInput, setAddAccountInput] = useState("");
+
+  if (!isAuthenticated) {
+    return (
+      <Box
+        sx={{
+          p: 2,
+          borderRadius: 2,
+          backgroundColor: "background.paper",
+          border: 1,
+          borderColor: "divider",
+        }}
+      >
+        <Stack spacing={1.25}>
+          <Alert severity="info">
+            Browsing as guest. Log in to view ownership, outbid status, and marketplace actions.
+          </Alert>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+            {extraContent}
+            <MarketViewToggle />
+          </Stack>
+        </Stack>
+      </Box>
+    );
+  }
 
   return (
     <Box

@@ -11,6 +11,7 @@ import { LoadingSpinnerOverlay } from "@/components/ui/LoadingSpinnerOverlay";
 import { useMarketplaceAssetsPageData } from "@/hooks/collection/useMarketplaceAssetsPageData";
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
+import { useAuth } from "@/lib/frontend/context/AuthContext";
 import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import {
@@ -49,6 +50,7 @@ export default function MarketplaceAssetSection({
   itemFilter,
   filterControls,
 }: Readonly<MarketplaceAssetSectionProps>) {
+  const { isAuthenticated } = useAuth();
   const { selectedAccount } = useAccounts();
   const { viewMode } = useMarketplaceView();
   const { collectionRefreshVersion, notifyBalancesRefresh, notifyCollectionRefresh } =
@@ -64,18 +66,45 @@ export default function MarketplaceAssetSection({
     loading,
     error,
     refresh: refreshMarketplaceData,
-  } = useMarketplaceAssetsPageData(selectedAccount, assetName, collectionRefreshVersion);
+  } = useMarketplaceAssetsPageData(
+    isAuthenticated ? selectedAccount : null,
+    assetName,
+    collectionRefreshVersion
+  );
+
+  const outbidStatuses = useMemo(
+    () => new Map((data?.outbidStatuses ?? []).map((status) => [status.detailId, status])),
+    [data?.outbidStatuses]
+  );
+
+  const myListingCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const listing of data?.playerListings ?? []) {
+      if (listing.status !== 1 || listing.quantityRemaining < 1) continue;
+      counts.set(listing.detailId, (counts.get(listing.detailId) ?? 0) + listing.quantityRemaining);
+    }
+    return counts;
+  }, [data?.playerListings]);
 
   const items = useMemo<MarketplaceAssetItem[]>(() => {
     const query = search.trim().toLowerCase();
     const base = (data?.items ?? []).filter((item) => {
-      if (ownedOnly && getActualOwnedQuantity(item) < 1) return false;
+      if (isAuthenticated && ownedOnly && getActualOwnedQuantity(item) < 1) return false;
       if (query && !item.displayName.toLowerCase().includes(query)) return false;
       if (itemFilter && !itemFilter(item)) return false;
       return true;
     });
-    return applyMarketAssetFilters(base, filter);
-  }, [data?.items, ownedOnly, search, filter, itemFilter]);
+
+    const withOutbid =
+      isAuthenticated && filter.outbidOnly
+        ? base.filter((item) => {
+            const status = outbidStatuses.get(item.detailId);
+            return Boolean(status?.isOutbid);
+          })
+        : base;
+
+    return applyMarketAssetFilters(withOutbid, filter);
+  }, [data?.items, filter, isAuthenticated, itemFilter, outbidStatuses, ownedOnly, search]);
 
   const handleAction = (mode: MarketActionMode, item: MarketplaceAssetItem) => {
     setDialogState({ mode, item, defaultListPriceUsd: getLowestUsdPrice(item.prices) });
@@ -89,6 +118,8 @@ export default function MarketplaceAssetSection({
   }, [data?.items, dialogState]);
 
   const handleCompleted = async () => {
+    if (!selectedAccount) return;
+
     // Invalidate the server caches first so the client re-fetch gets fresh data.
     const tags: Parameters<typeof revalidateTagsAction>[0] = [
       { type: "marketplace", usernames: [selectedAccount] },
@@ -123,11 +154,15 @@ export default function MarketplaceAssetSection({
           onChange={(event) => setSearch(event.target.value)}
           sx={{ minWidth: 220 }}
         />
-        <FormControlLabel
-          control={<Switch checked={ownedOnly} onChange={(_e, checked) => setOwnedOnly(checked)} />}
-          label="Owned items only"
-        />
-        <MarketFilterBar filter={filter} onChange={setFilter} />
+        {isAuthenticated && (
+          <FormControlLabel
+            control={
+              <Switch checked={ownedOnly} onChange={(_e, checked) => setOwnedOnly(checked)} />
+            }
+            label="Owned items only"
+          />
+        )}
+        <MarketFilterBar filter={filter} onChange={setFilter} showOutbidFilter={isAuthenticated} />
       </Stack>
 
       {filterControls}
@@ -137,12 +172,24 @@ export default function MarketplaceAssetSection({
 
         {!loading && error && <Alert severity="error">{error}</Alert>}
 
-        {!loading && !error && items.length === 0 && (
-          <Alert severity="info">No market items match the selected filters.</Alert>
-        )}
+        {!loading &&
+          !error &&
+          items.length === 0 &&
+          (isAuthenticated && filter.outbidOnly ? (
+            <Alert severity="info">
+              No outbid listings found for this asset type. Try turning off the Outbid filter.
+            </Alert>
+          ) : (
+            <Alert severity="info">No market items match the selected filters.</Alert>
+          ))}
 
         {viewMode === "table" ? (
-          <MarketAssetTable items={items} onAction={handleAction} />
+          <MarketAssetTable
+            items={items}
+            onAction={handleAction}
+            outbidStatuses={outbidStatuses}
+            isAuthenticated={isAuthenticated}
+          />
         ) : (
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
             {items.map((item) => (
@@ -151,6 +198,9 @@ export default function MarketplaceAssetSection({
                 item={item}
                 onAction={handleAction}
                 showDescription={showDescription}
+                outbidStatus={outbidStatuses.get(item.detailId)}
+                myListingCount={myListingCounts.get(item.detailId) ?? 0}
+                isAuthenticated={isAuthenticated}
               />
             ))}
           </Box>
