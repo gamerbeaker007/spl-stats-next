@@ -29,10 +29,10 @@ export function useIncrementalViewportList<T>(
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [sentinelNode, setSentinelNode] = useState<HTMLDivElement | null>(null);
   const loadLockRef = useRef(false);
-
   const hasMore = options.enabled && visibleCount < items.length;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting visible batch when source items/options change
     setVisibleCount(options.enabled ? Math.min(batchSize, items.length) : items.length);
     setIsLoadingMore(false);
     loadLockRef.current = false;

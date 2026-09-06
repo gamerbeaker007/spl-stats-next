@@ -68,7 +68,7 @@ export default function MarketAssetCard({
     activeSkin ||
     actualOwned - currentlyListed < 1;
 
-  const listTooltip = getListTooltip(item.assetName, availableToList, activeSkin);
+  const listTooltip = getListTooltip(item.assetName, availableToList, activeSkin, currentlyListed);
   const activeTooltip = getActivateTooltip(
     item.assetName,
     actualOwned,
