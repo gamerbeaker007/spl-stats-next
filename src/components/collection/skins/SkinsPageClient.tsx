@@ -187,7 +187,11 @@ export default function SkinsPageClient() {
         const setOwnedSkins = group.items.filter((skin) => {
           if (selectedSkinSet && skin.setName !== selectedSkinSet) return false;
           if (isAuthenticated && ownedOnly && getActualOwnedQuantity(skin) < 1) return false;
-          if (isAuthenticated && marketFilter.outbidOnly && !outbidStatuses.has(skin.detailId)) {
+          if (
+            isAuthenticated &&
+            marketFilter.outbidOnly &&
+            !outbidStatuses.get(skin.detailId)?.isOutbid
+          ) {
             return false;
           }
           return true;

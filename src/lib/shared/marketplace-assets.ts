@@ -258,16 +258,18 @@ export function computeOutbidStatuses(
       continue;
 
     const isOutbid = marketPrice.minPrice < listing.listingPrice;
+    if (!isOutbid) continue;
+
     const existing = result.get(listing.detailId);
 
-    // Prefer showing outbid status; when not-outbid already recorded, keep it.
-    if (!existing || (isOutbid && !existing.isOutbid)) {
+    // Keep the strongest undercut when several own listings exist for one detail id.
+    if (!existing || marketPrice.minPrice < existing.lowestMarketPrice) {
       result.set(listing.detailId, {
         detailId: listing.detailId,
         myPrice: listing.listingPrice,
         currency: listing.currency,
         lowestMarketPrice: marketPrice.minPrice,
-        isOutbid,
+        isOutbid: true,
       });
     }
   }

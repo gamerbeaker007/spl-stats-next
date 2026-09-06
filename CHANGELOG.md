@@ -9,6 +9,14 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.18.1] - 2026-09-06
+
+### Fixed
+
+- **Skins market outbid-only filtering** now correctly keeps only skins with a true outbid status.
+  - The grouped-skins filter checks `isOutbid` instead of only checking if an outbid-status entry exists.
+  - Outbid-status computation now returns only true outbid entries, preventing non-outbid rows from being treated as filter matches.
+
 ## [v1.18.0] - 2026-09-05
 
 ### Added
