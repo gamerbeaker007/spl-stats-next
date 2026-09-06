@@ -8,6 +8,7 @@ import MarketAssetCard from "@/components/collection/marketplace/MarketAssetCard
 import MarketAssetTable from "@/components/collection/marketplace/MarketAssetTable";
 import MarketFilterBar from "@/components/collection/marketplace/MarketFilterBar";
 import { LoadingSpinnerOverlay } from "@/components/ui/LoadingSpinnerOverlay";
+import { useIncrementalViewportList } from "@/hooks/collection/useIncrementalViewportList";
 import { useMarketplaceAssetsPageData } from "@/hooks/collection/useMarketplaceAssetsPageData";
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
@@ -22,7 +23,16 @@ import {
   type MarketAssetFilter,
 } from "@/lib/shared/marketplace-assets";
 import type { MarketplaceAssetItem, MarketplaceAssetName } from "@/types/marketplace-assets";
-import { Alert, Box, FormControlLabel, Stack, Switch, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  CircularProgress,
+  FormControlLabel,
+  Stack,
+  Switch,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useMemo, useState, type ReactNode } from "react";
 
 interface MarketplaceAssetSectionProps {
@@ -69,7 +79,11 @@ export default function MarketplaceAssetSection({
   } = useMarketplaceAssetsPageData(
     isAuthenticated ? selectedAccount : null,
     assetName,
-    collectionRefreshVersion
+    collectionRefreshVersion,
+    {
+      includeDetailedCollection: false,
+      includeOutbidStatuses: true,
+    }
   );
 
   const outbidStatuses = useMemo(
@@ -105,6 +119,17 @@ export default function MarketplaceAssetSection({
 
     return applyMarketAssetFilters(withOutbid, filter);
   }, [data?.items, filter, isAuthenticated, itemFilter, outbidStatuses, ownedOnly, search]);
+
+  const {
+    visibleItems: visibleCardItems,
+    visibleCount: visibleCardCount,
+    hasMore: hasMoreCardItems,
+    isLoadingMore: isLoadingMoreCards,
+    sentinelRef: cardSentinelRef,
+  } = useIncrementalViewportList(items, {
+    enabled: viewMode !== "table",
+    batchSize: 48,
+  });
 
   const handleAction = (mode: MarketActionMode, item: MarketplaceAssetItem) => {
     setDialogState({ mode, item, defaultListPriceUsd: getLowestUsdPrice(item.prices) });
@@ -191,19 +216,32 @@ export default function MarketplaceAssetSection({
             isAuthenticated={isAuthenticated}
           />
         ) : (
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-            {items.map((item) => (
-              <MarketAssetCard
-                key={item.detailId}
-                item={item}
-                onAction={handleAction}
-                showDescription={showDescription}
-                outbidStatus={outbidStatuses.get(item.detailId)}
-                myListingCount={myListingCounts.get(item.detailId) ?? 0}
-                isAuthenticated={isAuthenticated}
-              />
-            ))}
-          </Box>
+          <>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+              {visibleCardItems.map((item) => (
+                <MarketAssetCard
+                  key={item.detailId}
+                  item={item}
+                  onAction={handleAction}
+                  showDescription={showDescription}
+                  outbidStatus={outbidStatuses.get(item.detailId)}
+                  myListingCount={myListingCounts.get(item.detailId) ?? 0}
+                  isAuthenticated={isAuthenticated}
+                />
+              ))}
+            </Box>
+
+            {hasMoreCardItems && (
+              <Stack ref={cardSentinelRef} direction="row" spacing={1} alignItems="center" py={1}>
+                {isLoadingMoreCards && <CircularProgress size={16} />}
+                <Typography variant="caption" color="text.secondary">
+                  {isLoadingMoreCards
+                    ? "Loading more market cards..."
+                    : `Showing ${visibleCardCount}/${items.length}. Scroll to load more.`}
+                </Typography>
+              </Stack>
+            )}
+          </>
         )}
       </Box>
 

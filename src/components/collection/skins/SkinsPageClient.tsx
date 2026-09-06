@@ -10,6 +10,7 @@ import MarketAssetTable from "@/components/collection/marketplace/MarketAssetTab
 import MarketFilterBar from "@/components/collection/marketplace/MarketFilterBar";
 import MarketplaceAccountBar from "@/components/collection/marketplace/MarketplaceAccountBar";
 import { LoadingSpinnerOverlay } from "@/components/ui/LoadingSpinnerOverlay";
+import { useIncrementalViewportList } from "@/hooks/collection/useIncrementalViewportList";
 import { useMarketplaceAssetsPageData } from "@/hooks/collection/useMarketplaceAssetsPageData";
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
@@ -35,6 +36,7 @@ import {
   Alert,
   Box,
   Button,
+  CircularProgress,
   Chip,
   FormControlLabel,
   MenuItem,
@@ -134,11 +136,16 @@ export default function SkinsPageClient() {
   } = useMarketplaceAssetsPageData(
     isAuthenticated ? selectedAccount : null,
     "SKINS",
-    collectionRefreshVersion
+    collectionRefreshVersion,
+    {
+      includeDetailedCollection: true,
+      includeOutbidStatuses: true,
+    }
   );
 
   // Grouped shows base card + its skins; flat shows only skin cards.
   const flatMode = viewMode === "flat";
+  const tableMode = layoutMode === "table";
 
   const skinSets = useMemo(
     () =>
@@ -227,6 +234,28 @@ export default function SkinsPageClient() {
     [rows, marketFilter]
   );
 
+  const {
+    visibleItems: visibleFlatSkins,
+    visibleCount: visibleFlatSkinCount,
+    hasMore: hasMoreFlatSkins,
+    isLoadingMore: loadingMoreFlatSkins,
+    sentinelRef: flatSkinSentinelRef,
+  } = useIncrementalViewportList(flatSkins, {
+    enabled: !tableMode && flatMode,
+    batchSize: 60,
+  });
+
+  const {
+    visibleItems: visibleGroupedRows,
+    visibleCount: visibleGroupedRowCount,
+    hasMore: hasMoreGroupedRows,
+    isLoadingMore: loadingMoreGroupedRows,
+    sentinelRef: groupedRowSentinelRef,
+  } = useIncrementalViewportList(rows, {
+    enabled: !tableMode && !flatMode,
+    batchSize: 14,
+  });
+
   // "How many skins match what I'm currently looking at?" — one skin definition
   // per entry, not per owned copy or per market listing, matching what the grid
   // renders. `owned` counts how many of those same matching skins the selected
@@ -300,7 +329,6 @@ export default function SkinsPageClient() {
   };
 
   // Table layout always shows the flat skin list (no base card).
-  const tableMode = layoutMode === "table";
   const isEmpty = tableMode || flatMode ? flatSkins.length === 0 : rows.length === 0;
 
   return (
@@ -429,21 +457,40 @@ export default function SkinsPageClient() {
             />
           ) : flatMode ? (
             /* Flat card mode — only skin cards, no base card. */
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
-              {flatSkins.map((skin) => (
-                <MarketAssetCard
-                  key={skin.detailId}
-                  item={skin}
-                  onAction={handleAction}
-                  outbidStatus={outbidStatuses.get(skin.detailId)}
-                  myListingCount={myListingCounts.get(skin.detailId) ?? 0}
-                  isAuthenticated={isAuthenticated}
-                />
-              ))}
-            </Box>
+            <>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2 }}>
+                {visibleFlatSkins.map((skin) => (
+                  <MarketAssetCard
+                    key={skin.detailId}
+                    item={skin}
+                    onAction={handleAction}
+                    outbidStatus={outbidStatuses.get(skin.detailId)}
+                    myListingCount={myListingCounts.get(skin.detailId) ?? 0}
+                    isAuthenticated={isAuthenticated}
+                  />
+                ))}
+              </Box>
+
+              {hasMoreFlatSkins && (
+                <Stack
+                  ref={flatSkinSentinelRef}
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  py={1}
+                >
+                  {loadingMoreFlatSkins && <CircularProgress size={16} />}
+                  <Typography variant="caption" color="text.secondary">
+                    {loadingMoreFlatSkins
+                      ? "Loading more skins..."
+                      : `Showing ${visibleFlatSkinCount}/${flatSkins.length}. Scroll to load more.`}
+                  </Typography>
+                </Stack>
+              )}
+            </>
           ) : (
             <Stack spacing={3}>
-              {rows.map((row) => {
+              {visibleGroupedRows.map((row) => {
                 const fallbackSkin = row.group.items[0];
                 const fallbackEdition =
                   fallbackSkin?.imageCardEditionId ?? fallbackSkin?.cardEditionIds[0] ?? 1;
@@ -596,6 +643,23 @@ export default function SkinsPageClient() {
                   </Box>
                 );
               })}
+
+              {hasMoreGroupedRows && (
+                <Stack
+                  ref={groupedRowSentinelRef}
+                  direction="row"
+                  spacing={1}
+                  alignItems="center"
+                  py={1}
+                >
+                  {loadingMoreGroupedRows && <CircularProgress size={16} />}
+                  <Typography variant="caption" color="text.secondary">
+                    {loadingMoreGroupedRows
+                      ? "Loading more skin groups..."
+                      : `Showing ${visibleGroupedRowCount}/${rows.length} groups. Scroll to load more.`}
+                  </Typography>
+                </Stack>
+              )}
             </Stack>
           )}
         </Stack>

@@ -20,6 +20,7 @@ import {
   TableBody,
   TableCell,
   TableHead,
+  TablePagination,
   TableRow,
   Tooltip,
   Typography,
@@ -56,33 +57,51 @@ export default function MarketAssetTable({
 }: Readonly<MarketAssetTableProps>) {
   const [sortBy, setSortBy] = useState<SortField>("price");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
 
   const sortedItems = useMemo(() => {
-    return [...items].sort((a, b) => {
+    const withMetrics = items.map((item) => ({
+      item,
+      actualOwned: getActualOwnedQuantity(item),
+      lowestPrice: getLowestPrice(item),
+    }));
+
+    withMetrics.sort((a, b) => {
       let result = 0;
 
       switch (sortBy) {
         case "displayName":
-          result = a.displayName.localeCompare(b.displayName);
+          result = a.item.displayName.localeCompare(b.item.displayName);
           break;
         case "circulation":
-          result = a.numCirculation - b.numCirculation;
+          result = a.item.numCirculation - b.item.numCirculation;
           break;
         case "numOwned":
-          result = getActualOwnedQuantity(a) - getActualOwnedQuantity(b);
+          result = a.actualOwned - b.actualOwned;
           break;
         case "numListed":
-          result = a.numListed - b.numListed;
+          result = a.item.numListed - b.item.numListed;
           break;
 
         case "price":
-          result = getLowestPrice(a) - getLowestPrice(b);
+          result = a.lowestPrice - b.lowestPrice;
           break;
       }
 
       return sortDirection === "asc" ? result : -result;
     });
+
+    return withMetrics.map((entry) => entry.item);
   }, [items, sortBy, sortDirection]);
+
+  const maxPage = Math.max(0, Math.ceil(sortedItems.length / rowsPerPage) - 1);
+  const currentPage = Math.min(page, maxPage);
+
+  const paginatedItems = useMemo(() => {
+    const start = currentPage * rowsPerPage;
+    return sortedItems.slice(start, start + rowsPerPage);
+  }, [currentPage, rowsPerPage, sortedItems]);
 
   function handleSort(field: SortField) {
     if (sortBy === field) {
@@ -149,13 +168,18 @@ export default function MarketAssetTable({
           </TableRow>
         </TableHead>
         <TableBody>
-          {sortedItems.map((item) => {
+          {paginatedItems.map((item) => {
             const activeSkin = isSkinActive(item);
             const actualOwned = getActualOwnedQuantity(item);
             const availableToList = getAvailableToListQuantity(item);
             const listedItems = item.numListed;
-            const listDisabled = availableToList < 1;
-            const listTooltip = getListTooltip(item.assetName, availableToList, activeSkin);
+            const listDisabled = availableToList < 1 && item.currentlyListed === 0;
+            const listTooltip = getListTooltip(
+              item.assetName,
+              availableToList,
+              activeSkin,
+              item.currentlyListed
+            );
             const outbid = outbidStatuses?.get(item.detailId) ?? null;
 
             const image = item.assetName === "DEEDS" ? getDeedImg(item.displayName) : item.image;
@@ -306,6 +330,22 @@ export default function MarketAssetTable({
           })}
         </TableBody>
       </Table>
+
+      <TablePagination
+        component="div"
+        count={sortedItems.length}
+        page={currentPage}
+        onPageChange={(_event, nextPage) => setPage(nextPage)}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={(event) => {
+          const nextRowsPerPage = Number.parseInt(event.target.value, 10);
+          setRowsPerPage(
+            Number.isFinite(nextRowsPerPage) && nextRowsPerPage > 0 ? nextRowsPerPage : 50
+          );
+          setPage(0);
+        }}
+        rowsPerPageOptions={[25, 50, 100]}
+      />
     </Box>
   );
 }

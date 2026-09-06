@@ -36,8 +36,13 @@ function toDetailIdNumber(value: string): number {
 export function getListTooltip(
   assetName: string,
   availableToList: number,
-  activeSkin: boolean
+  activeSkin: boolean,
+  currentlyListed: number
 ): string {
+  if (currentlyListed > 0) {
+    return `View your listings`;
+  }
+
   if (assetName !== "SKINS") {
     return availableToList < 1 ? "No quantity is available to list." : "List";
   }

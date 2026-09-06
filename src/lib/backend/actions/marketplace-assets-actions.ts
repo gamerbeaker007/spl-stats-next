@@ -19,6 +19,7 @@ import { getDetailedPlayerCardCollectionCached } from "@/lib/backend/services/co
 import {
   DEFAULT_SKIN_NAME,
   applyQuantityOwnership,
+  computeOutbidStatuses,
   getActualOwnedQuantity,
   getAvailableToListQuantity,
   groupMarketplaceAssetsByCardDetailId,
@@ -96,7 +97,11 @@ async function resolveActionableUids(account: string, requestedUids: string[]): 
 
 export async function getMarketplaceAssetsPageDataAction(
   account: string | null,
-  assetName: MarketplaceAssetName
+  assetName: MarketplaceAssetName,
+  options?: {
+    includeDetailedCollection?: boolean;
+    includeOutbidStatuses?: boolean;
+  }
 ): Promise<{
   account: string | null;
   assetName: MarketplaceAssetName;
@@ -106,6 +111,8 @@ export async function getMarketplaceAssetsPageDataAction(
   playerListings: MarketplacePlayerListing[];
   outbidStatuses: OutbidStatus[];
 }> {
+  const includeDetailedCollection = options?.includeDetailedCollection ?? assetName === "SKINS";
+  const includeOutbidStatuses = options?.includeOutbidStatuses ?? true;
   const normalized = account ? normalizeAccount(account) : null;
 
   if (!normalized) {
@@ -133,7 +140,9 @@ export async function getMarketplaceAssetsPageDataAction(
 
   const [items, detailedCollection, playerSkins, playerListings] = await Promise.all([
     getCachedMarketplaceAssets(normalized, assetName),
-    getDetailedPlayerCardCollectionCached(normalized),
+    includeDetailedCollection
+      ? getDetailedPlayerCardCollectionCached(normalized)
+      : Promise.resolve({} as Awaited<ReturnType<typeof getDetailedPlayerCardCollectionCached>>),
     assetName === "SKINS" ? getCachedPlayerSkins(normalized) : Promise.resolve([]),
     getCachedMarketplacePlayerAllListings(normalized),
   ]);
@@ -154,11 +163,9 @@ export async function getMarketplaceAssetsPageDataAction(
   enrichedItems = applyQuantityOwnership(enrichedItems, playerListings);
 
   const assetListings = playerListings.filter((listing) => listing.assetName === assetName);
-  const outbidStatuses = await computeOutbidStatusesForAccount(
-    normalized,
-    assetName,
-    assetListings
-  );
+  const outbidStatuses = includeOutbidStatuses
+    ? Array.from(computeOutbidStatuses(assetListings, enrichedItems, assetName).values())
+    : [];
 
   return {
     account: normalized,
@@ -169,96 +176,6 @@ export async function getMarketplaceAssetsPageDataAction(
     playerListings: assetListings,
     outbidStatuses,
   };
-}
-
-function listingPriceKey(detailId: string, currency: string): string {
-  return `${detailId}:${currency}`;
-}
-
-/**
- * Build per-detail/currency competing minima from live listing items, excluding
- * the account's own listings by seller name.
- */
-async function getLowestCompetingPrices(args: {
-  account: string;
-  assetName: MarketplaceAssetName;
-  detailIds: string[];
-}): Promise<Map<string, number>> {
-  const account = args.account.trim().toLowerCase();
-
-  const perDetailListings = await Promise.all(
-    args.detailIds.map((detailId) =>
-      fetchMarketplaceListingItems({
-        assetName: args.assetName,
-        detailIds: [detailId],
-        sort: { field: "price", order: "asc" },
-      }).catch(() => [])
-    )
-  );
-
-  const lowestCompeting = new Map<string, number>();
-
-  for (const listings of perDetailListings) {
-    for (const listing of listings) {
-      if (listing.quantityRemaining < 1 || listing.price <= 0) continue;
-      if (listing.seller.trim().toLowerCase() === account) continue;
-
-      const key = listingPriceKey(listing.detailId, listing.currency);
-      const existing = lowestCompeting.get(key);
-      if (existing === undefined || listing.price < existing) {
-        lowestCompeting.set(key, listing.price);
-      }
-    }
-  }
-
-  return lowestCompeting;
-}
-
-/**
- * Outbid detection that works for any marketplace asset type with detailId-based
- * listings. Relies on `/market/player/all_listings` for own active listings and
- * `/market/listing-items` for competing prices.
- */
-async function computeOutbidStatusesForAccount(
-  account: string,
-  assetName: MarketplaceAssetName,
-  playerListings: MarketplacePlayerListing[]
-): Promise<OutbidStatus[]> {
-  const activeListings = playerListings.filter(
-    (listing) =>
-      listing.assetName === assetName &&
-      listing.status === 1 &&
-      listing.quantityRemaining > 0 &&
-      listing.listingPrice > 0
-  );
-
-  if (activeListings.length === 0) {
-    return [];
-  }
-
-  const detailIds = Array.from(new Set(activeListings.map((listing) => listing.detailId)));
-  const lowestCompeting = await getLowestCompetingPrices({ account, assetName, detailIds });
-
-  const outbidByDetail = new Map<string, OutbidStatus>();
-
-  for (const listing of activeListings) {
-    const competing = lowestCompeting.get(listingPriceKey(listing.detailId, listing.currency));
-    if (competing === undefined || competing <= 0) continue;
-    if (competing >= listing.listingPrice) continue;
-
-    const existing = outbidByDetail.get(listing.detailId);
-    if (!existing || competing < existing.lowestMarketPrice) {
-      outbidByDetail.set(listing.detailId, {
-        detailId: listing.detailId,
-        myPrice: listing.listingPrice,
-        currency: listing.currency,
-        lowestMarketPrice: competing,
-        isOutbid: true,
-      });
-    }
-  }
-
-  return Array.from(outbidByDetail.values());
 }
 
 export async function getMarketplaceAssetListingsAction(
