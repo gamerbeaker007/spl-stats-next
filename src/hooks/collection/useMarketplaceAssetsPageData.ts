@@ -6,40 +6,48 @@ import type {
   MarketplaceAssetGroup,
   MarketplaceAssetItem,
   MarketplaceAssetName,
+  MarketplacePlayerListing,
+  OutbidStatus,
 } from "@/types/marketplace-assets";
 import { useCallback, useEffect, useState } from "react";
 
 export interface MarketplaceAssetsPageData {
-  account: string;
+  account: string | null;
   assetName: MarketplaceAssetName;
   items: MarketplaceAssetItem[];
   groups: MarketplaceAssetGroup[];
   detailedCollection: DetailedPlayerCardCollection;
+  playerListings: MarketplacePlayerListing[];
+  outbidStatuses: OutbidStatus[];
+}
+
+export interface MarketplaceAssetsPageDataLoadOptions {
+  includeDetailedCollection?: boolean;
+  includeOutbidStatuses?: boolean;
 }
 
 export function useMarketplaceAssetsPageData(
-  account: string,
+  account: string | null,
   assetName: MarketplaceAssetName,
-  refreshVersion = 0
+  refreshVersion = 0,
+  options: MarketplaceAssetsPageDataLoadOptions = {}
 ) {
   const [data, setData] = useState<MarketplaceAssetsPageData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const includeDetailedCollection = options.includeDetailedCollection ?? assetName === "SKINS";
+  const includeOutbidStatuses = options.includeOutbidStatuses ?? false;
 
   const load = useCallback(
     async (active: () => boolean): Promise<MarketplaceAssetsPageData | null> => {
-      if (!account) {
-        setData(null);
-        setLoading(false);
-        setError(null);
-        return null;
-      }
-
       setLoading(true);
       setError(null);
 
       try {
-        const next = await getMarketplaceAssetsPageDataAction(account, assetName);
+        const next = await getMarketplaceAssetsPageDataAction(account ?? null, assetName, {
+          includeDetailedCollection,
+          includeOutbidStatuses,
+        });
         if (active()) setData(next);
         return next;
       } catch (err) {
@@ -50,17 +58,10 @@ export function useMarketplaceAssetsPageData(
         if (active()) setLoading(false);
       }
     },
-    [account, assetName]
+    [account, assetName, includeDetailedCollection, includeOutbidStatuses]
   );
 
   useEffect(() => {
-    if (!account) {
-      setData(null);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
     let active = true;
     load(() => active);
 

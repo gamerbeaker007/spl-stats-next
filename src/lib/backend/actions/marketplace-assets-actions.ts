@@ -9,6 +9,7 @@ import {
 import { fetchMarketplaceListingItems } from "@/lib/backend/api/spl/vapi-spl";
 import {
   getCachedMarketplaceAssets,
+  getCachedMarketplaceAssetsPublic,
   getCachedMarketplacePlayerAllListings,
   getCachedPlayerSkins,
   getCachedSplPlayerBalances,
@@ -18,6 +19,7 @@ import { getDetailedPlayerCardCollectionCached } from "@/lib/backend/services/co
 import {
   DEFAULT_SKIN_NAME,
   applyQuantityOwnership,
+  computeOutbidStatuses,
   getActualOwnedQuantity,
   getAvailableToListQuantity,
   groupMarketplaceAssetsByCardDetailId,
@@ -43,6 +45,8 @@ import type {
   MarketplaceAssetItem,
   MarketplaceAssetName,
   MarketplaceListingItem,
+  MarketplacePlayerListing,
+  OutbidStatus,
   OwnedAssetInstance,
 } from "@/types/marketplace-assets";
 import type { PurchaseCurrency } from "@/types/purchase/purchase-plan";
@@ -92,20 +96,53 @@ async function resolveActionableUids(account: string, requestedUids: string[]): 
 }
 
 export async function getMarketplaceAssetsPageDataAction(
-  account: string,
-  assetName: MarketplaceAssetName
+  account: string | null,
+  assetName: MarketplaceAssetName,
+  options?: {
+    includeDetailedCollection?: boolean;
+    includeOutbidStatuses?: boolean;
+  }
 ): Promise<{
-  account: string;
+  account: string | null;
   assetName: MarketplaceAssetName;
   items: MarketplaceAssetItem[];
   groups: MarketplaceAssetGroup[];
   detailedCollection: Awaited<ReturnType<typeof getDetailedPlayerCardCollectionCached>>;
+  playerListings: MarketplacePlayerListing[];
+  outbidStatuses: OutbidStatus[];
 }> {
-  const normalized = normalizeAccount(account);
+  const includeDetailedCollection = options?.includeDetailedCollection ?? assetName === "SKINS";
+  const includeOutbidStatuses = options?.includeOutbidStatuses ?? true;
+  const normalized = account ? normalizeAccount(account) : null;
+
+  if (!normalized) {
+    const publicItems = await getCachedMarketplaceAssetsPublic(assetName);
+    const enrichedPublicItems = publicItems.map((item) => ({
+      ...item,
+      ownedQuantity: 0,
+      actualOwned: 0,
+      currentlyListed: 0,
+      availableToList: 0,
+      numOwned: 0,
+      active: false,
+    }));
+
+    return {
+      account: null,
+      assetName,
+      items: enrichedPublicItems,
+      groups: groupMarketplaceAssetsByCardDetailId(enrichedPublicItems),
+      detailedCollection: {},
+      playerListings: [],
+      outbidStatuses: [],
+    };
+  }
 
   const [items, detailedCollection, playerSkins, playerListings] = await Promise.all([
     getCachedMarketplaceAssets(normalized, assetName),
-    getDetailedPlayerCardCollectionCached(normalized),
+    includeDetailedCollection
+      ? getDetailedPlayerCardCollectionCached(normalized)
+      : Promise.resolve({} as Awaited<ReturnType<typeof getDetailedPlayerCardCollectionCached>>),
     assetName === "SKINS" ? getCachedPlayerSkins(normalized) : Promise.resolve([]),
     getCachedMarketplacePlayerAllListings(normalized),
   ]);
@@ -125,12 +162,19 @@ export async function getMarketplaceAssetsPageDataAction(
   }
   enrichedItems = applyQuantityOwnership(enrichedItems, playerListings);
 
+  const assetListings = playerListings.filter((listing) => listing.assetName === assetName);
+  const outbidStatuses = includeOutbidStatuses
+    ? Array.from(computeOutbidStatuses(assetListings, enrichedItems, assetName).values())
+    : [];
+
   return {
     account: normalized,
     assetName,
     items: enrichedItems,
     groups: groupMarketplaceAssetsByCardDetailId(enrichedItems),
     detailedCollection,
+    playerListings: assetListings,
+    outbidStatuses,
   };
 }
 

@@ -160,6 +160,9 @@ export interface MarketplacePlayerListingRaw {
   detailId: string;
   quantity: number;
   quantityRemaining: number;
+  status?: number;
+  currency?: string;
+  listingPrice?: number;
 }
 
 export interface MarketplacePlayerListing {
@@ -169,6 +172,19 @@ export interface MarketplacePlayerListing {
   detailIdNumber: number;
   quantity: number;
   quantityRemaining: number;
+  /** Listing status: 1 = active. */
+  status: number;
+  currency: string;
+  listingPrice: number;
+}
+
+/** Outbid status for a single asset the player has listed. */
+export interface OutbidStatus {
+  detailId: string;
+  myPrice: number;
+  currency: string;
+  lowestMarketPrice: number;
+  isOutbid: boolean;
 }
 
 /**

@@ -400,14 +400,15 @@ export async function fetchMarketLanding(player: string): Promise<VapiMarketLand
 }
 
 export async function fetchMarketplaceLandingAssets(
-  player: string,
+  player: string | null,
   assetName: MarketplaceAssetName
 ): Promise<MarketplaceLandingAsset[]> {
   try {
+    const params = player ? { player, assets: assetName } : { assets: assetName };
     const res = await vapiClient.get<{
       status: string;
       data: { assets: MarketplaceLandingAssetRaw[] };
-    }>("/market/landing", { params: { player, assets: assetName } });
+    }>("/market/landing", { params });
 
     return (res.data?.data?.assets ?? []).map((asset) => {
       const normalizedAssetName = parseMarketplaceAssetName(asset.assetName);
@@ -505,7 +506,7 @@ export async function fetchMarketplacePlayerAllListings(
 }
 
 export async function fetchMarketplaceAssets(
-  player: string,
+  player: string | null,
   assetName: MarketplaceAssetName
 ): Promise<MarketplaceAssetItem[]> {
   const landing = await fetchMarketplaceLandingAssets(player, assetName);
