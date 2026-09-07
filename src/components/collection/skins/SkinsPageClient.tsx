@@ -238,6 +238,32 @@ export default function SkinsPageClient() {
     [rows, marketFilter]
   );
 
+  // Restart the lazy-load window only when the *selection* changes — not when the
+  // data is re-fetched after an action (delist, list, transfer, activate), which
+  // would otherwise collapse the list back to the first batch and scroll the user
+  // away from the skin they just acted on.
+  const listResetKey = useMemo(
+    () =>
+      JSON.stringify([
+        selectedAccount,
+        isAuthenticated,
+        ownedOnly,
+        selectedSkinSet,
+        marketFilter,
+        cardFilter,
+        viewMode,
+      ]),
+    [
+      selectedAccount,
+      isAuthenticated,
+      ownedOnly,
+      selectedSkinSet,
+      marketFilter,
+      cardFilter,
+      viewMode,
+    ]
+  );
+
   const {
     visibleItems: visibleFlatSkins,
     visibleCount: visibleFlatSkinCount,
@@ -247,6 +273,7 @@ export default function SkinsPageClient() {
   } = useIncrementalViewportList(flatSkins, {
     enabled: !tableMode && flatMode,
     batchSize: 60,
+    resetKey: listResetKey,
   });
 
   const {
@@ -258,6 +285,7 @@ export default function SkinsPageClient() {
   } = useIncrementalViewportList(rows, {
     enabled: !tableMode && !flatMode,
     batchSize: 14,
+    resetKey: listResetKey,
   });
 
   // "How many skins match what I'm currently looking at?" — one skin definition

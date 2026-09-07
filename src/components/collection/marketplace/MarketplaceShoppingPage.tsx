@@ -15,6 +15,8 @@ interface MarketplaceShoppingPageProps {
   showDescription?: boolean;
   itemFilter?: (item: MarketplaceAssetItem) => boolean;
   filterControls?: ReactNode;
+  /** Serialized state of `itemFilter` — restarts the lazy-load window when it changes. */
+  itemFilterKey?: string;
 }
 
 /**

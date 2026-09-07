@@ -304,6 +304,25 @@ export function getAvailableToListQuantity(
   return Math.max(0, item.availableToList ?? getActualOwnedQuantity(item));
 }
 
+/**
+ * Can this item's skin be activated right now? Single source of truth for the
+ * Activate gating, shared by the asset card and the buy/list dialogs: skins only,
+ * at least one owned copy that is not listed, and not already active.
+ */
+export function isSkinActivateDisabled(
+  item: Pick<
+    MarketplaceAssetItem,
+    "assetName" | "actualOwned" | "numOwned" | "currentlyListed" | "active"
+  >
+): boolean {
+  if (item.assetName !== "SKINS") return true;
+
+  const actualOwned = getActualOwnedQuantity(item);
+  return (
+    actualOwned < 1 || isSkinActive(item) || actualOwned - getCurrentlyListedQuantity(item) < 1
+  );
+}
+
 export function buildMarketplaceAssetItems(
   landingAssets: MarketplaceLandingAsset[],
   metaDetails: MarketplaceAssetMetaDetail[],

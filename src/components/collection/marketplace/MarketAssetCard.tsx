@@ -9,6 +9,7 @@ import {
   getDeedImg,
   getListTooltip,
   getLowestUsdPrice,
+  isSkinActivateDisabled,
   isSkinActive,
 } from "@/lib/shared/marketplace-assets";
 import { largeNumberFormat } from "@/lib/utils";
@@ -62,11 +63,7 @@ export default function MarketAssetCard({
   const listedItems = item.numListed;
   const circulation = item.numCirculation;
 
-  const activateDisabled =
-    item.assetName !== "SKINS" ||
-    actualOwned < 1 ||
-    activeSkin ||
-    actualOwned - currentlyListed < 1;
+  const activateDisabled = isSkinActivateDisabled(item);
 
   const listTooltip = getListTooltip(item.assetName, availableToList, activeSkin, currentlyListed);
   const activeTooltip = getActivateTooltip(

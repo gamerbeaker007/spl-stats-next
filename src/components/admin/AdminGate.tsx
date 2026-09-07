@@ -2,6 +2,8 @@ import AdminLogsSkeleton from "@/components/admin/AdminLogsSkeleton";
 import DbSizeContent from "@/components/admin/DbSizeContent";
 import DbSizeSkeleton from "@/components/admin/DbSizeSkeleton";
 import LogsContent from "@/components/admin/LogsContent";
+import SupportDonationsContent from "@/components/admin/SupportDonationsContent";
+import SupportDonationsSkeleton from "@/components/admin/SupportDonationsSkeleton";
 import WorkerStatusContent from "@/components/admin/WorkerStatusContent";
 import WorkerStatusSkeleton from "@/components/admin/WorkerStatusSkeleton";
 import PageErrorBoundary from "@/components/shared/error-boundaries/PageErrorBoundary";
@@ -42,6 +44,11 @@ export default async function AdminGate() {
       <PageErrorBoundary>
         <Suspense fallback={<DbSizeSkeleton />}>
           <DbSizeContent />
+        </Suspense>
+      </PageErrorBoundary>
+      <PageErrorBoundary>
+        <Suspense fallback={<SupportDonationsSkeleton />}>
+          <SupportDonationsContent />
         </Suspense>
       </PageErrorBoundary>
       <PageErrorBoundary>

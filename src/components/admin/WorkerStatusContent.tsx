@@ -3,33 +3,11 @@ import { getValidMonitoredAccountUsernames } from "@/lib/backend/db/monitored-ac
 import { getAllMonitoredAccountTokenStatuses } from "@/lib/backend/db/spl-accounts";
 import { getLatestSeason } from "@/lib/backend/db/seasons";
 import { getLatestWorkerRun } from "@/lib/backend/db/worker-runs";
-import { JWT_WARN_DAYS } from "@/lib/shared/token-constants";
+import WorkerAccountsTable, { type WorkerAccountRow } from "./WorkerAccountsTable";
 import { AccountSyncState } from "@prisma/client";
-import {
-  Alert,
-  Box,
-  Card,
-  CardContent,
-  Chip,
-  Paper,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Card, CardContent, Stack, Chip, Typography } from "@mui/material";
 
 type SyncStatus = "pending" | "processing" | "failed" | "completed";
-
-const SYNC_STATUS_COLOR: Record<SyncStatus, "default" | "info" | "error" | "success"> = {
-  pending: "default",
-  processing: "info",
-  failed: "error",
-  completed: "success",
-};
 
 const WORKER_STATUS_COLOR: Record<string, "default" | "info" | "error" | "success"> = {
   running: "info",
@@ -50,39 +28,6 @@ function aggregateSyncStatus(states: AccountSyncState[]): SyncStatus {
   if (states.some((s) => s.status === "processing")) return "processing";
   if (states.every((s) => s.status === "completed")) return "completed";
   return "pending";
-}
-
-function jwtExpiryInfo(expiresAt: Date | null): {
-  label: string;
-  color: "success" | "warning" | "error" | "default";
-  title: string;
-} {
-  if (!expiresAt) return { label: "no expiry", color: "default", title: "No JWT expiry stored" };
-  const now = Date.now();
-  const diffMs = expiresAt.getTime() - now;
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
-  if (diffDays < 0) {
-    const expiredDaysAgo = Math.floor(-diffDays);
-    return {
-      label: `expired ${expiredDaysAgo}d ago`,
-      color: "error",
-      title: `Expired ${expiresAt.toISOString()}`,
-    };
-  }
-  if (diffDays < JWT_WARN_DAYS) {
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
-    return {
-      label: hours < 24 ? `${hours}h left` : `${Math.floor(diffDays)}d left`,
-      color: "warning",
-      title: `Expires ${expiresAt.toISOString()}`,
-    };
-  }
-  const days = Math.floor(diffDays);
-  return {
-    label: `${days}d left`,
-    color: "success",
-    title: `Expires ${expiresAt.toISOString()}`,
-  };
 }
 
 function formatDuration(ms: number): string {
@@ -148,14 +93,28 @@ export default async function WorkerStatusContent() {
             : null,
         error: states.find((s) => s.errorMessage)?.errorMessage ?? null,
         tokenStatus: ts?.tokenStatus ?? "unknown",
-        tokenVerifiedAt: ts?.tokenVerifiedAt ?? null,
-        jwtExpiresAt: ts?.jwtExpiresAt ?? null,
+        tokenVerifiedAtIso: ts?.tokenVerifiedAt?.toISOString() ?? null,
+        jwtExpiresAtIso: ts?.jwtExpiresAt?.toISOString() ?? null,
       };
     })
     .sort((a, b) => {
       const diff = STATUS_ORDER[a.syncStatus] - STATUS_ORDER[b.syncStatus];
       return diff !== 0 ? diff : a.username.localeCompare(b.username);
     });
+
+  const tableRows: WorkerAccountRow[] = accounts.map((acc) => ({
+    username: acc.username,
+    syncStatus: acc.syncStatus,
+    completedSyncKeys: acc.completedSyncKeys,
+    totalSyncKeys: acc.totalSyncKeys,
+    minSeasonProcessed: acc.minSeasonProcessed,
+    lastUpdatedIso: acc.lastUpdated?.toISOString() ?? null,
+    lastSyncedKey: acc.lastSyncedKey,
+    error: acc.error,
+    tokenStatus: acc.tokenStatus,
+    tokenVerifiedAtIso: acc.tokenVerifiedAtIso,
+    jwtExpiresAtIso: acc.jwtExpiresAtIso,
+  }));
 
   return (
     <Box sx={{ p: 3 }}>
@@ -197,124 +156,7 @@ export default async function WorkerStatusContent() {
         </Card>
 
         {accounts.length > 0 ? (
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Account</TableCell>
-                  <TableCell>Token</TableCell>
-                  <TableCell>JWT Expiry</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Sync Key</TableCell>
-                  <TableCell>Last Synced Key</TableCell>
-                  <TableCell>Season</TableCell>
-                  <TableCell>Last Sync</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {accounts.map((acc) => (
-                  <TableRow key={acc.username} hover>
-                    <TableCell sx={{ fontFamily: "monospace", fontSize: "0.85rem" }}>
-                      {acc.username}
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={acc.tokenStatus}
-                        size="small"
-                        color={
-                          acc.tokenStatus === "valid"
-                            ? "success"
-                            : acc.tokenStatus === "invalid"
-                              ? "error"
-                              : "default"
-                        }
-                        variant="outlined"
-                        title={
-                          acc.tokenVerifiedAt
-                            ? `Verified ${formatRelativeTime(acc.tokenVerifiedAt)}`
-                            : undefined
-                        }
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {(() => {
-                        const expiry = jwtExpiryInfo(acc.jwtExpiresAt);
-                        return (
-                          <Chip
-                            label={expiry.label}
-                            size="small"
-                            color={expiry.color}
-                            variant="outlined"
-                            title={expiry.title}
-                          />
-                        );
-                      })()}
-                    </TableCell>
-                    <TableCell>
-                      <Stack spacing={0.5} alignItems="flex-start">
-                        <Chip
-                          label={acc.syncStatus}
-                          size="small"
-                          color={SYNC_STATUS_COLOR[acc.syncStatus]}
-                          variant="outlined"
-                        />
-                        {acc.error && (
-                          <Typography
-                            variant="caption"
-                            color="error.main"
-                            sx={{ maxWidth: 200, display: "block" }}
-                            noWrap
-                          >
-                            {acc.error}
-                          </Typography>
-                        )}
-                      </Stack>
-                    </TableCell>
-                    <TableCell>
-                      <Typography
-                        variant="body2"
-                        color={
-                          acc.completedSyncKeys === acc.totalSyncKeys && acc.totalSyncKeys > 0
-                            ? "text.primary"
-                            : "text.secondary"
-                        }
-                      >
-                        {acc.completedSyncKeys}/{acc.totalSyncKeys}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography
-                        variant="body2"
-                        sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}
-                        color="text.secondary"
-                      >
-                        {acc.lastSyncedKey ?? "—"}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography
-                        variant="body2"
-                        color={
-                          acc.minSeasonProcessed >= currentSeasonId && currentSeasonId > 0
-                            ? "success.main"
-                            : "text.secondary"
-                        }
-                      >
-                        {acc.minSeasonProcessed > 0
-                          ? `${acc.minSeasonProcessed} / ${currentSeasonId}`
-                          : "—"}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2" color="text.secondary">
-                        {acc.lastUpdated ? formatRelativeTime(acc.lastUpdated) : "—"}
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <WorkerAccountsTable accounts={tableRows} currentSeasonId={currentSeasonId} />
         ) : (
           <Alert severity="info">No accounts synced yet.</Alert>
         )}

@@ -27,6 +27,7 @@ export default function PacksPageClient() {
       <MarketplaceAssetSection
         assetName="PACKS"
         itemFilter={itemFilter}
+        itemFilterKey={[...selectedSets].sort().join(",")}
         filterControls={<PackSetFilter selected={selectedSets} onChange={setSelectedSets} />}
       />
     </Stack>

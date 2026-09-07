@@ -45,6 +45,12 @@ interface MarketplaceAssetSectionProps {
   itemFilter?: (item: MarketplaceAssetItem) => boolean;
   /** Extra filter controls rendered above the standard filter bar (e.g. the Packs set selector). */
   filterControls?: ReactNode;
+  /**
+   * Serialized state of any extra filter owned by the parent (e.g. the Packs set
+   * selection). Changing it restarts the lazy-load window, exactly like the
+   * built-in filters do. Must not change on a plain data refresh.
+   */
+  itemFilterKey?: string;
 }
 
 /**
@@ -59,6 +65,7 @@ export default function MarketplaceAssetSection({
   showDescription = false,
   itemFilter,
   filterControls,
+  itemFilterKey = "",
 }: Readonly<MarketplaceAssetSectionProps>) {
   const { isAuthenticated } = useAuth();
   const { selectedAccount } = useAccounts();
@@ -120,6 +127,22 @@ export default function MarketplaceAssetSection({
     return applyMarketAssetFilters(withOutbid, filter);
   }, [data?.items, filter, isAuthenticated, itemFilter, outbidStatuses, ownedOnly, search]);
 
+  // Restart the lazy-load window only when the *selection* changes — a re-fetch
+  // after a buy/list/delist/transfer keeps whatever the user scrolled into view.
+  const listResetKey = useMemo(
+    () =>
+      JSON.stringify([
+        selectedAccount,
+        isAuthenticated,
+        ownedOnly,
+        search,
+        filter,
+        viewMode,
+        itemFilterKey,
+      ]),
+    [selectedAccount, isAuthenticated, ownedOnly, search, filter, viewMode, itemFilterKey]
+  );
+
   const {
     visibleItems: visibleCardItems,
     visibleCount: visibleCardCount,
@@ -129,6 +152,7 @@ export default function MarketplaceAssetSection({
   } = useIncrementalViewportList(items, {
     enabled: viewMode !== "table",
     batchSize: 48,
+    resetKey: listResetKey,
   });
 
   const handleAction = (mode: MarketActionMode, item: MarketplaceAssetItem) => {

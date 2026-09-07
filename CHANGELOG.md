@@ -9,6 +9,28 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.19.0] - 2026-09-07
+
+### Added
+
+- **Activate button in the skin buy and list dialogs.** A skin can now be equipped straight from the dialog — after delisting it, or after buying it — without finding it again in the grid. It broadcasts through the dialog's own transaction runner, so the existing progress panel and error alert report it; no extra dialog opens.
+  - Shown only for skins; `SkinActivateButton` renders nothing for other asset types, so no page or dialog-host wiring was needed.
+  - The activation transaction moved to a shared `buildSkinActivationTx()`, used by both the button and `SkinActivateDialog` — one payload, one broadcast path.
+  - Enable/disable and tooltip come from the new shared `isSkinActivateDisabled()` helper, which the asset card also uses — so a skin that cannot be activated on the grid cannot be activated from a dialog either.
+  - After listing, the list dialog blocks Activate (and further listing) until the owned quantity catches up. `player/all_listings` reports a new listing within a second while `market/landing` keeps counting those copies as held for several more — so `actualOwned = held + listed` double-counts them, "owned" shows doubled, and a fully listed skin briefly looks activatable. Listing cannot change how many copies you own, so the dialog blocks while the owned total sits above its pre-listing value, re-checking every 3s (max 8 attempts) until it settles.
+- **Admin page enhancements.**
+  - Worker account table is now paginated and shows summary chips above the table for Activated (not expired), Expired, and No expiry counts against the total account count.
+  - Added a new Support Donations section directly on the Admin page, with pagination, latest-first default ordering, and sortable columns.
+
+### Fixed
+
+- **Marketplace lists no longer jump back to the top after an action.** Completing a buy, list, delist, transfer or activate re-fetches the page data, which gave the item list a new array identity and collapsed `useIncrementalViewportList` back to its first batch — scrolling the user away from the item they had just acted on (e.g. a delisted skin they wanted to activate next).
+  - `useIncrementalViewportList` now only shrinks the visible window on an explicit `resetKey` change; a plain data refresh keeps everything already scrolled into view.
+  - `SkinsPageClient` and `MarketplaceAssetSection` pass a `resetKey` built from the account and the active filters/layout, so changing a filter still restarts from the top.
+  - `MarketplaceAssetSection` gained an `itemFilterKey` prop for parent-owned extra filters (used by the Packs set selector).
+
+---
+
 ## [v1.18.1] - 2026-09-06
 
 ### Fixed

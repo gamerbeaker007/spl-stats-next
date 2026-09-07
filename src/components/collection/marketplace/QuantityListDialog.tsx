@@ -1,6 +1,7 @@
 "use client";
 
 import MarketAssetSummary from "@/components/collection/marketplace/MarketAssetSummary";
+import SkinActivateButton from "@/components/collection/marketplace/SkinActivateButton";
 import TransactionProgressPanel from "@/components/shared/TransactionProgressPanel";
 import { useMarketplaceTransaction } from "@/hooks/collection/useMarketplaceTransaction";
 import { useOwnedListings } from "@/hooks/collection/useOwnedListings";
@@ -8,7 +9,11 @@ import {
   buildDelistAssetPayloadAction,
   buildQuantityListPayloadAction,
 } from "@/lib/backend/actions/marketplace-assets-actions";
-import { getAvailableToListQuantity, isSkinActive } from "@/lib/shared/marketplace-assets";
+import {
+  getActualOwnedQuantity,
+  getAvailableToListQuantity,
+  isSkinActive,
+} from "@/lib/shared/marketplace-assets";
 import {
   broadcastMarketplaceCancel,
   broadcastMarketplaceList,
@@ -31,7 +36,11 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+/** How long to keep re-checking that the owned quantity caught up with a listing. */
+const LISTING_SYNC_POLL_MS = 3000;
+const LISTING_SYNC_MAX_POLLS = 8;
 
 interface QuantityListDialogProps {
   open: boolean;
@@ -63,14 +72,55 @@ export default function QuantityListDialog({
   const [quantity, setQuantity] = useState(1);
   const [priceUsd, setPriceUsd] = useState(() => defaultListPriceUsd?.toFixed(3) ?? "1.000");
   const [delistingId, setDelistingId] = useState<number | null>(null);
+  /**
+   * Owned total from before the listings we just broadcast, or `null` when no
+   * listing is in flight.
+   *
+   * Listing never changes how many copies you own, so a *rise* in the owned total
+   * means the two sources disagree: `player/all_listings` already reports the new
+   * listing while `market/landing` still counts those copies as held, so they are
+   * counted twice. In that window "owned" doubles, "available to list" is too
+   * high, and a fully listed skin looks activatable — so every action here waits
+   * for the total to settle back.
+   */
+  const [ownedBeforeListing, setOwnedBeforeListing] = useState<number | null>(null);
 
+  const awaitingListingSync =
+    ownedBeforeListing !== null && getActualOwnedQuantity(item) > ownedBeforeListing;
   const listableQuantity = getAvailableToListQuantity(item);
   const maxQuantity = Math.max(1, listableQuantity);
   const activeSkin = isSkinActive(item);
 
   const effectiveQuantity = Math.min(Math.max(1, quantity), maxQuantity);
 
+  // `onCompleted` is a fresh closure on every parent render; keep it in a ref so
+  // the poll below is driven only by the sync state.
+  const onCompletedRef = useRef(onCompleted);
+  useEffect(() => {
+    onCompletedRef.current = onCompleted;
+  });
+
+  // Re-pull the page data until the owned total settles, then the guard lifts by
+  // itself. Bounded, so a backend that never catches up unblocks the dialog
+  // instead of freezing it.
+  useEffect(() => {
+    if (!awaitingListingSync) return;
+
+    let attempts = 0;
+    const timer = setInterval(() => {
+      attempts += 1;
+      if (attempts > LISTING_SYNC_MAX_POLLS) {
+        setOwnedBeforeListing(null);
+        return;
+      }
+      void onCompletedRef.current();
+    }, LISTING_SYNC_POLL_MS);
+
+    return () => clearInterval(timer);
+  }, [awaitingListingSync]);
+
   async function handleList() {
+    const ownedBefore = getActualOwnedQuantity(item);
     await run({
       label: "List",
       message: `Listing ${effectiveQuantity} item${effectiveQuantity === 1 ? "" : "s"} for ${priceUsd} USD...`,
@@ -84,7 +134,10 @@ export default function QuantityListDialog({
         });
         return broadcastMarketplaceList(account, payload);
       },
-      onVerified: refresh,
+      onVerified: async () => {
+        setOwnedBeforeListing(ownedBefore);
+        await refresh();
+      },
     });
   }
 
@@ -102,7 +155,12 @@ export default function QuantityListDialog({
         });
         return broadcastMarketplaceCancel(account, payload);
       },
-      onVerified: refresh,
+      onVerified: async () => {
+        // A cancel only ever lowers the listed count, and a stale (still listed)
+        // item keeps Activate disabled on its own — so drop the guard.
+        setOwnedBeforeListing(null);
+        await refresh();
+      },
     });
     setDelistingId(null);
   }
@@ -123,8 +181,15 @@ export default function QuantityListDialog({
             </Alert>
           )}
 
-          {listableQuantity < 1 && (
-            <Alert severity="info">No quantity is currently available to list.</Alert>
+          {awaitingListingSync ? (
+            <Alert severity="info">
+              Your listing is confirmed on chain. Waiting for the owned quantity to catch up — the
+              actions below unlock as soon as the numbers settle.
+            </Alert>
+          ) : (
+            listableQuantity < 1 && (
+              <Alert severity="info">No quantity is currently available to list.</Alert>
+            )
           )}
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -191,13 +256,21 @@ export default function QuantityListDialog({
       </DialogContent>
       <DialogActions>
         <TransactionProgressPanel txProgress={txProgress} />
+        <SkinActivateButton
+          account={account}
+          item={item}
+          run={run}
+          busy={busy}
+          disabled={awaitingListingSync}
+          disabledReason="Waiting for the owned quantity to catch up with your listing..."
+        />
         <Button onClick={onClose} disabled={busy}>
           Close
         </Button>
         <Button
           onClick={handleList}
           variant="contained"
-          disabled={busy || listableQuantity < 1 || Number(priceUsd) <= 0}
+          disabled={busy || awaitingListingSync || listableQuantity < 1 || Number(priceUsd) <= 0}
         >
           List {effectiveQuantity}
         </Button>

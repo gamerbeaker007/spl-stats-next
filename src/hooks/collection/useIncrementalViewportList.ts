@@ -6,6 +6,14 @@ interface IncrementalViewportListOptions {
   enabled: boolean;
   batchSize?: number;
   rootMargin?: string;
+  /**
+   * Change this to restart from the first batch (account switch, filter change,
+   * layout change). A plain data refresh must NOT change it: `items` gets a new
+   * array identity on every re-fetch, and collapsing back to the first batch
+   * there would yank away whatever the user had scrolled to — e.g. the skin they
+   * just delisted and now want to activate.
+   */
+  resetKey?: string;
 }
 
 interface IncrementalViewportListResult<T> {
@@ -22,6 +30,7 @@ export function useIncrementalViewportList<T>(
 ): IncrementalViewportListResult<T> {
   const batchSize = Math.max(1, options.batchSize ?? 48);
   const rootMargin = options.rootMargin ?? "500px 0px";
+  const resetKey = options.resetKey ?? "";
 
   const [visibleCount, setVisibleCount] = useState(() =>
     options.enabled ? Math.min(batchSize, items.length) : items.length
@@ -29,14 +38,23 @@ export function useIncrementalViewportList<T>(
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [sentinelNode, setSentinelNode] = useState<HTMLDivElement | null>(null);
   const loadLockRef = useRef(false);
+  const lastResetKeyRef = useRef(resetKey);
   const hasMore = options.enabled && visibleCount < items.length;
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting visible batch when source items/options change
-    setVisibleCount(options.enabled ? Math.min(batchSize, items.length) : items.length);
+    const isReset = lastResetKeyRef.current !== resetKey;
+    lastResetKeyRef.current = resetKey;
+
+    setVisibleCount((current) => {
+      if (!options.enabled) return items.length;
+      // Only an explicit reset shrinks the window back to one batch; a data
+      // refresh keeps everything the user already scrolled into view.
+      const target = isReset ? batchSize : Math.max(current, batchSize);
+      return Math.min(target, items.length);
+    });
     setIsLoadingMore(false);
     loadLockRef.current = false;
-  }, [items, options.enabled, batchSize]);
+  }, [items, options.enabled, batchSize, resetKey]);
 
   const loadMore = useCallback(() => {
     if (!options.enabled) return;

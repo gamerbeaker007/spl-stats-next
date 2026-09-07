@@ -3,8 +3,7 @@
 import MarketAssetSummary from "@/components/collection/marketplace/MarketAssetSummary";
 import TransactionProgressPanel from "@/components/shared/TransactionProgressPanel";
 import { useMarketplaceTransaction } from "@/hooks/collection/useMarketplaceTransaction";
-import { buildActivateSkinPayloadAction } from "@/lib/backend/actions/marketplace-assets-actions";
-import { broadcastSetSkin } from "@/lib/frontend/purchase/splBroadcast";
+import { buildSkinActivationTx } from "@/lib/frontend/purchase/skin-activation";
 import { getActualOwnedQuantity, isSkinActive } from "@/lib/shared/marketplace-assets";
 import type { MarketplaceAssetItem } from "@/types/marketplace-assets";
 import {
@@ -39,20 +38,7 @@ export default function SkinActivateDialog({
   const canActivate = actualOwned > 0 && !active;
 
   async function handleActivate() {
-    await run({
-      label: "Activate",
-      message: `Activating ${item.displayName}...`,
-      execute: async () => {
-        const { payload } = await buildActivateSkinPayloadAction({
-          account,
-          detailId: item.detailId,
-          cardDetailId: item.cardDetailId,
-          skinName: item.activationSkinName ?? (item.setName || item.displayName),
-          baseSkin: item.baseSkin,
-        });
-        return broadcastSetSkin(account, payload);
-      },
-    });
+    await run(buildSkinActivationTx(account, item));
   }
 
   return (

@@ -1,6 +1,7 @@
 "use client";
 
 import MarketAssetSummary from "@/components/collection/marketplace/MarketAssetSummary";
+import SkinActivateButton from "@/components/collection/marketplace/SkinActivateButton";
 import TransactionProgressPanel from "@/components/shared/TransactionProgressPanel";
 import { useDecPriceUsd } from "@/hooks/collection/useDecPriceUsd";
 import { useMarketAssetBalances } from "@/hooks/collection/useMarketAssetBalances";
@@ -323,6 +324,7 @@ export default function BuyAssetDialog({
 
       <DialogActions>
         <TransactionProgressPanel txProgress={txProgress} />
+        <SkinActivateButton account={account} item={item} run={run} busy={busy} />
         <Button onClick={onClose} disabled={busy}>
           Close
         </Button>

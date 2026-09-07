@@ -4,7 +4,7 @@ import type { TxProgressState } from "@/components/shared/TransactionProgressPan
 import { waitForTransactions } from "@/lib/frontend/purchase/splBroadcast";
 import { useCallback, useState } from "react";
 
-interface RunTxOptions {
+export interface RunTxOptions {
   /** Short label shown in the progress panel (e.g. "List", "Transfer"). */
   label: string;
   /** Status message shown while the tx is broadcasting. */
