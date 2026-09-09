@@ -9,6 +9,18 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.20.0] - 2026-09-09
+
+### Changed
+
+- **`SkinsPageClient` split into focused components.** The layout switch was a nested ternary (table / flat / grouped) inside one ~780-line component; it now delegates to `SkinsResultsView`, which picks the layout with early returns.
+  - New components: `SkinsFilterBar` (collection + market filters and the grouped/flat toggle, with the duplicated switch-plus-info-tooltip extracted into one local `SwitchWithHint`), `SkinsResultsView`, `SkinGroupRow` (base card + its skins), `SkinCardGrid` (the wrapping tile grid, previously duplicated in the flat and grouped layouts), and the shared `ui/LoadMoreSentinel` (previously duplicated per list).
+  - New `lib/shared/skin-groups.ts` holds `chooseRepresentativeCard`, `findCardCandidates`, `buildBaseSkinItem` and `resolveGroupBaseSkin` — the base-card image/active/synthetic-item derivation that was duplicated between the grouped grid and the activate dialog.
+  - New `types/skins.ts` holds `SkinViewMode`, `SkinGroupViewModel` and the `SkinCardPresentation` bundle passed to every layout.
+  - No behaviour change, except that the activate dialog now derives a missing base-card edition from the group's skins (same as the grid) instead of defaulting to edition 1.
+
+---
+
 ## [v1.19.0] - 2026-09-07
 
 ### Added
