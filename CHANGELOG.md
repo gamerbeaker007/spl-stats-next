@@ -9,6 +9,18 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.20.1] - 2026-09-11
+
+### Updated
+
+- Update support link in the generated hive post!
+
+### Fixed
+
+- Marketpurchases shows live cost but use a 1.5% buffer (in estimated cost) in the buy command inline with other markets
+
+---
+
 ## [v1.20.0] - 2026-09-09
 
 ### Changed

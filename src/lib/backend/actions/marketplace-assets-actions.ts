@@ -51,6 +51,12 @@ import type {
 } from "@/types/marketplace-assets";
 import type { PurchaseCurrency } from "@/types/purchase/purchase-plan";
 
+const DEC_MISMATCH_PERCENT = 1.5;
+
+function applyPercentBuffer(amount: number, percent: number): number {
+  return Number((amount * (1 + percent / 100)).toFixed(3));
+}
+
 function normalizeAccount(account: string): string {
   const normalized = account.trim().toLowerCase();
   if (!normalized) {
@@ -296,13 +302,33 @@ export async function buildMarketplaceAssetPurchasePayloadAction(args: {
     throw new Error(`Could not price this purchase in ${args.currency}`);
   }
 
+  const transmitPriced =
+    args.currency === "DEC"
+      ? {
+          items: priced.items.map((item) => ({
+            ...item,
+            estimatedCost: applyPercentBuffer(item.estimatedCost, DEC_MISMATCH_PERCENT),
+          })),
+          totalCost: applyPercentBuffer(priced.totalCost, DEC_MISMATCH_PERCENT),
+        }
+      : priced;
+
   const availableBalance = getTokenBalance(balances, args.currency);
-  if (availableBalance < priced.totalCost) {
+  if (availableBalance < transmitPriced.totalCost) {
     throw new Error(`Insufficient ${args.currency}`);
   }
 
+  const payloadArgs: Parameters<typeof buildMarketplacePurchasePayload>[0] = {
+    items: transmitPriced.items,
+  };
+
+  if (args.currency === "DEC") {
+    payloadArgs.expectedDecPrice = prices.dec;
+    payloadArgs.decMismatchPercent = DEC_MISMATCH_PERCENT;
+  }
+
   return {
-    payload: buildMarketplacePurchasePayload({ items: priced.items }),
+    payload: buildMarketplacePurchasePayload(payloadArgs),
     estimatedCost: priced.totalCost,
     availableBalance,
   };

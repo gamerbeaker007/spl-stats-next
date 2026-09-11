@@ -87,6 +87,8 @@ export function buildMarketplacePurchasePayload(args: {
     currency: PurchaseCurrency;
     estimatedCost: number;
   }>;
+  expectedDecPrice?: number;
+  decMismatchPercent?: number;
 }): MarketplacePurchasePayload {
   if (args.items.length === 0) {
     throw new Error("At least one listing item is required");
@@ -96,12 +98,22 @@ export function buildMarketplacePurchasePayload(args: {
     validatePositiveInteger(item.quantity, "Quantity");
   }
 
-  return {
+  const payload: MarketplacePurchasePayload = {
     items: args.items,
     market: MARKET,
     app: getAppName(),
     n: getNonce(),
   };
+
+  if (typeof args.expectedDecPrice === "number" && Number.isFinite(args.expectedDecPrice)) {
+    payload.expected_dec_price = Number(args.expectedDecPrice.toFixed(7));
+  }
+
+  if (typeof args.decMismatchPercent === "number" && Number.isFinite(args.decMismatchPercent)) {
+    payload.dec_mismatch_percent = Number(args.decMismatchPercent.toFixed(3));
+  }
+
+  return payload;
 }
 
 export function buildTransferItemsPayload(args: {

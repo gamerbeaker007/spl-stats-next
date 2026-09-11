@@ -449,7 +449,7 @@ function buildClosingLines(): string[] {
     "",
     `${SUB_HEADER}Support SPL Stats ${CLOSE_HEADER}`,
     "",
-    "👉 [Support SPL Stats by voting for @beaker007's SPS Validator](https://monstermarket.io/validators?validator=beaker007)",
+    "👉 [Support SPL Stats by voting for @beaker007's SPS Validator](https://spl-stats.com/support)",
     "",
     "💬 Feedback, bug reports, feature ideas, and weird edge cases are always welcome!",
     "",

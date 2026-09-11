@@ -23,6 +23,8 @@ export interface MarketplacePurchasePayload {
     currency: PurchaseCurrency;
     estimatedCost: number;
   }>;
+  expected_dec_price?: number;
+  dec_mismatch_percent?: number;
   market: string;
   app: string;
   n: number;
