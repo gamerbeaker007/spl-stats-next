@@ -112,7 +112,7 @@ export default function BuyMissingCcPageClient() {
 
   const [selectedBracket, setSelectedBracket] = useState<League | "">("");
   const [bracketStateFilters, setBracketStateFilters] = useState<BracketTableState[]>(["all"]);
-  const [combineFoils, setCombineFoils] = useState(false);
+  const [combineFoils, setCombineFoils] = useState(true);
   const [highestLevelOnly, setHighestLevelOnly] = useState(true);
   const [search, setSearch] = useState("");
   const [dialogRow, setDialogRow] = useState<DisplayRow | null>(null);

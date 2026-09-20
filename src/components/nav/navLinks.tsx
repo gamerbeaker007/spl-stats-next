@@ -38,7 +38,6 @@ export const navLinks: NavLink[] = [
     icon: <MdMap size={22} />,
     target: "_blank",
   },
-  { href: "/admin", label: "Admin", icon: <MdAdminPanelSettings size={22} /> },
 ];
 
 export function isActive(href: string, pathname: string): boolean {
