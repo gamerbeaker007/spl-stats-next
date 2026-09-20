@@ -16,7 +16,11 @@ interface UseLandHarvestReturn {
   fetchLandHarvest: () => Promise<void>;
 }
 
-export function useLandHarvest(username: string): UseLandHarvestReturn {
+export function useLandHarvest(
+  username: string,
+  options?: { enabled?: boolean }
+): UseLandHarvestReturn {
+  const hookEnabled = options?.enabled ?? true;
   const [data, setData] = useState<LandHarvestData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +30,7 @@ export function useLandHarvest(username: string): UseLandHarvestReturn {
   const { reAuthVersion } = useAuth();
 
   const fetchLandHarvest = useCallback(async () => {
+    if (!hookEnabled) return;
     if (!username?.trim()) return;
     if (!isMountedRef.current) return;
 
@@ -63,7 +68,7 @@ export function useLandHarvest(username: string): UseLandHarvestReturn {
         setLoading(false);
       }
     }
-  }, [username, needsReAuth, expiryState, jwtExpiresAt]);
+  }, [username, needsReAuth, expiryState, jwtExpiresAt, hookEnabled]);
 
   useEffect(() => {
     isMountedRef.current = true;

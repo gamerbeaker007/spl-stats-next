@@ -9,6 +9,11 @@ import { toSectionAuthState } from "@/lib/shared/authenticated-result";
 import { PlayerStatusData } from "@/types/playerStatus";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+export interface UsePlayerStatusOptions {
+  enabled?: boolean;
+  includeBrawl?: boolean;
+}
+
 export interface UsePlayerStatusReturn {
   data: PlayerStatusData | null;
   loading: boolean;
@@ -17,13 +22,19 @@ export interface UsePlayerStatusReturn {
   refetch: () => Promise<void>;
 }
 
-export function usePlayerStatus(username: string): UsePlayerStatusReturn {
+export function usePlayerStatus(
+  username: string,
+  options?: UsePlayerStatusOptions
+): UsePlayerStatusReturn {
+  const enabled = options?.enabled ?? true;
+  const includeBrawl = options?.includeBrawl ?? true;
   const [data, setData] = useState<PlayerStatusData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
 
   const fetchPlayerStatus = useCallback(async () => {
+    if (!enabled) return;
     // Don't fetch if username is invalid
     if (!username || !username.trim()) {
       setError("Invalid username");
@@ -94,7 +105,7 @@ export function usePlayerStatus(username: string): UsePlayerStatusReturn {
 
       // Fetch brawl details separately if player has a guild
       // This runs as its own server action to avoid timeout on the details call
-      if (detailsResult.status === "fulfilled" && detailsResult.value.guild?.id) {
+      if (includeBrawl && detailsResult.status === "fulfilled" && detailsResult.value.guild?.id) {
         const guild = detailsResult.value.guild;
         try {
           const brawl = await getPlayerBrawl(username, guild.id, guild.tournament_id);
@@ -139,7 +150,7 @@ export function usePlayerStatus(username: string): UsePlayerStatusReturn {
         setLoading(false);
       }
     }
-  }, [username]);
+  }, [username, enabled, includeBrawl]);
 
   const refetch = useCallback(async () => {
     await fetchPlayerStatus();

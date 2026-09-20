@@ -1,7 +1,6 @@
 import { GiChest, GiCrossedSwords } from "react-icons/gi";
 import {
   MdAccountBalance,
-  MdAdminPanelSettings,
   MdBarChart,
   MdDashboard,
   MdGridOn,

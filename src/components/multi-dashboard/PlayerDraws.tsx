@@ -62,7 +62,7 @@ export default function PlayerDraws({ balances, frontier, ranked, playerDetails 
 
   return (
     <Box mb={2} width={"100%"} height={175}>
-      <Typography variant="h6">Modes</Typography>
+      <Typography variant="h6">Battle Modes</Typography>
       <Box sx={{ display: "flex", flexDirection: "row", gap: 2, width: "100%" }}>
         {frontier && hasFrontierMatches && (
           <Card variant="outlined" sx={{ flex: 1, p: 1 }}>

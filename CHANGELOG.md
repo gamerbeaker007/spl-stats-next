@@ -11,6 +11,16 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ## [v1.21.0] - 2026-09-20
 
+### Added
+
+* **Configurable Multi-Account Dashboard.** Users can now choose which information is displayed on their dashboard through a new settings menu. Preferences are saved automatically and restored on future visits.
+
+  * Dashboard sections can be enabled or disabled individually across balances, gameplay, account information, rankings, and general information.
+  * Disabled sections are not loaded, reducing unnecessary data requests and keeping the dashboard focused on the information you want to see.
+  * Added a **Load All** option to individual PlayerCards to temporarily load and display all available information without changing saved preferences.
+  * Existing users keep the previous dashboard behaviour by default, with all sections enabled.
+
+
 ### Updated
 
 - Filter drawer is now a docked right side panel on desktop instead of an overlay. `main` reserves the panel width via the `--filter-panel-width` CSS variable, so page content narrows rather than disappearing behind the panel. Mobile keeps the temporary overlay drawer, and a persisted "open" state no longer reopens as a full-screen modal on a phone.

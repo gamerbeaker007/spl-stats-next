@@ -105,7 +105,7 @@ export function BalanceHistoryDialog({
 
   useEffect(() => {
     getAllSeasonsAction()
-      .then((seasons) => setAllSeasons(seasons as DbSeason[]))
+      .then((seasons) => setAllSeasons(Array.isArray(seasons) ? (seasons as DbSeason[]) : []))
       .finally(() => setSeasonsLoading(false));
   }, []);
 

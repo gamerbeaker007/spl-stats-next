@@ -10,6 +10,7 @@ import { AuthenticationStatus } from "./AuthenticationStatus";
 interface Props {
   username: string;
   playerDetails?: SplPlayerDetails;
+  showRating?: boolean;
 }
 
 const avatarSize = 25;
@@ -54,7 +55,7 @@ function getNullRatingInfo(battles: number = 0): React.ReactNode {
   );
 }
 
-export default function PlayerInfo({ username, playerDetails }: Props) {
+export default function PlayerInfo({ username, playerDetails, showRating = true }: Props) {
   const result = playerDetails ? getHighestRatingFormat(playerDetails) : null;
   const highestFormatDetails = result?.playerHighestFormatInfo || null;
   const format = result?.format || null;
@@ -117,28 +118,30 @@ export default function PlayerInfo({ username, playerDetails }: Props) {
         )}
       </Box>
       <Box>
-        <Typography variant="body2" sx={{ mt: 1 }}>
-          {highestFormatDetails ? (
-            highestFormatDetails.rank != null ? (
-              <Box
-                component="span"
-                sx={{ display: "inline-flex", alignItems: "center", color: "success.main" }}
-              >
-                Rating: {highestFormatDetails.rating} | Rank: {highestFormatDetails.rank}
-              </Box>
+        {showRating && (
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            {highestFormatDetails ? (
+              highestFormatDetails.rank != null ? (
+                <Box
+                  component="span"
+                  sx={{ display: "inline-flex", alignItems: "center", color: "success.main" }}
+                >
+                  Rating: {highestFormatDetails.rating} | Rank: {highestFormatDetails.rank}
+                </Box>
+              ) : (
+                <Box
+                  component="span"
+                  sx={{ display: "inline-flex", alignItems: "center", color: "success.main" }}
+                >
+                  Rating: {highestFormatDetails.rating} |{" "}
+                  {getNullRatingInfo(highestFormatDetails.battles)}
+                </Box>
+              )
             ) : (
-              <Box
-                component="span"
-                sx={{ display: "inline-flex", alignItems: "center", color: "success.main" }}
-              >
-                Rating: {highestFormatDetails.rating} |{" "}
-                {getNullRatingInfo(highestFormatDetails.battles)}
-              </Box>
-            )
-          ) : (
-            "No leaderboard data available"
-          )}
-        </Typography>
+              "No leaderboard data available"
+            )}
+          </Typography>
+        )}
       </Box>
 
       {/* Collection Link Icon */}

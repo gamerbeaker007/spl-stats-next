@@ -14,7 +14,11 @@ export interface UsePlayerSeasonRewardsReturn {
   refetch: () => Promise<void>;
 }
 
-export function usePlayerSeasonRewards(username: string): UsePlayerSeasonRewardsReturn {
+export function usePlayerSeasonRewards(
+  username: string,
+  options?: { enabled?: boolean }
+): UsePlayerSeasonRewardsReturn {
+  const enabled = options?.enabled ?? true;
   const [seasonRewards, setSeasonRewards] = useState<SPLSeasonRewards | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +28,7 @@ export function usePlayerSeasonRewards(username: string): UsePlayerSeasonRewards
 
   const fetchRewards = useCallback(
     async (isAutoRetry = false) => {
+      if (!enabled) return;
       if (!username?.trim()) return;
       if (!isMountedRef.current) return;
 
@@ -69,7 +74,7 @@ export function usePlayerSeasonRewards(username: string): UsePlayerSeasonRewards
         }
       }
     },
-    [username]
+    [username, enabled]
   );
 
   useEffect(() => {

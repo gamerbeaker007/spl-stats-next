@@ -10,9 +10,10 @@ datasource db {
 
 // User's login account (app session identity — no token stored here)
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique // Splinterlands main username
-  createdAt DateTime @default(now()) @map("created_at")
+  id          String   @id @default(cuid())
+  username    String   @unique // Splinterlands main username
+  preferences Json?    // Optional user preferences — see UserPreferences type
+  createdAt   DateTime @default(now()) @map("created_at")
 
   monitoredAccounts MonitoredAccount[]
   sessions          Session[]
