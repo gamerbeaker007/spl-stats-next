@@ -9,6 +9,30 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.21.0] - 2026-09-20
+
+### Added
+
+* **Configurable Multi-Account Dashboard.** Users can now choose which information is displayed on their dashboard through a new settings menu. Preferences are saved automatically and restored on future visits.
+
+  * Dashboard sections can be enabled or disabled individually across balances, gameplay, account information, rankings, and general information.
+  * Disabled sections are not loaded, reducing unnecessary data requests and keeping the dashboard focused on the information you want to see.
+  * Added a **Load All** option to individual PlayerCards to temporarily load and display all available information without changing saved preferences.
+  * Existing users keep the previous dashboard behaviour by default, with all sections enabled.
+
+
+### Updated
+
+- Filter drawer is now a docked right side panel on desktop instead of an overlay. `main` reserves the panel width via the `--filter-panel-width` CSS variable, so page content narrows rather than disappearing behind the panel. Mobile keeps the temporary overlay drawer, and a persisted "open" state no longer reopens as a full-screen modal on a phone.
+- Plotly charts now resize when the filter panel docks or undocks (`ResizeObserver` on `main` dispatches a `resize` event), instead of keeping their pre-dock width.
+- The filter toggle button is badged with the number of active filters, so a closed panel still explains why the data is narrowed. Counted per UI section (the edition picker's four arrays are one filter), and only for sections the drawer actually shows.
+
+### Fixed
+
+- Edition, set, rarity, element and card-type filter icons are near-white artwork on transparency and were effectively invisible on the light theme. They now get a grey backing in light mode only.
+
+---
+
 ## [v1.20.1] - 2026-09-11
 
 ### Updated

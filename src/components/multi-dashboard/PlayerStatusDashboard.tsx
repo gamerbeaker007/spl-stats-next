@@ -11,10 +11,23 @@ import {
 } from "@dnd-kit/core";
 import { arrayMove, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
+import { DashboardSettings } from "@/components/multi-dashboard/DashboardSettings";
+import { useDashboardConfig } from "@/hooks/multi-account-dashboard/useDashboardConfig";
 import { useReAuth } from "@/hooks/useReAuth";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import KeyIcon from "@mui/icons-material/Key";
-import { Alert, Box, Button, CircularProgress, Container, Typography } from "@mui/material";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import SettingsIcon from "@mui/icons-material/Settings";
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Container,
+  IconButton,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { useEffect, useState } from "react";
 import { PlayerCard } from "./PlayerCard";
 
@@ -31,8 +44,10 @@ function applyStoredOrder(usernames: string[], stored: string[]): string[] {
 
 export default function PlayerStatusDashboard() {
   const { monitoredAccounts } = useAccounts();
+  const { config, loading: configLoading, updateConfig } = useDashboardConfig();
   const [usernames, setUsernames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [reAuthAllBusy, setReAuthAllBusy] = useState(false);
   const [reAuthResult, setReAuthResult] = useState<{
     succeeded: string[];
@@ -105,15 +120,28 @@ export default function PlayerStatusDashboard() {
     <Container maxWidth={false} sx={{ px: 2 }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
         <Typography variant="h4">Splinterlands Multi-Account Dashboard</Typography>
-        <Button
-          variant="outlined"
-          color="warning"
-          startIcon={reAuthAllBusy ? <CircularProgress size={16} /> : <KeyIcon />}
-          onClick={handleReAuthAll}
-          disabled={reAuthAllBusy || usernames.length === 0}
-        >
-          Re-authenticate All
-        </Button>
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+          <Tooltip title="Dashboard settings">
+            <span>
+              <IconButton
+                onClick={() => setSettingsOpen(true)}
+                disabled={configLoading || reAuthAllBusy || usernames.length === 0}
+                color="default"
+              >
+                <SettingsIcon />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Button
+            variant="outlined"
+            color="warning"
+            startIcon={reAuthAllBusy ? <CircularProgress size={16} /> : <KeyIcon />}
+            onClick={handleReAuthAll}
+            disabled={reAuthAllBusy || usernames.length === 0}
+          >
+            Re-authenticate All
+          </Button>
+        </Box>
       </Box>
 
       {reAuthResult && (
@@ -137,7 +165,7 @@ export default function PlayerStatusDashboard() {
           <SortableContext items={usernames} strategy={verticalListSortingStrategy}>
             <Box display="flex" flexDirection="row" flexWrap="wrap" gap={2}>
               {usernames.map((username) => (
-                <PlayerCard key={username} username={username} />
+                <PlayerCard key={username} username={username} config={config} />
               ))}
             </Box>
           </SortableContext>
@@ -146,11 +174,18 @@ export default function PlayerStatusDashboard() {
         <Alert severity="info">
           No monitored accounts yet. Add accounts on the{" "}
           <a href="/users" suppressHydrationWarning>
-            Users
+            Users page
+            <OpenInNewIcon sx={{ fontSize: 13, verticalAlign: "middle", ml: 0.5 }} />
           </a>{" "}
-          page.
         </Alert>
       )}
+
+      <DashboardSettings
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        config={config}
+        onSave={updateConfig}
+      />
     </Container>
   );
 }

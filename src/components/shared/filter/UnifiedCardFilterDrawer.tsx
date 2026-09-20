@@ -5,8 +5,14 @@ import EditionSetFilter from "@/components/shared/filter/EditionSetFilter";
 import FilterSection from "@/components/shared/filter/FilterSection";
 import FoilFilterChips from "@/components/shared/filter/FoilFilterChips";
 import IconFilterGroup from "@/components/shared/filter/IconFilterGroup";
+import {
+  FILTER_PANEL_MOBILE_QUERY,
+  FILTER_PANEL_WIDTH,
+  FILTER_PANEL_WIDTH_VAR,
+} from "@/components/shared/filter/filterPanelLayout";
 import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { countActiveFilters } from "@/lib/shared/active-filter-count";
 import type { FilterDrawerConfig, UnifiedCardFilter } from "@/types/card-filter";
 import type { CardFoil, CardOption } from "@/types/card";
 import {
@@ -19,6 +25,7 @@ import {
   SORT_OPTIONS,
   TOP_COUNT_OPTIONS,
 } from "@/types/battles";
+import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
 import Divider from "@mui/material/Divider";
 import Drawer from "@mui/material/Drawer";
@@ -33,9 +40,11 @@ import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
+import { useEffect, useMemo } from "react";
 import { MdClose, MdFilterList, MdRestartAlt } from "react-icons/md";
 
-export const DRAWER_WIDTH = 280;
+/** @deprecated Use FILTER_PANEL_WIDTH from `./filterPanelLayout`. */
+export const DRAWER_WIDTH = FILTER_PANEL_WIDTH;
 
 interface Props {
   filter: UnifiedCardFilter;
@@ -58,7 +67,33 @@ export default function UnifiedCardFilterDrawer({
   cardOptions = [],
   cardOptionsLoading = false,
 }: Props) {
-  const isMobile = useMediaQuery("(max-width:900px)");
+  const isMobile = useMediaQuery(FILTER_PANEL_MOBILE_QUERY);
+
+  // Docked only on desktop: there the panel is a real side panel and `main`
+  // narrows around it. On mobile it stays an overlay drawer — there is no room
+  // to dock without squeezing the content to nothing.
+  const docked = !isMobile && filter.filterOpen;
+
+  // The open state is persisted, so a session that ended docked on desktop
+  // would otherwise reopen as a full-screen modal overlay on a phone.
+  useEffect(() => {
+    if (isMobile && filter.filterOpen) toggleFilterOpen();
+    // Only react to the breakpoint — reopening on mobile is a deliberate user action.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile]);
+
+  // Publish the docked width so `NavShell` can reserve room for the panel.
+  // Reset to 0 on unmount, otherwise leaving a filtered page would leave `main`
+  // permanently indented.
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty(FILTER_PANEL_WIDTH_VAR, docked ? `${FILTER_PANEL_WIDTH}px` : "0px");
+    return () => root.style.setProperty(FILTER_PANEL_WIDTH_VAR, "0px");
+  }, [docked]);
+
+  // Badges the toggle button so a closed panel still explains why the data is
+  // narrowed — the single most common "where did my cards go?" confusion.
+  const activeCount = useMemo(() => countActiveFilters(filter, config), [filter, config]);
 
   const selectedCard: CardOption | null = filter.selectedCardDetailId
     ? (cardOptions.find((o) => o.cardDetailId === filter.selectedCardDetailId) ?? {
@@ -89,7 +124,7 @@ export default function UnifiedCardFilterDrawer({
   const drawerContent = (
     <Box
       sx={{
-        width: DRAWER_WIDTH,
+        width: "100%",
         height: "100%",
         overflowY: "auto",
         display: "flex",
@@ -118,6 +153,22 @@ export default function UnifiedCardFilterDrawer({
           <Typography variant="subtitle1" fontWeight={600}>
             Filter
           </Typography>
+          {activeCount > 0 && (
+            <Typography
+              variant="caption"
+              sx={{
+                px: 0.75,
+                py: 0.125,
+                borderRadius: 10,
+                bgcolor: "error.main",
+                color: "error.contrastText",
+                fontWeight: 700,
+                lineHeight: 1.6,
+              }}
+            >
+              {activeCount}
+            </Typography>
+          )}
         </Stack>
         <Stack direction="row" spacing={0.5}>
           <Tooltip title="Reset filter">
@@ -417,16 +468,19 @@ export default function UnifiedCardFilterDrawer({
         open={filter.filterOpen}
         onClose={toggleFilterOpen}
         sx={{
-          width: filter.filterOpen ? DRAWER_WIDTH : 0,
+          // The docked panel must not claim layout width here — it is fixed
+          // positioned, and `NavShell` reserves the space on `main` instead.
+          width: 0,
           flexShrink: 0,
           "& .MuiDrawer-paper": {
-            width: DRAWER_WIDTH,
+            width: isMobile ? `min(88vw, ${FILTER_PANEL_WIDTH}px)` : FILTER_PANEL_WIDTH,
             boxSizing: "border-box",
             top: APP_BAR_HEIGHT,
             height: `calc(100% - ${APP_BAR_HEIGHT}px)`,
             border: "none",
             borderLeft: 1,
             borderColor: "divider",
+            backgroundImage: "none",
           },
         }}
         ModalProps={{ keepMounted: true }}
@@ -435,26 +489,45 @@ export default function UnifiedCardFilterDrawer({
       </Drawer>
 
       {!filter.filterOpen && (
-        <Tooltip title="Open filter" placement="left">
-          <IconButton
-            onClick={toggleFilterOpen}
+        <Tooltip
+          title={activeCount > 0 ? `Open filter (${activeCount} active)` : "Open filter"}
+          placement="left"
+        >
+          {/* The Badge carries the fixed positioning: anchoring it on the button
+              instead would place the counter relative to a static box, and at
+              right: 0 it would be clipped off the edge of the viewport. */}
+          <Badge
+            badgeContent={activeCount}
+            color="primary"
+            overlap="circular"
+            anchorOrigin={{ vertical: "top", horizontal: "left" }}
             sx={{
               position: "fixed",
               right: 0,
-              top: "50%",
-              transform: "translateY(-50%)",
-              bgcolor: "error.main",
-              color: "#fff",
-              borderRadius: "4px 0 0 4px",
+              top: `${APP_BAR_HEIGHT + 70}px`,
               zIndex: 1200,
-              border: 1,
-              borderRight: 0,
-              borderColor: "error.dark",
-              "&:hover": { bgcolor: "error.dark" },
+              "& .MuiBadge-badge": {
+                border: "2px solid",
+                borderColor: "background.default",
+              },
             }}
           >
-            <MdFilterList size={24} />
-          </IconButton>
+            <IconButton
+              aria-label={activeCount > 0 ? `Open filter, ${activeCount} active` : "Open filter"}
+              onClick={toggleFilterOpen}
+              sx={{
+                bgcolor: "error.main",
+                color: "#fff",
+                borderRadius: "4px 0 0 4px",
+                border: 1,
+                borderRight: 0,
+                borderColor: "error.dark",
+                "&:hover": { bgcolor: "error.dark" },
+              }}
+            >
+              <MdFilterList size={24} />
+            </IconButton>
+          </Badge>
         </Tooltip>
       )}
     </>

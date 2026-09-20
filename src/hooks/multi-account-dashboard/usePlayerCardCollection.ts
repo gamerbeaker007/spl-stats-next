@@ -2,6 +2,10 @@ import { getPlayersCardCollection } from "@/lib/backend/actions/player-actions";
 import { PlayerCardCollectionData } from "@/types/playerCardCollection";
 import { useCallback, useState } from "react";
 
+export interface UsePlayerCardCollectionOptions {
+  enabled?: boolean;
+}
+
 export interface UsePlayerCardCollectionReturn {
   data: PlayerCardCollectionData | null;
   loading: boolean;
@@ -10,12 +14,17 @@ export interface UsePlayerCardCollectionReturn {
   refetch: () => Promise<void>;
 }
 
-export function usePlayerCardCollection(username: string): UsePlayerCardCollectionReturn {
+export function usePlayerCardCollection(
+  username: string,
+  options?: UsePlayerCardCollectionOptions
+): UsePlayerCardCollectionReturn {
+  const enabled = options?.enabled ?? true;
   const [data, setData] = useState<PlayerCardCollectionData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const fetchPlayerCardCollection = useCallback(async () => {
+    if (!enabled) return;
     setLoading(true);
     setError(null);
 
@@ -29,7 +38,7 @@ export function usePlayerCardCollection(username: string): UsePlayerCardCollecti
     } finally {
       setLoading(false);
     }
-  }, [username]);
+  }, [username, enabled]);
 
   const refetch = useCallback(async () => {
     await fetchPlayerCardCollection();

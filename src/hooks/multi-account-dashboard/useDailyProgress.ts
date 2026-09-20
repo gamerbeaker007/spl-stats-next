@@ -16,7 +16,11 @@ interface UseDailyProgressReturn {
   fetchDailyProgress: () => Promise<void>;
 }
 
-export const useDailyProgress = (username: string): UseDailyProgressReturn => {
+export const useDailyProgress = (
+  username: string,
+  options?: { enabled?: boolean }
+): UseDailyProgressReturn => {
+  const hookEnabled = options?.enabled ?? true;
   const [data, setData] = useState<DailyProgressData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +29,7 @@ export const useDailyProgress = (username: string): UseDailyProgressReturn => {
   const { reAuthVersion } = useAuth();
 
   const fetchDailyProgress = useCallback(async () => {
+    if (!hookEnabled) return;
     // The token is known-dead client-side: skip the round trip entirely.
     if (needsReAuth) {
       setData(null);
@@ -55,7 +60,7 @@ export const useDailyProgress = (username: string): UseDailyProgressReturn => {
     } finally {
       setLoading(false);
     }
-  }, [username, needsReAuth, expiryState, jwtExpiresAt]);
+  }, [username, needsReAuth, expiryState, jwtExpiresAt, hookEnabled]);
 
   useEffect(() => {
     fetchDailyProgress();

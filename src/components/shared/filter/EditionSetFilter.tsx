@@ -36,7 +36,7 @@ function SubIcon({
       <Box
         suppressHydrationWarning
         onClick={onClick}
-        sx={{
+        sx={(theme) => ({
           width: 28,
           height: 28,
           p: 0.25,
@@ -45,13 +45,18 @@ function SubIcon({
           border: 1.5,
           borderColor: active ? "primary.main" : "divider",
           bgcolor: active ? "action.selected" : "transparent",
+          // See IconFilterGroup: white-on-transparent artwork needs a grey
+          // backing to stay visible on the light theme.
+          ...theme.applyStyles("light", {
+            backgroundColor: theme.palette.grey[active ? 500 : 400],
+          }),
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           opacity: active ? 1 : 0.4,
           transition: "all 0.15s",
-          "&:hover": { bgcolor: "action.hover", opacity: 1 },
-        }}
+          "&:hover": { opacity: 1 },
+        })}
       >
         <Image src={iconUrl} alt={label} width={18} height={18} style={{ objectFit: "contain" }} />
       </Box>
@@ -242,7 +247,7 @@ export default function EditionSetFilter({
               <Box
                 suppressHydrationWarning
                 onClick={toggleSet}
-                sx={{
+                sx={(theme) => ({
                   width: 36,
                   height: 36,
                   p: 0.5,
@@ -251,13 +256,18 @@ export default function EditionSetFilter({
                   border: 2,
                   borderColor: full ? "primary.main" : partial ? "warning.main" : "divider",
                   bgcolor: full || partial ? "action.selected" : "transparent",
+                  // See IconFilterGroup: white-on-transparent artwork needs a grey
+                  // backing to stay visible on the light theme.
+                  ...theme.applyStyles("light", {
+                    backgroundColor: theme.palette.grey[full || partial ? 500 : 400],
+                  }),
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   opacity: full || partial ? 1 : 0.5,
                   transition: "all 0.15s",
-                  "&:hover": { bgcolor: "action.hover", opacity: 1 },
-                }}
+                  "&:hover": { opacity: 1 },
+                })}
               >
                 <Image
                   src={group.iconUrl}

@@ -1,8 +1,6 @@
 "use client";
 
-import { LandHarvestStatus } from "@/components/multi-dashboard/LandHarvestStatus";
-import GuildInfo from "@/components/multi-dashboard/PlayerBrawl";
-import NeedsReAuthNotice from "@/components/shared/NeedsReAuthNotice";
+import { PlayerCardContent } from "@/components/multi-dashboard/PlayerCardContent";
 import { useDailyProgress } from "@/hooks/multi-account-dashboard/useDailyProgress";
 import { useLandHarvest } from "@/hooks/multi-account-dashboard/useLandHarvest";
 import { usePlayerCardCollection } from "@/hooks/multi-account-dashboard/usePlayerCardCollection";
@@ -10,66 +8,79 @@ import { usePlayerSeasonRewards } from "@/hooks/multi-account-dashboard/usePlaye
 import { usePlayerStatus } from "@/hooks/multi-account-dashboard/usePlayerStatus";
 import { useLatestSeasonId } from "@/hooks/useLatestSeasonId";
 import { forceRefreshDashboardAccount } from "@/lib/backend/actions/player-actions";
+import {
+  getDefaultCategories,
+  resolveRequiredSources,
+  type MultiAccountDashboardCategories,
+} from "@/lib/shared/dashboard-categories";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import DragHandleIcon from "@mui/icons-material/DragHandle";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { Alert, Box, CircularProgress, IconButton, Tooltip, Typography } from "@mui/material";
 import { useCallback, useEffect, useRef, useState } from "react";
-import Leaderboard from "./Leaderboard";
-import PlayerBalances from "./PlayerBalances";
-import PlayerDailies from "./PlayerDailies";
-import PlayerDraws from "./PlayerDraws";
-import PlayerInfo from "./PlayerInfo";
-import { PlayerHistoryButtons } from "./reward-history/PlayerHistoryButtons";
 
 interface Props {
   username: string;
+  config: MultiAccountDashboardCategories;
 }
 
-export const PlayerCard = ({ username }: Props) => {
-  const { data: player, loading, error, refetch } = usePlayerStatus(username);
+export const PlayerCard = ({ username, config }: Props) => {
+  const [loadAll, setLoadAll] = useState(false);
+  const effectiveCategories = loadAll ? getDefaultCategories() : config;
+  const sources = resolveRequiredSources(effectiveCategories, loadAll);
+
+  const needsPlayerStatus = sources.has("playerStatus");
+  const needsCollection = sources.has("collection");
+  const needsSeasonRewards = sources.has("seasonRewards");
+  const needsDaily = sources.has("daily");
+  const needsLand = sources.has("land");
+
+  const {
+    data: player,
+    loading,
+    error,
+    refetch,
+  } = usePlayerStatus(username, {
+    enabled: needsPlayerStatus,
+    includeBrawl: effectiveCategories.brawl,
+  });
   const {
     data: collectionData,
     loading: collectionLoading,
     error: collectionError,
     refetch: collectionRefetch,
-  } = usePlayerCardCollection(username);
+  } = usePlayerCardCollection(username, { enabled: needsCollection });
   const {
     seasonRewards,
     loading: seasonRewardsLoading,
     error: seasonRewardsError,
     refetch: seasonRewardsRefetch,
-  } = usePlayerSeasonRewards(username);
+  } = usePlayerSeasonRewards(username, { enabled: needsSeasonRewards });
   const {
     data: dailyProgress,
     loading: dailyProgressLoading,
     error: dailyProgressError,
     authState: dailyProgressAuthState,
     fetchDailyProgress,
-  } = useDailyProgress(username);
-
+  } = useDailyProgress(username, { enabled: needsDaily });
   const {
     data: landHarvest,
     loading: landHarvestLoading,
     error: landHarvestError,
     authState: landHarvestAuthState,
     fetchLandHarvest,
-  } = useLandHarvest(username);
+  } = useLandHarvest(username, { enabled: needsLand });
 
   const [forceRefreshing, setForceRefreshing] = useState(false);
   const [refreshCoolingDown, setRefreshCoolingDown] = useState(false);
   const lastRefreshAtRef = useRef<number>(0);
   const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // currentSeasonId is not available without a seasons context;
-  // pass undefined so PlayerHistoryButtons handles it gracefully.
-  const currentSeasonId = useLatestSeasonId();
-
-  // Initial collection fetch on mount
+  // Initial collection fetch on mount (collection hook doesn't auto-fetch)
   useEffect(() => {
-    collectionRefetch();
-  }, [collectionRefetch]);
+    if (needsCollection) collectionRefetch();
+  }, [needsCollection, collectionRefetch]);
 
   // Clear cooldown timer on unmount
   useEffect(() => {
@@ -78,17 +89,19 @@ export const PlayerCard = ({ username }: Props) => {
     };
   }, []);
 
+  const loadingAll =
+    loadAll &&
+    (loading ||
+      collectionLoading ||
+      seasonRewardsLoading ||
+      dailyProgressLoading ||
+      landHarvestLoading);
+
   /**
-   * True force refresh, scoped to this account: expire this account's cached
-   * dashboard reads server-side first, then re-fetch. Other accounts' caches are
-   * untouched, so refreshing one card stays cheap on a many-account dashboard.
-   *
-   * Rate-limited to once per 60 s — the guard lives in the callback so rapid
-   * clicks cannot bypass it even if the button is visually re-enabled.
+   * True force refresh, scoped to this account. Rate-limited to once per 60 s.
    */
   const handleRefresh = useCallback(async () => {
     if (forceRefreshing) return;
-
     const now = Date.now();
     if (now - lastRefreshAtRef.current < 60_000) return;
 
@@ -119,24 +132,11 @@ export const PlayerCard = ({ username }: Props) => {
     fetchLandHarvest,
   ]);
 
-  const refreshBusy = forceRefreshing || loading || collectionLoading || refreshCoolingDown;
-
-  /**
-   * Sections whose data is unavailable purely because this account's SPL token
-   * needs a re-auth. Collected here so the card shows ONE banner with ONE
-   * Re-authenticate button; the sections themselves only show a muted hint.
-   */
-  const reAuthSections: string[] = [];
-  if (dailyProgressAuthState?.needsReAuth) reAuthSections.push("Daily Progress");
-  if (landHarvestAuthState?.needsReAuth) reAuthSections.push("Land harvest");
-  if (player?.brawlAuthState?.needsReAuth) reAuthSections.push("Fray selection");
-
-  const reAuthState =
-    dailyProgressAuthState ?? landHarvestAuthState ?? player?.brawlAuthState ?? null;
-
   const handleReAuthenticated = useCallback(async () => {
     await Promise.allSettled([refetch(), fetchDailyProgress(), fetchLandHarvest()]);
   }, [refetch, fetchDailyProgress, fetchLandHarvest]);
+
+  const currentSeasonId = useLatestSeasonId();
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: username,
@@ -148,8 +148,10 @@ export const PlayerCard = ({ username }: Props) => {
     zIndex: isDragging ? 1000 : undefined,
   };
 
-  // Show loading state
-  if (loading && !player) {
+  const refreshBusy = forceRefreshing || (needsPlayerStatus && loading) || refreshCoolingDown;
+
+  // Show initial loading spinner only when playerStatus is required and hasn't loaded yet
+  if (needsPlayerStatus && loading && !player) {
     return (
       <Box
         ref={setNodeRef}
@@ -174,7 +176,6 @@ export const PlayerCard = ({ username }: Props) => {
     );
   }
 
-  // Show error state
   if (error || player?.error) {
     return (
       <Box
@@ -192,11 +193,6 @@ export const PlayerCard = ({ username }: Props) => {
     );
   }
 
-  // No data state
-  if (!player) {
-    return null;
-  }
-
   return (
     <Box
       ref={setNodeRef}
@@ -205,10 +201,6 @@ export const PlayerCard = ({ username }: Props) => {
       borderColor={isDragging ? "primary.main" : "secondary.main"}
       borderRadius={2}
       width={450}
-      display="flex"
-      flexDirection="row"
-      flexWrap="wrap"
-      gap={2}
       p={2}
       sx={{
         mb: 2,
@@ -216,9 +208,7 @@ export const PlayerCard = ({ username }: Props) => {
         opacity: isDragging ? 0.5 : 1,
         backgroundColor: isDragging ? "action.hover" : "transparent",
         transition: "all 0.2s ease",
-        "&:hover .drag-handle": {
-          opacity: 1,
-        },
+        "&:hover .drag-handle": { opacity: 1 },
       }}
     >
       {/* Drag Handle */}
@@ -233,9 +223,7 @@ export const PlayerCard = ({ username }: Props) => {
           opacity: 0.3,
           transition: "opacity 0.2s ease",
           cursor: "grab",
-          "&:active": {
-            cursor: "grabbing",
-          },
+          "&:active": { cursor: "grabbing" },
           zIndex: 10,
         }}
         size="small"
@@ -253,21 +241,14 @@ export const PlayerCard = ({ username }: Props) => {
         placement="left"
       >
         <span
-          style={{
-            position: "absolute",
-            top: 8,
-            right: 40,
-            zIndex: 10,
-            display: "inline-flex",
-          }}
+          style={{ position: "absolute", top: 8, right: 40, zIndex: 10, display: "inline-flex" }}
         >
           <IconButton
             onClick={handleRefresh}
-            disabled={refreshBusy || refreshCoolingDown}
+            disabled={refreshBusy}
             sx={{
               opacity: refreshBusy ? 1 : 0.3,
               transition: "opacity 0.2s ease",
-              zIndex: 10,
               "&:hover": { opacity: 1 },
             }}
             size="small"
@@ -290,91 +271,30 @@ export const PlayerCard = ({ username }: Props) => {
         </span>
       </Tooltip>
 
-      <PlayerInfo username={player.username} playerDetails={player.playerDetails} />
-
-      {reAuthSections.length > 0 && reAuthState && (
-        <NeedsReAuthNotice
-          username={player.username}
-          label={reAuthSections.join(", ")}
-          variant="banner"
-          reason={reAuthState.reason}
-          jwtExpiresAt={reAuthState.jwtExpiresAt}
-          onReAuthenticated={handleReAuthenticated}
-        />
-      )}
-
-      {/* History Button - Shows only when authorized */}
-      <PlayerHistoryButtons
-        username={player.username}
-        seasonId={currentSeasonId}
-        joinDate={player.playerDetails?.join_date}
+      <PlayerCardContent
+        username={username}
+        categories={effectiveCategories}
+        loadAll={loadAll}
+        loadingAll={loadingAll}
+        onLoadAll={() => setLoadAll(true)}
+        currentSeasonId={currentSeasonId}
+        player={player}
+        collectionData={collectionData}
+        collectionLoading={collectionLoading}
+        collectionError={collectionError}
+        seasonRewards={seasonRewards}
+        seasonRewardsLoading={seasonRewardsLoading}
+        seasonRewardsError={seasonRewardsError}
+        dailyProgress={dailyProgress}
+        dailyProgressLoading={dailyProgressLoading}
+        dailyProgressError={dailyProgressError}
+        dailyProgressAuthState={dailyProgressAuthState}
+        landHarvest={landHarvest}
+        landHarvestLoading={landHarvestLoading}
+        landHarvestError={landHarvestError}
+        landHarvestAuthState={landHarvestAuthState}
+        onReAuthenticated={handleReAuthenticated}
       />
-
-      <Box>
-        {/* Balances Section */}
-        <PlayerBalances
-          balances={player.balances}
-          poolBalances={player.poolBalances}
-          seasonRewards={seasonRewards ?? undefined}
-          glintLoading={seasonRewardsLoading}
-          glintError={seasonRewardsError}
-          collectionData={collectionData}
-          collectionLoading={collectionLoading}
-          collectionError={collectionError}
-        />
-      </Box>
-
-      <Box width={"100%"}>
-        <LandHarvestStatus
-          username={player.username}
-          data={landHarvest}
-          loading={landHarvestLoading}
-          error={landHarvestError}
-          authState={landHarvestAuthState}
-        />
-      </Box>
-
-      <Box width={"100%"}>
-        {/* Draws Section */}
-        {player.draws && player.balances && (
-          <PlayerDraws
-            balances={player.balances}
-            frontier={player.draws.frontier}
-            ranked={player.draws.ranked}
-            playerDetails={player.playerDetails}
-          />
-        )}
-      </Box>
-
-      <Box width={"100%"}>
-        {/* Daily Progress Section */}
-        <GuildInfo
-          username={player.username}
-          playerDetails={player.playerDetails}
-          brawlDetails={player.brawlDetails}
-          brawlAuthState={player.brawlAuthState}
-        />
-      </Box>
-
-      <Box width={"100%"}>
-        {/* Daily Progress Section */}
-        <PlayerDailies
-          username={player.username}
-          balances={player.balances}
-          playerDetails={player.playerDetails}
-          dailyProgress={dailyProgress}
-          dailyProgressLoading={dailyProgressLoading}
-          dailyProgressError={dailyProgressError}
-          dailyProgressAuthState={dailyProgressAuthState}
-        />
-      </Box>
-      <Box width={"100%"}>
-        {/* Leaderboards Section */}
-        {player.playerDetails && <Leaderboard playerDetails={player.playerDetails} />}
-      </Box>
-      <Typography variant="caption" sx={{ width: "100%", mt: 1 }}>
-        Update Date: {player.timestamp ? new Date(player.timestamp).toLocaleString() : "N/A"}
-      </Typography>
     </Box>
   );
 };
