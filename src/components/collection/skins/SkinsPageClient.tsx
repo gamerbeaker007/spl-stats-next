@@ -28,6 +28,7 @@ import {
 import {
   chooseRepresentativeCard,
   findCardCandidates,
+  matchesPublicSkinCardFilter,
   resolveGroupBaseSkin,
 } from "@/lib/shared/skin-groups";
 import type { MarketplaceAssetItem } from "@/types/marketplace-assets";
@@ -125,8 +126,18 @@ export default function SkinsPageClient() {
       })
       .filter((row) => {
         if (row.visibleSkins.length === 0) return false;
-        if (row.card && !matchesCardFilter(row.card, cardFilter)) return false;
-        if (isAuthenticated && cardFilter.hideMissingCards && row.totalOwnedCards < 1) return false;
+        if (isAuthenticated) {
+          if (row.card && !matchesCardFilter(row.card, cardFilter)) return false;
+        } else if (
+          !matchesPublicSkinCardFilter(
+            row.visibleSkins,
+            data?.publicSkinFilterCards[row.group.cardDetailId] ?? [],
+            cardFilter
+          )
+        ) {
+          return false;
+        }
+        if (cardFilter.hideMissingCards && row.totalOwnedCards < 1) return false;
         // Missing equipped:
         // - actually owns the card
         // - actually owns at least one skin
@@ -145,6 +156,7 @@ export default function SkinsPageClient() {
   }, [
     data?.detailedCollection,
     data?.groups,
+    data?.publicSkinFilterCards,
     cardFilter,
     isAuthenticated,
     outbidStatuses,

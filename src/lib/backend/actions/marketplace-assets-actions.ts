@@ -8,6 +8,7 @@ import {
 } from "@/lib/backend/api/spl/spl-api";
 import { fetchMarketplaceListingItems } from "@/lib/backend/api/spl/vapi-spl";
 import {
+  getCachedSplCardDetails,
   getCachedMarketplaceAssets,
   getCachedMarketplaceAssetsPublic,
   getCachedMarketplacePlayerAllListings,
@@ -16,6 +17,7 @@ import {
   getCachedSplPlayerInventory,
 } from "@/lib/backend/cache/spl-cache";
 import { getDetailedPlayerCardCollectionCached } from "@/lib/backend/services/collection-detailed";
+import type { FilterableCard } from "@/lib/shared/card-filter-utils";
 import {
   DEFAULT_SKIN_NAME,
   applyQuantityOwnership,
@@ -28,6 +30,7 @@ import {
   priceSelectionInCurrency,
   selectCheapestListings,
 } from "@/lib/shared/marketplace-assets";
+import { toCardRarity } from "@/lib/shared/rarity-utils";
 import {
   buildMarketplaceCancelPayload,
   buildMarketplaceListPayload,
@@ -50,6 +53,8 @@ import type {
   OwnedAssetInstance,
 } from "@/types/marketplace-assets";
 import type { PurchaseCurrency } from "@/types/purchase/purchase-plan";
+import { type CardColor, toCardRole } from "@/types/card";
+import type { SplCardDetail } from "@/types/spl/cardDetails";
 
 const DEC_MISMATCH_PERCENT = 1.5;
 
@@ -77,6 +82,36 @@ function validateCardDetailId(value: number | null | undefined): number {
     throw new Error("Skin is missing card metadata required for activation");
   }
   return value;
+}
+
+function buildPublicSkinFilterCards(
+  details: SplCardDetail[],
+  groups: MarketplaceAssetGroup[]
+): Record<number, FilterableCard[]> {
+  const detailById = new Map(details.map((detail) => [detail.id, detail]));
+  const cards: Record<number, FilterableCard[]> = {};
+
+  for (const group of groups) {
+    const detail = detailById.get(group.cardDetailId);
+    if (!detail) continue;
+
+    const editions = detail.editions
+      .split(",")
+      .map((edition) => Number.parseInt(edition.trim(), 10))
+      .filter((edition) => Number.isInteger(edition));
+    if (editions.length === 0) editions.push(detail.distribution?.[0]?.edition ?? 0);
+
+    cards[group.cardDetailId] = Array.from(new Set(editions)).map((edition) => ({
+      edition,
+      tier: detail.tier ?? edition,
+      rarity: toCardRarity(detail.rarity),
+      color: detail.color as CardColor,
+      secondaryColor: detail.secondary_color ?? undefined,
+      role: toCardRole(detail.type),
+    }));
+  }
+
+  return cards;
 }
 
 /**
@@ -114,6 +149,7 @@ export async function getMarketplaceAssetsPageDataAction(
   items: MarketplaceAssetItem[];
   groups: MarketplaceAssetGroup[];
   detailedCollection: Awaited<ReturnType<typeof getDetailedPlayerCardCollectionCached>>;
+  publicSkinFilterCards: Record<number, FilterableCard[]>;
   playerListings: MarketplacePlayerListing[];
   outbidStatuses: OutbidStatus[];
 }> {
@@ -122,7 +158,12 @@ export async function getMarketplaceAssetsPageDataAction(
   const normalized = account ? normalizeAccount(account) : null;
 
   if (!normalized) {
-    const publicItems = await getCachedMarketplaceAssetsPublic(assetName);
+    const [publicItems, cardDetails] = await Promise.all([
+      getCachedMarketplaceAssetsPublic(assetName),
+      assetName === "SKINS" && includeDetailedCollection
+        ? getCachedSplCardDetails()
+        : Promise.resolve([]),
+    ]);
     const enrichedPublicItems = publicItems.map((item) => ({
       ...item,
       ownedQuantity: 0,
@@ -133,12 +174,15 @@ export async function getMarketplaceAssetsPageDataAction(
       active: false,
     }));
 
+    const groups = groupMarketplaceAssetsByCardDetailId(enrichedPublicItems);
+
     return {
       account: null,
       assetName,
       items: enrichedPublicItems,
-      groups: groupMarketplaceAssetsByCardDetailId(enrichedPublicItems),
+      groups,
       detailedCollection: {},
+      publicSkinFilterCards: buildPublicSkinFilterCards(cardDetails, groups),
       playerListings: [],
       outbidStatuses: [],
     };
@@ -179,6 +223,7 @@ export async function getMarketplaceAssetsPageDataAction(
     items: enrichedItems,
     groups: groupMarketplaceAssetsByCardDetailId(enrichedItems),
     detailedCollection,
+    publicSkinFilterCards: {},
     playerListings: assetListings,
     outbidStatuses,
   };
