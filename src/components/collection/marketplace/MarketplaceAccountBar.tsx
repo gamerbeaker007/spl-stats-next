@@ -3,7 +3,6 @@
 import MarketViewToggle from "@/components/collection/marketplace/MarketViewToggle";
 import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
-import { useAuth } from "@/lib/frontend/context/AuthContext";
 import { Alert, Box, Stack } from "@mui/material";
 import { useState, type ReactNode } from "react";
 
@@ -14,13 +13,13 @@ interface MarketplaceAccountBarProps {
 
 /**
  * The account selector row shared by every marketplace shopping page: pick, add,
- * or remove the account whose ownership/prices are shown. Reads/writes the shared
+ * or remove the account whose ownership/prices are shown. Available to guests too
+ * (ownership data is public and actions are signed via Hive Keychain). Reads/writes the shared
  * `useAccounts()` context so all sections on a page stay on the same account.
  */
 export default function MarketplaceAccountBar({
   extraContent,
 }: Readonly<MarketplaceAccountBarProps>) {
-  const { isAuthenticated } = useAuth();
   const {
     monitoredAccounts,
     selectedAccount,
@@ -33,29 +32,8 @@ export default function MarketplaceAccountBar({
 
   const [addAccountInput, setAddAccountInput] = useState("");
 
-  if (!isAuthenticated) {
-    return (
-      <Box
-        sx={{
-          p: 2,
-          borderRadius: 2,
-          backgroundColor: "background.paper",
-          border: 1,
-          borderColor: "divider",
-        }}
-      >
-        <Stack spacing={1.25}>
-          <Alert severity="info">
-            Browsing as guest. Log in to view ownership, outbid status, and marketplace actions.
-          </Alert>
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-            {extraContent}
-            <MarketViewToggle />
-          </Stack>
-        </Stack>
-      </Box>
-    );
-  }
+  const hasAccount =
+    selectedAccount !== null && selectedAccount !== undefined && selectedAccount !== "";
 
   return (
     <Box
@@ -68,6 +46,12 @@ export default function MarketplaceAccountBar({
       }}
     >
       <Stack spacing={1.25}>
+        {!hasAccount && (
+          <Alert severity="info">
+            Browsing as guest. Login or add an account to see its ownership and to buy/list/transfer
+            or activate.
+          </Alert>
+        )}
         <AccountSelectorBar
           accounts={accountOptions}
           selectedAccount={selectedAccount}

@@ -18,7 +18,7 @@ export function SkinCardGrid({
   presentation,
   alignContent = "stretch",
 }: Readonly<SkinCardGridProps>) {
-  const { onAction, outbidStatuses, myListingCounts, isAuthenticated } = presentation;
+  const { onAction, outbidStatuses, myListingCounts, hasAccount } = presentation;
 
   return (
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignContent }}>
@@ -29,7 +29,7 @@ export function SkinCardGrid({
           onAction={onAction}
           outbidStatus={outbidStatuses.get(skin.detailId)}
           myListingCount={myListingCounts.get(skin.detailId) ?? 0}
-          isAuthenticated={isAuthenticated}
+          hasAccount={hasAccount}
         />
       ))}
     </Box>

@@ -83,6 +83,7 @@ function matchesEditionFilter(
 // ---------------------------------------------------------------------------
 
 export interface FilterableCard {
+  cardDetailId: DetailedPlayerCardCollectionItem["cardDetailId"];
   edition: DetailedPlayerCardCollectionItem["edition"];
   tier?: number | null;
   rarity: DetailedPlayerCardCollectionItem["rarity"];
@@ -92,6 +93,9 @@ export interface FilterableCard {
 }
 
 export function matchesCardFilter(card: FilterableCard, filter: UnifiedCardFilter): boolean {
+  if (filter.selectedCardDetailId > 0 && card.cardDetailId !== filter.selectedCardDetailId) {
+    return false;
+  }
   if (!matchesEditionFilter(card.edition, card.tier ?? null, filter)) return false;
   if (filter.rarities.length > 0) {
     const rarityId = RARITY_DEFS.find((r) => r.name === card.rarity)?.id;

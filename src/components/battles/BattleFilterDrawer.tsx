@@ -7,8 +7,6 @@ import { useMonitoredAccountNames } from "@/hooks/battles/useMonitoredAccountNam
 import type { FilterDrawerConfig } from "@/types/card-filter";
 import { useEffect } from "react";
 
-export { DRAWER_WIDTH } from "@/components/shared/filter/UnifiedCardFilterDrawer";
-
 export default function BattleFilterDrawer({
   showGroupLevels = true,
 }: {

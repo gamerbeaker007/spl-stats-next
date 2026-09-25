@@ -38,7 +38,8 @@ interface MarketAssetTableProps {
   onAction: (mode: MarketActionMode, item: MarketplaceAssetItem) => void;
   /** Per-item outbid statuses keyed by detailId. */
   outbidStatuses?: ReadonlyMap<string, OutbidStatus>;
-  isAuthenticated?: boolean;
+  /** An account is selected: shows ownership/outbid info and enables the actions. */
+  hasAccount?: boolean;
 }
 
 const iconStyle = { width: "1.05rem", height: "1.05rem" } as const;
@@ -53,7 +54,7 @@ export default function MarketAssetTable({
   items,
   onAction,
   outbidStatuses,
-  isAuthenticated = true,
+  hasAccount = true,
 }: Readonly<MarketAssetTableProps>) {
   const [sortBy, setSortBy] = useState<SortField>("price");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -135,7 +136,7 @@ export default function MarketAssetTable({
                 Circulation
               </TableSortLabel>
             </TableCell>
-            {isAuthenticated && (
+            {hasAccount && (
               <TableCell align="right">
                 <TableSortLabel
                   active={sortBy === "numOwned"}
@@ -195,7 +196,7 @@ export default function MarketAssetTable({
                         borderLeftColor: "success.main",
                         backgroundColor: "rgba(76, 175, 80, 0.06)",
                       }
-                    : isAuthenticated && outbid?.isOutbid
+                    : hasAccount && outbid?.isOutbid
                       ? { borderLeft: 2, borderLeftColor: "warning.main" }
                       : undefined
                 }
@@ -227,7 +228,7 @@ export default function MarketAssetTable({
                           height: 36,
                           objectFit: "contain",
                           flexShrink: 0,
-                          opacity: isAuthenticated && actualOwned < 1 ? 0.5 : 1,
+                          opacity: hasAccount && actualOwned < 1 ? 0.5 : 1,
                         }}
                       />
                       <Typography
@@ -243,14 +244,14 @@ export default function MarketAssetTable({
                   </Tooltip>
                 </TableCell>
                 <TableCell align="right">{item.numCirculation}</TableCell>
-                {isAuthenticated && <TableCell align="right">{actualOwned}</TableCell>}
+                {hasAccount && <TableCell align="right">{actualOwned}</TableCell>}
                 <TableCell align="right">{item.numListed}</TableCell>
                 <TableCell align="right">
                   <Stack direction="column" spacing={0.5} alignItems="flex-end">
                     <Typography variant="body2" color="text.secondary" noWrap>
                       {formatAssetPriceLabel(item)}
                     </Typography>
-                    {isAuthenticated && outbid?.isOutbid && (
+                    {hasAccount && outbid?.isOutbid && (
                       <Tooltip
                         title={`Your listing ($${outbid.myPrice.toFixed(2)} ${outbid.currency}) is undercut — lowest competing price is $${outbid.lowestMarketPrice.toFixed(2)} ${outbid.currency}`}
                       >
@@ -267,40 +268,40 @@ export default function MarketAssetTable({
                 </TableCell>
                 <TableCell align="right">
                   <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                    <Tooltip title={isAuthenticated ? "Buy" : "Log in to buy"}>
+                    <Tooltip title={hasAccount ? "Buy" : "Select an account to buy"}>
                       <Box sx={{ display: "inline-flex" }}>
                         <Button
                           variant="outlined"
                           size="small"
                           title="Buy"
-                          disabled={!isAuthenticated || listedItems === 0}
+                          disabled={!hasAccount || listedItems === 0}
                           onClick={() => onAction("buy", item)}
                         >
                           <FaTag style={iconStyle} />
                         </Button>
                       </Box>
                     </Tooltip>
-                    <Tooltip title={isAuthenticated ? "Transfer" : "Log in to transfer"}>
+                    <Tooltip title={hasAccount ? "Transfer" : "Select an account to transfer"}>
                       <Box sx={{ display: "inline-flex" }}>
                         <Button
                           variant="outlined"
                           size="small"
                           title="Transfer"
-                          disabled={!isAuthenticated || actualOwned === 0}
+                          disabled={!hasAccount || actualOwned === 0}
                           onClick={() => onAction("transfer", item)}
                         >
                           <IoMdSend style={iconStyle} />
                         </Button>
                       </Box>
                     </Tooltip>
-                    <Tooltip title={isAuthenticated ? listTooltip : "Log in to list"}>
+                    <Tooltip title={hasAccount ? listTooltip : "Select an account to list"}>
                       <Box sx={{ display: "inline-flex" }}>
                         <Button
                           variant="outlined"
                           size="small"
                           title="List"
                           color={activeSkin ? "warning" : "primary"}
-                          disabled={!isAuthenticated || listDisabled}
+                          disabled={!hasAccount || listDisabled}
                           onClick={() => onAction("list", item)}
                         >
                           <SiHomeassistantcommunitystore style={iconStyle} />
@@ -308,14 +309,14 @@ export default function MarketAssetTable({
                       </Box>
                     </Tooltip>
                     {item.assetName === "SKINS" && (
-                      <Tooltip title={isAuthenticated ? "Activate" : "Log in to activate"}>
+                      <Tooltip title={hasAccount ? "Activate" : "Select an account to activate"}>
                         <Box sx={{ display: "inline-flex" }}>
                           <Button
                             variant="outlined"
                             size="small"
                             color={activeSkin ? "success" : "primary"}
                             title="Activate"
-                            disabled={!isAuthenticated || actualOwned < 1 || activeSkin}
+                            disabled={!hasAccount || actualOwned < 1 || activeSkin}
                             onClick={() => onAction("activate", item)}
                           >
                             <MdCheckCircle style={iconStyle} />

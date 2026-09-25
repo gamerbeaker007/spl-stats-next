@@ -17,7 +17,7 @@ import {
 import { MdGridView, MdInfoOutline, MdViewAgenda } from "react-icons/md";
 
 interface SkinsFilterBarProps {
-  isAuthenticated: boolean;
+  hasAccount: boolean;
   ownedOnly: boolean;
   onOwnedOnlyChange: (checked: boolean) => void;
   missingEquippedOnly: boolean;
@@ -69,7 +69,7 @@ function SwitchWithHint({ checked, onChange, label, hint }: Readonly<SwitchWithH
 
 /** Collection/skin filters, marketplace filters and the grouped/flat view toggle. */
 export function SkinsFilterBar({
-  isAuthenticated,
+  hasAccount,
   ownedOnly,
   onOwnedOnlyChange,
   missingEquippedOnly,
@@ -101,7 +101,7 @@ export function SkinsFilterBar({
         flexWrap="wrap"
         useFlexGap
       >
-        {isAuthenticated && (
+        {hasAccount && (
           <SwitchWithHint
             checked={ownedOnly}
             onChange={onOwnedOnlyChange}
@@ -110,7 +110,7 @@ export function SkinsFilterBar({
           />
         )}
 
-        {isAuthenticated && (
+        {hasAccount && (
           <SwitchWithHint
             checked={missingEquippedOnly}
             onChange={onMissingEquippedOnlyChange}
@@ -144,11 +144,7 @@ export function SkinsFilterBar({
         alignItems={{ xs: "stretch", md: "center" }}
         justifyContent="space-between"
       >
-        <MarketFilterBar
-          filter={marketFilter}
-          onChange={onMarketFilterChange}
-          showOutbidFilter={isAuthenticated}
-        />
+        <MarketFilterBar filter={marketFilter} onChange={onMarketFilterChange} />
 
         {showViewModeToggle && (
           <ToggleButtonGroup

@@ -16,7 +16,6 @@ import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContex
 interface MarketFilterBarProps {
   filter: MarketAssetFilter;
   onChange: (next: MarketAssetFilter) => void;
-  showOutbidFilter?: boolean;
 }
 
 function parsePrice(value: string): number | null {
@@ -30,11 +29,7 @@ function parsePrice(value: string): number | null {
  * name/price sorting. Price uses number inputs (not a slider) because listing
  * prices are unbounded and vary widely per asset — exact entry beats a range.
  */
-export default function MarketFilterBar({
-  filter,
-  onChange,
-  showOutbidFilter = false,
-}: Readonly<MarketFilterBarProps>) {
+export default function MarketFilterBar({ filter, onChange }: Readonly<MarketFilterBarProps>) {
   const { viewMode } = useMarketplaceView();
 
   return (
@@ -70,19 +65,17 @@ export default function MarketFilterBar({
         label="Listed only"
       />
 
-      {showOutbidFilter && (
-        <FormControlLabel
-          sx={{ ml: 0 }}
-          control={
-            <Switch
-              size="small"
-              checked={filter.outbidOnly}
-              onChange={(_event, checked) => onChange({ ...filter, outbidOnly: checked })}
-            />
-          }
-          label="Outbid"
-        />
-      )}
+      <FormControlLabel
+        sx={{ ml: 0 }}
+        control={
+          <Switch
+            size="small"
+            checked={filter.outbidOnly}
+            onChange={(_event, checked) => onChange({ ...filter, outbidOnly: checked })}
+          />
+        }
+        label="Outbid"
+      />
 
       {viewMode != "table" && (
         <>

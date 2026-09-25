@@ -17,7 +17,7 @@ interface BaseSkinCardProps {
   row: SkinGroupViewModel;
   image: string;
   active: boolean;
-  isAuthenticated: boolean;
+  hasAccount: boolean;
   onActivate: (mode: MarketActionMode, item: MarketplaceAssetItem) => void;
   baseSkinItem: MarketplaceAssetItem;
 }
@@ -27,7 +27,7 @@ function BaseSkinCard({
   row,
   image,
   active,
-  isAuthenticated,
+  hasAccount,
   onActivate,
   baseSkinItem,
 }: Readonly<BaseSkinCardProps>) {
@@ -59,7 +59,7 @@ function BaseSkinCard({
             maxWidth: 210,
             height: 220,
             objectFit: "contain",
-            opacity: isAuthenticated && row.totalOwnedCards < 1 ? 0.5 : 1,
+            opacity: hasAccount && row.totalOwnedCards < 1 ? 0.5 : 1,
           }}
         />
 
@@ -71,7 +71,7 @@ function BaseSkinCard({
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="center">
             <Chip label={`${row.visibleSkins.length} visible skins`} size="small" />
 
-            {isAuthenticated && (
+            {hasAccount && (
               <Chip
                 label={`${row.totalOwnedSkins} skins owned`}
                 color={row.totalOwnedSkins > 0 ? "success" : "default"}
@@ -85,7 +85,7 @@ function BaseSkinCard({
             size="small"
             title="List"
             color={active ? "warning" : "primary"}
-            disabled={!isAuthenticated || active}
+            disabled={!hasAccount || active}
             onClick={() => onActivate("activate", baseSkinItem)}
           >
             <MdCheckCircle style={{ width: "150px", height: "1.1rem" }} />
@@ -113,7 +113,7 @@ export function SkinGroupRow({ row, presentation }: Readonly<SkinGroupRowProps>)
         row={row}
         image={baseCardImage}
         active={baseSkinActive}
-        isAuthenticated={presentation.isAuthenticated}
+        hasAccount={presentation.hasAccount}
         onActivate={presentation.onAction}
         baseSkinItem={baseSkinItem}
       />

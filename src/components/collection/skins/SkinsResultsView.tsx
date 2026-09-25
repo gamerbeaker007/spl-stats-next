@@ -47,7 +47,7 @@ export function SkinsResultsView({
         items={flatSkins}
         onAction={presentation.onAction}
         outbidStatuses={presentation.outbidStatuses}
-        isAuthenticated={presentation.isAuthenticated}
+        hasAccount={presentation.hasAccount}
       />
     );
   }

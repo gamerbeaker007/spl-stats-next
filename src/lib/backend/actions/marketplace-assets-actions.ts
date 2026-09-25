@@ -1,6 +1,5 @@
 "use server";
 
-import { getCurrentUser } from "@/lib/backend/actions/auth-actions";
 import {
   fetchPlayerBalances,
   fetchPlayerInventory,
@@ -102,6 +101,7 @@ function buildPublicSkinFilterCards(
     if (editions.length === 0) editions.push(detail.distribution?.[0]?.edition ?? 0);
 
     cards[group.cardDetailId] = Array.from(new Set(editions)).map((edition) => ({
+      cardDetailId: detail.id,
       edition,
       tier: detail.tier ?? edition,
       rarity: toCardRarity(detail.rarity),
@@ -155,14 +155,15 @@ export async function getMarketplaceAssetsPageDataAction(
 }> {
   const includeDetailedCollection = options?.includeDetailedCollection ?? assetName === "SKINS";
   const includeOutbidStatuses = options?.includeOutbidStatuses ?? true;
+  // Card metadata lets the client apply the card filter to skin groups whose base
+  // card the account does not own (or when no account is selected at all).
+  const includeCardDetails = assetName === "SKINS" && includeDetailedCollection;
   const normalized = account ? normalizeAccount(account) : null;
 
   if (!normalized) {
     const [publicItems, cardDetails] = await Promise.all([
       getCachedMarketplaceAssetsPublic(assetName),
-      assetName === "SKINS" && includeDetailedCollection
-        ? getCachedSplCardDetails()
-        : Promise.resolve([]),
+      includeCardDetails ? getCachedSplCardDetails() : Promise.resolve([]),
     ]);
     const enrichedPublicItems = publicItems.map((item) => ({
       ...item,
@@ -188,13 +189,14 @@ export async function getMarketplaceAssetsPageDataAction(
     };
   }
 
-  const [items, detailedCollection, playerSkins, playerListings] = await Promise.all([
+  const [items, detailedCollection, playerSkins, playerListings, cardDetails] = await Promise.all([
     getCachedMarketplaceAssets(normalized, assetName),
     includeDetailedCollection
       ? getDetailedPlayerCardCollectionCached(normalized)
       : Promise.resolve({} as Awaited<ReturnType<typeof getDetailedPlayerCardCollectionCached>>),
     assetName === "SKINS" ? getCachedPlayerSkins(normalized) : Promise.resolve([]),
     getCachedMarketplacePlayerAllListings(normalized),
+    includeCardDetails ? getCachedSplCardDetails() : Promise.resolve([]),
   ]);
 
   // Enrich SKINS items with the player's active status from /players/skins.
@@ -217,27 +219,28 @@ export async function getMarketplaceAssetsPageDataAction(
     ? Array.from(computeOutbidStatuses(assetListings, enrichedItems, assetName).values())
     : [];
 
+  const groups = groupMarketplaceAssetsByCardDetailId(enrichedItems);
+
   return {
     account: normalized,
     assetName,
     items: enrichedItems,
-    groups: groupMarketplaceAssetsByCardDetailId(enrichedItems),
+    groups,
     detailedCollection,
-    publicSkinFilterCards: {},
+    publicSkinFilterCards: buildPublicSkinFilterCards(cardDetails, groups),
     playerListings: assetListings,
     outbidStatuses,
   };
 }
 
+/**
+ * Active market listings for one asset (public data). No login required — the
+ * purchase itself is signed via Hive Keychain by the buying account.
+ */
 export async function getMarketplaceAssetListingsAction(
   assetName: MarketplaceAssetName,
   detailId: string
 ): Promise<MarketplaceListingItem[]> {
-  const user = await getCurrentUser();
-  if (!user) {
-    throw new Error("Not logged in");
-  }
-
   return fetchMarketplaceListingItems({
     assetName,
     detailIds: [detailId],

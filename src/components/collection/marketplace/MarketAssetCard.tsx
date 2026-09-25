@@ -31,8 +31,11 @@ interface MarketAssetCardProps {
   outbidStatus?: OutbidStatus | null;
   /** My active listing count for this item (filtered to this asset type/detailId). */
   myListingCount?: number;
-  /** Logged-out mode hides ownership metrics and disables account actions. */
-  isAuthenticated?: boolean;
+  /**
+   * An account is selected: shows its ownership and enables buy/transfer/list/activate.
+   * No login needed — ownership is public and transactions are signed via Hive Keychain.
+   */
+  hasAccount?: boolean;
 }
 
 function getOwnedTooltip(actualOwned: number, currentlyListed: number) {
@@ -54,7 +57,7 @@ export default function MarketAssetCard({
   showDescription = false,
   outbidStatus = null,
   myListingCount = 0,
-  isAuthenticated = true,
+  hasAccount = true,
 }: Readonly<MarketAssetCardProps>) {
   const activeSkin = isSkinActive(item);
   const actualOwned = getActualOwnedQuantity(item);
@@ -78,26 +81,26 @@ export default function MarketAssetCard({
   const lowestUsd = getLowestUsdPrice(item.prices);
   const activeMyListings = Math.max(0, myListingCount);
   const showListingStatusRow =
-    isAuthenticated && (activeMyListings > 0 || Boolean(outbidStatus?.isOutbid));
+    hasAccount && (activeMyListings > 0 || Boolean(outbidStatus?.isOutbid));
 
-  const buyDisabled = !isAuthenticated || listedItems === 0;
-  const transferDisabled = !isAuthenticated || actualOwned === 0;
+  const buyDisabled = !hasAccount || listedItems === 0;
+  const transferDisabled = !hasAccount || actualOwned === 0;
   const listDisabledWithAuth = availableToList < 1 && currentlyListed < 1;
-  const listDisabledFinal = !isAuthenticated || listDisabledWithAuth;
-  const activateDisabledFinal = !isAuthenticated || activateDisabled;
+  const listDisabledFinal = !hasAccount || listDisabledWithAuth;
+  const activateDisabledFinal = !hasAccount || activateDisabled;
 
-  const buyTooltip = !isAuthenticated
-    ? "Log in to buy"
+  const buyTooltip = !hasAccount
+    ? "Select an account to buy"
     : listedItems > 0
       ? "Buy"
       : "No active listings to buy";
-  const transferTooltip = !isAuthenticated
-    ? "Log in to transfer"
+  const transferTooltip = !hasAccount
+    ? "Select an account to transfer"
     : actualOwned > 0
       ? "Transfer"
       : "No owned quantity to transfer";
-  const listActionTooltip = !isAuthenticated ? "Log in to list" : listTooltip;
-  const activateActionTooltip = !isAuthenticated ? "Log in to activate" : activeTooltip;
+  const listActionTooltip = !hasAccount ? "Select an account to list" : listTooltip;
+  const activateActionTooltip = !hasAccount ? "Select an account to activate" : activeTooltip;
   const cardButtonSx = {
     minWidth: 0,
     px: 0.75,
@@ -163,7 +166,7 @@ export default function MarketAssetCard({
             width: "100%",
             height: 210,
             objectFit: "contain",
-            opacity: isAuthenticated && actualOwned === 0 ? 0.5 : 1,
+            opacity: hasAccount && actualOwned === 0 ? 0.5 : 1,
           }}
         />
       </Box>
@@ -175,7 +178,7 @@ export default function MarketAssetCard({
       )}
 
       <Stack direction="row" justifyContent="space-between" alignItems="center">
-        {isAuthenticated ? (
+        {hasAccount ? (
           <Tooltip title={ownedTooltip}>
             <Typography
               variant="caption"

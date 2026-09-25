@@ -12,7 +12,6 @@ import { useIncrementalViewportList } from "@/hooks/collection/useIncrementalVie
 import { useMarketplaceAssetsPageData } from "@/hooks/collection/useMarketplaceAssetsPageData";
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
-import { useAuth } from "@/lib/frontend/context/AuthContext";
 import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import {
@@ -67,9 +66,11 @@ export default function MarketplaceAssetSection({
   filterControls,
   itemFilterKey = "",
 }: Readonly<MarketplaceAssetSectionProps>) {
-  const { isAuthenticated } = useAuth();
   const { selectedAccount } = useAccounts();
   const { viewMode } = useMarketplaceView();
+  // No login needed: ownership data is public and every action is signed via
+  // Hive Keychain by the selected account.
+  const hasAccount = Boolean(selectedAccount);
   const { collectionRefreshVersion, notifyBalancesRefresh, notifyCollectionRefresh } =
     usePurchasePlan();
 
@@ -83,15 +84,10 @@ export default function MarketplaceAssetSection({
     loading,
     error,
     refresh: refreshMarketplaceData,
-  } = useMarketplaceAssetsPageData(
-    isAuthenticated ? selectedAccount : null,
-    assetName,
-    collectionRefreshVersion,
-    {
-      includeDetailedCollection: false,
-      includeOutbidStatuses: true,
-    }
-  );
+  } = useMarketplaceAssetsPageData(selectedAccount || null, assetName, collectionRefreshVersion, {
+    includeDetailedCollection: false,
+    includeOutbidStatuses: true,
+  });
 
   const outbidStatuses = useMemo(
     () => new Map((data?.outbidStatuses ?? []).map((status) => [status.detailId, status])),
@@ -110,14 +106,14 @@ export default function MarketplaceAssetSection({
   const items = useMemo<MarketplaceAssetItem[]>(() => {
     const query = search.trim().toLowerCase();
     const base = (data?.items ?? []).filter((item) => {
-      if (isAuthenticated && ownedOnly && getActualOwnedQuantity(item) < 1) return false;
+      if (hasAccount && ownedOnly && getActualOwnedQuantity(item) < 1) return false;
       if (query && !item.displayName.toLowerCase().includes(query)) return false;
       if (itemFilter && !itemFilter(item)) return false;
       return true;
     });
 
     const withOutbid =
-      isAuthenticated && filter.outbidOnly
+      hasAccount && filter.outbidOnly
         ? base.filter((item) => {
             const status = outbidStatuses.get(item.detailId);
             return Boolean(status?.isOutbid);
@@ -125,22 +121,13 @@ export default function MarketplaceAssetSection({
         : base;
 
     return applyMarketAssetFilters(withOutbid, filter);
-  }, [data?.items, filter, isAuthenticated, itemFilter, outbidStatuses, ownedOnly, search]);
+  }, [data?.items, filter, hasAccount, itemFilter, outbidStatuses, ownedOnly, search]);
 
   // Restart the lazy-load window only when the *selection* changes — a re-fetch
   // after a buy/list/delist/transfer keeps whatever the user scrolled into view.
   const listResetKey = useMemo(
-    () =>
-      JSON.stringify([
-        selectedAccount,
-        isAuthenticated,
-        ownedOnly,
-        search,
-        filter,
-        viewMode,
-        itemFilterKey,
-      ]),
-    [selectedAccount, isAuthenticated, ownedOnly, search, filter, viewMode, itemFilterKey]
+    () => JSON.stringify([selectedAccount, ownedOnly, search, filter, viewMode, itemFilterKey]),
+    [selectedAccount, ownedOnly, search, filter, viewMode, itemFilterKey]
   );
 
   const {
@@ -203,7 +190,7 @@ export default function MarketplaceAssetSection({
           onChange={(event) => setSearch(event.target.value)}
           sx={{ minWidth: 220 }}
         />
-        {isAuthenticated && (
+        {hasAccount && (
           <FormControlLabel
             control={
               <Switch checked={ownedOnly} onChange={(_e, checked) => setOwnedOnly(checked)} />
@@ -211,7 +198,7 @@ export default function MarketplaceAssetSection({
             label="Owned items only"
           />
         )}
-        <MarketFilterBar filter={filter} onChange={setFilter} showOutbidFilter={isAuthenticated} />
+        <MarketFilterBar filter={filter} onChange={setFilter} />
       </Stack>
 
       {filterControls}
@@ -224,7 +211,7 @@ export default function MarketplaceAssetSection({
         {!loading &&
           !error &&
           items.length === 0 &&
-          (isAuthenticated && filter.outbidOnly ? (
+          (hasAccount && filter.outbidOnly ? (
             <Alert severity="info">
               No outbid listings found for this asset type. Try turning off the Outbid filter.
             </Alert>
@@ -237,7 +224,7 @@ export default function MarketplaceAssetSection({
             items={items}
             onAction={handleAction}
             outbidStatuses={outbidStatuses}
-            isAuthenticated={isAuthenticated}
+            hasAccount={hasAccount}
           />
         ) : (
           <>
@@ -250,7 +237,7 @@ export default function MarketplaceAssetSection({
                   showDescription={showDescription}
                   outbidStatus={outbidStatuses.get(item.detailId)}
                   myListingCount={myListingCounts.get(item.detailId) ?? 0}
-                  isAuthenticated={isAuthenticated}
+                  hasAccount={hasAccount}
                 />
               ))}
             </Box>

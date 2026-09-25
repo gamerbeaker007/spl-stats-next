@@ -201,7 +201,7 @@ function DashboardContent() {
         </CardFilterProvider>
       ) : (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="35vh">
-          <Typography>Select or add an account to view card collection data.</Typography>
+          <Typography>Login or add an account to view card collection data.</Typography>
         </Box>
       )}
     </Box>

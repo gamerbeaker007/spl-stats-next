@@ -356,6 +356,7 @@ export default function BuyMissingCcPageClient() {
   const filteredRows = useMemo(() => {
     return displayRowsWithCrossFoilProgress.filter((row) => {
       const pseudo: FilterableCard = {
+        cardDetailId: row.cardDetailId,
         edition: row.edition,
         tier: row.tier,
         rarity: row.rarity,

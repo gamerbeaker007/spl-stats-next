@@ -12,7 +12,6 @@ import { LoadingSpinnerOverlay } from "@/components/ui/LoadingSpinnerOverlay";
 import { useMarketplaceAssetsPageData } from "@/hooks/collection/useMarketplaceAssetsPageData";
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
-import { useAuth } from "@/lib/frontend/context/AuthContext";
 import { useCardFilter } from "@/lib/frontend/context/CardFilterContext";
 import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
@@ -31,18 +30,21 @@ import {
   matchesPublicSkinCardFilter,
   resolveGroupBaseSkin,
 } from "@/lib/shared/skin-groups";
+import type { CardOption } from "@/types/card";
 import type { MarketplaceAssetItem } from "@/types/marketplace-assets";
 import type { SkinCardPresentation, SkinGroupViewModel, SkinViewMode } from "@/types/skins";
 import { Alert, Box, Chip, Stack } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 
 export default function SkinsPageClient() {
-  const { isAuthenticated } = useAuth();
   const { collectionRefreshVersion, notifyBalancesRefresh, notifyCollectionRefresh } =
     usePurchasePlan();
   const { selectedAccount } = useAccounts();
   const { filter: cardFilter } = useCardFilter();
   const { viewMode: layoutMode } = useMarketplaceView();
+  // No login needed: ownership data is public and every action is signed via
+  // Hive Keychain by the selected account.
+  const hasAccount = Boolean(selectedAccount);
 
   const [ownedOnly, setOwnedOnly] = useState(false);
   const [missingEquippedOnly, setMissingEquippedOnly] = useState(false);
@@ -56,15 +58,10 @@ export default function SkinsPageClient() {
     loading,
     error,
     refresh: refreshMarketplaceData,
-  } = useMarketplaceAssetsPageData(
-    isAuthenticated ? selectedAccount : null,
-    "SKINS",
-    collectionRefreshVersion,
-    {
-      includeDetailedCollection: true,
-      includeOutbidStatuses: true,
-    }
-  );
+  } = useMarketplaceAssetsPageData(selectedAccount || null, "SKINS", collectionRefreshVersion, {
+    includeDetailedCollection: true,
+    includeOutbidStatuses: true,
+  });
 
   // Grouped shows base card + its skins; flat shows only skin cards.
   const flatMode = viewMode === "flat";
@@ -75,6 +72,16 @@ export default function SkinsPageClient() {
       Array.from(
         new Set((data?.groups ?? []).flatMap((group) => group.items.map((skin) => skin.setName)))
       ).sort(),
+    [data?.groups]
+  );
+
+  // Search only the cards that actually have skins — picking any other card
+  // would always yield an empty page.
+  const skinCardOptions = useMemo<CardOption[] | undefined>(
+    () =>
+      data?.groups
+        .map((group) => ({ cardDetailId: group.cardDetailId, cardName: group.groupName }))
+        .sort((left, right) => left.cardName.localeCompare(right.cardName)),
     [data?.groups]
   );
 
@@ -105,9 +112,9 @@ export default function SkinsPageClient() {
 
         const setOwnedSkins = group.items.filter((skin) => {
           if (selectedSkinSet && skin.setName !== selectedSkinSet) return false;
-          if (isAuthenticated && ownedOnly && getActualOwnedQuantity(skin) < 1) return false;
+          if (hasAccount && ownedOnly && getActualOwnedQuantity(skin) < 1) return false;
           if (
-            isAuthenticated &&
+            hasAccount &&
             marketFilter.outbidOnly &&
             !outbidStatuses.get(skin.detailId)?.isOutbid
           ) {
@@ -126,8 +133,10 @@ export default function SkinsPageClient() {
       })
       .filter((row) => {
         if (row.visibleSkins.length === 0) return false;
-        if (isAuthenticated) {
-          if (row.card && !matchesCardFilter(row.card, cardFilter)) return false;
+        // Owned base card → filter on the actual copy; otherwise fall back to the
+        // card's public metadata so unowned groups are filtered too.
+        if (row.card) {
+          if (!matchesCardFilter(row.card, cardFilter)) return false;
         } else if (
           !matchesPublicSkinCardFilter(
             row.visibleSkins,
@@ -137,12 +146,11 @@ export default function SkinsPageClient() {
         ) {
           return false;
         }
-        if (cardFilter.hideMissingCards && row.totalOwnedCards < 1) return false;
         // Missing equipped:
         // - actually owns the card
         // - actually owns at least one skin
         // - no owned/equipped skin is active, so the base skin is active
-        if (isAuthenticated && missingEquippedOnly) {
+        if (hasAccount && missingEquippedOnly) {
           const baseSkinActive = !row.group.items.some(isSkinActive);
 
           if (row.totalOwnedCards < 1 || row.totalOwnedSkins < 1 || !baseSkinActive) {
@@ -158,7 +166,7 @@ export default function SkinsPageClient() {
     data?.groups,
     data?.publicSkinFilterCards,
     cardFilter,
-    isAuthenticated,
+    hasAccount,
     outbidStatuses,
     selectedSkinSet,
     ownedOnly,
@@ -189,22 +197,13 @@ export default function SkinsPageClient() {
     () =>
       JSON.stringify([
         selectedAccount,
-        isAuthenticated,
         ownedOnly,
         selectedSkinSet,
         marketFilter,
         cardFilter,
         viewMode,
       ]),
-    [
-      selectedAccount,
-      isAuthenticated,
-      ownedOnly,
-      selectedSkinSet,
-      marketFilter,
-      cardFilter,
-      viewMode,
-    ]
+    [selectedAccount, ownedOnly, selectedSkinSet, marketFilter, cardFilter, viewMode]
   );
 
   // "How many skins match what I'm currently looking at?" — one skin definition
@@ -228,9 +227,9 @@ export default function SkinsPageClient() {
       onAction: handleAction,
       outbidStatuses,
       myListingCounts,
-      isAuthenticated,
+      hasAccount,
     }),
-    [handleAction, outbidStatuses, myListingCounts, isAuthenticated]
+    [handleAction, outbidStatuses, myListingCounts, hasAccount]
   );
 
   const resolvedDialogState = useMemo<MarketActionState | null>(() => {
@@ -275,7 +274,7 @@ export default function SkinsPageClient() {
   // Table layout always shows the flat skin list (no base card).
   const isEmpty = tableMode || flatMode ? flatSkins.length === 0 : rows.length === 0;
   const emptyMessage =
-    isAuthenticated && marketFilter.outbidOnly
+    hasAccount && marketFilter.outbidOnly
       ? "No outbid skin listings found. Try turning off the Outbid filter."
       : "No skin data matches the selected filters.";
 
@@ -286,7 +285,7 @@ export default function SkinsPageClient() {
           <MarketplaceAccountBar />
 
           <SkinsFilterBar
-            isAuthenticated={isAuthenticated}
+            hasAccount={hasAccount}
             ownedOnly={ownedOnly}
             onOwnedOnlyChange={setOwnedOnly}
             missingEquippedOnly={missingEquippedOnly}
@@ -316,7 +315,7 @@ export default function SkinsPageClient() {
               size="small"
               variant="outlined"
               label={
-                isAuthenticated && selectedAccount
+                hasAccount
                   ? `Number of skins: ${skinTotals.total} (${skinTotals.owned} owned)`
                   : `Number of skins: ${skinTotals.total}`
               }
@@ -334,7 +333,12 @@ export default function SkinsPageClient() {
         </Stack>
       </Box>
 
-      <CardFilterDrawer showFoils={false} />
+      <CardFilterDrawer
+        showFoils={false}
+        showHideMissing={false}
+        cardOptions={skinCardOptions ?? []}
+        cardOptionsLoading={loading && !skinCardOptions}
+      />
 
       <MarketActionDialogHost
         state={resolvedDialogState}

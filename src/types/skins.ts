@@ -23,5 +23,5 @@ export interface SkinCardPresentation {
   onAction: (mode: MarketActionMode, item: MarketplaceAssetItem) => void;
   outbidStatuses: ReadonlyMap<string, OutbidStatus>;
   myListingCounts: ReadonlyMap<string, number>;
-  isAuthenticated: boolean;
+  hasAccount: boolean;
 }

@@ -9,6 +9,23 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.22.0] - 2026-09-25
+
+### Added
+
+- **Marketplace pages work without logging in.** Skins, Music, Packs, Totems, Land and the other non-card market pages now show the account selector bar for guests too, like `/collection/cards`. With an account selected, everything is available: ownership, the owned-only / base-skin-active / outbid filters, "My Listings", and buy / list / transfer / activate. Ownership data is public and every transaction is signed via Hive Keychain by the selected account, so no login is needed. With no account selected, the actions show "Select an account to …".
+- `getMarketplaceAssetListingsAction` (buy-dialog listings) no longer requires a login — it returns public market data.
+- **Card search in every card filter drawer.** `UnifiedCardFilterDrawer` now searches every card in the game when `cardOptions` is omitted (fetched once per session via the shared `useAllCardOptions` hook, only when the search is shown; a loading spinner shows until the list arrives). Passing `cardOptions` — even an empty array — still restricts the search (Battles: cards the account has played). Enabled on Collection → Cards and Buy Missing CC; Skins searches only cards that have skins; Card Stats now uses the default instead of fetching its own list.
+
+### Fixed
+
+- Guest skin sidebar filters (edition, rarity, element, card type) now apply using public card metadata (#25).
+- Skin groups whose base card the selected account does not own were ignored by the card filter; they now fall back to the card's public metadata.
+- `CardFilterDrawer` ignored its `showHideMissing` prop. The Skins page now hides the "Hide missing cards" toggle and no longer applies a value persisted from the Cards page, which could hide every skin group without a visible reason.
+- `matchesCardFilter` ignored the selected card, so a card search had no effect on collection pages.
+
+---
+
 ## [v1.21.0] - 2026-09-20
 
 ### Added

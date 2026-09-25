@@ -11,6 +11,7 @@ const CONFIG: FilterDrawerConfig = {
   showColors: true,
   showCardTypes: true,
   showFoils: true,
+  showCardSearch: true,
   showHideMissing: false,
 };
 

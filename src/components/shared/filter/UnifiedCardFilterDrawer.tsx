@@ -42,9 +42,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useEffect, useMemo } from "react";
 import { MdClose, MdFilterList, MdRestartAlt } from "react-icons/md";
-
-/** @deprecated Use FILTER_PANEL_WIDTH from `./filterPanelLayout`. */
-export const DRAWER_WIDTH = FILTER_PANEL_WIDTH;
+import { useAllCardOptions } from "@/hooks/useAllCardOptions";
 
 interface Props {
   filter: UnifiedCardFilter;
@@ -53,8 +51,59 @@ interface Props {
   toggleFilterOpen: () => void;
   config: FilterDrawerConfig;
   accounts?: string[];
+  /**
+   * Options for the card search (`config.showCardSearch`). Omit to search every
+   * card in the game. Pass an array (even an empty one) to restrict the search,
+   * e.g. to the cards an account has played.
+   */
   cardOptions?: CardOption[];
   cardOptionsLoading?: boolean;
+}
+
+interface CardSearchFieldProps {
+  filter: UnifiedCardFilter;
+  setFilter: (updates: Partial<UnifiedCardFilter>) => void;
+  options: CardOption[];
+  loading: boolean;
+  disabled?: boolean;
+}
+
+function CardSearchField({
+  filter,
+  setFilter,
+  options,
+  loading,
+  disabled,
+}: Readonly<CardSearchFieldProps>) {
+  // Fall back to the persisted name so a stored selection still renders while
+  // the options load (or when it is not among them).
+  const selectedCard: CardOption | null = filter.selectedCardDetailId
+    ? (options.find((o) => o.cardDetailId === filter.selectedCardDetailId) ?? {
+        cardDetailId: filter.selectedCardDetailId,
+        cardName: filter.cardName,
+      })
+    : null;
+
+  return (
+    <CardSearchAutocomplete
+      options={options}
+      loading={loading}
+      value={selectedCard}
+      onChange={(v) =>
+        setFilter({
+          cardName: v?.cardName ?? "",
+          selectedCardDetailId: v?.cardDetailId ?? 0,
+        })
+      }
+      disabled={disabled}
+    />
+  );
+}
+
+/** Card search over every card in the game — only mounted when no options are given, so only then fetched. */
+function AllCardsSearchField(props: Readonly<Omit<CardSearchFieldProps, "options" | "loading">>) {
+  const { cards, loading } = useAllCardOptions();
+  return <CardSearchField {...props} options={cards} loading={loading} />;
 }
 
 export default function UnifiedCardFilterDrawer({
@@ -64,7 +113,7 @@ export default function UnifiedCardFilterDrawer({
   toggleFilterOpen,
   config,
   accounts = [],
-  cardOptions = [],
+  cardOptions,
   cardOptionsLoading = false,
 }: Props) {
   const isMobile = useMediaQuery(FILTER_PANEL_MOBILE_QUERY);
@@ -94,13 +143,6 @@ export default function UnifiedCardFilterDrawer({
   // Badges the toggle button so a closed panel still explains why the data is
   // narrowed — the single most common "where did my cards go?" confusion.
   const activeCount = useMemo(() => countActiveFilters(filter, config), [filter, config]);
-
-  const selectedCard: CardOption | null = filter.selectedCardDetailId
-    ? (cardOptions.find((o) => o.cardDetailId === filter.selectedCardDetailId) ?? {
-        cardDetailId: filter.selectedCardDetailId,
-        cardName: filter.cardName,
-      })
-    : null;
 
   // Group visibility — drives conditional dividers
   const hasGroup1 = !!(config.showAccount || config.showSinceDays || config.showCardSearch);
@@ -231,18 +273,21 @@ export default function UnifiedCardFilterDrawer({
 
         {config.showCardSearch && (
           <FilterSection title="Card">
-            <CardSearchAutocomplete
-              options={cardOptions}
-              loading={cardOptionsLoading}
-              value={selectedCard}
-              onChange={(v) =>
-                setFilter({
-                  cardName: v?.cardName ?? "",
-                  selectedCardDetailId: v?.cardDetailId ?? 0,
-                })
-              }
-              disabled={config.showAccount && !filter.account}
-            />
+            {cardOptions ? (
+              <CardSearchField
+                filter={filter}
+                setFilter={setFilter}
+                options={cardOptions}
+                loading={cardOptionsLoading}
+                disabled={config.showAccount && !filter.account}
+              />
+            ) : (
+              <AllCardsSearchField
+                filter={filter}
+                setFilter={setFilter}
+                disabled={config.showAccount && !filter.account}
+              />
+            )}
           </FilterSection>
         )}
 
