@@ -1,6 +1,7 @@
 "use client";
 
 import { getMarketplaceAssetsPageDataAction } from "@/lib/backend/actions/marketplace-assets-actions";
+import type { FilterableCard } from "@/lib/shared/card-filter-utils";
 import type { DetailedPlayerCardCollection } from "@/types/card";
 import type {
   MarketplaceAssetGroup,
@@ -17,6 +18,7 @@ export interface MarketplaceAssetsPageData {
   items: MarketplaceAssetItem[];
   groups: MarketplaceAssetGroup[];
   detailedCollection: DetailedPlayerCardCollection;
+  publicSkinFilterCards: Record<number, FilterableCard[]>;
   playerListings: MarketplacePlayerListing[];
   outbidStatuses: OutbidStatus[];
 }

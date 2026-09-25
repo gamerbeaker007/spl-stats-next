@@ -1,10 +1,12 @@
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
+import { matchesCardFilter, type FilterableCard } from "@/lib/shared/card-filter-utils";
 import {
   DEFAULT_SKIN_DISPLAY_NAME,
   DEFAULT_SKIN_NAME,
   isSkinActive,
 } from "@/lib/shared/marketplace-assets";
 import type { DetailedPlayerCardCollectionItem } from "@/types/card";
+import type { UnifiedCardFilter } from "@/types/card-filter";
 import type { MarketplaceAssetGroup, MarketplaceAssetItem } from "@/types/marketplace-assets";
 
 /** Pick the collection card whose edition matches one of the group's skins, else the first owned card. */
@@ -30,6 +32,26 @@ export function findCardCandidates(
 ): DetailedPlayerCardCollectionItem[] {
   return Object.values(detailedCollection ?? {}).filter(
     (entry) => entry.cardDetailId === cardDetailId
+  );
+}
+
+export function matchesPublicSkinCardFilter(
+  skins: MarketplaceAssetItem[],
+  candidates: FilterableCard[],
+  filter: UnifiedCardFilter
+): boolean {
+  const editions = new Set(
+    skins.flatMap((skin) =>
+      skin.cardEditionIds.length > 0
+        ? skin.cardEditionIds
+        : skin.imageCardEditionId !== null
+          ? [skin.imageCardEditionId]
+          : []
+    )
+  );
+
+  return candidates.some(
+    (card) => (editions.size === 0 || editions.has(card.edition)) && matchesCardFilter(card, filter)
   );
 }
 
