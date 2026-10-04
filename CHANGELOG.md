@@ -9,6 +9,15 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.23.0] - 2026-10-04
+
+### Added
+
+- **Terms of Service:** New public `/terms` page at `spl-stats.com/terms`
+- **Login dialog — Terms notice:** The sign-in dialog now shows "By continuing, you agree to our Terms of Service." with a link to `spl-stats.com/terms`.
+
+---
+
 ## [v1.22.0] - 2026-09-25
 
 ### Added

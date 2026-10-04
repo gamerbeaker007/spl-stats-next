@@ -10,6 +10,7 @@ import {
   CircularProgress,
   Dialog,
   DialogContent,
+  Link,
   Menu,
   MenuItem,
   Stack,
@@ -204,6 +205,20 @@ export default function LoginComponent() {
             >
               {signingInProgress ? "Signing..." : "Sign In with Keychain"}
             </Button>
+
+            <Typography variant="caption" color="text.secondary" textAlign="center">
+              By continuing, you agree to our{" "}
+              <Link
+                suppressHydrationWarning
+                href="https://spl-stats.com/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                variant="caption"
+              >
+                Terms of Service
+              </Link>
+              .
+            </Typography>
           </Stack>
         </DialogContent>
       </Dialog>
