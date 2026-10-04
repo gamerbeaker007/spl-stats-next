@@ -1,6 +1,7 @@
 "use client";
 
 import { FILTER_PANEL_WIDTH_VAR } from "@/components/shared/filter/filterPanelLayout";
+import GuestTermsBroadcastDialog from "@/components/shared/GuestTermsBroadcastDialog";
 import NavSidebar from "@/components/side-bar/SideBar";
 import TopBar, { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -63,6 +64,7 @@ export default function NavShell({ children }: Readonly<{ children: React.ReactN
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
       />
+      <GuestTermsBroadcastDialog />
       <main
         ref={mainRef}
         style={{

@@ -1,10 +1,21 @@
 "use client";
 
+import { getAuthStatus } from "@/lib/backend/actions/auth-actions";
+import { ensureGuestTermsAcknowledgedForBroadcast } from "@/lib/frontend/guest-terms-ack";
 import { KeychainKeyTypes, KeychainSDK } from "keychain-sdk";
 import { BENEFICIARY_ACCOUNT, BENEFICIARY_WEIGHT, HIVE_COMMUNITY } from "@/types/hive-blog";
 
 interface HiveKeychainWindow extends Window {
   hive_keychain?: unknown;
+}
+
+async function ensureGuestCanBroadcast(): Promise<void> {
+  const auth = await getAuthStatus();
+  if (auth.authenticated) {
+    return;
+  }
+
+  await ensureGuestTermsAcknowledgedForBroadcast();
 }
 
 /**
@@ -27,6 +38,8 @@ export async function broadcastHivePost(
   permlink: string,
   userTags: string[]
 ): Promise<void> {
+  await ensureGuestCanBroadcast();
+
   const win = window as HiveKeychainWindow;
   if (!win?.hive_keychain) {
     throw new Error("Hive Keychain extension not found. Please install it and try again.");

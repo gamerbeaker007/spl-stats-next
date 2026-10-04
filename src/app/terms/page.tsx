@@ -3,6 +3,7 @@ import Container from "@mui/material/Container";
 import Divider from "@mui/material/Divider";
 import Link from "@mui/material/Link";
 import Typography from "@mui/material/Typography";
+import { TERMS_EFFECTIVE_DATE, TERMS_LAST_UPDATED_DATE } from "@/lib/shared/terms";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -38,7 +39,8 @@ export default function TermsPage() {
         </Typography>
 
         <Typography variant="body2" color="text.secondary">
-          Effective date: 4 October 2026 &nbsp;·&nbsp; Last updated: 4 October 2026
+          Effective date: {TERMS_EFFECTIVE_DATE} &nbsp;·&nbsp; Last updated:{" "}
+          {TERMS_LAST_UPDATED_DATE}
         </Typography>
 
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
@@ -97,8 +99,9 @@ export default function TermsPage() {
         <Para>
           You are responsible for understanding the permissions you grant and for deciding whether
           you are comfortable granting or storing authentication information. You should never
-          provide a Hive owner key or active key unless a feature explicitly requires it and clearly
-          identifies why it is required.
+          provide a Hive owner key, active key, or password unless you are fully aware of the
+          purpose for doing so, and you accept the responsibility associated with providing such
+          information.
         </Para>
         <Para>
           Authentication tokens, credentials, delegated authority, or other authentication

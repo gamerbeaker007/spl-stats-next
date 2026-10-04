@@ -9,6 +9,22 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.23.1] - 2026-10-04
+
+### Added
+
+- **Guest broadcast terms acknowledgement:** When a user is not logged in and starts a Hive/SPL broadcast, SPL Stats now checks local storage for a terms acknowledgement for the current terms version. If missing, a confirmation dialog appears before broadcasting.
+- The dialog includes a **"Do not show again"** checkbox. When selected and the user continues, the current terms version is stored in local storage and future guest broadcasts skip the prompt.
+- If the user cancels the dialog, the transaction is explicitly aborted.
+
+### Updated
+
+- **Terms language strengthened:** The credentials warning now includes **password** and uses stronger wording:
+  - "You should never provide a Hive owner key, active key, or password unless you are fully aware of the purpose for doing so, and you accept the responsibility associated with providing such information."
+- Terms effective/last-updated display now uses shared constants.
+
+---
+
 ## [v1.23.0] - 2026-10-04
 
 ### Added

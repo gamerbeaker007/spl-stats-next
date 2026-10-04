@@ -1,6 +1,8 @@
 "use client";
 
+import { getAuthStatus } from "@/lib/backend/actions/auth-actions";
 import { waitForTransactionsAction } from "@/lib/backend/actions/purchase-actions";
+import { ensureGuestTermsAcknowledgedForBroadcast } from "@/lib/frontend/guest-terms-ack";
 import { withOperationPrefix } from "@/lib/shared/config/splApiConfig";
 import type { WaitForTransactionsResult } from "@/types/purchase/purchase-plan";
 import type {
@@ -30,6 +32,15 @@ interface BroadcastResponse {
   };
 }
 
+async function ensureGuestCanBroadcast(): Promise<void> {
+  const auth = await getAuthStatus();
+  if (auth.authenticated) {
+    return;
+  }
+
+  await ensureGuestTermsAcknowledgedForBroadcast();
+}
+
 /**
  * Single Keychain entry point for every `custom_json` the app broadcasts.
  * Applies the dev-mode operation prefix and returns the broadcast tx id.
@@ -40,6 +51,8 @@ export async function broadcastCustomJson(
   payload: object,
   method: "active" | "posting"
 ): Promise<string> {
+  await ensureGuestCanBroadcast();
+
   const win = window as HiveKeychainWindow;
   if (!win?.hive_keychain) {
     throw new Error("Hive Keychain extension not found.");
@@ -177,6 +190,8 @@ export async function broadcastHiveTransfer(args: {
   currency: "HIVE" | "HBD";
   memo: string;
 }): Promise<string> {
+  await ensureGuestCanBroadcast();
+
   const win = window as HiveKeychainWindow;
   if (!win?.hive_keychain) {
     throw new Error("Hive Keychain extension not found.");
