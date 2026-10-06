@@ -39,7 +39,7 @@ const FILTER_GROUPS: readonly FilterGroup[] = [
   { section: "showCardTypes", isActive: (f) => f.cardTypes.length > 0 },
   { section: "showFoils", isActive: (f) => f.foilCategories.length > 0 },
   { section: "showCardSearch", isActive: (f) => f.selectedCardDetailId > 0 },
-  { section: "showHideMissing", isActive: (f) => f.hideMissingCards },
+  { section: "showHideMissing", isActive: (f) => f.missingCards !== "all" },
   { section: "showFormats", isActive: (f) => f.formats.length > 0 },
   { section: "showMatchTypes", isActive: (f) => f.matchTypes.length > 0 },
   { section: "showSinceDays", isActive: (f) => f.sinceDays > 0 },

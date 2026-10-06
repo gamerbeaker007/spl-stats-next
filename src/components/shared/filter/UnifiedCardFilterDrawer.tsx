@@ -38,6 +38,8 @@ import Select from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
 import Switch from "@mui/material/Switch";
 import TextField from "@mui/material/TextField";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useEffect, useMemo } from "react";
@@ -410,17 +412,21 @@ export default function UnifiedCardFilterDrawer({
         {hasGroup5 && (
           <FilterSection title="Display Options">
             {config.showHideMissing && (
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={filter.hideMissingCards}
-                    onChange={(e) => setFilter({ hideMissingCards: e.target.checked })}
-                    size="small"
-                  />
+              // Nothing selected = show owned + missing cards.
+              <ToggleButtonGroup
+                exclusive
+                fullWidth
+                size="small"
+                value={filter.missingCards === "all" ? null : filter.missingCards}
+                onChange={(_, value: "hide" | "only" | null) =>
+                  setFilter({ missingCards: value ?? "all" })
                 }
-                label={<Typography variant="body2">Hide missing cards</Typography>}
+                aria-label="Missing cards"
                 sx={{ mb: 1 }}
-              />
+              >
+                <ToggleButton value="hide">Hide missing</ToggleButton>
+                <ToggleButton value="only">Only missing</ToggleButton>
+              </ToggleButtonGroup>
             )}
 
             {config.showGrouping && (

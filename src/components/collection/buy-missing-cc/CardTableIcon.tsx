@@ -1,6 +1,8 @@
 "use client";
 
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
+import { ARCANE_FOILS } from "@/lib/shared/card-utils";
+import { ARCANE_GLIMMER_URL } from "@/lib/staticsIconUrls";
 import type { CardFoil } from "@/types/card";
 import { Box, Tooltip } from "@mui/material";
 import Image from "next/image";
@@ -21,6 +23,9 @@ const CARD_FOIL_COLORS: Record<CardFoil, string> = {
   "black arcane": "#607d8b",
 };
 
+const CARD_WIDTH = 180;
+const CARD_HEIGHT = 252;
+
 export default function CardTableIcon({
   name,
   edition,
@@ -29,12 +34,47 @@ export default function CardTableIcon({
   ownedCc,
 }: Readonly<CardTableIconProps>) {
   const tileSrc = getCardImageByLevel(name, edition, foil, Math.max(1, level));
+
   const borderColor = CARD_FOIL_COLORS[foil] ?? "transparent";
+  const isArcane = ARCANE_FOILS.has(foil);
 
   return (
     <Tooltip
       title={
-        <Image src={tileSrc} alt={name} width={180} height={252} style={{ objectFit: "contain" }} />
+        <Box
+          sx={{
+            position: "relative",
+            width: CARD_WIDTH,
+            lineHeight: 0,
+          }}
+        >
+          {/* Card determines the height */}
+          <Image
+            src={tileSrc}
+            alt={name}
+            width={CARD_WIDTH}
+            height={CARD_HEIGHT}
+            style={{
+              width: "100%",
+              height: "auto",
+              display: "block",
+            }}
+          />
+
+          {isArcane && (
+            <Image
+              src={ARCANE_GLIMMER_URL}
+              alt=""
+              aria-hidden
+              fill
+              unoptimized
+              style={{
+                objectFit: "contain",
+                pointerEvents: "none",
+              }}
+            />
+          )}
+        </Box>
       }
       placement="right"
     >
@@ -45,7 +85,7 @@ export default function CardTableIcon({
         sx={{
           borderRadius: 1,
           border: "3px solid",
-          borderColor: borderColor,
+          borderColor,
           opacity: ownedCc > 0 ? 1 : 0.4,
           filter: ownedCc > 0 ? "none" : "grayscale(60%)",
           overflow: "hidden",
@@ -67,22 +107,6 @@ export default function CardTableIcon({
           }}
         />
       </Box>
-      {/*  Old implementation keep for reference */}
-      {/* <Box>
-        <Image
-          src={tileSrc}
-          alt={name}
-          width={46}
-          height={46}
-          style={{
-            objectFit: "cover",
-            borderRadius: 6,
-            opacity: ownedCc > 0 ? 1 : 0.4,
-            filter: ownedCc > 0 ? "none" : "grayscale(60%)",
-          }}
-        />
-      </Box>
- */}
     </Tooltip>
   );
 }

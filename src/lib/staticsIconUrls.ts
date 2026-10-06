@@ -122,3 +122,5 @@ export const resource_grain_icon_url = `${WEB_URL}website/land/resources/grain.p
 export const resource_stone_icon_url = `${WEB_URL}website/land/resources/stone_500.webp`;
 export const resource_wood_icon_url = `${WEB_URL}website/land/resources/wood_500.webp`;
 export const resource_iron_icon_url = `${WEB_URL}website/land/resources/iron_500.webp`;
+
+export const ARCANE_GLIMMER_URL = `${WEB_URL}card_effects/arcane_glimmer_full.webp`;

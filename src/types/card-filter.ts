@@ -1,5 +1,8 @@
 import type { CardFoil } from "@/types/card";
 
+/** "all" = owned + missing, "hide" = owned only, "only" = missing only. */
+export type MissingCardsMode = "all" | "hide" | "only";
+
 export interface UnifiedCardFilter {
   // Card attributes (empty array = all)
   editions: number[];
@@ -12,7 +15,7 @@ export interface UnifiedCardFilter {
   foilCategories: CardFoil[];
   cardName: string;
   selectedCardDetailId: number; // 0 = none
-  hideMissingCards: boolean; // multi-dashboard display option
+  missingCards: MissingCardsMode; // collection display option
 
   // Sorting — frontend controls whether to show UI
   sortBy: "battles" | "win_percentage" | "wins" | "losses";
@@ -47,7 +50,7 @@ export const DEFAULT_UNIFIED_FILTER: UnifiedCardFilter = {
   foilCategories: [],
   cardName: "",
   selectedCardDetailId: 0,
-  hideMissingCards: false,
+  missingCards: "all",
   sortBy: "battles",
   groupLevels: true,
   groupFoils: true,

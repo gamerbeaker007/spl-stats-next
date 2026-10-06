@@ -30,6 +30,8 @@ export function getFoilLabel(foil: number | CardFoil): string {
   return FOIL_LABELS[idx] ?? `Foil ${foil}`;
 }
 
+export const ARCANE_FOILS: ReadonlySet<CardFoil> = new Set(["gold arcane", "black arcane"]);
+
 export function toCardFoil(foil: number): CardFoil {
   return cardFoilOptions[foil] ?? "regular";
 }

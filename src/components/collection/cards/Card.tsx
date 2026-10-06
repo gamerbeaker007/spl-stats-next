@@ -1,8 +1,10 @@
 "use client";
-import { CardDetail } from "@/types/card";
+import { CardDetail, CardFoil } from "@/types/card";
 import { Box, Skeleton, Tooltip, Typography } from "@mui/material";
 import Image from "next/image";
 import { useState } from "react";
+import { ARCANE_GLIMMER_URL } from "@/lib/staticsIconUrls";
+import { ARCANE_FOILS } from "@/lib/shared/card-utils";
 
 interface Props {
   player: string;
@@ -10,6 +12,7 @@ interface Props {
   imageUrl: string;
   subTitle: string;
   allCards?: CardDetail[];
+  foil?: CardFoil;
   opacity?: number;
   priority?: boolean;
   onClick?: () => void;
@@ -28,6 +31,7 @@ export const Card = ({
   imageUrl,
   subTitle,
   allCards,
+  foil,
   opacity = 1,
   priority = false,
   onClick,
@@ -148,6 +152,27 @@ export const Card = ({
               objectFit: "contain",
             }}
           />
+          {foil && ARCANE_FOILS.has(foil) && imageLoaded && !imageError && (
+            // Animated webp — unoptimized so Next.js serves it as-is.
+            <Image
+              src={ARCANE_GLIMMER_URL}
+              alt=""
+              aria-hidden
+              width={CARD_WIDTH}
+              height={CARD_HEIGHT}
+              unoptimized
+              style={{
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                pointerEvents: "none",
+                boxSizing: "border-box",
+
+                position: "absolute",
+              }}
+            />
+          )}
           {!imageLoaded && !imageError && (
             <Skeleton
               variant="rectangular"

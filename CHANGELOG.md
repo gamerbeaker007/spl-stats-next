@@ -9,6 +9,19 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.24.0] - 2026-10-06
+
+### Updated
+
+- **Card collection missing-cards filter:** "Hide missing cards" switch replaced by a three-state toggle — nothing selected shows owned + missing, **Hide missing** shows owned only, **Only missing** shows missing only.
+- **Card collection foil ordering:** Foil variants of a card always appear in order Regular → Gold → Gold Arcane → Black → Black Arcane (owned and missing alike). The table's foil sort uses the same order.
+
+### Added
+
+- **Arcane glimmer overlay:** Gold Foil Arcane and Black Foil Arcane cards show the animated arcane glimmer effect in card view.
+
+---
+
 ## [v1.23.1] - 2026-10-04
 
 ### Added

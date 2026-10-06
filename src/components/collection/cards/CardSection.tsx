@@ -114,7 +114,6 @@ export const CardSection = ({
     let sourceOrder = 0;
 
     for (const cardItem of Object.values(playerCards)) {
-      if (filter.hideMissingCards && cardItem.allCards?.length === 0) continue;
       if (!matchesCardFilter(cardItem, filter)) continue;
       if (cardItem.edition === 9 || cardItem.edition === 11 || cardItem.edition === 16) continue;
 
@@ -164,11 +163,13 @@ export const CardSection = ({
         ? Object.values(cardsByEditionAndFoil).filter((g) => filter.foilCategories.includes(g.foil))
         : Object.values(cardsByEditionAndFoil);
 
-      if (filteredOwnedGroups.length > 0) {
+      // Collected per card so foils can be ordered before assigning sourceOrder.
+      const cardRows: Omit<DisplayItem, "sourceOrder">[] = [];
+
+      if (filter.missingCards !== "only") {
         for (const group of filteredOwnedGroups) {
-          items.push({
+          cardRows.push({
             key: `${cardItem.cardDetailId}-${group.edition}-${group.foil}`,
-            sourceOrder: sourceOrder++,
             cardItem: { ...cardItem, allCards: group.cards },
             foil: group.foil,
             highestLevel: group.highestLevel,
@@ -190,40 +191,39 @@ export const CardSection = ({
         }
       }
 
-      const includeMissing = !filter.hideMissingCards;
-      if (!includeMissing) continue;
+      if (filter.missingCards !== "hide") {
+        // Missing-foil behavior:
+        // - one foil selected => one missing row in that foil
+        // - multiple foils selected => one missing row per selected foil
+        // - no foil selected => regular foil
+        const requestedFoils: CardFoil[] =
+          filter.foilCategories.length > 0 ? filter.foilCategories : ["regular"];
+        const ownedFoilSet = new Set(Object.values(cardsByEditionAndFoil).map((g) => g.foil));
+        const missingFoils = requestedFoils.filter(
+          (foil) => cardItem.availableFoils.includes(foil) && !ownedFoilSet.has(foil)
+        );
 
-      // Missing-foil behavior:
-      // - one foil selected => one missing row in that foil
-      // - multiple foils selected => one missing row per selected foil
-      // - no foil selected => regular foil
-      const requestedFoils: CardFoil[] =
-        filter.foilCategories.length > 0 ? filter.foilCategories : ["regular"];
-      const missingFoils = requestedFoils.filter((foil) => cardItem.availableFoils.includes(foil));
-      if (missingFoils.length === 0) continue;
-
-      const ownedFoilSet = new Set(Object.values(cardsByEditionAndFoil).map((g) => g.foil));
-
-      for (const foil of missingFoils) {
-        if (ownedFoilSet.has(foil)) continue;
-
-        items.push({
-          key: `${cardItem.cardDetailId}-missing-${cardItem.edition}-${foil}`,
-          sourceOrder: sourceOrder++,
-          cardItem,
-          foil,
-          highestLevel: 0,
-          highestCc: 0,
-          totalCc: 0,
-          isMissing: true,
-          imageUrl: getCardImageByLevel(cardItem.name, cardItem.edition, foil),
-          groupCards: [],
-          priceInfo:
-            showPrices && marketPrices
-              ? marketPrices[`${cardItem.cardDetailId}-${toCardFoilInt(foil)}`]
-              : undefined,
-        });
+        for (const foil of missingFoils) {
+          cardRows.push({
+            key: `${cardItem.cardDetailId}-missing-${cardItem.edition}-${foil}`,
+            cardItem,
+            foil,
+            highestLevel: 0,
+            highestCc: 0,
+            totalCc: 0,
+            isMissing: true,
+            imageUrl: getCardImageByLevel(cardItem.name, cardItem.edition, foil),
+            groupCards: [],
+            priceInfo:
+              showPrices && marketPrices
+                ? marketPrices[`${cardItem.cardDetailId}-${toCardFoilInt(foil)}`]
+                : undefined,
+          });
+        }
       }
+
+      cardRows.sort((a, b) => toCardFoilInt(a.foil) - toCardFoilInt(b.foil));
+      for (const row of cardRows) items.push({ ...row, sourceOrder: sourceOrder++ });
     }
 
     return items;
@@ -239,7 +239,7 @@ export const CardSection = ({
           return (getRarityId(a.cardItem.rarity) ?? 0) - (getRarityId(b.cardItem.rarity) ?? 0);
         }
         if (sortBy === "edition") return a.cardItem.edition - b.cardItem.edition;
-        if (sortBy === "foil") return a.foil.localeCompare(b.foil);
+        if (sortBy === "foil") return toCardFoilInt(a.foil) - toCardFoilInt(b.foil);
         if (sortBy === "hiLv") return a.highestLevel - b.highestLevel;
         if (sortBy === "hiCc") return a.highestCc - b.highestCc;
         if (sortBy === "totCc") return a.totalCc - b.totalCc;
@@ -537,6 +537,7 @@ export const CardSection = ({
                     : `(Lvl ${item.highestLevel}) - x${item.groupCards.length}`
                 }
                 allCards={item.groupCards}
+                foil={item.foil}
                 opacity={item.isMissing ? 0.3 : 1}
                 priority={index < 6}
                 priceInfo={item.priceInfo}
