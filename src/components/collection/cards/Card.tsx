@@ -168,8 +168,8 @@ export const Card = ({
                 objectFit: "contain",
                 pointerEvents: "none",
                 boxSizing: "border-box",
-
                 position: "absolute",
+                transform: "scale(0.90)",
               }}
             />
           )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { CardSection } from "@/components/collection/cards/CardSection";
+import type { CardSort } from "@/components/collection/cards/card-sort";
 import { useCardDetails } from "@/hooks/multi-account-dashboard/useCardDetails";
 import { getDetailedPlayerCardCollection } from "@/lib/backend/actions/player-actions";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
@@ -14,12 +15,16 @@ export function PlayerCardsContent({
   selectableAccounts,
   showPrices,
   marketPrices,
+  sort,
+  onSortChange,
 }: Readonly<{
   username: string;
   showHeader?: boolean;
   selectableAccounts?: string[];
   showPrices?: boolean;
   marketPrices?: Record<string, { qty: number; lowPriceBcx: number; lowPrice: number }>;
+  sort: CardSort;
+  onSortChange: (sort: CardSort) => void;
 }>) {
   const [cardCollection, setCardCollection] = useState<DetailedPlayerCardCollection | null>(null);
   const [loading, setLoading] = useState(true);
@@ -88,6 +93,8 @@ export function PlayerCardsContent({
         selectableAccounts={selectableAccounts}
         showPrices={showPrices}
         marketPrices={marketPrices}
+        sort={sort}
+        onSortChange={onSortChange}
       />
     </Box>
   );

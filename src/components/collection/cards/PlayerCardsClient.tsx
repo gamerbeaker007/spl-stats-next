@@ -1,6 +1,13 @@
 "use client";
 
 import { CardFilterDrawer } from "@/components/collection/cards/CardFilterDrawer";
+import {
+  CARD_SORT_OPTIONS,
+  type CardSort,
+  type CardSortField,
+  DEFAULT_CARD_SORT,
+  isPriceSort,
+} from "@/components/collection/cards/card-sort";
 import { PlayerCardsContent } from "@/components/collection/cards/PlayerCardsContent";
 import MarketViewToggle from "@/components/collection/marketplace/MarketViewToggle";
 import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
@@ -8,20 +15,24 @@ import { getCollectionMarketPricesAction } from "@/lib/backend/actions/buy-missi
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import { CardFilterProvider } from "@/lib/frontend/context/CardFilterContext";
+import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import {
   Box,
   Button,
   Checkbox,
   FormControlLabel,
+  IconButton,
+  MenuItem,
   Skeleton,
   Stack,
+  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MdRefresh } from "react-icons/md";
+import { MdArrowDownward, MdArrowUpward, MdRefresh } from "react-icons/md";
 
 function PlayerCardsSkeleton() {
   return (
@@ -61,7 +72,10 @@ function DashboardContent() {
   const { notifyCollectionRefresh } = usePurchasePlan();
   const [addAccountInput, setAddAccountInput] = useState("");
   const [refreshCooldown, setRefreshCooldown] = useState(false);
+  const { viewMode } = useMarketplaceView();
   const [showPrices, setShowPrices] = useState(false);
+  // Shared by card and table view, so a header-click sort in the table carries over.
+  const [sort, setSort] = useState<CardSort>(DEFAULT_CARD_SORT);
   const [marketPrices, setMarketPrices] = useState<
     Record<string, { qty: number; lowPriceBcx: number; lowPrice: number }> | undefined
   >(undefined);
@@ -117,21 +131,22 @@ function DashboardContent() {
     router.replace(`${pathname}?users=${encodeURIComponent(nextParam)}`);
   }, [pathname, router, selectedUsers, userParam]);
 
+  // The table always shows prices; card view needs them when shown or sorted by price.
+  const needsPrices = viewMode === "table" || showPrices || isPriceSort(sort.field);
+
   useEffect(() => {
-    if (!showPrices) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setMarketPrices(undefined);
-      return;
-    }
+    if (!needsPrices || marketPrices) return;
     getCollectionMarketPricesAction().then(setMarketPrices);
-  }, [showPrices]);
+  }, [needsPrices, marketPrices]);
 
   return (
     <Box>
       <Box
         sx={{
           display: "flex",
-          justifyContent: "center",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 1.5,
           mb: 4,
           p: 2,
           borderRadius: 2,
@@ -158,16 +173,6 @@ function DashboardContent() {
           onRemoveAccount={removeLocalAccount}
           extraContent={
             <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={showPrices}
-                    onChange={(e) => setShowPrices(e.target.checked)}
-                  />
-                }
-                label="Show Prices"
-              />
               <MarketViewToggle />
               <Tooltip
                 title={
@@ -189,6 +194,43 @@ function DashboardContent() {
             </Stack>
           }
         />
+        {viewMode === "card" && (
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  size="small"
+                  checked={showPrices}
+                  onChange={(e) => setShowPrices(e.target.checked)}
+                />
+              }
+              label="Show Prices"
+            />
+            <TextField
+              select
+              size="small"
+              label="Sort by"
+              value={sort.field}
+              onChange={(e) => setSort({ field: e.target.value as CardSortField, dir: sort.dir })}
+              sx={{ minWidth: 160 }}
+            >
+              {CARD_SORT_OPTIONS.map((option) => (
+                <MenuItem key={option.value} value={option.value}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </TextField>
+            <Tooltip title={sort.dir === "asc" ? "Ascending" : "Descending"}>
+              <IconButton
+                size="small"
+                aria-label="Toggle sort direction"
+                onClick={() => setSort({ ...sort, dir: sort.dir === "asc" ? "desc" : "asc" })}
+              >
+                {sort.dir === "asc" ? <MdArrowUpward /> : <MdArrowDownward />}
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        )}
       </Box>
 
       {selectedUsers.length > 0 ? (
@@ -197,6 +239,8 @@ function DashboardContent() {
             selectedUsers={selectedUsers}
             showPrices={showPrices}
             marketPrices={marketPrices}
+            sort={sort}
+            onSortChange={setSort}
           />
         </CardFilterProvider>
       ) : (
@@ -212,10 +256,14 @@ function DrawerAndContent({
   selectedUsers,
   showPrices,
   marketPrices,
+  sort,
+  onSortChange,
 }: Readonly<{
   selectedUsers: string[];
   showPrices?: boolean;
   marketPrices?: Record<string, { qty: number; lowPriceBcx: number; lowPrice: number }>;
+  sort: CardSort;
+  onSortChange: (sort: CardSort) => void;
 }>) {
   const multipleSelected = selectedUsers.length > 1;
 
@@ -242,6 +290,8 @@ function DrawerAndContent({
                 selectableAccounts={selectedUsers}
                 showPrices={showPrices}
                 marketPrices={marketPrices}
+                sort={sort}
+                onSortChange={onSortChange}
               />
             </Suspense>
           </Box>

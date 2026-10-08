@@ -9,6 +9,19 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.25.0] - 2026-10-07
+
+### Updated
+
+- **Card collection — sorting & prices:** Card view now has a "Sort by" select + direction toggle. Sort state is shared with the table view, so a header-click sort in the table carries over to the card view (and back). The table view always shows prices (the "Show Prices" checkbox is gone there). "Show Prices" and the sort controls moved to a second toolbar row below the account selection and are only shown in card view.
+- **Card collection — "only missing" mode:** Missing cards are no longer greyed out when the filter is set to show only missing cards (in both card and table view), since every card would be grey.
+
+### Fixed
+
+- **Leaderboard sync — "valid bracket" error:** From season 192 the SPL `leaderboard_with_player` endpoint answers with `{ "error": "Please include a valid bracket for <format>." }` instead of an empty `{ player }` stub when an account did not play a format. `fetchLeaderboardWithPlayer` now treats this explicitly as "not ranked" (`null`), both on HTTP 200 and on a 4xx status, so the season is skipped and the format sync is no longer at risk of being marked `failed`.
+
+---
+
 ## [v1.24.0] - 2026-10-06
 
 ### Updated

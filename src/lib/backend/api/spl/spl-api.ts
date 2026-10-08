@@ -211,7 +211,11 @@ export async function fetchPlayerDetails(username: string): Promise<SplPlayerDet
 // Leaderboard (public — no token required)
 // ---------------------------------------------------------------------------
 
-/** Fetch the player's leaderboard entry for a given season and format. Returns null if not ranked. */
+/**
+ * Fetch the player's leaderboard entry for a given season and format. Returns null if not ranked.
+ * Since season 192 the API answers with `{ error: "Please include a valid bracket for <format>." }`
+ * (instead of a `{ player: username }` stub) when the player did not play that format — treated as null.
+ */
 export async function fetchLeaderboardWithPlayer(
   username: string,
   season: number,
@@ -221,9 +225,28 @@ export async function fetchLeaderboardWithPlayer(
     const res = await splBaseClient.get("/players/leaderboard_with_player", {
       params: { season, format, username },
     });
-    const data = res.data as SplLeaderboardResponse;
+    const data = res.data as SplLeaderboardResponse & { error?: string };
+    if (data?.error) {
+      logger.info(`No leaderboard entry for ${username}/${format}/season${season}: ${data.error}`);
+      return null;
+    }
     return data?.player ?? null;
   } catch (error) {
+    // Same "no bracket" response, but delivered with a 4xx status
+    const errorData = axios.isAxiosError(error) ? error.response?.data : undefined;
+    const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+    if (
+      status != null &&
+      status >= 400 &&
+      status < 500 &&
+      typeof errorData?.error === "string" &&
+      errorData.error.includes("valid bracket")
+    ) {
+      logger.info(
+        `No leaderboard entry for ${username}/${format}/season${season}: ${errorData.error}`
+      );
+      return null;
+    }
     logger.error(
       `Failed to fetch leaderboard ${username}/${format}/season${season}: ${error instanceof Error ? error.message : "Unknown error"}`
     );

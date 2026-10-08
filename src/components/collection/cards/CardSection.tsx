@@ -34,32 +34,23 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MdLocalOffer } from "react-icons/md";
 import { Card } from "./Card";
+import type { CardSort, CardSortField } from "./card-sort";
 
 interface CardSectionProps {
   username: string;
   playerCards: DetailedPlayerCardCollection;
   selectableAccounts?: string[];
+  /** Card view only — the table always shows prices. */
   showPrices?: boolean;
   marketPrices?: Record<string, { qty: number; lowPriceBcx: number; lowPrice: number }>;
+  sort: CardSort;
+  onSortChange: (sort: CardSort) => void;
 }
 
 type DialogCard = DetailedPlayerCardCollectionItem & {
   foil: CardFoil;
   currentCc: number;
 };
-
-type SortField =
-  | "default"
-  | "name"
-  | "rarity"
-  | "edition"
-  | "foil"
-  | "hiLv"
-  | "hiCc"
-  | "totCc"
-  | "priceCc"
-  | "oneCc"
-  | "listed";
 
 type DisplayItem = {
   key: string;
@@ -91,6 +82,8 @@ export const CardSection = ({
   selectableAccounts,
   showPrices,
   marketPrices,
+  sort,
+  onSortChange,
 }: CardSectionProps) => {
   const { filter } = useCardFilter();
   const { addItems } = usePurchasePlan();
@@ -99,8 +92,9 @@ export const CardSection = ({
   const [feedback, setFeedback] = useState<string | null>(null);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [dialogCard, setDialogCard] = useState<DialogCard | null>(null);
-  const [sortBy, setSortBy] = useState<SortField>("default");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const { field: sortBy, dir: sortDir } = sort;
+  // Every card is missing in "only" mode, so the greyed-out missing styling adds nothing.
+  const dimMissing = filter.missingCards !== "only";
   const [visibleCount, setVisibleCount] = useState(GRID_BATCH_SIZE);
   const gridSentinelRef = useRef<HTMLDivElement | null>(null);
 
@@ -183,10 +177,7 @@ export const CardSection = ({
               group.highestLevel
             ),
             groupCards: group.cards,
-            priceInfo:
-              showPrices && marketPrices
-                ? marketPrices[`${cardItem.cardDetailId}-${toCardFoilInt(group.foil)}`]
-                : undefined,
+            priceInfo: marketPrices?.[`${cardItem.cardDetailId}-${toCardFoilInt(group.foil)}`],
           });
         }
       }
@@ -214,10 +205,7 @@ export const CardSection = ({
             isMissing: true,
             imageUrl: getCardImageByLevel(cardItem.name, cardItem.edition, foil),
             groupCards: [],
-            priceInfo:
-              showPrices && marketPrices
-                ? marketPrices[`${cardItem.cardDetailId}-${toCardFoilInt(foil)}`]
-                : undefined,
+            priceInfo: marketPrices?.[`${cardItem.cardDetailId}-${toCardFoilInt(foil)}`],
           });
         }
       }
@@ -227,7 +215,7 @@ export const CardSection = ({
     }
 
     return items;
-  }, [filter, playerCards, showPrices, marketPrices]);
+  }, [filter, playerCards, marketPrices]);
 
   const sortedItems = useMemo(() => {
     const next = [...displayItems];
@@ -288,13 +276,12 @@ export const CardSection = ({
 
   const visibleGridItems = sortedItems.slice(0, visibleCount);
 
-  function toggleSort(field: SortField) {
+  function toggleSort(field: CardSortField) {
     if (sortBy === field) {
-      setSortDir((prev) => (prev === "asc" ? "desc" : "asc"));
+      onSortChange({ field, dir: sortDir === "asc" ? "desc" : "asc" });
       return;
     }
-    setSortBy(field);
-    setSortDir("asc");
+    onSortChange({ field, dir: "asc" });
   }
 
   return (
@@ -436,7 +423,11 @@ export const CardSection = ({
                 const editionIcon = getEditionIconUrl(item.cardItem.edition);
 
                 return (
-                  <TableRow key={item.key} hover sx={{ opacity: item.isMissing ? 0.65 : 1 }}>
+                  <TableRow
+                    key={item.key}
+                    hover
+                    sx={{ opacity: item.isMissing && dimMissing ? 0.65 : 1 }}
+                  >
                     <TableCell sx={{ minWidth: 70, maxWidth: 70, px: 0.5 }}>
                       <CardTableIcon
                         name={item.cardItem.name}
@@ -538,9 +529,9 @@ export const CardSection = ({
                 }
                 allCards={item.groupCards}
                 foil={item.foil}
-                opacity={item.isMissing ? 0.3 : 1}
+                opacity={item.isMissing && dimMissing ? 0.3 : 1}
                 priority={index < 6}
-                priceInfo={item.priceInfo}
+                priceInfo={showPrices ? item.priceInfo : undefined}
                 onClick={() =>
                   openBuyDialog({
                     ...item.cardItem,
