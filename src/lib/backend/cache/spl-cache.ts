@@ -21,6 +21,7 @@ import {
 } from "@/lib/backend/api/spl/vapi-spl";
 import { CACHE_TAGS } from "@/lib/backend/cache/cache-tags";
 import { getPlayerPoolBalances } from "@/lib/backend/services/pool-balances";
+import { MARKET_PRICE_REFRESH_SECONDS } from "@/lib/shared/market-refresh";
 import type {
   MarketplaceAssetItem,
   MarketplaceAssetName,
@@ -49,11 +50,27 @@ export async function getCachedSplCardDetails() {
   return fetchCardDetails();
 }
 
+/**
+ * Short-lived so the polling card pages see fresh prices; see MARKET_PRICE_REFRESH_SECONDS.
+ * `fetchedAt` is when this cache entry was fetched from SPL, i.e. the real data age.
+ *
+ * Stale-while-revalidate would serve a 60s poll data up to ~2 intervals old, so:
+ * - revalidate at half the interval: busy pages get a background refresh in between;
+ * - expire at the interval: an entry older than that is never served, the request
+ *   waits for a fresh SPL fetch instead.
+ * Result: every poll gets data at most one interval old, and SPL is still hit at
+ * most once per half interval no matter how many clients poll.
+ */
 export async function getCachedSplGroupedMarket() {
   "use cache";
-  cacheLife("hours");
+  cacheLife({
+    stale: MARKET_PRICE_REFRESH_SECONDS,
+    revalidate: MARKET_PRICE_REFRESH_SECONDS / 2,
+    expire: MARKET_PRICE_REFRESH_SECONDS,
+  });
   cacheTag(CACHE_TAGS.splGroupedMarket);
-  return fetchMarketForSaleGrouped();
+  const entries = await fetchMarketForSaleGrouped();
+  return { entries, fetchedAt: new Date().toISOString() };
 }
 
 export async function getCachedSplCardCollection(username: string) {

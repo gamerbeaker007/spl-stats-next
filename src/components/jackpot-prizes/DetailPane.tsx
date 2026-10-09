@@ -1,28 +1,20 @@
 "use client";
 
-import { useCardHistory } from "@/hooks/jackpot-prizes/useCardHistory";
+import CardHistoryTable from "@/components/shared/CardHistoryTable";
+import { useCardHistory } from "@/hooks/useCardHistory";
 import { useMintData } from "@/hooks/jackpot-prizes/useMintData";
 import { usePeakMonsterPrices } from "@/hooks/jackpot-prizes/usePeakMonsterPrices";
 import { getFoilLabel } from "@/lib/shared/card-utils";
-import { CardHistoryItem } from "@/types/jackpot-prizes/cardHistory";
 import { CardPrizeData, MintHistoryItem } from "@/types/jackpot-prizes/shared";
 import { SplCardDetail } from "@/types/spl/cardDetails";
 import { ArrowBack, Close, Info } from "@mui/icons-material";
 import {
-  Alert,
   Box,
   Chip,
   CircularProgress,
-  Divider,
   IconButton,
   Paper,
   SwipeableDrawer,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Tooltip,
   Typography,
   useMediaQuery,
@@ -197,33 +189,6 @@ export default function DetailPane({ selection, onClose }: Props) {
     fetchCardHistory(mint.uid);
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      return new Date(dateString).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
-    } catch {
-      return dateString;
-    }
-  };
-
-  const getTransferTypeColor = (type: string): "success" | "warning" | "info" | "default" => {
-    switch (type.toLowerCase()) {
-      case "market_purchase":
-        return "success";
-      case "market_sale":
-        return "warning";
-      case "transfer":
-        return "info";
-      default:
-        return "default";
-    }
-  };
-
   const header = !selection ? null : (
     <Box
       sx={{
@@ -343,83 +308,12 @@ export default function DetailPane({ selection, onClose }: Props) {
 
           {view === "history" && (
             <>
-              {historyLoading ? (
-                <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-                  <CircularProgress />
-                </Box>
-              ) : historyError ? (
-                <Alert severity="error">{historyError}</Alert>
-              ) : !cardHistory || cardHistory.length === 0 ? (
-                <Typography variant="body2" color="text.secondary" textAlign="center" mt={4}>
-                  No card history available
-                </Typography>
-              ) : (
-                <Box>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ mb: 1, display: "block" }}
-                  >
-                    {cardHistory.length} transaction{cardHistory.length !== 1 ? "s" : ""}
-                  </Typography>
-                  <Divider sx={{ mb: 1 }} />
-                  <TableContainer>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell sx={{ fontSize: "0.7rem", fontWeight: "bold", px: 0.5 }}>
-                            Date
-                          </TableCell>
-                          <TableCell sx={{ fontSize: "0.7rem", fontWeight: "bold", px: 0.5 }}>
-                            Type
-                          </TableCell>
-                          <TableCell sx={{ fontSize: "0.7rem", fontWeight: "bold", px: 0.5 }}>
-                            From
-                          </TableCell>
-                          <TableCell sx={{ fontSize: "0.7rem", fontWeight: "bold", px: 0.5 }}>
-                            To
-                          </TableCell>
-                          <TableCell sx={{ fontSize: "0.7rem", fontWeight: "bold", px: 0.5 }}>
-                            Amount
-                          </TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {(cardHistory as CardHistoryItem[]).map((item, index) => (
-                          <TableRow key={`${item.card_id}-${index}`} hover>
-                            <TableCell sx={{ fontSize: "0.7rem", px: 0.5 }}>
-                              {formatDate(item.transfer_date)}
-                            </TableCell>
-                            <TableCell sx={{ px: 0.5 }}>
-                              <Chip
-                                label={item.transfer_type.replace("_", " ")}
-                                size="small"
-                                color={getTransferTypeColor(item.transfer_type)}
-                                sx={{ fontSize: "0.6rem", height: 18 }}
-                              />
-                            </TableCell>
-                            <TableCell sx={{ fontSize: "0.7rem", px: 0.5 }}>
-                              {item.from_player || "—"}
-                            </TableCell>
-                            <TableCell sx={{ fontSize: "0.7rem", px: 0.5 }}>
-                              {item.to_player || "—"}
-                            </TableCell>
-                            <TableCell sx={{ fontSize: "0.7rem", px: 0.5 }}>
-                              {item.payment_amount && parseFloat(item.payment_amount) > 0 ? (
-                                <Typography variant="body2" fontSize="0.7rem" color="success.main">
-                                  ${item.payment_amount} {item.payment_currency}
-                                </Typography>
-                              ) : (
-                                "—"
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Box>
-              )}
+              <CardHistoryTable
+                cardHistory={cardHistory}
+                loading={historyLoading}
+                error={historyError}
+                dense
+              />
             </>
           )}
         </Box>
@@ -515,87 +409,12 @@ export default function DetailPane({ selection, onClose }: Props) {
             )}
             {view === "history" && (
               <>
-                {historyLoading ? (
-                  <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-                    <CircularProgress />
-                  </Box>
-                ) : historyError ? (
-                  <Alert severity="error">{historyError}</Alert>
-                ) : !cardHistory || cardHistory.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary" textAlign="center" mt={4}>
-                    No card history available
-                  </Typography>
-                ) : (
-                  <Box>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ mb: 1, display: "block" }}
-                    >
-                      {cardHistory.length} transaction{cardHistory.length !== 1 ? "s" : ""}
-                    </Typography>
-                    <Divider sx={{ mb: 1 }} />
-                    <TableContainer>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell sx={{ fontSize: "0.7rem", fontWeight: "bold", px: 0.5 }}>
-                              Date
-                            </TableCell>
-                            <TableCell sx={{ fontSize: "0.7rem", fontWeight: "bold", px: 0.5 }}>
-                              Type
-                            </TableCell>
-                            <TableCell sx={{ fontSize: "0.7rem", fontWeight: "bold", px: 0.5 }}>
-                              From
-                            </TableCell>
-                            <TableCell sx={{ fontSize: "0.7rem", fontWeight: "bold", px: 0.5 }}>
-                              To
-                            </TableCell>
-                            <TableCell sx={{ fontSize: "0.7rem", fontWeight: "bold", px: 0.5 }}>
-                              Amount
-                            </TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {(cardHistory as CardHistoryItem[]).map((item, index) => (
-                            <TableRow key={`${item.card_id}-${index}`} hover>
-                              <TableCell sx={{ fontSize: "0.7rem", px: 0.5 }}>
-                                {formatDate(item.transfer_date)}
-                              </TableCell>
-                              <TableCell sx={{ px: 0.5 }}>
-                                <Chip
-                                  label={item.transfer_type.replace("_", " ")}
-                                  size="small"
-                                  color={getTransferTypeColor(item.transfer_type)}
-                                  sx={{ fontSize: "0.6rem", height: 18 }}
-                                />
-                              </TableCell>
-                              <TableCell sx={{ fontSize: "0.7rem", px: 0.5 }}>
-                                {item.from_player || "—"}
-                              </TableCell>
-                              <TableCell sx={{ fontSize: "0.7rem", px: 0.5 }}>
-                                {item.to_player || "—"}
-                              </TableCell>
-                              <TableCell sx={{ fontSize: "0.7rem", px: 0.5 }}>
-                                {item.payment_amount && parseFloat(item.payment_amount) > 0 ? (
-                                  <Typography
-                                    variant="body2"
-                                    fontSize="0.7rem"
-                                    color="success.main"
-                                  >
-                                    ${item.payment_amount} {item.payment_currency}
-                                  </Typography>
-                                ) : (
-                                  "—"
-                                )}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </Box>
-                )}
+                <CardHistoryTable
+                  cardHistory={cardHistory}
+                  loading={historyLoading}
+                  error={historyError}
+                  dense
+                />
               </>
             )}
           </Box>

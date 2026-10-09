@@ -1,30 +1,22 @@
 "use server";
 
-import {
-  fetchFrontierDrawsRecentPrizes,
-  fetchMintHistory,
-  fetchMintHistoryByDate,
-  fetchRankedDrawsRecentPrizes,
-} from "@/lib/backend/api/spl/spl-api";
+import { getCachedMintHistory, getCachedRecentPrizes } from "@/lib/backend/cache/jackpot-cache";
 import { MintHistoryResponse, RecentWinner } from "@/types/jackpot-prizes/shared";
 
 export async function getMintHistoryAction(
   foil: number,
   cardId: number
 ): Promise<MintHistoryResponse> {
-  return await fetchMintHistory(foil, cardId);
+  return await getCachedMintHistory(foil, cardId);
 }
 
 export async function getRecentWinnersAction(edition: number = 14): Promise<RecentWinner[]> {
   const foilTypes = [2, 3, 4];
 
-  const fetchForFoil = (foil: number) => {
-    if (edition === 18) return fetchRankedDrawsRecentPrizes(foil);
-    if (edition === 15) return fetchFrontierDrawsRecentPrizes(foil);
-    return fetchMintHistoryByDate(foil, edition);
-  };
-
-  const results = await Promise.allSettled(foilTypes.map(fetchForFoil));
+  // Cached per foil, so a failed foil is retried next time instead of cached as empty.
+  const results = await Promise.allSettled(
+    foilTypes.map((foil) => getCachedRecentPrizes(edition, foil))
+  );
 
   const combined: RecentWinner[] = [];
 

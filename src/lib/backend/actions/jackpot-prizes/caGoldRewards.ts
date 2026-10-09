@@ -1,8 +1,8 @@
 "use server";
 
-import { fetchJackPotGold } from "@/lib/backend/api/spl/spl-api";
+import { getCachedCaGoldRewards } from "@/lib/backend/cache/jackpot-cache";
 import { SplCAGoldReward } from "@/types/jackpot-prizes/cardCollection";
 
 export async function getJackpotGoldCards(): Promise<SplCAGoldReward[]> {
-  return await fetchJackPotGold();
+  return await getCachedCaGoldRewards();
 }

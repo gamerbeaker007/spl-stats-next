@@ -53,6 +53,22 @@ model MonitoredAccount {
   @@map("monitored_accounts")
 }
 
+// Card + foil a user watches. Prices are a snapshot taken at watch time and are
+// never updated; unwatching deletes the row, re-watching takes a new snapshot.
+model CardWatch {
+  id                 String   @id @default(cuid())
+  username           String // logged-in user's username (User.username)
+  cardDetailId       Int      @map("card_detail_id")
+  foil               Int // index into cardFoilOptions
+  lowPriceBcxAtWatch Float    @map("low_price_bcx_at_watch") // Price/CC
+  lowPriceAtWatch    Float    @map("low_price_at_watch") // 1 CC
+  watchedAt          DateTime @default(now()) @map("watched_at")
+
+  @@unique([username, cardDetailId, foil])
+  @@index([username])
+  @@map("card_watches")
+}
+
 // Centralised SPL account token store.
 // One row per unique SPL username; multiple users can link to the same row
 // without needing to re-authenticate via Keychain.

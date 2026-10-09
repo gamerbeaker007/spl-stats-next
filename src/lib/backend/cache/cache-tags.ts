@@ -5,6 +5,7 @@ export const CACHE_TAGS = {
   splGroupedMarket: "spl:grouped-market",
   splListingPrices: "spl:listing-prices",
   splMarketPrices: "spl:market-prices",
+  splJackpot: "spl:jackpot",
   splCollection: (username: string) => `spl:collection:${username.toLowerCase()}`,
   splBalances: (username: string) => `spl:balances:${username.toLowerCase()}`,
   splMarketplace: (username: string) => `spl:marketplace:${username.toLowerCase()}`,

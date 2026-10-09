@@ -27,6 +27,7 @@ import type { CardStats } from "@/types/spl/cardDetails";
 import { WarningAmber } from "@mui/icons-material";
 import {
   Alert,
+  alpha,
   Box,
   Button,
   Checkbox,
@@ -213,7 +214,7 @@ export default function TargetLevelTabContent({
             </TableRow>
           </TableHead>
           <TableBody>
-            {targetRows.map((row) => {
+            {targetRows.map((row, i) => {
               const highlighted = row.level === accountHighestLevel;
               const canPurchaseRow = row.isTargetable && row.planItems.length > 0 && row.fulfilled;
 
@@ -238,7 +239,7 @@ export default function TargetLevelTabContent({
                 <TableRow
                   key={row.level}
                   selected={highlighted}
-                  sx={{
+                  sx={(theme) => ({
                     "& td": {
                       ...(targetBottom && {
                         borderTop: "2px solid",
@@ -250,10 +251,13 @@ export default function TargetLevelTabContent({
                         borderBottomColor: "error.main",
                       }),
                     },
-                  }}
+
+                    backgroundColor:
+                      i % 2 === 1 ? alpha(theme.palette.primary.main, 0.08) : undefined,
+                  })}
                 >
                   <TableCell>
-                    <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap">
+                    <Stack direction="row" spacing={0.5} alignItems="center">
                       {row.playableBrackets.map((bracket) => {
                         const logo = findLeagueLogoUrl("modern", BRACKET_LOGO_LEAGUE[bracket]);
                         if (!logo) return null;
@@ -282,7 +286,7 @@ export default function TargetLevelTabContent({
                     </TableCell>
                   ))}
                   <TableCell>
-                    <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                    <Stack direction="row" spacing={0.5}>
                       {row.abilities.map((ability) => (
                         <Tooltip key={`${row.level}-${ability}`} title={ability}>
                           <Box sx={{ display: "inline-flex" }}>

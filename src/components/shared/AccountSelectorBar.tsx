@@ -78,7 +78,7 @@ export default function AccountSelectorBar(props: Readonly<AccountSelectorBarPro
         sx={{
           maxWidth: "100%",
           flexWrap: "wrap",
-          gap: 0.5,
+          gap: 0,
         }}
       >
         {accounts.map((account) => (

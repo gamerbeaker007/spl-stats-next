@@ -724,11 +724,13 @@ export default function BuyCardDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      fullWidth
-      maxWidth="xl"
+      // Sized by its content (tables) up to "lg" instead of stretching to "xl";
+      // minWidth from md keeps it stable when switching tabs; smaller screens keep MUI's 100% - margins.
+      maxWidth="lg"
       sx={{
         mt: `${topOffsetPx ?? 0}px`,
       }}
+      slotProps={{ paper: { sx: { minWidth: { md: 800 } } } }}
     >
       <DialogTitle>
         <Stack direction="row" alignItems="center" spacing={2}>
@@ -898,7 +900,7 @@ export default function BuyCardDialog({
         >
           <TransactionProgressPanel txProgress={txProgress} />
           <Stack direction="row" spacing={1} alignItems="center" sx={{ flexWrap: "wrap", mr: 2 }}>
-            <Typography variant="body2">Balance ({account}):</Typography>
+            <Typography variant="body2">Balance ({selectedAccount}):</Typography>
             <Avatar src={dec_icon_url} alt="DEC" sx={{ width: 16, height: 16 }} />
             <Typography variant="body2">{largeNumberFormat(balance.DEC)}</Typography>
             <Divider orientation="vertical" flexItem />

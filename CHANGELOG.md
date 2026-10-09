@@ -9,6 +9,31 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.26.0] - 2026-10-09
+
+### Added
+
+- **Card watchlist:** Logged-in users can watch a card + foil with the heart icon (top right of the card image in card view, first column in table view). Watching stores a snapshot of the current Price/CC and 1 CC price (taken server-side from the grouped market data) plus the watch date in the new `card_watches` table. Unwatching deletes the record; watching again takes a new snapshot. Card view shows the change since watching (`+x% / +y%`) under the card, the table has `Δ Price/CC` and `Δ 1 CC` columns, and hovering the heart shows watched vs. current vs. change.
+- **Card collection table pagination:** The table view is paginated (50 / 100 / 200 rows per page, default 50) instead of rendering every row at once. Changing filters or sort jumps back to page 1; a live price refresh keeps the current page.
+- **Card history:** Owned cards in card view have a history icon (top row) that opens the transfer/market history of the card in a dialog. When a card + foil group holds several copies, a select lets you pick the copy (highest level / CC first).
+- **Watched only filter:** New checkbox on the card collection page, combined with the existing filters. Shows unowned watched foils too.
+- **Live prices:** The card collection page re-fetches grouped market prices every minute (paused while the tab is hidden). Changed prices flash bold red (up) or green (down) and fade back over 10 seconds. A "Prices: <time>" label next to the card count shows when the server fetched the data from SPL and flashes when new data arrives. The listed count flashes in a neutral color when it changes.
+
+### Updated
+
+- **Card history table:** One shared `CardHistoryTable` (`components/shared/`) replaces the three copies in the jackpot detail pane (mobile + desktop) and `CardHistoryTooltip`. The collection history dialog now uses the `md` width and the table has no fixed size limits, so it uses the available space on bigger screens. `useCardHistory` moved to `src/hooks/` since it's shared.
+- **Buy card dialog width:** No longer stretches to the full `xl` width on large screens. It sizes to its tables up to `lg`, with a minimum width of 800px from the `md` breakpoint so switching tabs doesn't jump; mobile is unchanged.
+- **Grouped market cache:** `getCachedSplGroupedMarket` now refreshes within 60 seconds instead of hourly (revalidate 30s, expire 60s, so a poll never gets data older than one interval). Interval is set by `MARKET_PRICE_REFRESH_SECONDS` (`lib/shared/market-refresh.ts`), which also drives the client poll interval. All clients poll the shared server cache, so the SPL API is still hit at most once per interval.
+- **Card tile:** Bigger card (width set by `CARD_DISPLAY_WIDTH`, height follows the image ratio). With "Show Prices" on, prices are overlaid on the image: listed count top left, Price/CC bottom left, 1 CC bottom right.
+
+### Fixed
+
+- **SPL rate limits from jackpot pages:** Jackpot overview, ranked/frontier prize overviews, CA gold rewards, jackpot skins/music, recent winners, mint history, card history and PeakMonsters prices/bids were fetched from the API on every page view (and per click). They now go through a shared 15-minute server cache (`lib/backend/cache/jackpot-cache.ts`, tag `spl:jackpot`), so many visitors cost about as much as one. Failed calls are not cached.
+- **Mint history refetch loop:** `useMintData` kept re-requesting a card's mint history while the request failed (e.g. during a 429). Each card + foil is now requested once per page visit.
+- **Edition tier cards:** Mint history for the tier grids is fetched 5 cards at a time instead of all at once, and a failed call no longer gets cached as zero minted for hours.
+
+---
+
 ## [v1.25.0] - 2026-10-07
 
 ### Updated

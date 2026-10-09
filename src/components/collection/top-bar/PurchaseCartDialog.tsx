@@ -190,18 +190,6 @@ export default function PurchaseCartDialog() {
             ))}
           </Box>
 
-          <Box>
-            <Button
-              variant="outlined"
-              color="error"
-              size="small"
-              onClick={clear}
-              disabled={items.length === 0}
-            >
-              Clear Cart
-            </Button>
-          </Box>
-
           <ScrollableTableContainer>
             <Table size="small" stickyHeader>
               <TableHead>
@@ -309,7 +297,24 @@ export default function PurchaseCartDialog() {
             />
           ))}
         </Stack>
-        <Button onClick={handleClose}>Close</Button>
+        <Button size="small" onClick={handleClose}>
+          Close
+        </Button>
+
+        <Box>
+          <Button
+            variant="outlined"
+            color="error"
+            size="small"
+            onClick={clear}
+            disabled={busy || items.length === 0}
+            hidden={items.length === 0}
+            sx={{ whiteSpace: "nowrap" }}
+          >
+            Clear Cart
+          </Button>
+        </Box>
+
         <Tooltip
           title={
             !canCheckoutDec && items.length > 0 ? "One or more accounts has insufficient DEC" : ""
@@ -318,8 +323,10 @@ export default function PurchaseCartDialog() {
           <span>
             <Button
               variant="contained"
+              size="small"
               onClick={() => runCheckout("DEC")}
               disabled={busy || items.length === 0 || !canCheckoutDec}
+              sx={{ whiteSpace: "nowrap" }}
             >
               {busy ? "Processing..." : "Buy with DEC"}
             </Button>
@@ -335,10 +342,12 @@ export default function PurchaseCartDialog() {
           <span>
             <Button
               variant="contained"
+              size="small"
               onClick={() => runCheckout("CREDITS")}
               disabled={busy || items.length === 0 || !canCheckoutCredits}
+              sx={{ whiteSpace: "nowrap" }}
             >
-              {busy ? "Processing..." : "Buy with Credits"}
+              {busy ? "Processing..." : "Buy With Credits"}
             </Button>
           </span>
         </Tooltip>

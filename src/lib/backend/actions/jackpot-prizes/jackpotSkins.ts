@@ -1,12 +1,15 @@
 "use server";
 
 import { SplSkin } from "@/types/spl/jackpot";
-import { fetchJackPotSkins, fetchMinorJackpotSkins } from "@/lib/backend/api/spl/spl-api";
+import {
+  getCachedJackpotSkins,
+  getCachedMinorJackpotSkins,
+} from "@/lib/backend/cache/jackpot-cache";
 
 export async function getJackpotSkins(): Promise<SplSkin[]> {
-  return await fetchJackPotSkins();
+  return await getCachedJackpotSkins();
 }
 
 export async function getMinorJackpotSkins(): Promise<SplSkin[]> {
-  return await fetchMinorJackpotSkins();
+  return await getCachedMinorJackpotSkins();
 }

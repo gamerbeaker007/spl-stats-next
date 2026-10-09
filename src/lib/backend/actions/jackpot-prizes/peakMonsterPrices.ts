@@ -2,14 +2,14 @@
 
 import { PKBidsResponse, PKPricesResponse } from "@/types/jackpot-prizes/pkPrices";
 import {
-  fetchPeakMonsterPrices,
-  fetchPeakMonsterTopBids,
-} from "../../api/peakmonsters/peakmonsters-api";
+  getCachedPeakMonsterPrices,
+  getCachedPeakMonsterTopBids,
+} from "@/lib/backend/cache/jackpot-cache";
 
 export async function getPeakMonsterPricesAction(): Promise<PKPricesResponse> {
-  return await fetchPeakMonsterPrices();
+  return await getCachedPeakMonsterPrices();
 }
 
 export async function getPeakMonsterTopBidsAction(): Promise<PKBidsResponse> {
-  return await fetchPeakMonsterTopBids();
+  return await getCachedPeakMonsterTopBids();
 }

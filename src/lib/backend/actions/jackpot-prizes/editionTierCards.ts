@@ -1,12 +1,14 @@
 "use server";
 
-import { fetchMintHistory } from "@/lib/backend/api/spl/spl-api";
+import { getCachedMintHistory } from "@/lib/backend/cache/jackpot-cache";
 import { getCachedSplCardDetails } from "@/lib/backend/cache/spl-cache";
 import { CardPrizeData, FoilStats } from "@/types/jackpot-prizes/shared";
 import { SplCardDetail } from "@/types/spl/cardDetails";
 import { cacheLife } from "next/cache";
 
 const FOIL_TYPES = [2, 3, 4] as const;
+/** Cards fetched concurrently (×3 foils), to avoid bursting SPL on a cache miss. */
+const BATCH_SIZE = 5;
 
 export interface EditionTierResult {
   prizeData: CardPrizeData[];
@@ -30,28 +32,30 @@ export async function getEditionTierCards(
         .includes(String(edition)) && c.tier === tier
   );
 
-  const prizeData = await Promise.all(
-    targetCards.map(async (card): Promise<CardPrizeData> => {
-      const foilResults = await Promise.allSettled(
-        FOIL_TYPES.map((foil) => fetchMintHistory(foil, card.id))
-      );
+  // Any failure throws, so this hours-long cache never stores zeros for failed calls.
+  const prizeData: CardPrizeData[] = [];
+  for (let i = 0; i < targetCards.length; i += BATCH_SIZE) {
+    const batch = await Promise.all(
+      targetCards.slice(i, i + BATCH_SIZE).map(async (card): Promise<CardPrizeData> => {
+        const results = await Promise.all(
+          FOIL_TYPES.map((foil) => getCachedMintHistory(foil, card.id))
+        );
+        const foils: FoilStats[] = FOIL_TYPES.map((foil, j) => ({
+          foil,
+          minted: results[j].total_minted,
+          total: results[j].total,
+        }));
 
-      const foils: FoilStats[] = FOIL_TYPES.map((foil, i) => {
-        const result = foilResults[i];
-        if (result.status === "fulfilled") {
-          return { foil, minted: result.value.total_minted, total: result.value.total };
-        }
-        return { foil, minted: 0, total: 0 };
-      });
-
-      return {
-        card_detail_id: card.id,
-        total: foils.reduce((sum, f) => sum + f.total, 0),
-        total_minted: foils.reduce((sum, f) => sum + f.minted, 0),
-        foils,
-      };
-    })
-  );
+        return {
+          card_detail_id: card.id,
+          total: foils.reduce((sum, f) => sum + f.total, 0),
+          total_minted: foils.reduce((sum, f) => sum + f.minted, 0),
+          foils,
+        };
+      })
+    );
+    prizeData.push(...batch);
+  }
 
   return { prizeData, cardDetails: targetCards };
 }

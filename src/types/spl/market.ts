@@ -12,3 +12,6 @@ export type SplCardListingPriceEntry = {
   season_qty: number;
   daily_qty: number;
 };
+
+/** Grouped market prices per card + foil, keyed by `${cardDetailId}-${foilInt}`. */
+export type MarketPriceInfo = { qty: number; lowPriceBcx: number; lowPrice: number };

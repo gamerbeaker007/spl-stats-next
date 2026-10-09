@@ -1,40 +1,28 @@
 "use client";
 
 import BuyCardDialog from "@/components/collection/buy-card-dialog/BuyCardDialog";
-import CardTableIcon from "@/components/collection/buy-missing-cc/CardTableIcon";
 import { useCardFilter } from "@/lib/frontend/context/CardFilterContext";
 import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { matchesCardFilter } from "@/lib/shared/card-filter-utils";
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
-import { getFoilLabel, toCardFoilInt } from "@/lib/shared/card-utils";
-import { getEditionIconUrl, getEditionLabel } from "@/lib/shared/edition-utils";
-import { getRarityIconUrl, getRarityId } from "@/lib/shared/rarity-utils";
+import { toCardFoilInt } from "@/lib/shared/card-utils";
+import { getRarityId } from "@/lib/shared/rarity-utils";
 import {
   CardFoil,
   type DetailedPlayerCardCollection,
   DetailedPlayerCardCollectionItem,
 } from "@/types/card";
-import {
-  Alert,
-  Box,
-  Button,
-  Snackbar,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TableSortLabel,
-  Tooltip,
-  Typography,
-} from "@mui/material";
-import Image from "next/image";
+import type { CardWatch } from "@/types/card-watch";
+import type { MarketPriceInfo } from "@/types/spl/market";
+import { Alert, Box, Snackbar, Tooltip, Typography } from "@mui/material";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MdLocalOffer } from "react-icons/md";
 import { Card } from "./Card";
-import type { CardSort, CardSortField } from "./card-sort";
+import type { CardDisplayItem } from "./card-display-item";
+import type { CardSort } from "./card-sort";
+import { CardHistoryDialog } from "./CardHistoryDialog";
+import { CardTable } from "./CardTable";
+import { LiveTimestamp } from "./LivePrice";
 
 interface CardSectionProps {
   username: string;
@@ -42,7 +30,14 @@ interface CardSectionProps {
   selectableAccounts?: string[];
   /** Card view only — the table always shows prices. */
   showPrices?: boolean;
-  marketPrices?: Record<string, { qty: number; lowPriceBcx: number; lowPrice: number }>;
+  marketPrices?: Record<string, MarketPriceInfo>;
+  /** When the shown prices were fetched from SPL (ISO string). */
+  pricesFetchedAt?: string;
+  /** Keyed by `${cardDetailId}-${foilInt}`, like marketPrices. */
+  watches?: Record<string, CardWatch>;
+  /** Omit to hide the watch buttons (guests). */
+  onToggleWatch?: (cardDetailId: number, foil: number) => void;
+  watchedOnly?: boolean;
   sort: CardSort;
   onSortChange: (sort: CardSort) => void;
 }
@@ -52,29 +47,7 @@ type DialogCard = DetailedPlayerCardCollectionItem & {
   currentCc: number;
 };
 
-type DisplayItem = {
-  key: string;
-  sourceOrder: number;
-  cardItem: DetailedPlayerCardCollectionItem;
-  foil: CardFoil;
-  highestLevel: number;
-  highestCc: number;
-  totalCc: number;
-  isMissing: boolean;
-  imageUrl: string;
-  groupCards: NonNullable<DetailedPlayerCardCollectionItem["allCards"]>;
-  priceInfo: { qty: number; lowPriceBcx: number; lowPrice: number } | undefined;
-};
-
 const GRID_BATCH_SIZE = 40;
-
-function shortFoil(foil: CardFoil): string {
-  if (foil === "regular") return "R";
-  if (foil === "gold") return "G";
-  if (foil === "gold arcane") return "GA";
-  if (foil === "black") return "B";
-  return "BA";
-}
 
 export const CardSection = ({
   username,
@@ -82,6 +55,10 @@ export const CardSection = ({
   selectableAccounts,
   showPrices,
   marketPrices,
+  pricesFetchedAt,
+  watches,
+  onToggleWatch,
+  watchedOnly = false,
   sort,
   onSortChange,
 }: CardSectionProps) => {
@@ -98,13 +75,16 @@ export const CardSection = ({
   const [visibleCount, setVisibleCount] = useState(GRID_BATCH_SIZE);
   const gridSentinelRef = useRef<HTMLDivElement | null>(null);
 
-  const openBuyDialog = (card: DialogCard) => {
-    setDialogCard(card);
+  // Rendered here, not inside Card: portal clicks bubble through the React tree to Card's onClick.
+  const [historyItem, setHistoryItem] = useState<CardDisplayItem | null>(null);
+
+  const openBuyDialogFor = (item: CardDisplayItem) => {
+    setDialogCard({ ...item.cardItem, foil: item.foil, currentCc: item.totalCc });
     setDialogOpen(true);
   };
 
-  const displayItems = useMemo<DisplayItem[]>(() => {
-    const items: DisplayItem[] = [];
+  const displayItems = useMemo<CardDisplayItem[]>(() => {
+    const items: CardDisplayItem[] = [];
     let sourceOrder = 0;
 
     for (const cardItem of Object.values(playerCards)) {
@@ -158,10 +138,11 @@ export const CardSection = ({
         : Object.values(cardsByEditionAndFoil);
 
       // Collected per card so foils can be ordered before assigning sourceOrder.
-      const cardRows: Omit<DisplayItem, "sourceOrder">[] = [];
+      const cardRows: Omit<CardDisplayItem, "sourceOrder">[] = [];
 
       if (filter.missingCards !== "only") {
         for (const group of filteredOwnedGroups) {
+          const priceKey = `${cardItem.cardDetailId}-${toCardFoilInt(group.foil)}`;
           cardRows.push({
             key: `${cardItem.cardDetailId}-${group.edition}-${group.foil}`,
             cardItem: { ...cardItem, allCards: group.cards },
@@ -177,7 +158,8 @@ export const CardSection = ({
               group.highestLevel
             ),
             groupCards: group.cards,
-            priceInfo: marketPrices?.[`${cardItem.cardDetailId}-${toCardFoilInt(group.foil)}`],
+            priceInfo: marketPrices?.[priceKey],
+            watch: watches?.[priceKey],
           });
         }
       }
@@ -186,15 +168,20 @@ export const CardSection = ({
         // Missing-foil behavior:
         // - one foil selected => one missing row in that foil
         // - multiple foils selected => one missing row per selected foil
-        // - no foil selected => regular foil
+        // - no foil selected => regular foil (watched only: every foil, so watched unowned foils show)
         const requestedFoils: CardFoil[] =
-          filter.foilCategories.length > 0 ? filter.foilCategories : ["regular"];
+          filter.foilCategories.length > 0
+            ? filter.foilCategories
+            : watchedOnly
+              ? cardItem.availableFoils
+              : ["regular"];
         const ownedFoilSet = new Set(Object.values(cardsByEditionAndFoil).map((g) => g.foil));
         const missingFoils = requestedFoils.filter(
           (foil) => cardItem.availableFoils.includes(foil) && !ownedFoilSet.has(foil)
         );
 
         for (const foil of missingFoils) {
+          const priceKey = `${cardItem.cardDetailId}-${toCardFoilInt(foil)}`;
           cardRows.push({
             key: `${cardItem.cardDetailId}-missing-${cardItem.edition}-${foil}`,
             cardItem,
@@ -205,17 +192,21 @@ export const CardSection = ({
             isMissing: true,
             imageUrl: getCardImageByLevel(cardItem.name, cardItem.edition, foil),
             groupCards: [],
-            priceInfo: marketPrices?.[`${cardItem.cardDetailId}-${toCardFoilInt(foil)}`],
+            priceInfo: marketPrices?.[priceKey],
+            watch: watches?.[priceKey],
           });
         }
       }
 
       cardRows.sort((a, b) => toCardFoilInt(a.foil) - toCardFoilInt(b.foil));
-      for (const row of cardRows) items.push({ ...row, sourceOrder: sourceOrder++ });
+      for (const row of cardRows) {
+        if (watchedOnly && !row.watch) continue;
+        items.push({ ...row, sourceOrder: sourceOrder++ });
+      }
     }
 
     return items;
-  }, [filter, playerCards, marketPrices]);
+  }, [filter, playerCards, marketPrices, watches, watchedOnly]);
 
   const sortedItems = useMemo(() => {
     const next = [...displayItems];
@@ -276,246 +267,33 @@ export const CardSection = ({
 
   const visibleGridItems = sortedItems.slice(0, visibleCount);
 
-  function toggleSort(field: CardSortField) {
-    if (sortBy === field) {
-      onSortChange({ field, dir: sortDir === "asc" ? "desc" : "asc" });
-      return;
-    }
-    onSortChange({ field, dir: "asc" });
-  }
-
   return (
     <Box display="flex" flex={1} flexDirection="column">
-      <Typography variant="h6" color="text.secondary" gutterBottom>
-        CARDS: ({sortedItems.length})
-      </Typography>
+      <Box display="flex" alignItems="baseline" justifyContent="space-between" gap={1}>
+        <Typography variant="h6" color="text.secondary" gutterBottom>
+          CARDS: ({sortedItems.length})
+        </Typography>
+        {(viewMode === "table" || showPrices) && pricesFetchedAt && (
+          <Tooltip title="When these market prices were fetched from Splinterlands">
+            <Typography variant="caption" color="text.secondary">
+              Prices: <LiveTimestamp value={pricesFetchedAt} />
+            </Typography>
+          </Tooltip>
+        )}
+      </Box>
 
       {viewMode === "table" ? (
-        <TableContainer>
-          <Table size="small" stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ minWidth: 70, maxWidth: 70, px: 0.5 }}>Card</TableCell>
-                <TableCell align="center">Buy</TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={sortBy === "name"}
-                    direction={sortBy === "name" ? sortDir : "asc"}
-                    onClick={() => toggleSort("name")}
-                  >
-                    Name
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={sortBy === "default"}
-                    direction={sortBy === "default" ? sortDir : "asc"}
-                    onClick={() => toggleSort("default")}
-                  >
-                    #
-                  </TableSortLabel>
-                </TableCell>
-
-                <TableCell>
-                  <TableSortLabel
-                    active={sortBy === "rarity"}
-                    direction={sortBy === "rarity" ? sortDir : "asc"}
-                    onClick={() => toggleSort("rarity")}
-                  >
-                    <Tooltip title="Rarity">
-                      <span>R</span>
-                    </Tooltip>
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={sortBy === "edition"}
-                    direction={sortBy === "edition" ? sortDir : "asc"}
-                    onClick={() => toggleSort("edition")}
-                  >
-                    <Tooltip title="Edition">
-                      <span>E</span>
-                    </Tooltip>
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={sortBy === "foil"}
-                    direction={sortBy === "foil" ? sortDir : "asc"}
-                    onClick={() => toggleSort("foil")}
-                  >
-                    <Tooltip title="Foil">
-                      <span>F</span>
-                    </Tooltip>
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={sortBy === "hiLv"}
-                    direction={sortBy === "hiLv" ? sortDir : "asc"}
-                    onClick={() => toggleSort("hiLv")}
-                  >
-                    <Tooltip title="Highest owned level">
-                      <span>Hi Lv</span>
-                    </Tooltip>
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={sortBy === "hiCc"}
-                    direction={sortBy === "hiCc" ? sortDir : "asc"}
-                    onClick={() => toggleSort("hiCc")}
-                  >
-                    <Tooltip title="BCX in highest-level copy">
-                      <span>Hi CC</span>
-                    </Tooltip>
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={sortBy === "totCc"}
-                    direction={sortBy === "totCc" ? sortDir : "asc"}
-                    onClick={() => toggleSort("totCc")}
-                  >
-                    <Tooltip title="Total owned BCX">
-                      <span>Tot CC</span>
-                    </Tooltip>
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={sortBy === "priceCc"}
-                    direction={sortBy === "priceCc" ? sortDir : "asc"}
-                    onClick={() => toggleSort("priceCc")}
-                  >
-                    <Tooltip title="Lowest price per BCX">
-                      <span>Price/CC</span>
-                    </Tooltip>
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={sortBy === "oneCc"}
-                    direction={sortBy === "oneCc" ? sortDir : "asc"}
-                    onClick={() => toggleSort("oneCc")}
-                  >
-                    <Tooltip title="Lowest 1 BCX price">
-                      <span>1 CC</span>
-                    </Tooltip>
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>
-                  <TableSortLabel
-                    active={sortBy === "listed"}
-                    direction={sortBy === "listed" ? sortDir : "asc"}
-                    onClick={() => toggleSort("listed")}
-                  >
-                    <Tooltip title="Number of listed cards">
-                      <span>Listed</span>
-                    </Tooltip>
-                  </TableSortLabel>
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {sortedItems.map((item) => {
-                const rarityIcon = getRarityIconUrl(item.cardItem.rarity);
-                const editionIcon = getEditionIconUrl(item.cardItem.edition);
-
-                return (
-                  <TableRow
-                    key={item.key}
-                    hover
-                    sx={{ opacity: item.isMissing && dimMissing ? 0.65 : 1 }}
-                  >
-                    <TableCell sx={{ minWidth: 70, maxWidth: 70, px: 0.5 }}>
-                      <CardTableIcon
-                        name={item.cardItem.name}
-                        edition={item.cardItem.edition}
-                        foil={item.foil}
-                        level={item.highestLevel}
-                        ownedCc={item.totalCc}
-                      />
-                    </TableCell>
-                    <TableCell align="center">
-                      <Tooltip title="Buy">
-                        <span>
-                          <Button
-                            variant="outlined"
-                            size="small"
-                            sx={{ minWidth: 30, p: 0.5 }}
-                            onClick={() =>
-                              openBuyDialog({
-                                ...item.cardItem,
-                                foil: item.foil,
-                                currentCc: item.totalCc,
-                              })
-                            }
-                          >
-                            <MdLocalOffer size={15} />
-                          </Button>
-                        </span>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell>{item.cardItem.name}</TableCell>
-                    <TableCell>{item.cardItem.cardDetailId}</TableCell>
-                    <TableCell>
-                      {rarityIcon ? (
-                        <Image src={rarityIcon} alt="rarity" width={16} height={16} />
-                      ) : (
-                        item.cardItem.rarity
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Tooltip
-                        title={
-                          getEditionLabel(item.cardItem.edition) ??
-                          `Edition ${item.cardItem.edition}`
-                        }
-                      >
-                        <span>
-                          {editionIcon ? (
-                            <Image src={editionIcon} alt="edition" width={16} height={16} />
-                          ) : (
-                            item.cardItem.edition
-                          )}
-                        </span>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell>
-                      <Tooltip title={getFoilLabel(item.foil)}>
-                        <span>{shortFoil(item.foil)}</span>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell>{item.highestLevel > 0 ? item.highestLevel : "-"}</TableCell>
-                    <TableCell>{item.highestCc > 0 ? item.highestCc : "-"}</TableCell>
-                    <TableCell>{item.totalCc > 0 ? item.totalCc : "-"}</TableCell>
-                    <TableCell>
-                      {item.priceInfo?.lowPriceBcx && item.priceInfo.lowPriceBcx > 0
-                        ? `$${item.priceInfo.lowPriceBcx.toFixed(3)}`
-                        : "-"}
-                    </TableCell>
-                    <TableCell>
-                      {item.priceInfo?.lowPrice && item.priceInfo.lowPrice > 0
-                        ? `$${item.priceInfo.lowPrice.toFixed(3)}`
-                        : "-"}
-                    </TableCell>
-                    <TableCell>{item.priceInfo?.qty ?? "-"}</TableCell>
-                  </TableRow>
-                );
-              })}
-
-              {sortedItems.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={11}>No cards found for current filters.</TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <CardTable
+          items={sortedItems}
+          sort={sort}
+          onSortChange={onSortChange}
+          dimMissing={dimMissing}
+          onBuy={openBuyDialogFor}
+          onToggleWatch={onToggleWatch}
+        />
       ) : (
         <>
-          <Box display="flex" flexDirection="row" flexWrap="wrap">
+          <Box display="flex" flexDirection="row" flexWrap="wrap" gap={1}>
             {visibleGridItems.map((item, index) => (
               <Card
                 key={item.key}
@@ -531,14 +309,16 @@ export const CardSection = ({
                 foil={item.foil}
                 opacity={item.isMissing && dimMissing ? 0.3 : 1}
                 priority={index < 6}
-                priceInfo={showPrices ? item.priceInfo : undefined}
-                onClick={() =>
-                  openBuyDialog({
-                    ...item.cardItem,
-                    foil: item.foil,
-                    currentCc: item.totalCc,
-                  })
+                priceInfo={item.priceInfo}
+                showPrices={showPrices}
+                watch={item.watch}
+                onToggleWatch={
+                  onToggleWatch
+                    ? () => onToggleWatch(item.cardItem.cardDetailId, toCardFoilInt(item.foil))
+                    : undefined
                 }
+                onShowHistory={item.groupCards.length > 0 ? () => setHistoryItem(item) : undefined}
+                onClick={() => openBuyDialogFor(item)}
               />
             ))}
           </Box>
@@ -547,6 +327,15 @@ export const CardSection = ({
             <Box ref={gridSentinelRef} sx={{ height: "1px", width: "100%" }} />
           )}
         </>
+      )}
+
+      {historyItem && (
+        <CardHistoryDialog
+          key={historyItem.key}
+          name={historyItem.cardItem.name}
+          cards={historyItem.groupCards}
+          onClose={() => setHistoryItem(null)}
+        />
       )}
 
       {dialogCard && (

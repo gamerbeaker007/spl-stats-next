@@ -6,6 +6,8 @@ import { useCardDetails } from "@/hooks/multi-account-dashboard/useCardDetails";
 import { getDetailedPlayerCardCollection } from "@/lib/backend/actions/player-actions";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { DetailedPlayerCardCollection } from "@/types/card";
+import type { CardWatch } from "@/types/card-watch";
+import type { MarketPriceInfo } from "@/types/spl/market";
 import { Alert, Box, CircularProgress, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 
@@ -15,6 +17,10 @@ export function PlayerCardsContent({
   selectableAccounts,
   showPrices,
   marketPrices,
+  pricesFetchedAt,
+  watches,
+  onToggleWatch,
+  watchedOnly,
   sort,
   onSortChange,
 }: Readonly<{
@@ -22,7 +28,11 @@ export function PlayerCardsContent({
   showHeader?: boolean;
   selectableAccounts?: string[];
   showPrices?: boolean;
-  marketPrices?: Record<string, { qty: number; lowPriceBcx: number; lowPrice: number }>;
+  marketPrices?: Record<string, MarketPriceInfo>;
+  pricesFetchedAt?: string;
+  watches?: Record<string, CardWatch>;
+  onToggleWatch?: (cardDetailId: number, foil: number) => void;
+  watchedOnly?: boolean;
   sort: CardSort;
   onSortChange: (sort: CardSort) => void;
 }>) {
@@ -93,6 +103,10 @@ export function PlayerCardsContent({
         selectableAccounts={selectableAccounts}
         showPrices={showPrices}
         marketPrices={marketPrices}
+        pricesFetchedAt={pricesFetchedAt}
+        watches={watches}
+        onToggleWatch={onToggleWatch}
+        watchedOnly={watchedOnly}
         sort={sort}
         onSortChange={onSortChange}
       />

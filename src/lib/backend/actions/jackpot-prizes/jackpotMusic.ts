@@ -1,6 +1,9 @@
 import { JackpotMusicData, MusicDisplayItem, MusicItemData } from "@/types/jackpot-prizes/music";
 import { SplInventoryItem } from "@/types/spl/jackpot";
-import { fetchFrontierJackpotMusic, fetchJackpotMusic } from "@/lib/backend/api/spl/spl-api";
+import {
+  getCachedFrontierJackpotMusic,
+  getCachedJackpotMusic,
+} from "@/lib/backend/cache/jackpot-cache";
 
 /**
  * Groups inventory items by item_detail_id and sums quantities
@@ -41,15 +44,15 @@ function groupMusicItems(items: SplInventoryItem[]): MusicDisplayItem[] {
 
 /**
  * Get jackpot music items from both $MUSIC_JACKPOT (Chest) and $FRONTIER_MUSIC_JACKPOT
- * Cached with 'minutes' lifetime since inventory changes periodically
+ * Inventories come from the shared jackpot cache (jackpot-cache.ts)
  * Returns separate arrays for each source
  */
 export async function getJackpotMusic(): Promise<JackpotMusicData> {
   console.info("Fetching jackpot music items");
   try {
     const [musicJackpot, frontierMusicJackpot] = await Promise.all([
-      fetchJackpotMusic(),
-      fetchFrontierJackpotMusic(),
+      getCachedJackpotMusic(),
+      getCachedFrontierJackpotMusic(),
     ]);
 
     // Group and aggregate quantities for each source

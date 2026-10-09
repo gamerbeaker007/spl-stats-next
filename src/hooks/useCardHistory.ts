@@ -2,7 +2,7 @@
 
 import { getCardHistory } from "@/lib/backend/actions/jackpot-prizes/cardHistory";
 import { useCallback, useState } from "react";
-import { CardHistoryResponse } from "../../types/jackpot-prizes/cardHistory";
+import { CardHistoryResponse } from "@/types/jackpot-prizes/cardHistory";
 
 interface UseCardHistoryReturn {
   cardHistory: CardHistoryResponse | null;

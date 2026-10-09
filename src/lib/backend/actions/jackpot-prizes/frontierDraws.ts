@@ -1,8 +1,8 @@
 "use server";
 
-import { fetchFrontierDrawsPrizeOverview } from "@/lib/backend/api/spl/spl-api";
+import { getCachedFrontierDrawsOverview } from "@/lib/backend/cache/jackpot-cache";
 import { RankedDrawsPrizeCard } from "@/types/jackpot-prizes/rankedDraws";
 
 export async function getFrontierDraws(): Promise<RankedDrawsPrizeCard[]> {
-  return fetchFrontierDrawsPrizeOverview();
+  return getCachedFrontierDrawsOverview();
 }

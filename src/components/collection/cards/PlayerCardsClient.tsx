@@ -11,12 +11,16 @@ import {
 import { PlayerCardsContent } from "@/components/collection/cards/PlayerCardsContent";
 import MarketViewToggle from "@/components/collection/marketplace/MarketViewToggle";
 import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
-import { getCollectionMarketPricesAction } from "@/lib/backend/actions/buy-missing-cc-actions";
+import { useCardWatches } from "@/hooks/collection/useCardWatches";
+import { useMarketPrices } from "@/hooks/collection/useMarketPrices";
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
+import { useAuth } from "@/lib/frontend/context/AuthContext";
 import { CardFilterProvider } from "@/lib/frontend/context/CardFilterContext";
 import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
+import type { CardWatch } from "@/types/card-watch";
+import type { MarketPriceInfo } from "@/types/spl/market";
 import {
   Box,
   Button,
@@ -76,9 +80,9 @@ function DashboardContent() {
   const [showPrices, setShowPrices] = useState(false);
   // Shared by card and table view, so a header-click sort in the table carries over.
   const [sort, setSort] = useState<CardSort>(DEFAULT_CARD_SORT);
-  const [marketPrices, setMarketPrices] = useState<
-    Record<string, { qty: number; lowPriceBcx: number; lowPrice: number }> | undefined
-  >(undefined);
+  const [watchedOnly, setWatchedOnly] = useState(false);
+  const { isAuthenticated } = useAuth();
+  const { watches, toggleWatch } = useCardWatches(isAuthenticated);
   const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selectedUsersFromUrl = useMemo(() => {
@@ -131,13 +135,14 @@ function DashboardContent() {
     router.replace(`${pathname}?users=${encodeURIComponent(nextParam)}`);
   }, [pathname, router, selectedUsers, userParam]);
 
-  // The table always shows prices; card view needs them when shown or sorted by price.
-  const needsPrices = viewMode === "table" || showPrices || isPriceSort(sort.field);
-
-  useEffect(() => {
-    if (!needsPrices || marketPrices) return;
-    getCollectionMarketPricesAction().then(setMarketPrices);
-  }, [needsPrices, marketPrices]);
+  // The table always shows prices; card view needs them when shown, sorted by price,
+  // or for the watched → current comparison.
+  const needsPrices =
+    viewMode === "table" ||
+    showPrices ||
+    isPriceSort(sort.field) ||
+    Object.keys(watches).length > 0;
+  const { marketPrices, pricesFetchedAt } = useMarketPrices(needsPrices);
 
   return (
     <Box>
@@ -194,51 +199,70 @@ function DashboardContent() {
             </Stack>
           }
         />
-        {viewMode === "card" && (
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+          {isAuthenticated && (
             <FormControlLabel
               control={
                 <Checkbox
                   size="small"
-                  checked={showPrices}
-                  onChange={(e) => setShowPrices(e.target.checked)}
+                  checked={watchedOnly}
+                  onChange={(e) => setWatchedOnly(e.target.checked)}
                 />
               }
-              label="Show Prices"
+              label="Watched only"
             />
-            <TextField
-              select
-              size="small"
-              label="Sort by"
-              value={sort.field}
-              onChange={(e) => setSort({ field: e.target.value as CardSortField, dir: sort.dir })}
-              sx={{ minWidth: 160 }}
-            >
-              {CARD_SORT_OPTIONS.map((option) => (
-                <MenuItem key={option.value} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </TextField>
-            <Tooltip title={sort.dir === "asc" ? "Ascending" : "Descending"}>
-              <IconButton
+          )}
+          {viewMode === "card" && (
+            <>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={showPrices}
+                    onChange={(e) => setShowPrices(e.target.checked)}
+                  />
+                }
+                label="Show Prices"
+              />
+              <TextField
+                select
                 size="small"
-                aria-label="Toggle sort direction"
-                onClick={() => setSort({ ...sort, dir: sort.dir === "asc" ? "desc" : "asc" })}
+                label="Sort by"
+                value={sort.field}
+                onChange={(e) => setSort({ field: e.target.value as CardSortField, dir: sort.dir })}
+                sx={{ minWidth: 160 }}
               >
-                {sort.dir === "asc" ? <MdArrowUpward /> : <MdArrowDownward />}
-              </IconButton>
-            </Tooltip>
-          </Stack>
-        )}
+                {CARD_SORT_OPTIONS.map((option) => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <Tooltip title={sort.dir === "asc" ? "Ascending" : "Descending"}>
+                <IconButton
+                  size="small"
+                  aria-label="Toggle sort direction"
+                  onClick={() => setSort({ ...sort, dir: sort.dir === "asc" ? "desc" : "asc" })}
+                >
+                  {sort.dir === "asc" ? <MdArrowUpward /> : <MdArrowDownward />}
+                </IconButton>
+              </Tooltip>
+            </>
+          )}
+        </Stack>
       </Box>
 
       {selectedUsers.length > 0 ? (
         <CardFilterProvider key="filter-provider">
           <DrawerAndContent
             selectedUsers={selectedUsers}
+            allConfiguredAccounts={accountOptions}
             showPrices={showPrices}
             marketPrices={marketPrices}
+            pricesFetchedAt={pricesFetchedAt}
+            watches={watches}
+            onToggleWatch={isAuthenticated ? toggleWatch : undefined}
+            watchedOnly={isAuthenticated && watchedOnly}
             sort={sort}
             onSortChange={setSort}
           />
@@ -254,14 +278,24 @@ function DashboardContent() {
 
 function DrawerAndContent({
   selectedUsers,
+  allConfiguredAccounts,
   showPrices,
   marketPrices,
+  pricesFetchedAt,
+  watches,
+  onToggleWatch,
+  watchedOnly,
   sort,
   onSortChange,
 }: Readonly<{
   selectedUsers: string[];
+  allConfiguredAccounts: string[];
   showPrices?: boolean;
-  marketPrices?: Record<string, { qty: number; lowPriceBcx: number; lowPrice: number }>;
+  marketPrices?: Record<string, MarketPriceInfo>;
+  pricesFetchedAt?: string;
+  watches: Record<string, CardWatch>;
+  onToggleWatch?: (cardDetailId: number, foil: number) => void;
+  watchedOnly: boolean;
   sort: CardSort;
   onSortChange: (sort: CardSort) => void;
 }>) {
@@ -287,9 +321,13 @@ function DrawerAndContent({
               <PlayerCardsContent
                 username={username}
                 showHeader={multipleSelected}
-                selectableAccounts={selectedUsers}
+                selectableAccounts={allConfiguredAccounts}
                 showPrices={showPrices}
                 marketPrices={marketPrices}
+                pricesFetchedAt={pricesFetchedAt}
+                watches={watches}
+                onToggleWatch={onToggleWatch}
+                watchedOnly={watchedOnly}
                 sort={sort}
                 onSortChange={onSortChange}
               />

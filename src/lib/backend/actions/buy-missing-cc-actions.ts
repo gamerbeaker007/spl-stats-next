@@ -14,6 +14,7 @@ import { SOULKEEP_EDITIONS } from "@/lib/shared/edition-utils";
 import type { BuyMissingCcSnapshot } from "@/types/buy-missing-cc";
 import { CardFoil } from "@/types/card";
 import type { SplCardDetail } from "@/types/spl/cardDetails";
+import type { MarketPriceInfo } from "@/types/spl/market";
 import { cacheLife } from "next/cache";
 
 export async function getBuyMissingCcSharedDataAction() {
@@ -138,18 +139,19 @@ export async function getBuyMissingCcDetailedCollectionAction(account: string) {
   return {
     account: normalized,
     detailedCollection,
-    groupedMarket,
+    groupedMarket: groupedMarket.entries,
     balances,
   };
 }
 
-/** Fetch grouped market prices keyed by `${cardDetailId}-${foilInt}`. */
-export async function getCollectionMarketPricesAction(): Promise<
-  Record<string, { qty: number; lowPriceBcx: number; lowPrice: number }>
-> {
-  const grouped = await getCachedSplGroupedMarket();
-  const result: Record<string, { qty: number; lowPriceBcx: number; lowPrice: number }> = {};
-  for (const entry of grouped) {
+/** Grouped market prices keyed by `${cardDetailId}-${foilInt}`, plus when they were fetched from SPL. */
+export async function getCollectionMarketPricesAction(): Promise<{
+  prices: Record<string, MarketPriceInfo>;
+  fetchedAt: string;
+}> {
+  const { entries, fetchedAt } = await getCachedSplGroupedMarket();
+  const result: Record<string, MarketPriceInfo> = {};
+  for (const entry of entries) {
     const key = `${entry.card_detail_id}-${entry.foil}`;
     const lpBcx = Number(entry.low_price_bcx) || 0;
     const lp = Number(entry.low_price) || 0;
@@ -164,5 +166,5 @@ export async function getCollectionMarketPricesAction(): Promise<
       if (lp > 0 && (existing.lowPrice === 0 || lp < existing.lowPrice)) existing.lowPrice = lp;
     }
   }
-  return result;
+  return { prices: result, fetchedAt };
 }

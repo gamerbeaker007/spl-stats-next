@@ -5,6 +5,7 @@ import ScrollableTableContainer from "@/components/shared/ScrollableTableContain
 import { dec_icon_url } from "@/lib/staticsIconUrls";
 import { BuyMissingCcListing } from "@/types/buy-missing-cc";
 import {
+  alpha,
   Box,
   Button,
   FormControl,
@@ -24,6 +25,8 @@ import {
 } from "@mui/material";
 import Image from "next/image";
 import ManualSelectionTotalsBar from "./ManualSelectionTotalsBar";
+import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
 
 /**
  * Stacked cell: a USD value on top with the equivalent DEC amount (plus the DEC
@@ -211,7 +214,14 @@ export default function ManualListingsTabContent({
                   : "Add to cart";
 
               return (
-                <TableRow key={row.marketId} selected={selectedIds.includes(row.marketId)}>
+                <TableRow
+                  key={row.marketId}
+                  selected={selectedIds.includes(row.marketId)}
+                  sx={(theme) => ({
+                    backgroundColor:
+                      idx % 2 === 1 ? alpha(theme.palette.primary.main, 0.08) : undefined,
+                  })}
+                >
                   <TableCell
                     onMouseDown={
                       cannotAddBecauseReserved ? undefined : (event) => event.preventDefault()
@@ -226,7 +236,7 @@ export default function ManualListingsTabContent({
                       <span>
                         <Button
                           size="small"
-                          variant="outlined"
+                          variant="contained"
                           color={inCart ? "error" : "success"}
                           disabled={cannotAddBecauseReserved}
                           sx={{
@@ -236,7 +246,11 @@ export default function ManualListingsTabContent({
                             "&:hover": { opacity: 0.9 },
                           }}
                         >
-                          {inCart ? "-" : "+"}
+                          {inCart ? (
+                            <RemoveIcon fontSize="small" />
+                          ) : (
+                            <AddIcon fontSize="small" />
+                          )}{" "}
                         </Button>
                       </span>
                     </Tooltip>

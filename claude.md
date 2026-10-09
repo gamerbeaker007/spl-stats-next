@@ -35,6 +35,7 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
 - Hive Keychain is the sole auth mechanism — cookie-based sessions, no NextAuth.
 - `cacheComponents` is the default caching approach for new server-side reads.
 - Prefer `"use cache"` + `cacheLife` + `cacheTag` for cached data, with invalidation centralized through `revalidateTagsAction` in `lib/backend/actions/cache-actions.ts`.
+- Public SPL / PeakMonsters data read by pages or client-called actions must go through a shared `"use cache"` wrapper (`spl-cache.ts`, `jackpot-cache.ts`) — never call a raw `fetch*` per request/per visitor. Uncached per-visitor calls caused SPL rate limits (429).
 
 ### Admin
 
