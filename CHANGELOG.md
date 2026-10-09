@@ -9,6 +9,14 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.26.1] - 2026-10-09
+
+### Fixed
+
+- **Collection card images:** If an optimized card-image request fails, retry it directly from
+  the CDN before displaying the image error. Image load state is scoped to the URL so an error
+  from a previous image cannot affect a changed card image.
+
 ## [v1.26.0] - 2026-10-09
 
 ### Added

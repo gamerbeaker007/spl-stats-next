@@ -12,6 +12,12 @@ import { MdHistory, MdStorefront } from "react-icons/md";
 import { ARCANE_GLIMMER_URL } from "@/lib/staticsIconUrls";
 import { ARCANE_FOILS } from "@/lib/shared/card-utils";
 
+type ImageLoadState = {
+  src: string;
+  status: "loading" | "loaded" | "error";
+  unoptimized: boolean;
+};
+
 interface Props {
   player: string;
   name: string;
@@ -63,13 +69,23 @@ export const Card = ({
   onToggleWatch,
   onShowHistory,
 }: Props) => {
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const [imageError, setImageError] = useState(false);
+  const [imageLoadState, setImageLoadState] = useState<ImageLoadState | null>(null);
+  const currentImageState =
+    imageLoadState?.src === imageUrl
+      ? imageLoadState
+      : { src: imageUrl, status: "loading" as const, unoptimized: false };
+  const imageLoaded = currentImageState.status === "loaded";
+  const imageError = currentImageState.status === "error";
 
   const handleImageError = () => {
-    console.warn(`Failed to load image: ${imageUrl}`);
-    setImageError(true);
-    setImageLoaded(true); // Hide skeleton even on error
+    if (!currentImageState.unoptimized) {
+      console.warn(`Optimized card image failed; retrying directly: ${imageUrl}`);
+      setImageLoadState({ src: imageUrl, status: "loading", unoptimized: true });
+      return;
+    }
+
+    console.warn(`Failed to load card image: ${imageUrl}`);
+    setImageLoadState({ src: imageUrl, status: "error", unoptimized: true });
   };
 
   // Group cards by player and level
@@ -207,14 +223,22 @@ export const Card = ({
         }}
       >
         <Image
+          key={`${imageUrl}-${currentImageState.unoptimized ? "direct" : "optimized"}`}
           src={imageUrl}
           alt={name}
           width={CARD_IMAGE_WIDTH}
           height={CARD_IMAGE_HEIGHT}
+          unoptimized={currentImageState.unoptimized}
           priority={priority}
           loading={priority ? undefined : "lazy"}
           sizes={`${CARD_DISPLAY_WIDTH}px`}
-          onLoad={() => setImageLoaded(true)}
+          onLoad={() =>
+            setImageLoadState({
+              src: imageUrl,
+              status: "loaded",
+              unoptimized: currentImageState.unoptimized,
+            })
+          }
           onError={handleImageError}
           style={{
             width: "100%",
