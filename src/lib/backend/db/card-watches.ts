@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 
 const watchSelect = {
   cardDetailId: true,
+  edition: true,
   foil: true,
   lowPriceBcxAtWatch: true,
   lowPriceAtWatch: true,
@@ -16,18 +17,24 @@ export async function listCardWatches(username: string) {
 export async function upsertCardWatch(
   username: string,
   cardDetailId: number,
+  edition: number,
   foil: number,
   lowPriceBcxAtWatch: number,
   lowPriceAtWatch: number
 ) {
   return prisma.cardWatch.upsert({
-    where: { username_cardDetailId_foil: { username, cardDetailId, foil } },
-    create: { username, cardDetailId, foil, lowPriceBcxAtWatch, lowPriceAtWatch },
+    where: { username_cardDetailId_edition_foil: { username, cardDetailId, edition, foil } },
+    create: { username, cardDetailId, edition, foil, lowPriceBcxAtWatch, lowPriceAtWatch },
     update: {},
     select: watchSelect,
   });
 }
 
-export async function deleteCardWatch(username: string, cardDetailId: number, foil: number) {
-  await prisma.cardWatch.deleteMany({ where: { username, cardDetailId, foil } });
+export async function deleteCardWatch(
+  username: string,
+  cardDetailId: number,
+  edition: number,
+  foil: number
+) {
+  await prisma.cardWatch.deleteMany({ where: { username, cardDetailId, edition, foil } });
 }

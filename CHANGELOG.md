@@ -9,6 +9,19 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v2.0.0] - 2026-10-11
+
+### Fixed
+
+- **Collection card prices by edition:** Alpha and Beta cards with the same detail ID now use
+  their own market listings instead of sharing an aggregated price.
+
+### Updated
+
+- **Card watches are edition-specific:** Watch identity and price snapshots now include edition.
+  Existing watch rows are preserved with edition `-1` (unknown); set up watches again to track a
+  specific edition.
+
 ## [v1.26.1] - 2026-10-09
 
 ### Fixed

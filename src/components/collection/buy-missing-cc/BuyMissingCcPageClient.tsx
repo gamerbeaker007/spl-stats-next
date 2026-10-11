@@ -178,7 +178,7 @@ export default function BuyMissingCcPageClient() {
 
         const groupedPriceByKey = new Map<string, { lowPrice: number; lowPriceBcx: number }>();
         for (const market of snapshot.groupedMarket) {
-          const key = `${market.card_detail_id}-${toCardFoil(market.foil)}`;
+          const key = `${market.card_detail_id}-${market.edition}-${toCardFoil(market.foil)}`;
 
           const prices = groupedPriceByKey.get(key) ?? {
             lowPrice: Number.POSITIVE_INFINITY,
@@ -210,7 +210,6 @@ export default function BuyMissingCcPageClient() {
 
           for (const foil of item.availableFoils) {
             const key = `${item.cardDetailId}-${item.edition}-${foil}`;
-            const priceKey = `${item.cardDetailId}-${foil}`;
             const accountStates: Record<string, AccountCardState> = {
               [selectedAccount]: byKey[key] ?? {
                 highestLevel: 0,
@@ -238,8 +237,8 @@ export default function BuyMissingCcPageClient() {
               ...card,
               foil,
               accountStates,
-              lowPricePerBcxUsd: groupedPriceByKey.get(priceKey)?.lowPriceBcx ?? null,
-              lowPriceUsd: groupedPriceByKey.get(priceKey)?.lowPrice ?? null,
+              lowPricePerBcxUsd: groupedPriceByKey.get(key)?.lowPriceBcx ?? null,
+              lowPriceUsd: groupedPriceByKey.get(key)?.lowPrice ?? null,
             });
           }
         }

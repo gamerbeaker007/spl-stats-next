@@ -294,7 +294,7 @@ function DrawerAndContent({
   marketPrices?: Record<string, MarketPriceInfo>;
   pricesFetchedAt?: string;
   watches: Record<string, CardWatch>;
-  onToggleWatch?: (cardDetailId: number, foil: number) => void;
+  onToggleWatch?: (cardDetailId: number, edition: number, foil: number) => void;
   watchedOnly: boolean;
   sort: CardSort;
   onSortChange: (sort: CardSort) => void;

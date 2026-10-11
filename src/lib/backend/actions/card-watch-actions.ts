@@ -8,10 +8,12 @@ import { rethrowFrameworkErrors } from "@/lib/backend/next-errors";
 import { cardFoilOptions } from "@/types/card";
 import type { CardWatch } from "@/types/card-watch";
 
-function isValidCard(cardDetailId: number, foil: number): boolean {
+function isValidCard(cardDetailId: number, edition: number, foil: number): boolean {
   return (
     Number.isInteger(cardDetailId) &&
     cardDetailId > 0 &&
+    Number.isInteger(edition) &&
+    edition >= 0 &&
     Number.isInteger(foil) &&
     foil >= 0 &&
     foil < cardFoilOptions.length
@@ -31,16 +33,21 @@ export async function getCardWatchesAction(): Promise<CardWatch[]> {
 }
 
 /** Snapshot prices are read server-side from the same grouped market data the page shows. */
-export async function watchCardAction(cardDetailId: number, foil: number): Promise<void> {
-  if (!isValidCard(cardDetailId, foil)) throw new Error("Invalid card");
+export async function watchCardAction(
+  cardDetailId: number,
+  edition: number,
+  foil: number
+): Promise<void> {
+  if (!isValidCard(cardDetailId, edition, foil)) throw new Error("Invalid card");
   try {
     const user = await getCurrentUser();
     if (!user) throw new Error("Not logged in");
     const { prices } = await getCollectionMarketPricesAction();
-    const price = prices[`${cardDetailId}-${foil}`];
+    const price = prices[`${cardDetailId}-${edition}-${foil}`];
     await upsertCardWatch(
       user.username,
       cardDetailId,
+      edition,
       foil,
       price?.lowPriceBcx ?? 0,
       price?.lowPrice ?? 0
@@ -52,12 +59,16 @@ export async function watchCardAction(cardDetailId: number, foil: number): Promi
   }
 }
 
-export async function unwatchCardAction(cardDetailId: number, foil: number): Promise<void> {
-  if (!isValidCard(cardDetailId, foil)) throw new Error("Invalid card");
+export async function unwatchCardAction(
+  cardDetailId: number,
+  edition: number,
+  foil: number
+): Promise<void> {
+  if (!isValidCard(cardDetailId, edition, foil)) throw new Error("Invalid card");
   try {
     const user = await getCurrentUser();
     if (!user) throw new Error("Not logged in");
-    await deleteCardWatch(user.username, cardDetailId, foil);
+    await deleteCardWatch(user.username, cardDetailId, edition, foil);
   } catch (error) {
     rethrowFrameworkErrors(error);
     logger.error(`unwatchCardAction error: ${error}`);

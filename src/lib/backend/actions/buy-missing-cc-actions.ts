@@ -144,7 +144,7 @@ export async function getBuyMissingCcDetailedCollectionAction(account: string) {
   };
 }
 
-/** Grouped market prices keyed by `${cardDetailId}-${foilInt}`, plus when they were fetched from SPL. */
+/** Edition-specific prices keyed by `${cardDetailId}-${edition}-${foilInt}`. */
 export async function getCollectionMarketPricesAction(): Promise<{
   prices: Record<string, MarketPriceInfo>;
   fetchedAt: string;
@@ -152,10 +152,10 @@ export async function getCollectionMarketPricesAction(): Promise<{
   const { entries, fetchedAt } = await getCachedSplGroupedMarket();
   const result: Record<string, MarketPriceInfo> = {};
   for (const entry of entries) {
-    const key = `${entry.card_detail_id}-${entry.foil}`;
     const lpBcx = Number(entry.low_price_bcx) || 0;
     const lp = Number(entry.low_price) || 0;
     const qty = Number(entry.qty) || 0;
+    const key = `${entry.card_detail_id}-${entry.edition}-${entry.foil}`;
     const existing = result[key];
     if (!existing) {
       result[key] = { qty, lowPriceBcx: lpBcx, lowPrice: lp };

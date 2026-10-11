@@ -6,8 +6,9 @@ import type { MarketPriceInfo } from "@/types/spl/market";
 import { useEffect, useState } from "react";
 
 /**
- * Grouped market prices (and when the server fetched them from SPL) keyed by `${cardDetailId}-${foilInt}`, re-fetched every
- * MARKET_PRICE_REFRESH_SECONDS while enabled. Paused while the tab is hidden and
+ * Grouped market prices (and when the server fetched them from SPL) keyed by
+ * `${cardDetailId}-${edition}-${foilInt}`, re-fetched every MARKET_PRICE_REFRESH_SECONDS while enabled.
+ * Paused while the tab is hidden and
  * refreshed right away when it becomes visible again.
  */
 export function useMarketPrices(enabled: boolean) {

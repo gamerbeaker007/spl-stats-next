@@ -9,12 +9,12 @@ import type { CardWatch } from "@/types/card-watch";
 import { useCallback, useEffect, useState } from "react";
 
 function toMap(list: CardWatch[]): Record<string, CardWatch> {
-  return Object.fromEntries(list.map((w) => [`${w.cardDetailId}-${w.foil}`, w]));
+  return Object.fromEntries(list.map((w) => [`${w.cardDetailId}-${w.edition}-${w.foil}`, w]));
 }
 
 const NO_WATCHES: Record<string, CardWatch> = {};
 
-/** The logged-in user's watched card + foil combinations, keyed by `${cardDetailId}-${foilInt}`. */
+/** The logged-in user's watched card + edition + foil combinations. */
 export function useCardWatches(enabled: boolean) {
   const [watches, setWatches] = useState<Record<string, CardWatch>>({});
 
@@ -29,8 +29,8 @@ export function useCardWatches(enabled: boolean) {
   }, [enabled]);
 
   const toggleWatch = useCallback(
-    async (cardDetailId: number, foil: number) => {
-      const key = `${cardDetailId}-${foil}`;
+    async (cardDetailId: number, edition: number, foil: number) => {
+      const key = `${cardDetailId}-${edition}-${foil}`;
       const watched = Boolean(watches[key]);
       // Optimistic; the reload below brings in the server-side price snapshot.
       setWatches((current) => {
@@ -39,6 +39,7 @@ export function useCardWatches(enabled: boolean) {
         else
           next[key] = {
             cardDetailId,
+            edition,
             foil,
             lowPriceBcxAtWatch: 0,
             lowPriceAtWatch: 0,
@@ -47,8 +48,8 @@ export function useCardWatches(enabled: boolean) {
         return next;
       });
       try {
-        if (watched) await unwatchCardAction(cardDetailId, foil);
-        else await watchCardAction(cardDetailId, foil);
+        if (watched) await unwatchCardAction(cardDetailId, edition, foil);
+        else await watchCardAction(cardDetailId, edition, foil);
       } catch {
         // Reload below restores the server state, undoing the optimistic update.
       }
