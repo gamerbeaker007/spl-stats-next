@@ -30,13 +30,14 @@ interface CardSectionProps {
   selectableAccounts?: string[];
   /** Card view only — the table always shows prices. */
   showPrices?: boolean;
+  /** Keyed by `${cardDetailId}-${edition}-${foilInt}`. */
   marketPrices?: Record<string, MarketPriceInfo>;
   /** When the shown prices were fetched from SPL (ISO string). */
   pricesFetchedAt?: string;
-  /** Keyed by `${cardDetailId}-${foilInt}`, like marketPrices. */
+  /** Keyed by `${cardDetailId}-${edition}-${foilInt}`. */
   watches?: Record<string, CardWatch>;
   /** Omit to hide the watch buttons (guests). */
-  onToggleWatch?: (cardDetailId: number, foil: number) => void;
+  onToggleWatch?: (cardDetailId: number, edition: number, foil: number) => void;
   watchedOnly?: boolean;
   sort: CardSort;
   onSortChange: (sort: CardSort) => void;
@@ -142,7 +143,7 @@ export const CardSection = ({
 
       if (filter.missingCards !== "only") {
         for (const group of filteredOwnedGroups) {
-          const priceKey = `${cardItem.cardDetailId}-${toCardFoilInt(group.foil)}`;
+          const editionFoilKey = `${cardItem.cardDetailId}-${group.edition}-${toCardFoilInt(group.foil)}`;
           cardRows.push({
             key: `${cardItem.cardDetailId}-${group.edition}-${group.foil}`,
             cardItem: { ...cardItem, allCards: group.cards },
@@ -158,8 +159,8 @@ export const CardSection = ({
               group.highestLevel
             ),
             groupCards: group.cards,
-            priceInfo: marketPrices?.[priceKey],
-            watch: watches?.[priceKey],
+            priceInfo: marketPrices?.[editionFoilKey],
+            watch: watches?.[editionFoilKey],
           });
         }
       }
@@ -181,7 +182,7 @@ export const CardSection = ({
         );
 
         for (const foil of missingFoils) {
-          const priceKey = `${cardItem.cardDetailId}-${toCardFoilInt(foil)}`;
+          const editionFoilKey = `${cardItem.cardDetailId}-${cardItem.edition}-${toCardFoilInt(foil)}`;
           cardRows.push({
             key: `${cardItem.cardDetailId}-missing-${cardItem.edition}-${foil}`,
             cardItem,
@@ -192,8 +193,8 @@ export const CardSection = ({
             isMissing: true,
             imageUrl: getCardImageByLevel(cardItem.name, cardItem.edition, foil),
             groupCards: [],
-            priceInfo: marketPrices?.[priceKey],
-            watch: watches?.[priceKey],
+            priceInfo: marketPrices?.[editionFoilKey],
+            watch: watches?.[editionFoilKey],
           });
         }
       }
@@ -314,7 +315,12 @@ export const CardSection = ({
                 watch={item.watch}
                 onToggleWatch={
                   onToggleWatch
-                    ? () => onToggleWatch(item.cardItem.cardDetailId, toCardFoilInt(item.foil))
+                    ? () =>
+                        onToggleWatch(
+                          item.cardItem.cardDetailId,
+                          item.cardItem.edition,
+                          toCardFoilInt(item.foil)
+                        )
                     : undefined
                 }
                 onShowHistory={item.groupCards.length > 0 ? () => setHistoryItem(item) : undefined}

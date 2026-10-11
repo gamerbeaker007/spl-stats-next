@@ -93,7 +93,7 @@ export function CardTable({
   dimMissing: boolean;
   onBuy: (item: CardDisplayItem) => void;
   /** Omit to hide the watch columns (guests). */
-  onToggleWatch?: (cardDetailId: number, foil: number) => void;
+  onToggleWatch?: (cardDetailId: number, edition: number, foil: number) => void;
 }>) {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE);
@@ -184,7 +184,11 @@ export function CardTable({
                         watch={item.watch}
                         priceInfo={item.priceInfo}
                         onToggle={() =>
-                          onToggleWatch(item.cardItem.cardDetailId, toCardFoilInt(item.foil))
+                          onToggleWatch(
+                            item.cardItem.cardDetailId,
+                            item.cardItem.edition,
+                            toCardFoilInt(item.foil)
+                          )
                         }
                       />
                     </TableCell>
