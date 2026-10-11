@@ -1,6 +1,5 @@
 "use client";
 
-import { CardFilterDrawer } from "@/components/collection/cards/CardFilterDrawer";
 import {
   CARD_SORT_OPTIONS,
   type CardSort,
@@ -8,6 +7,7 @@ import {
   DEFAULT_CARD_SORT,
   isPriceSort,
 } from "@/components/collection/cards/card-sort";
+import { CardFilterDrawer } from "@/components/collection/cards/CardFilterDrawer";
 import { PlayerCardsContent } from "@/components/collection/cards/PlayerCardsContent";
 import MarketViewToggle from "@/components/collection/marketplace/MarketViewToggle";
 import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
