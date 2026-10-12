@@ -3,6 +3,12 @@ import { name, version } from "./package.json";
 
 const isDev = process.env.NODE_ENV === "development";
 
+// The browser uses the same SPL hosts as splApiConfig (test stack when NEXT_PUBLIC_SPL_DEV_API=true).
+const splConnectSrc =
+  process.env.NEXT_PUBLIC_SPL_DEV_API === "true"
+    ? "https://api.mavs-sl.com https://vapi.mavs-sl.com"
+    : "https://api.splinterlands.com https://vapi.splinterlands.com";
+
 const securityHeaders = [
   { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
   { key: "X-Content-Type-Options", value: "nosniff" },
@@ -18,7 +24,8 @@ const securityHeaders = [
       `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://images.hive.blog https://d36mxiodymuqjm.cloudfront.net https://peakmonsters.com https://splinterlands.com https://files.peakd.com",
-      "connect-src 'self' https://api.hive.blog https://api.deathwing.me https://api.openhive.network",
+      // SPL hosts: public per-user reads go browser → SPL (src/lib/frontend/spl-browser-api.ts)
+      `connect-src 'self' https://api.hive.blog https://api.deathwing.me https://api.openhive.network ${splConnectSrc}`,
       "font-src 'self'",
       "object-src 'none'",
       "base-uri 'self'",

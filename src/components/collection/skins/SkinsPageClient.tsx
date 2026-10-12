@@ -263,7 +263,6 @@ export default function SkinsPageClient() {
 
     await revalidateTagsAction([
       { type: "marketplace", usernames: [selectedAccount] },
-      { type: "balances", usernames: [selectedAccount] },
       { type: "player-skins", usernames: [selectedAccount] },
     ]);
     await refreshMarketplaceData();

@@ -1,10 +1,10 @@
-import { fetchPlayerBalances } from "@/lib/backend/api/spl/spl-api";
 import {
   type CheapestListingSelection,
   priceSelectionInCurrency,
 } from "@/lib/shared/marketplace-assets";
 import { buildMarketplacePurchasePayload } from "@/lib/shared/transactions-builder";
 import type { PurchaseCurrency } from "@/types/purchase/purchase-plan";
+import type { SplBalance } from "@/types/spl/balances";
 
 /**
  * Allowed drift between the DEC rate quoted here and the one SPL applies at
@@ -12,6 +12,11 @@ import type { PurchaseCurrency } from "@/types/purchase/purchase-plan";
  * `dec_mismatch_percent`, so a small rate move does not fail the purchase.
  */
 export const DEC_MISMATCH_PERCENT = 1.5;
+
+/** Liquid balance of one token (0 when absent). Staked DEC-B is a separate token. */
+export function tokenBalance(balances: SplBalance[], token: string): number {
+  return balances.find((entry) => entry.token === token)?.balance ?? 0;
+}
 
 function applyPercentBuffer(amount: number, percent: number): number {
   return Number((amount * (1 + percent / 100)).toFixed(3));
@@ -27,7 +32,7 @@ export function buildPricedMarketplacePurchase(args: {
   selection: CheapestListingSelection;
   currency: PurchaseCurrency;
   decPriceUsd: number;
-  balances: Awaited<ReturnType<typeof fetchPlayerBalances>>;
+  balances: SplBalance[];
 }) {
   const priced = priceSelectionInCurrency(args.selection, args.currency, args.decPriceUsd);
   if (!priced) {
@@ -45,8 +50,7 @@ export function buildPricedMarketplacePurchase(args: {
         }
       : priced;
 
-  const availableBalance =
-    args.balances.find((entry) => entry.token === args.currency)?.balance ?? 0;
+  const availableBalance = tokenBalance(args.balances, args.currency);
   if (availableBalance < transmitPriced.totalCost) {
     throw new Error(`Insufficient ${args.currency}`);
   }

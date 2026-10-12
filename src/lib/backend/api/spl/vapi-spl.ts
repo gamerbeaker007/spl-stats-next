@@ -9,21 +9,16 @@ import {
   buildMarketplaceAssetItems,
   normalizeMarketplaceAssetMetaDetail,
   normalizeMarketplaceLandingAsset,
-  normalizeMarketplaceListingItem,
   normalizeMarketplacePlayerListing,
   parseMarketplaceAssetName,
 } from "@/lib/shared/marketplace-assets";
 import type {
-  FetchMarketplaceListingItemsParams,
   MarketplaceAssetItem,
   MarketplaceAssetMetaDetail,
   MarketplaceAssetMetaDetailRaw,
   MarketplaceAssetName,
   MarketplaceLandingAsset,
   MarketplaceLandingAssetRaw,
-  MarketplaceListingItem,
-  MarketplaceListingItemRaw,
-  MarketplaceListingItemsPage,
   MarketplacePlayerListing,
   MarketplacePlayerListingRaw,
 } from "@/types/marketplace-assets";
@@ -477,38 +472,6 @@ export async function fetchMarketplaceAssetMeta(
     );
     throw error;
   }
-}
-
-export async function fetchMarketplaceListingItemsPage(
-  params: FetchMarketplaceListingItemsParams
-): Promise<MarketplaceListingItemsPage> {
-  try {
-    const res = await vapiClient.post<{
-      status: string;
-      data: { items: MarketplaceListingItemRaw[]; scrollToken?: string; total?: number };
-    }>("/market/listing-items", params);
-
-    return {
-      items: (res.data?.data?.items ?? []).map((item) =>
-        normalizeMarketplaceListingItem(item, params.assetName)
-      ),
-      total: res.data?.data?.total ?? 0,
-    };
-  } catch (error) {
-    logger.error(
-      `vapi: fetchMarketplaceListingItemsPage(${params.assetName}): ${
-        error instanceof Error ? error.message : error
-      }`
-    );
-    throw error;
-  }
-}
-
-export async function fetchMarketplaceListingItems(
-  params: FetchMarketplaceListingItemsParams
-): Promise<MarketplaceListingItem[]> {
-  const page = await fetchMarketplaceListingItemsPage(params);
-  return page.items;
 }
 
 export async function fetchMarketplacePlayerAllListings(

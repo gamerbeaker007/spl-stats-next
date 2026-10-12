@@ -1,6 +1,7 @@
 "use client";
 
-import { getOwnedListingsAction } from "@/lib/backend/actions/marketplace-assets-actions";
+import { fetchMarketplaceAssetListings } from "@/lib/frontend/spl-browser-api";
+import { listingsBySeller } from "@/lib/shared/marketplace-assets";
 import type { MarketplaceAssetName } from "@/types/marketplace-assets";
 import { useCallback, useEffect, useState } from "react";
 
@@ -33,7 +34,12 @@ export function useOwnedListings(
       setLoading(true);
       setError(null);
       try {
-        const next = await getOwnedListingsAction(account, assetName, detailId);
+        const listings = await fetchMarketplaceAssetListings(assetName, detailId);
+        const next = listingsBySeller(listings, account.trim().toLowerCase()).map((listing) => ({
+          listingItemId: listing.listingItemId,
+          price: listing.price,
+          quantityRemaining: listing.quantityRemaining,
+        }));
         if (active()) setListings(next);
       } catch (err) {
         if (active()) setError(err instanceof Error ? err.message : "Failed to load your listings");

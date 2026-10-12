@@ -7,9 +7,11 @@ import {
   getBuyCardDialogSharedContextAction,
 } from "@/lib/backend/actions/buy-missing-cc-actions";
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
-import { buildCombineCardsPayloadAction } from "@/lib/backend/actions/purchase-actions";
+import { buildCombineCardsPayload } from "@/lib/shared/transactions-builder";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { checkoutItems } from "@/lib/frontend/purchase/checkout";
+import { fetchAccountBalances } from "@/lib/frontend/spl-browser-api";
+import { tokenBalance } from "@/lib/shared/marketplace-purchase";
 import { broadcastCombineCards, waitForTransactions } from "@/lib/frontend/purchase/splBroadcast";
 import {
   buildPurchasePlan,
@@ -279,12 +281,16 @@ export default function BuyCardDialog({
     async function loadAccountContext() {
       setContextLoading(true);
       try {
-        const context = await getBuyCardDialogAccountContextAction(
-          selectedAccount,
-          cardDetailId,
-          edition,
-          selectedFoil
-        );
+        // Balances are live data (browser); ownership comes from the cached collection.
+        const [context, balances] = await Promise.all([
+          getBuyCardDialogAccountContextAction(
+            selectedAccount,
+            cardDetailId,
+            edition,
+            selectedFoil
+          ),
+          fetchAccountBalances(selectedAccount),
+        ]);
 
         if (!active) return;
 
@@ -295,7 +301,10 @@ export default function BuyCardDialog({
 
         setDynamicBalances((prev) => ({
           ...prev,
-          [context.account]: context.balance,
+          [context.account]: {
+            DEC: tokenBalance(balances, "DEC"),
+            CREDITS: tokenBalance(balances, "CREDITS"),
+          },
         }));
         setDynamicCombineCards((prev) => ({
           ...prev,
@@ -651,7 +660,7 @@ export default function BuyCardDialog({
     try {
       const txId = await broadcastCombineCards({
         account: selectedAccount,
-        payload: await buildCombineCardsPayloadAction({ cardUids: combinePlan.cardUids }),
+        payload: buildCombineCardsPayload({ cardUids: combinePlan.cardUids }),
       });
 
       const [confirmation] = await waitForTransactions([txId]);
@@ -667,10 +676,7 @@ export default function BuyCardDialog({
       // Bust the cached collection/balances BEFORE bumping the refresh version,
       // otherwise the reload re-reads the same pre-combine `"use cache"` snapshot
       // and the combine status recomputes to the identical (stale) state.
-      await revalidateTagsAction([
-        { type: "collection", usernames: [selectedAccount] },
-        { type: "balances", usernames: [selectedAccount] },
-      ]);
+      await revalidateTagsAction([{ type: "collection", usernames: [selectedAccount] }]);
       notifyBalancesRefresh();
       notifyCollectionRefresh();
     } catch (err) {

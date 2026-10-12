@@ -1,7 +1,7 @@
 "use client";
 
 import CurrencyAmountChip from "@/components/collection/top-bar/CurrencyAmountChip";
-import { getBalancesForAccountsAction } from "@/lib/backend/actions/purchase-actions";
+import { fetchBalancesForAccounts } from "@/lib/frontend/spl-browser-api";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { credits_icon_url, dec_icon_url, sps_icon_url } from "@/lib/staticsIconUrls";
@@ -59,7 +59,7 @@ export default function TopBarBalances() {
           return;
         }
 
-        const balances = await getBalancesForAccountsAction(selectedAccounts);
+        const balances = await fetchBalancesForAccounts(selectedAccounts);
         if (active) {
           setRows(balances);
         }

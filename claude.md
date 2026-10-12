@@ -35,7 +35,25 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
 - Hive Keychain is the sole auth mechanism — cookie-based sessions, no NextAuth.
 - `cacheComponents` is the default caching approach for new server-side reads.
 - Prefer `"use cache"` + `cacheLife` + `cacheTag` for cached data, with invalidation centralized through `revalidateTagsAction` in `lib/backend/actions/cache-actions.ts`.
-- Public SPL / PeakMonsters data read by pages or client-called actions must go through a shared `"use cache"` wrapper (`spl-cache.ts`, `jackpot-cache.ts`) — never call a raw `fetch*` per request/per visitor. Uncached per-visitor calls caused SPL rate limits (429).
+- **SPL data access — one path per data type.** The data type decides the path, never the call site. Pick the row for any new SPL call; add a row if the data type isn't listed. Uncached per-visitor server calls caused SPL rate limits (429).
+
+  | Data type | Path (everywhere) | Accessor |
+  | --- | --- | --- |
+  | Balances `/players/balances` | Browser (live) | `fetchBalancesForAccounts` / `fetchAccountBalances` |
+  | Inventory `/players/inventory` | Browser (live) | `fetchInventory` |
+  | Card listings `/market/market_query_by_card` | Browser (live) | `fetchMarketListingRows` |
+  | Asset + deed listings (vapi `/market/listing-items`) | Browser (live) | `fetchMarketplaceAssetListings`, `fetchDeedListingsPage` |
+  | Tx lookup `/transactions/lookup` (polling after broadcast) | Browser (live) | `waitForTransactions` |
+  | Shared data: card details, settings, grouped market, listing prices, land market, jackpot, metrics, token prices, PeakMonsters | Server cache | `getCached*` in `spl-cache.ts` / `jackpot-cache.ts` |
+  | Slow per-account data: collection, player details, draws, rewards, skins, pool balances, owned land, marketplace holdings (landing / `all_listings`) | Server cache + tag invalidation after actions | `getCached*` |
+  | JWT data (daily progress, brawl, land harvest, history) | Server (cached) | `spl-authenticated-cache.ts` |
+  | Worker (`scripts/`) | Raw server fetch | separate process, no `"use cache"` |
+
+  - **Browser (live)** accessors live only in `src/lib/frontend/spl-browser-api.ts`. They count against the visitor's IP. **No server fallback:** a visitor who can't reach SPL from the browser can't play the game either, so failures throw and surface through the caller's error state (tx polling treats a failure as "not yet"). Browser SPL hosts must be in CSP `connect-src` (`next.config.ts`). The browser uses the `splApiConfig` defaults, so a self-hosted custom `SPL_API_BASE_URL` / `SPL_VAPI_BASE_URL` is not seen by the browser.
+  - Never move JWT calls or PeakMonsters (no CORS) to the browser.
+  - **Payload builders run in the browser** (`lib/frontend/purchase/payload-builders.ts`, pure logic in `lib/shared`). Their checks are a UX pre-flight: the user signs their own tx, and SPL validates balance, listing state and DEC price (`dec_mismatch_percent` 1.5% absorbs the ≤60 s DEC cache age).
+  - **Exceptions (server tx lookup):** donation recording (`support-actions.ts`) verifies the tx server-side before a DB write, and Hive blog generation (`hive-blog-market.ts`) is a server-side report. Both look up a known tx id once, not by polling.
+- SPL api/auth axios clients share `splRetryConfig()` (`spl-retry.ts`): 8 retries at 5s/10s/20s/30s/1m/2m/4m/8m50s (~17 min).
 
 ### Admin
 

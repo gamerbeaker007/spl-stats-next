@@ -1,6 +1,6 @@
 "use server";
 
-import { fetchPlayerDetails, fetchSplMetrics } from "@/lib/backend/api/spl/spl-api";
+import { getCachedSplJoinDate, getCachedSplMetrics } from "@/lib/backend/cache/spl-cache";
 import type { SplMetricRow } from "@/types/spl/metrics";
 
 /**
@@ -8,7 +8,7 @@ import type { SplMetricRow } from "@/types/spl/metrics";
  * Public data — no auth required.
  */
 export async function getSplMetricsAction(): Promise<SplMetricRow[]> {
-  const entries = await fetchSplMetrics();
+  const entries = await getCachedSplMetrics();
   const rows: SplMetricRow[] = [];
   for (const entry of entries) {
     for (const v of entry.values) {
@@ -26,8 +26,7 @@ export async function getPlayerJoinDateAction(
   username: string
 ): Promise<{ username: string; joinDate: string | null }> {
   try {
-    const details = await fetchPlayerDetails(username.toLowerCase());
-    return { username, joinDate: details.join_date ?? null };
+    return { username, joinDate: await getCachedSplJoinDate(username) };
   } catch {
     return { username, joinDate: null };
   }

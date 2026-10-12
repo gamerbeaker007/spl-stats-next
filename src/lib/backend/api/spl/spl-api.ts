@@ -1,17 +1,12 @@
 import logger from "@/lib/backend/log/logger.server";
-import { toCardFoilInt } from "@/lib/shared/card-utils";
 import { splApiConfig } from "@/lib/shared/config/splApiConfig";
+import { normalizeTransactionLookup } from "@/lib/shared/trx-lookup-parser";
 import { SplCAGoldReward } from "@/types/jackpot-prizes/cardCollection";
 import { CardHistoryResponse } from "@/types/jackpot-prizes/cardHistory";
 import { PackJackpotCard } from "@/types/jackpot-prizes/packJackpot";
 import { RankedDrawsPrizeCard } from "@/types/jackpot-prizes/rankedDraws";
 import { MintHistoryByDateItem, MintHistoryResponse } from "@/types/jackpot-prizes/shared";
-import {
-  FetchMarketListingsByCardParams,
-  SplMarketListing,
-  SplMarketListingsResponse,
-  SplTransactionLookupResponse,
-} from "@/types/purchase/purchase-plan";
+import { SplTransactionLookupResponse } from "@/types/purchase/purchase-plan";
 import { SplLoginResponse } from "@/types/spl/auth";
 import { SplBalance } from "@/types/spl/balances";
 import { SplBattleResult } from "@/types/spl/battle";
@@ -39,6 +34,7 @@ import { SplSeasonInfo, SplSettings } from "@/types/spl/season";
 import { SPLSeasonRewards } from "@/types/spl/seasonRewards";
 import axios from "axios";
 import * as rax from "retry-axios";
+import { splRetryConfig } from "@/lib/backend/api/spl/spl-retry";
 
 const SPL_BASE_URL = `${splApiConfig.publicBaseUrl}/`;
 
@@ -56,27 +52,7 @@ const splBaseClient = axios.create({
 });
 
 rax.attach(splBaseClient);
-splBaseClient.defaults.raxConfig = {
-  retry: 10,
-  retryDelay: 1000,
-  backoffType: "exponential",
-  statusCodesToRetry: [
-    [429, 429],
-    [500, 599],
-  ],
-  onRetryAttempt: async (err) => {
-    const cfg = rax.getConfig(err);
-    const status = axios.isAxiosError(err) ? err.response?.status : undefined;
-    const msg = axios.isAxiosError(err)
-      ? ((err.response?.data as Record<string, unknown>)?.error ??
-        err.response?.statusText ??
-        err.message)
-      : String(err);
-    logger.warn(
-      `Retry attempt #${cfg?.currentRetryAttempt}${status ? ` (HTTP ${status})` : ""}: ${msg}`
-    );
-  },
-};
+splBaseClient.defaults.raxConfig = splRetryConfig();
 
 /**
  * Login to Splinterlands using Hive Keychain signature
@@ -396,42 +372,6 @@ export async function fetchListingPrices(): Promise<SplCardListingPriceEntry[]> 
   return fetchMarketForSaleGrouped();
 }
 
-/** Fetch exact market listings for a single card target.
- * you can either use foil 0-4 directly in the api or use
- * gold will return foil 1 and foil 2
- * black will return foil 3 and foil 4
- * */
-export async function fetchMarketListingsByCard({
-  cardDetailId,
-  foil,
-  edition,
-  type = "buy",
-  level,
-}: FetchMarketListingsByCardParams): Promise<SplMarketListing[]> {
-  const apiFoil = toCardFoilInt(foil);
-
-  const params: Record<string, string | number> = {
-    card_detail_id: cardDetailId,
-    foil: apiFoil,
-    edition,
-    type: type === "buy" ? "sell" : type,
-    sort: "low_price_bcx",
-  };
-  if (typeof level === "number") params.level = level;
-  const res = await splBaseClient.get("/market/market_query_by_card", { params });
-  const data = res.data as SplMarketListing[] | SplMarketListingsResponse;
-  const listings = Array.isArray(data) ? data : data?.data;
-  if (!Array.isArray(listings)) {
-    throw new Error("Invalid response from Splinterlands API");
-  }
-
-  return listings.sort((a, b) => {
-    const aPricePerCc = a.buy_price / Math.max(1, a.bcx);
-    const bPricePerCc = b.buy_price / Math.max(1, b.bcx);
-    return aPricePerCc - bPricePerCc;
-  });
-}
-
 /**
  * Fetch pack jackpot overview from Splinterlands API
  */
@@ -681,39 +621,6 @@ export async function fetchAccountCardCollection(username: string): Promise<SplP
   }
 }
 
-/** Fetch all cards held by the $FRONTIER_JACKPOT account (cards still available in the bucket). */
-export async function fetchFrontierJackpotCollection(): Promise<SplPlayerCardDetail[]> {
-  return fetchAccountCardCollection("$FRONTIER_JACKPOT");
-}
-
-/** Fetch all cards held by the $JACKPOT account. */
-export async function fetchJackpotCards(): Promise<SplPlayerCardDetail[]> {
-  return fetchAccountCardCollection("$JACKPOT");
-}
-/**
- * Fetch a player's full item inventory (skins, music, …) from /players/inventory.
- * Each item carries its on-chain `uid` — required to transfer specific instances
- * via the `sm_transfer_items` operation.
- */
-export async function fetchPlayerInventory(username: string): Promise<SplInventoryItem[]> {
-  try {
-    console.info(`Fetching inventory for username ${username}`);
-    const res = await splBaseClient.get("/players/inventory", { params: { username } });
-    const data = res.data;
-    if (!data || !Array.isArray(data)) {
-      throw new Error("Invalid response from Splinterlands API: expected array");
-    }
-    return data as SplInventoryItem[];
-  } catch (error) {
-    logger.error(
-      `spl-api: fetchPlayerInventory(${username}): ${
-        error instanceof Error ? error.message : error
-      }`
-    );
-    throw error;
-  }
-}
-
 /**
  * Fetch music inventory from Splinterlands API for $MUSIC_JACKPOT
  */
@@ -957,33 +864,7 @@ export async function fetchTransactionLookup(
     const res = await splBaseClient.get<Record<string, unknown>>("/transactions/lookup", {
       params: { trx_id: trxId },
     });
-    const raw = res.data;
-    if (!raw || typeof raw !== "object") return null;
-
-    const wrapped = raw as { trx_info?: unknown };
-    if (wrapped.trx_info && typeof wrapped.trx_info === "object") {
-      return raw as unknown as SplTransactionLookupResponse;
-    }
-
-    const info = raw as Partial<SplTransactionLookupResponse["trx_info"]>;
-    if (
-      typeof info.id === "string" &&
-      typeof info.type === "string" &&
-      typeof info.player === "string" &&
-      typeof info.data === "string"
-    ) {
-      return {
-        trx_info: {
-          id: info.id,
-          type: info.type,
-          player: info.player,
-          data: info.data,
-          result: typeof info.result === "string" || info.result === null ? info.result : null,
-        },
-      };
-    }
-
-    return null;
+    return normalizeTransactionLookup(res.data);
   } catch {
     return null;
   }

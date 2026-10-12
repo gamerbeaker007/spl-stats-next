@@ -5,10 +5,11 @@ export const CACHE_TAGS = {
   splGroupedMarket: "spl:grouped-market",
   splListingPrices: "spl:listing-prices",
   splMarketPrices: "spl:market-prices",
+  splPrices: "spl:prices",
+  splMetrics: "spl:metrics",
   splJackpot: "spl:jackpot",
   splLandMarket: "spl:land-market",
   splCollection: (username: string) => `spl:collection:${username.toLowerCase()}`,
-  splBalances: (username: string) => `spl:balances:${username.toLowerCase()}`,
   splMarketplace: (username: string) => `spl:marketplace:${username.toLowerCase()}`,
   splPlayerSkins: (username: string) => `spl:player-skins:${username.toLowerCase()}`,
   splPlayerDetails: (username: string) => `spl:player-details:${username.toLowerCase()}`,
@@ -29,7 +30,6 @@ export const CACHE_TAGS = {
 export function dashboardAccountTags(username: string): string[] {
   const normalized = username.trim().toLowerCase();
   return [
-    CACHE_TAGS.splBalances(normalized),
     CACHE_TAGS.splPlayerDetails(normalized),
     CACHE_TAGS.splDraws(normalized),
     CACHE_TAGS.splSeasonRewards(normalized),
@@ -43,7 +43,6 @@ export function dashboardAccountTags(username: string): string[] {
 
 export type CacheInvalidationTarget =
   | { type: "collection"; usernames: string[] }
-  | { type: "balances"; usernames: string[] }
   | { type: "marketplace"; usernames: string[] }
   | { type: "player-skins"; usernames: string[] }
   | { type: "card-details" }

@@ -11,7 +11,7 @@ const flashKeyframes = {
 };
 type FlashKind = keyof typeof flashKeyframes;
 
-const FLASH_SECONDS = 10;
+const FLASH_SECONDS = 60;
 
 /** Flashes its children whenever `value` changes between renders (not on first mount). */
 function FlashOnChange<T>({

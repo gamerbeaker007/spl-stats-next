@@ -159,7 +159,6 @@ export default function MarketplaceAssetSection({
     // Invalidate the server caches first so the client re-fetch gets fresh data.
     const tags: Parameters<typeof revalidateTagsAction>[0] = [
       { type: "marketplace", usernames: [selectedAccount] },
-      { type: "balances", usernames: [selectedAccount] },
     ];
     if (assetName === "SKINS") {
       tags.push({ type: "player-skins", usernames: [selectedAccount] });

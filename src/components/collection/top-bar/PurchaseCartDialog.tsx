@@ -4,7 +4,7 @@ import TransactionProgressPanel from "@/components/shared/TransactionProgressPan
 import CurrencyAmountChip from "@/components/collection/top-bar/CurrencyAmountChip";
 import PurchaseCartLandTable from "@/components/collection/top-bar/PurchaseCartLandTable";
 import { usePurchaseCheckout } from "@/hooks/cards/usePurchaseCheckout";
-import { getBalancesForAccountsAction } from "@/lib/backend/actions/purchase-actions";
+import { fetchBalancesForAccounts } from "@/lib/frontend/spl-browser-api";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { isCardPurchaseItem, isLandPurchaseItem } from "@/types/purchase/purchase-plan";
 import {
@@ -51,7 +51,7 @@ export default function PurchaseCartDialog() {
         setBalanceMap({});
         return;
       }
-      const rows = await getBalancesForAccountsAction(accounts);
+      const rows = await fetchBalancesForAccounts(accounts);
       if (!active) return;
       const mapped: Record<string, { DEC: number; CREDITS: number }> = {};
       for (const row of rows) {

@@ -1,5 +1,4 @@
 import type { CardPurchasePlanItem } from "@/types/purchase/purchase-plan";
-import type { SplBalance } from "@/types/spl/balances";
 import type { SplCardCollection } from "@/types/spl/card";
 import type { SplCardDetail } from "@/types/spl/cardDetails";
 import type { SplCardListingPriceEntry } from "@/types/spl/market";
@@ -14,7 +13,6 @@ export interface BuyMissingCcSnapshot {
   collection: SplCardCollection;
   groupedMarket: SplCardListingPriceEntry[];
   settings: SplSettings;
-  balances: SplBalance[];
 }
 
 export interface BuyMissingCcListing {

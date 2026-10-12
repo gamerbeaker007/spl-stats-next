@@ -15,9 +15,11 @@ import {
   type MarketplacePlayerListing,
   type MarketplacePlayerListingRaw,
   type OutbidStatus,
+  type OwnedAssetInstance,
   marketplaceAssetNames,
 } from "@/types/marketplace-assets";
 import type { PurchaseCurrency } from "@/types/purchase/purchase-plan";
+import type { SplInventoryItem } from "@/types/spl/jackpot";
 
 export const DEFAULT_SKIN_NAME = "";
 export const DEFAULT_SKIN_DISPLAY_NAME = "Default";
@@ -160,6 +162,14 @@ export function normalizeMarketplaceAssetMetaDetail(
     cardDetail: raw.card_detail ?? null,
     skinName: raw.skin_name ?? "",
   };
+}
+
+/** Listings placed by `account` (already lower-cased). */
+export function listingsBySeller(
+  listings: MarketplaceListingItem[],
+  account: string
+): MarketplaceListingItem[] {
+  return listings.filter((listing) => listing.seller.trim().toLowerCase() === account);
 }
 
 function findOtherCurrency(
@@ -436,6 +446,64 @@ export function isActionableInventoryItem(item: {
   can_transfer?: boolean;
 }): boolean {
   return item.can_transfer !== false && !item.listed && !item.in_use && item.is_soulbound !== true;
+}
+
+/**
+ * Every requested uid must be a currently-actionable copy in the account's live
+ * inventory. Returns the uids; throws when any is listed, in use or gone.
+ */
+export function assertActionableUids(
+  inventory: SplInventoryItem[],
+  requestedUids: string[]
+): string[] {
+  if (requestedUids.length === 0) {
+    throw new Error("No items selected");
+  }
+
+  const actionable = new Set(inventory.filter(isActionableInventoryItem).map((item) => item.uid));
+  if (requestedUids.some((uid) => !actionable.has(uid))) {
+    throw new Error(
+      "Some selected items are no longer available (they may be listed, staked, or already transferred)."
+    );
+  }
+  return requestedUids;
+}
+
+/**
+ * Every owned copy of one asset, with per-copy listed status and the listing id
+ * to cancel. Drives the list/transfer copy-picker.
+ */
+export function buildOwnedAssetInstances(
+  inventory: SplInventoryItem[],
+  ownListings: MarketplaceListingItem[],
+  detailId: string
+): OwnedAssetInstance[] {
+  const ownListingByUid = new Map(
+    ownListings.map((listing) => [
+      listing.itemId,
+      { listingItemId: listing.listingItemId, price: listing.price },
+    ])
+  );
+
+  // Match by string: detail ids are numeric for skins/music but string for many
+  // asset types (packs `"CHAOS"`, consumables `"MIDNIGHTPOT"`, land resources `"TC"`).
+  return inventory
+    .filter((item) => String(item.item_detail_id) === detailId)
+    .map((item) => {
+      const own = ownListingByUid.get(item.uid);
+      return {
+        uid: item.uid,
+        listed: item.listed,
+        inUse: item.in_use,
+        actionable: isActionableInventoryItem(item),
+        listingItemId: own?.listingItemId ?? null,
+        price: own?.price ?? null,
+      };
+    })
+    .sort((left, right) => {
+      if (left.actionable !== right.actionable) return left.actionable ? -1 : 1;
+      return left.uid.localeCompare(right.uid);
+    });
 }
 
 /** Group card-linked assets (skins) by their base card. Items without a card link are skipped. */

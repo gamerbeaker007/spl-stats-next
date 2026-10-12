@@ -4,7 +4,6 @@ import {
   getCachedSplCardCollection,
   getCachedSplCardDetails,
   getCachedSplGroupedMarket,
-  getCachedSplPlayerBalances,
   getCachedSplSettings,
 } from "@/lib/backend/cache/spl-cache";
 import { getDetailedPlayerCardCollectionCached } from "@/lib/backend/services/collection-detailed";
@@ -71,14 +70,10 @@ export async function getBuyCardDialogAccountContextAction(
 ): Promise<{
   account: string;
   accountState: { highestLevel: number; highestCc: number; totalCc: number };
-  balance: { DEC: number; CREDITS: number };
   combineCards: CombineCardState[];
 }> {
   const normalized = normalizeAccount(account);
-  const [collection, balances] = await Promise.all([
-    getCachedSplCardCollection(normalized),
-    getCachedSplPlayerBalances(normalized),
-  ]);
+  const collection = await getCachedSplCardCollection(normalized);
 
   const cards = collection.cards.filter(
     (card) =>
@@ -121,26 +116,20 @@ export async function getBuyCardDialogAccountContextAction(
     account: normalized,
     accountState,
     combineCards,
-    balance: {
-      DEC: balances.find((entry) => entry.token === "DEC")?.balance ?? 0,
-      CREDITS: balances.find((entry) => entry.token === "CREDITS")?.balance ?? 0,
-    },
   };
 }
 
 export async function getBuyMissingCcDetailedCollectionAction(account: string) {
   const normalized = normalizeAccount(account);
-  const [detailedCollection, groupedMarket, balances] = await Promise.all([
+  const [detailedCollection, groupedMarket] = await Promise.all([
     getDetailedPlayerCardCollectionCached(normalized, true),
     getCachedSplGroupedMarket(),
-    getCachedSplPlayerBalances(normalized),
   ]);
 
   return {
     account: normalized,
     detailedCollection,
     groupedMarket: groupedMarket.entries,
-    balances,
   };
 }
 

@@ -1,10 +1,14 @@
 "use client";
 
 import { getAuthStatus } from "@/lib/backend/actions/auth-actions";
-import { waitForTransactionsAction } from "@/lib/backend/actions/purchase-actions";
 import { ensureGuestTermsAcknowledgedForBroadcast } from "@/lib/frontend/guest-terms-ack";
+import { fetchTransactionLookupInBrowser } from "@/lib/frontend/spl-browser-api";
 import { withOperationPrefix } from "@/lib/shared/config/splApiConfig";
-import type { WaitForTransactionsResult } from "@/types/purchase/purchase-plan";
+import { lookupTransactionStatus } from "@/lib/shared/trx-lookup-parser";
+import type {
+  LookupTransactionStatus,
+  WaitForTransactionsResult,
+} from "@/types/purchase/purchase-plan";
 import type {
   CombineCardsPayload,
   MarketPurchasePayload,
@@ -109,17 +113,78 @@ export interface BroadcastCombineCardsParams {
   payload: CombineCardsPayload;
 }
 
+const WAIT_TIMEOUT_MS = 120_000;
+/** Delay between poll rounds: quick first checks, then back off (last value repeats). */
+const POLL_DELAYS_MS = [3_000, 5_000, 8_000];
+const MAX_TX_IDS_PER_WAIT = 100;
+
+const PENDING_STATUS: LookupTransactionStatus = {
+  ok: false,
+  resolved: false,
+  success: false,
+  message: "Transaction not found yet",
+};
+
 /**
- * Wait for SPL to process broadcast tx IDs. Mirrors the retry-until-timeout
- * behavior used in the reference project.
+ * One lookup, from the browser so polling counts against the visitor's rate
+ * limit, not the server's. Any failure (e.g. the visitor's own 429) just means
+ * "not yet" — the next round retries until the timeout.
+ */
+async function lookupTransactionInBrowser(txId: string): Promise<LookupTransactionStatus> {
+  try {
+    return lookupTransactionStatus(await fetchTransactionLookupInBrowser(txId));
+  } catch {
+    return PENDING_STATUS;
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Poll SPL until every broadcast tx ID resolves or the timeout passes.
+ * Still-unresolved (timed-out) txs are returned as such for the caller to surface.
  */
 export async function waitForTransactions(txIds: string[]): Promise<WaitForTransactionsResult[]> {
-  if (txIds.length === 0) return [];
+  const safeTxIds = txIds.slice(0, MAX_TX_IDS_PER_WAIT);
+  if (safeTxIds.length === 0) return [];
 
-  const confirmations = await waitForTransactionsAction(txIds);
+  const started = Date.now();
+  const pending = new Set(safeTxIds);
+  const resolved = new Map<string, WaitForTransactionsResult>();
 
-  // Any still-unresolved (timed-out) txs are returned as-is for the caller to surface.
-  return confirmations;
+  for (let round = 0; pending.size > 0 && Date.now() - started < WAIT_TIMEOUT_MS; round++) {
+    const checks = await Promise.all(
+      Array.from(pending, async (txId) => ({
+        txId,
+        status: await lookupTransactionInBrowser(txId),
+      }))
+    );
+
+    for (const check of checks) {
+      if (!check.status.resolved) continue;
+      pending.delete(check.txId);
+      resolved.set(check.txId, check);
+    }
+
+    if (pending.size > 0) {
+      await sleep(POLL_DELAYS_MS[Math.min(round, POLL_DELAYS_MS.length - 1)]);
+    }
+  }
+
+  return safeTxIds.map(
+    (txId) =>
+      resolved.get(txId) ?? {
+        txId,
+        status: {
+          ok: false,
+          resolved: false,
+          success: false,
+          message: "Timed out waiting for transaction confirmation",
+        },
+      }
+  );
 }
 
 export async function broadcastMarketPurchase({

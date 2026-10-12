@@ -40,6 +40,7 @@ import { SplFormat } from "@/types/spl/format";
 import { SplHistory } from "@/types/spl/history";
 import axios, { AxiosRequestConfig } from "axios";
 import * as rax from "retry-axios";
+import { splRetryConfig } from "@/lib/backend/api/spl/spl-retry";
 
 const SPL_USER_AGENT = process.env.SPL_USER_AGENT ?? "spl-stats-instance/1.0";
 
@@ -53,27 +54,7 @@ const splAuthClient = axios.create({
 });
 
 rax.attach(splAuthClient);
-splAuthClient.defaults.raxConfig = {
-  retry: 10,
-  retryDelay: 1000,
-  backoffType: "exponential",
-  statusCodesToRetry: [
-    [429, 429],
-    [500, 599],
-  ],
-  onRetryAttempt: async (err) => {
-    const cfg = rax.getConfig(err);
-    const status = axios.isAxiosError(err) ? err.response?.status : undefined;
-    const msg = axios.isAxiosError(err)
-      ? ((err.response?.data as Record<string, unknown>)?.error ??
-        err.response?.statusText ??
-        err.message)
-      : String(err);
-    logger.warn(
-      `[auth] Retry attempt #${cfg?.currentRetryAttempt}${status ? ` (HTTP ${status})` : ""}: ${msg}`
-    );
-  },
-};
+splAuthClient.defaults.raxConfig = splRetryConfig("[auth] ");
 
 /** Build Axios config that injects the JWT as a Bearer token. */
 function bearerConfig(jwtToken: string, extra?: AxiosRequestConfig): AxiosRequestConfig {

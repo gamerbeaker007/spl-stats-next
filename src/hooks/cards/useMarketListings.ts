@@ -1,24 +1,8 @@
 "use client";
 
-import { getMarketListingsByCardAction } from "@/lib/backend/actions/purchase-actions";
+import { type MarketListingRow, fetchMarketListingRows } from "@/lib/frontend/spl-browser-api";
 import type { FetchMarketListingsByCardParams } from "@/types/purchase/purchase-plan";
 import { useCallback, useState } from "react";
-import { CardFoil } from "@/types/card";
-
-interface MarketListingRow {
-  marketId: string;
-  uid?: string;
-  cardDetailId: number;
-  edition: number;
-  foil: CardFoil;
-  level: number;
-  cc: number;
-  priceUsd: number;
-  priceDec: number;
-  priceCredits: number;
-  pricePerCcDec: number;
-  seller?: string;
-}
 
 export function useMarketListings() {
   const [rows, setRows] = useState<MarketListingRow[]>([]);
@@ -29,7 +13,7 @@ export function useMarketListings() {
     setLoading(true);
     setError(null);
     try {
-      const next = await getMarketListingsByCardAction(params);
+      const next = await fetchMarketListingRows(params);
       setRows(next);
       return next;
     } catch (err) {

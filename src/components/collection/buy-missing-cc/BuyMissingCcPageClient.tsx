@@ -668,10 +668,7 @@ export default function BuyMissingCcPageClient() {
             // Bust the cached collection BEFORE bumping the refresh version,
             // otherwise the reload re-reads the same pre-combine `"use cache"`
             // snapshot and the combine status recomputes to the identical state.
-            await revalidateTagsAction([
-              { type: "collection", usernames: [selectedAccount] },
-              { type: "balances", usernames: [selectedAccount] },
-            ]);
+            await revalidateTagsAction([{ type: "collection", usernames: [selectedAccount] }]);
             // Bump the shared refresh version so the collection reloads (the load
             // effect depends on collectionRefreshVersion).
             notifyCollectionRefresh();

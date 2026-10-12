@@ -15,7 +15,6 @@ import {
   getCachedSplCardCollection,
   getCachedSplCardDetails,
   getCachedSplListingPrices,
-  getCachedSplPlayerBalances,
   getCachedSplPlayerDetails,
   getCachedSplPlayerDraws,
   getCachedSplSeasonRewards,
@@ -57,10 +56,6 @@ import { getCurrentUser, getMonitoredAccounts } from "./auth-actions";
 
 export async function getPlayerDetails(username: string) {
   return getCachedSplPlayerDetails(username);
-}
-
-export async function getPlayerBalances(username: string) {
-  return getCachedSplPlayerBalances(username);
 }
 
 export async function getPlayerDraws(username: string) {

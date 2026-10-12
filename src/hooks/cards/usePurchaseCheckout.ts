@@ -1,7 +1,7 @@
 "use client";
 
-import { getBalancesForAccountsAction } from "@/lib/backend/actions/purchase-actions";
 import { checkoutItems, type CheckoutResult } from "@/lib/frontend/purchase/checkout";
+import { fetchBalancesForAccounts } from "@/lib/frontend/spl-browser-api";
 import type { PurchaseCurrency, PurchasePlanItem } from "@/types/purchase/purchase-plan";
 import { useCallback, useMemo, useRef, useState } from "react";
 
@@ -25,7 +25,7 @@ export function usePurchaseCheckout(items: PurchasePlanItem[]) {
 
   const refreshBalances = useCallback(async () => {
     if (accounts.length === 0) return [];
-    return getBalancesForAccountsAction(accounts);
+    return fetchBalancesForAccounts(accounts);
   }, [accounts]);
 
   const checkout = useCallback(

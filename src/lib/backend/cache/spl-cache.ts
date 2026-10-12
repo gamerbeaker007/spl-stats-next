@@ -9,11 +9,11 @@ import {
   fetchFrontierDraws,
   fetchListingPrices,
   fetchMarketForSaleGrouped,
-  fetchPlayerBalances,
   fetchPlayerDetails,
-  fetchPlayerInventory,
   fetchRankedDraws,
   fetchSettings,
+  fetchSplMetrics,
+  fetchSplPrices,
 } from "@/lib/backend/api/spl/spl-api";
 import {
   fetchLandMarketDeeds,
@@ -91,24 +91,6 @@ export async function getCachedSplCardCollection(username: string) {
 }
 
 /**
- * Player balances (`/players/balances`).
- *
- * Deliberately kept on the short `minutes` profile even though most tokens in
- * the payload (DEC, SPS, SPSP, CREDITS, GLINT, …) change slowly: the same
- * response carries `ECR`/`FECR`, from which the dashboard derives ranked and
- * frontier **energy**. Energy is consumed per battle, so a stale ECR reading
- * would show energy that the player no longer has. One response feeds both, so
- * the strictest freshness requirement wins.
- */
-export async function getCachedSplPlayerBalances(username: string) {
-  "use cache";
-  cacheLife("minutes");
-  const normalized = username.trim().toLowerCase();
-  cacheTag(CACHE_TAGS.splBalances(normalized));
-  return fetchPlayerBalances(normalized);
-}
-
-/**
  * Player details (`/players/details`) — league, rating, season battle counts.
  * Changes with every battle, so short-lived.
  */
@@ -174,6 +156,43 @@ export async function getCachedSplListingPrices() {
 }
 
 /**
+ * Token USD prices (prices.splinterlands.com) for previews and display. Same
+ * window as the market price polling: SPL is hit at most once per half minute
+ * however many dialogs are open. Payload builders that convert a broadcast
+ * amount keep calling `fetchSplPrices()` directly for the live rate.
+ */
+export async function getCachedSplPrices() {
+  "use cache";
+  cacheLife({
+    stale: MARKET_PRICE_REFRESH_SECONDS,
+    revalidate: MARKET_PRICE_REFRESH_SECONDS / 2,
+    expire: MARKET_PRICE_REFRESH_SECONDS,
+  });
+  cacheTag(CACHE_TAGS.splPrices);
+  return fetchSplPrices();
+}
+
+/** Game-wide metrics (`/transactions/metrics`): daily data points, shared by every visitor. */
+export async function getCachedSplMetrics() {
+  "use cache";
+  cacheLife("hours");
+  cacheTag(CACHE_TAGS.splMetrics);
+  return fetchSplMetrics();
+}
+
+/**
+ * A player's join date never changes, so it is cached for as long as Next keeps
+ * the entry. Separate from `getCachedSplPlayerDetails` (minutes) so the metrics
+ * join-date picker doesn't refetch the full details payload.
+ */
+export async function getCachedSplJoinDate(username: string): Promise<string | null> {
+  "use cache";
+  cacheLife("max");
+  const details = await fetchPlayerDetails(username.trim().toLowerCase());
+  return details.join_date ?? null;
+}
+
+/**
  * Global PeakMonsters market prices. Same rationale as listing prices.
  */
 export async function getCachedPeakmonstersMarketPrices() {
@@ -181,14 +200,6 @@ export async function getCachedPeakmonstersMarketPrices() {
   cacheLife("hours");
   cacheTag(CACHE_TAGS.splMarketPrices);
   return fetchPeakmonstersMarketPrices();
-}
-
-export async function getCachedSplPlayerInventory(username: string) {
-  "use cache";
-  cacheLife("minutes");
-  const normalized = username.trim().toLowerCase();
-  cacheTag(CACHE_TAGS.splMarketplace(normalized));
-  return fetchPlayerInventory(normalized);
 }
 
 /**

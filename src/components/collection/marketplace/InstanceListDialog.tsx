@@ -6,9 +6,9 @@ import TransactionProgressPanel from "@/components/shared/TransactionProgressPan
 import { useMarketplaceTransaction } from "@/hooks/collection/useMarketplaceTransaction";
 import { useOwnedAssetInstances } from "@/hooks/collection/useOwnedAssetInstances";
 import {
-  buildDelistAssetPayloadAction,
-  buildInstanceListPayloadAction,
-} from "@/lib/backend/actions/marketplace-assets-actions";
+  buildDelistAssetPayload,
+  buildInstanceListPayload,
+} from "@/lib/frontend/purchase/payload-builders";
 import {
   broadcastMarketplaceCancel,
   broadcastMarketplaceList,
@@ -73,7 +73,7 @@ export default function InstanceListDialog({
       label: "List",
       message: `Listing ${selectedUids.length} item${selectedUids.length === 1 ? "" : "s"} for ${priceUsd} USD...`,
       execute: async () => {
-        const { payload } = await buildInstanceListPayloadAction({
+        const { payload } = await buildInstanceListPayload({
           account,
           assetName,
           itemUids: selectedUids,
@@ -94,7 +94,7 @@ export default function InstanceListDialog({
       label: "Delist",
       message: "Cancelling listing...",
       execute: async () => {
-        const { payload } = await buildDelistAssetPayloadAction({
+        const { payload } = await buildDelistAssetPayload({
           account,
           assetName,
           detailId: item.detailId,

@@ -7,6 +7,48 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ## [Unreleased]
 
+### Updated
+
+- **SPL data access — one path per data type (rate limits).** Which path a call takes is now
+  decided by the data type, not the call site (rule + table in `CLAUDE.md`):
+  - **Browser (live):** balances, inventory, card listings, asset/deed listings and tx lookup
+    are fetched by the visitor's browser straight from SPL (`src/lib/frontend/spl-browser-api.ts`),
+    so they count against the visitor's IP. There is no server fallback: a visitor who can't
+    reach SPL can't play the game either, so errors show in the UI. CSP `connect-src` allows
+    the SPL api/vapi hosts.
+  - **Server cache:** data shared by all visitors (incl. token prices, metrics, prize buckets)
+    and slow per-account data (collection, details, draws, rewards, skins, pools, owned land,
+    marketplace holdings).
+  - Balances everywhere (top bar, cart, checkout, dashboard, buy-card dialog, marketplace,
+    donations) now use the browser path. The `spl:balances` cache tag and the `"balances"`
+    invalidation target are removed.
+- **Payload builders run in the browser** (`lib/frontend/purchase/payload-builders.ts`, pure
+  logic in `lib/shared/land-purchase.ts`, `marketplace-purchase.ts`, `marketplace-assets.ts`).
+  They re-check against live browser data and the cached DEC rate as a UX pre-flight; SPL
+  validates the signed tx itself. No server SPL calls at checkout anymore.
+- **Transaction confirmation polling** runs in the browser (3s → 5s → 8s, 2 min timeout).
+- **New server caches:** token prices (~1 min), SPL metrics (`hours`), player join dates
+  (`max`), prize bucket accounts (jackpot cache, 15 min, `spl:jackpot` tag).
+- **SPL retry backoff:** The api/auth clients retry 8 times at 5s, 10s, 20s, 30s, 1m, 2m, 4m,
+  8m50s (~17 min total, same as before) instead of 10 exponential retries starting at 0.5s.
+  `Retry-After` still takes precedence. Shared via `splRetryConfig()` in `spl-retry.ts`.
+- `trxLookupParser.ts` → `lib/shared/trx-lookup-parser.ts`, `services/marketplace-purchase.ts`
+  → `lib/shared/marketplace-purchase.ts`.
+
+### Removed
+
+- Server actions replaced by the browser path: `purchase-actions.ts` (whole file),
+  `waitForTransactionsAction`, `getOwnedListingsAction`, `getOwnedAssetInstancesAction`,
+  `getPlayerMarketBalancesAction`, `getPlayerBalances`, `buildLandPurchasePayloadAction`, and
+  the marketplace `build*PayloadAction`s. `getSupportBalances` → `getSupportHiveBalances`
+  (HIVE/HBD only). Server caches `getCachedSplPlayerBalances`, `getCachedSplPlayerInventory`.
+  Server fetchers only the browser path needed: `fetchMarketListingsByCard`,
+  `fetchPlayerInventory`, `fetchMarketplaceListingItemsPage`.
+- Unused jackpot card section: `JackpotCardSectionServer`, `JackpotCardSectionClient`,
+  `JackpotCard`, the `getJackpotCards` action, the `JackpotCardDetail` type and the
+  `fetchJackpotCards` / `fetchFrontierJackpotCollection` / `fetchMarketplaceListingItems`
+  fetchers.
+
 ---
 
 ## [v1.28.0] - 2026-10-12

@@ -6,9 +6,9 @@ import TransactionProgressPanel from "@/components/shared/TransactionProgressPan
 import { useMarketplaceTransaction } from "@/hooks/collection/useMarketplaceTransaction";
 import { useOwnedListings } from "@/hooks/collection/useOwnedListings";
 import {
-  buildDelistAssetPayloadAction,
-  buildQuantityListPayloadAction,
-} from "@/lib/backend/actions/marketplace-assets-actions";
+  buildDelistAssetPayload,
+  buildQuantityListPayload,
+} from "@/lib/frontend/purchase/payload-builders";
 import {
   getActualOwnedQuantity,
   getAvailableToListQuantity,
@@ -125,7 +125,7 @@ export default function QuantityListDialog({
       label: "List",
       message: `Listing ${effectiveQuantity} item${effectiveQuantity === 1 ? "" : "s"} for ${priceUsd} USD...`,
       execute: async () => {
-        const { payload } = await buildQuantityListPayloadAction({
+        const { payload } = await buildQuantityListPayload({
           account,
           assetName,
           detailId: item.detailId,
@@ -147,7 +147,7 @@ export default function QuantityListDialog({
       label: "Delist",
       message: "Cancelling listing...",
       execute: async () => {
-        const { payload } = await buildDelistAssetPayloadAction({
+        const { payload } = await buildDelistAssetPayload({
           account,
           assetName,
           detailId: item.detailId,

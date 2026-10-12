@@ -2,16 +2,15 @@
 
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import type { CacheInvalidationTarget } from "@/lib/backend/cache/cache-tags";
-import { buildLandPurchasePayloadAction } from "@/lib/backend/actions/land-market-actions";
-import {
-  buildMarketPurchasePayloadAction,
-  getBalancesForAccountsAction,
-} from "@/lib/backend/actions/purchase-actions";
 import {
   broadcastMarketPurchase,
   broadcastMarketplaceAssetPurchase,
   waitForTransactions,
 } from "@/lib/frontend/purchase/splBroadcast";
+import { buildLandPurchasePayload } from "@/lib/frontend/purchase/payload-builders";
+import { type AccountBalances, fetchBalancesForAccounts } from "@/lib/frontend/spl-browser-api";
+import { tokenBalance } from "@/lib/shared/marketplace-purchase";
+import { buildMarketPurchasePayload } from "@/lib/shared/transactions-builder";
 import {
   isCardPurchaseItem,
   isLandPurchaseItem,
@@ -20,7 +19,7 @@ import {
   type WaitForTransactionsResult,
 } from "@/types/purchase/purchase-plan";
 
-type BalancesByAccount = Awaited<ReturnType<typeof getBalancesForAccountsAction>>;
+type BalancesByAccount = AccountBalances[];
 
 export interface CheckoutCallbacks {
   onBroadcast?: (entry: {
@@ -91,7 +90,8 @@ function invalidationTargets(
 
   const cardAccounts = accountsOf(bought.filter(isCardPurchaseItem));
   const landAccounts = accountsOf(bought.filter(isLandPurchaseItem));
-  const targets: CacheInvalidationTarget[] = [{ type: "balances", usernames: accountsOf(bought) }];
+  // Balances are read live in the browser, so there is no balance cache to invalidate.
+  const targets: CacheInvalidationTarget[] = [];
 
   if (cardAccounts.length > 0) {
     targets.push({ type: "collection", usernames: cardAccounts }, { type: "grouped-market" });
@@ -111,12 +111,12 @@ export function availableBalance(
   if (!row) return 0;
 
   // Only the liquid balance can fund a purchase — staked DEC-B is not spendable.
-  return row.balances.find((entry) => entry.token === currency)?.balance ?? 0;
+  return tokenBalance(row.balances, currency);
 }
 
 /**
  * Broadcast one market-purchase transaction per account, wait for confirmation,
- * then invalidate the affected collection/balance caches.
+ * then invalidate the affected collection / land caches.
  *
  * Balances for every account are verified up front so a later insufficient-balance
  * failure never leaves an earlier account already charged.
@@ -131,7 +131,7 @@ export async function checkoutItems(
   }
 
   const grouped = Array.from(groupByAccount(items).entries());
-  const balances = await getBalancesForAccountsAction(grouped.map(([account]) => account));
+  const balances = await fetchBalancesForAccounts(grouped.map(([account]) => account));
 
   for (const [account, accountItems] of grouped) {
     const total = accountTotal(accountItems, currency);
@@ -187,7 +187,7 @@ export async function checkoutItems(
     const cardItems = accountItems.filter(isCardPurchaseItem);
     for (const purchaseChunk of chunkItems(cardItems, MAX_MARKET_ITEMS_PER_TX)) {
       await broadcastChunk(account, purchaseChunk, async () => {
-        const payload = await buildMarketPurchasePayloadAction({
+        const payload = buildMarketPurchasePayload({
           marketIds: purchaseChunk.map((item) => item.marketId),
           currency,
           totalPrice: accountTotal(purchaseChunk, currency),
@@ -199,7 +199,7 @@ export async function checkoutItems(
     const landItems = accountItems.filter(isLandPurchaseItem);
     for (const purchaseChunk of chunkItems(landItems, MAX_MARKET_ITEMS_PER_TX)) {
       await broadcastChunk(account, purchaseChunk, async () => {
-        const result = await buildLandPurchasePayloadAction({
+        const result = await buildLandPurchasePayload({
           account,
           currency,
           items: purchaseChunk.map((item) => ({
