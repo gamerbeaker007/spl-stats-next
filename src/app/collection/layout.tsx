@@ -7,8 +7,8 @@ import { MarketplaceViewProvider } from "@/lib/frontend/context/MarketplaceViewC
 import { Box, Container } from "@mui/material";
 import { usePathname } from "next/navigation";
 
-// The DEC/Credits cart chrome only applies to the card-buying flows; the asset
-// marketplaces (skins, music, packs, …) broadcast directly from their own dialogs.
+// The DEC/Credits cart chrome applies to the card-buying flows and the Land Market;
+// the asset marketplaces (skins, music, packs, …) broadcast directly from their own dialogs.
 const CART_CHROME_EXCLUDED_PREFIXES = [
   "/collection/skins",
   "/collection/music",
@@ -24,7 +24,10 @@ export default function CardsLayout({ children }: Readonly<{ children: React.Rea
   const pathname = usePathname();
   // Cart chrome (the shopping-cart button + checkout dialog) only applies to the
   // card-buying flows; skins/music still show the balances bar, just without the cart.
-  const showCart = !CART_CHROME_EXCLUDED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  // Segment-aware match so "/collection/land" does not also exclude "/collection/land-market".
+  const showCart = !CART_CHROME_EXCLUDED_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
   const isOverview = pathname === "/collection";
 
   return (

@@ -12,6 +12,12 @@ interface PurchasePlanContextType {
   addItems: (items: PurchasePlanItem[]) => void;
   removeItem: (account: string, marketId: string) => void;
   removeMany: (items: Array<{ account: string; marketId: string }>) => void;
+  /**
+   * Cart keys (`marketId`) of listings bought this session. Market pages hide
+   * these immediately — SPL's read APIs can lag behind a confirmed purchase.
+   */
+  purchasedMarketIds: ReadonlySet<string>;
+  markPurchased: (items: Array<{ marketId: string }>) => void;
   clear: () => void;
   notifyBalancesRefresh: () => void;
   notifyCollectionRefresh: () => void;
@@ -29,6 +35,9 @@ export function PurchasePlanProvider({ children }: Readonly<{ children: ReactNod
   const [isCheckoutOpen, setCheckoutOpen] = useState(false);
   const [balanceRefreshVersion, setBalanceRefreshVersion] = useState(0);
   const [collectionRefreshVersion, setCollectionRefreshVersion] = useState(0);
+  const [purchasedMarketIds, setPurchasedMarketIds] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
 
   const value = useMemo<PurchasePlanContextType>(
     () => ({
@@ -64,6 +73,11 @@ export function PurchasePlanProvider({ children }: Readonly<{ children: ReactNod
         const removeKeys = new Set(toRemove.map((entry) => keyOf(entry)));
         setItems((prev) => prev.filter((entry) => !removeKeys.has(keyOf(entry))));
       },
+      purchasedMarketIds,
+      markPurchased: (purchased) => {
+        if (purchased.length === 0) return;
+        setPurchasedMarketIds((prev) => new Set([...prev, ...purchased.map((p) => p.marketId)]));
+      },
       clear: () => setItems([]),
       notifyBalancesRefresh: () => setBalanceRefreshVersion((v) => v + 1),
       notifyCollectionRefresh: () => {
@@ -78,7 +92,7 @@ export function PurchasePlanProvider({ children }: Readonly<{ children: ReactNod
       },
       count: items.length,
     }),
-    [balanceRefreshVersion, collectionRefreshVersion, isCheckoutOpen, items]
+    [balanceRefreshVersion, collectionRefreshVersion, isCheckoutOpen, items, purchasedMarketIds]
   );
 
   return <PurchasePlanContext.Provider value={value}>{children}</PurchasePlanContext.Provider>;

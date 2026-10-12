@@ -6,6 +6,7 @@ export const CACHE_TAGS = {
   splListingPrices: "spl:listing-prices",
   splMarketPrices: "spl:market-prices",
   splJackpot: "spl:jackpot",
+  splLandMarket: "spl:land-market",
   splCollection: (username: string) => `spl:collection:${username.toLowerCase()}`,
   splBalances: (username: string) => `spl:balances:${username.toLowerCase()}`,
   splMarketplace: (username: string) => `spl:marketplace:${username.toLowerCase()}`,
@@ -17,6 +18,7 @@ export const CACHE_TAGS = {
   splDailyProgress: (username: string) => `spl:daily-progress:${username.toLowerCase()}`,
   splBrawl: (username: string) => `spl:brawl:${username.toLowerCase()}`,
   splLandHarvest: (username: string) => `spl:land-harvest:${username.toLowerCase()}`,
+  splLandOwned: (username: string) => `spl:land-owned:${username.toLowerCase()}`,
 } as const;
 
 /**
@@ -48,5 +50,7 @@ export type CacheInvalidationTarget =
   | { type: "settings" }
   | { type: "maintenance" }
   | { type: "grouped-market" }
+  | { type: "land-market" }
+  | { type: "land-owned"; usernames: string[] }
   | { type: "portfolio"; usernames: string[] }
   | { type: "dashboard-account"; usernames: string[] };

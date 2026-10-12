@@ -2,11 +2,11 @@
 
 import TransactionProgressPanel from "@/components/shared/TransactionProgressPanel";
 import CurrencyAmountChip from "@/components/collection/top-bar/CurrencyAmountChip";
-import ScrollableTableContainer from "@/components/shared/ScrollableTableContainer";
+import PurchaseCartLandTable from "@/components/collection/top-bar/PurchaseCartLandTable";
 import { usePurchaseCheckout } from "@/hooks/cards/usePurchaseCheckout";
 import { getBalancesForAccountsAction } from "@/lib/backend/actions/purchase-actions";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
-import { getFoilLabel } from "@/lib/shared/card-utils";
+import { isCardPurchaseItem, isLandPurchaseItem } from "@/types/purchase/purchase-plan";
 import {
   Alert,
   Box,
@@ -15,18 +15,12 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
   Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   Tooltip,
   Typography,
 } from "@mui/material";
 import { useEffect, useMemo, useState } from "react";
-import { MdDelete } from "react-icons/md";
+import PurchaseCartCardTable from "@/components/collection/top-bar/PurchaseCartCardTable";
 
 export default function PurchaseCartDialog() {
   const {
@@ -35,12 +29,16 @@ export default function PurchaseCartDialog() {
     setCheckoutOpen,
     removeItem,
     removeMany,
+    markPurchased,
     clear,
     notifyBalancesRefresh,
     notifyCollectionRefresh,
   } = usePurchasePlan();
   const { checkout, busy, error, progress, reset } = usePurchaseCheckout(items);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [warningMessage, setWarningMessage] = useState<string | null>(null);
+  const cardItems = useMemo(() => items.filter(isCardPurchaseItem), [items]);
+  const landItems = useMemo(() => items.filter(isLandPurchaseItem), [items]);
   const [balanceMap, setBalanceMap] = useState<Record<string, { DEC: number; CREDITS: number }>>(
     {}
   );
@@ -77,7 +75,7 @@ export default function PurchaseCartDialog() {
   const totals = useMemo(() => {
     return items.reduce(
       (acc, item) => {
-        acc.cc += item.cc;
+        acc.cc += isCardPurchaseItem(item) ? item.cc : 0;
         acc.usd += item.priceUsd;
         acc.dec += item.priceDec;
         acc.credits += item.priceCredits;
@@ -103,7 +101,7 @@ export default function PurchaseCartDialog() {
       const key = item.account.toLowerCase();
       const current = byAccount.get(key) ?? { count: 0, cc: 0, usd: 0, dec: 0, credits: 0 };
       current.count += 1;
-      current.cc += item.cc;
+      current.cc += isCardPurchaseItem(item) ? item.cc : 0;
       current.usd += item.priceUsd;
       current.dec += item.priceDec;
       current.credits += item.priceCredits;
@@ -131,12 +129,21 @@ export default function PurchaseCartDialog() {
 
   async function runCheckout(currency: "DEC" | "CREDITS") {
     setSuccessMessage(null);
+    setWarningMessage(null);
     try {
-      const { confirmations, successfulItems } = await checkout(currency);
+      const { confirmations, successfulItems, unavailableItems } = await checkout(currency);
       const failed = confirmations.filter((entry) => !entry.status.success);
+
+      if (unavailableItems.length > 0) {
+        removeMany(unavailableItems);
+        setWarningMessage(
+          `${unavailableItems.length} land listing(s) were sold or delisted and have been removed from the cart.`
+        );
+      }
 
       if (successfulItems.length > 0) {
         removeMany(successfulItems);
+        markPurchased(successfulItems);
         notifyBalancesRefresh();
         notifyCollectionRefresh();
       }
@@ -152,6 +159,7 @@ export default function PurchaseCartDialog() {
   function handleClose() {
     setCheckoutOpen(false);
     setSuccessMessage(null);
+    setWarningMessage(null);
     reset();
   }
 
@@ -162,6 +170,7 @@ export default function PurchaseCartDialog() {
         <Stack spacing={2}>
           {error && !hasProgressError && <Alert severity="error">{error}</Alert>}
           {successMessage && <Alert severity="success">{successMessage}</Alert>}
+          {warningMessage && <Alert severity="warning">{warningMessage}</Alert>}
 
           <Box>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
@@ -190,63 +199,18 @@ export default function PurchaseCartDialog() {
             ))}
           </Box>
 
-          <ScrollableTableContainer>
-            <Table size="small" stickyHeader>
-              <TableHead>
-                <TableRow>
-                  <TableCell align="center">Remove</TableCell>
-                  <TableCell>Account</TableCell>
-                  <TableCell>Card</TableCell>
-                  <TableCell>Edition</TableCell>
-                  <TableCell>Foil</TableCell>
-                  <TableCell>Level</TableCell>
-                  <TableCell>UID</TableCell>
-                  <TableCell>CC</TableCell>
-                  <TableCell>Seller</TableCell>
-                  <TableCell>USD</TableCell>
-                  <TableCell>DEC</TableCell>
-                  <TableCell>CREDITS</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {items.map((item) => (
-                  <TableRow key={`${item.account}-${item.marketId}`}>
-                    <TableCell align="center">
-                      <IconButton
-                        size="small"
-                        onClick={() => removeItem(item.account, item.marketId)}
-                        aria-label="Remove listing"
-                      >
-                        <MdDelete />
-                      </IconButton>
-                    </TableCell>
-                    <TableCell>{item.account}</TableCell>
-                    <TableCell>{item.cardName}</TableCell>
-                    <TableCell>{item.edition}</TableCell>
-                    <TableCell>{getFoilLabel(item.foil)}</TableCell>
-                    <TableCell>{item.level}</TableCell>
-                    <TableCell>{item.uid ?? "-"}</TableCell>
-                    <TableCell>{item.cc}</TableCell>
-                    <TableCell>{item.seller ?? "-"}</TableCell>
-                    <TableCell>
-                      <CurrencyAmountChip currency="USD" value={item.priceUsd} />
-                    </TableCell>
-                    <TableCell>
-                      <CurrencyAmountChip currency="DEC" value={item.priceDec} />
-                    </TableCell>
-                    <TableCell>
-                      <CurrencyAmountChip currency="CREDITS" value={item.priceCredits} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {items.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={12}>No listings selected.</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </ScrollableTableContainer>
+          {(cardItems.length > 0 || landItems.length === 0) && (
+            <PurchaseCartCardTable items={cardItems} onRemove={removeItem} />
+          )}
+
+          {landItems.length > 0 && (
+            <Box>
+              <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                Land ({landItems.length})
+              </Typography>
+              <PurchaseCartLandTable items={landItems} onRemove={removeItem} />
+            </Box>
+          )}
 
           <Box
             sx={{

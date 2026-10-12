@@ -16,12 +16,21 @@ import {
   fetchSettings,
 } from "@/lib/backend/api/spl/spl-api";
 import {
+  fetchLandMarketDeeds,
   fetchMarketplaceAssets,
   fetchMarketplacePlayerAllListings,
+  fetchOwnedLandRegions,
 } from "@/lib/backend/api/spl/vapi-spl";
 import { CACHE_TAGS } from "@/lib/backend/cache/cache-tags";
 import { getPlayerPoolBalances } from "@/lib/backend/services/pool-balances";
+import {
+  LAND_MARKET_STALE_SECONDS,
+  LAND_OWNED_STALE_SECONDS,
+  normalizeLandMarketDeeds,
+  normalizeOwnedRegions,
+} from "@/lib/shared/land-market";
 import { MARKET_PRICE_REFRESH_SECONDS } from "@/lib/shared/market-refresh";
+import type { LandMarketData, LandOwnedRegion } from "@/types/land/landMarket";
 import type {
   MarketplaceAssetItem,
   MarketplaceAssetName,
@@ -242,4 +251,35 @@ export async function getCachedPlayerSkins(username: string) {
   cacheTag(CACHE_TAGS.splPlayerSkins(normalized));
 
   return fetchAccountSkins(normalized);
+}
+
+/**
+ * Every market-listed land deed, normalized once per refresh (JSON-in-string
+ * fields parsed, artwork resolved) so no visitor re-processes the ~2.5k rows.
+ * One shared entry for all visitors: SPL is hit at most once per minute.
+ * Stale-while-revalidate keeps serving the previous list while a refresh runs.
+ */
+export async function getCachedLandMarket(): Promise<LandMarketData> {
+  "use cache";
+  cacheLife({
+    stale: LAND_MARKET_STALE_SECONDS,
+    revalidate: LAND_MARKET_STALE_SECONDS,
+    expire: LAND_MARKET_STALE_SECONDS * 5,
+  });
+  cacheTag(CACHE_TAGS.splLandMarket);
+  const rows = await fetchLandMarketDeeds();
+  return { listings: normalizeLandMarketDeeds(rows), fetchedAt: new Date().toISOString() };
+}
+
+/** Regions a player owns plots in, cached per account (`land-owned` invalidation target). */
+export async function getCachedOwnedLandRegions(username: string): Promise<LandOwnedRegion[]> {
+  "use cache";
+  cacheLife({
+    stale: LAND_OWNED_STALE_SECONDS,
+    revalidate: LAND_OWNED_STALE_SECONDS,
+    expire: LAND_OWNED_STALE_SECONDS * 12,
+  });
+  const normalized = username.trim().toLowerCase();
+  cacheTag(CACHE_TAGS.splLandOwned(normalized));
+  return normalizeOwnedRegions(await fetchOwnedLandRegions(normalized));
 }

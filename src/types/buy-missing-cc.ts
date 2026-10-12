@@ -1,4 +1,4 @@
-import type { PurchasePlanItem } from "@/types/purchase/purchase-plan";
+import type { CardPurchasePlanItem } from "@/types/purchase/purchase-plan";
 import type { SplBalance } from "@/types/spl/balances";
 import type { SplCardCollection } from "@/types/spl/card";
 import type { SplCardDetail } from "@/types/spl/cardDetails";
@@ -53,7 +53,7 @@ export interface BuildPurchasePlanInput {
 }
 
 export interface BuildPurchasePlanOutput {
-  items: PurchasePlanItem[];
+  items: CardPurchasePlanItem[];
   totals: {
     cc: number;
     dec: number;

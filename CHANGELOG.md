@@ -9,6 +9,36 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.28.0] - 2026-10-12
+
+### Added
+
+- **Land Market (`/collection/land-market`):** Browse every land deed listed on the
+  marketplace (~2.5k) in a sortable table or an artwork-first grid, with pagination
+  (25/50/100). Filters: region/tract/plot (exact, 1–999), rarity, land type
+  (natural/magical/occupied/castle/keep), terrain, resource, worksite, and Any/Yes/No toggles
+  for surveyed, developed, Building in the Box and Unstable Totem.
+- **Show Own Regions:** Restricts listings to regions where the selected account already owns
+  a plot (`/land/deeds/owned/{player}`, matched on `region_uid`).
+- **Land in the purchase cart:** Deeds can be added to the shared cart next to cards. Land is
+  bought with `sm_marketplace_purchase` (`listingItemId` = deed `market_id`); cards still use
+  `sm_market_purchase`. Before broadcasting, every listing is re-checked live: sold or own
+  listings are dropped from the cart and price increases block the purchase.
+
+### Updated
+
+- Land market data is cached server side for 60s (stale-while-revalidate) and owned regions for
+  5 min per account. Both are invalidated after a land purchase.
+- `getDeedImg` now uses the shared land artwork resolver (`land-deed-utils.ts`), so magical and
+  castle/keep artwork is resolved the same way as in splinter-lands-next.
+- The filter side-panel chrome is extracted to `FilterPanelShell`. `IconFilterGroup` options
+  are now keyboard accessible.
+
+### Fixed
+
+- The collection layout's cart-chrome exclusion matched `/collection/land` as a prefix of any
+  path. It now matches whole path segments.
+
 ## [v1.27.0] - 2026-10-11
 
 ### Fixed

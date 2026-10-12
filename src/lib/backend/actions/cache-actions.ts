@@ -64,6 +64,18 @@ export async function revalidateTagsAction(targets: CacheInvalidationTarget[]) {
       continue;
     }
 
+    if (target.type === "land-market") {
+      revalidateTag(CACHE_TAGS.splLandMarket, REVALIDATE_PROFILE);
+      continue;
+    }
+
+    if (target.type === "land-owned") {
+      for (const username of uniqueLower(target.usernames)) {
+        revalidateTag(CACHE_TAGS.splLandOwned(username), REVALIDATE_PROFILE);
+      }
+      continue;
+    }
+
     if (target.type === "dashboard-account") {
       for (const username of uniqueLower(target.usernames)) {
         for (const tag of dashboardAccountTags(username)) {

@@ -1,3 +1,4 @@
+import { getLandDeedImageUrl, toLandTerrain } from "@/lib/shared/land-deed-utils";
 import { MARKETPLACE_ASSET_MODEL } from "@/lib/shared/marketplace-asset-model";
 import {
   type MarketplaceAssetGroup,
@@ -17,7 +18,6 @@ import {
   marketplaceAssetNames,
 } from "@/types/marketplace-assets";
 import type { PurchaseCurrency } from "@/types/purchase/purchase-plan";
-import { SPL_URL, WEB_URL } from "../staticsIconUrls";
 
 export const DEFAULT_SKIN_NAME = "";
 export const DEFAULT_SKIN_DISPLAY_NAME = "Default";
@@ -580,7 +580,7 @@ export function applyMarketAssetFilters<
  * (`currency: "USD"`, `price` in USD); the `otherCurrencies` lookup is a fallback
  * for a listing quoted in something else.
  */
-function toUsdUnitPrice(listing: MarketplaceListingItem): number | null {
+export function toUsdUnitPrice(listing: MarketplaceListingItem): number | null {
   if (listing.currency === "USD" && Number.isFinite(listing.price)) return listing.price;
   return findOtherCurrency(listing.otherCurrencies, "USD");
 }
@@ -711,12 +711,11 @@ export function priceSelectionInCurrency(
   };
 }
 
+/** Representative artwork for a DEEDS marketplace asset (one per terrain): its natural common deed. */
 export function getDeedImg(displayName: string) {
-  const basePath = `${SPL_URL}assets/lands`;
-  const surveyedBase = `${basePath}/deedsSurveyed`;
-  const suffix = "_natural_common.jpg";
-
-  if (displayName === "Unsurveyed Deed") return `${WEB_URL}website/land/deed_unsurveyed.jpg`;
-
-  return `${surveyedBase}/${displayName.toLowerCase()}${suffix}`;
+  return getLandDeedImageUrl({
+    terrain: toLandTerrain(displayName),
+    landType: "natural",
+    rarity: "common",
+  });
 }

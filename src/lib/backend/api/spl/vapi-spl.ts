@@ -27,6 +27,7 @@ import type {
   MarketplacePlayerListing,
   MarketplacePlayerListingRaw,
 } from "@/types/marketplace-assets";
+import type { LandMarketDeedRaw, LandOwnedRegionRaw } from "@/types/land/landMarket";
 import axios from "axios";
 import * as rax from "retry-axios";
 
@@ -168,6 +169,37 @@ export async function fetchMarketDeeds(): Promise<VapiDeed[]> {
     return res.data?.data?.deeds ?? [];
   } catch (error) {
     logger.error(`vapi: fetchMarketDeeds: ${error instanceof Error ? error.message : error}`);
+    throw error;
+  }
+}
+
+/**
+ * Every market-listed deed with full listing detail (`market_id`, `listing_price`,
+ * `stats`, `land_stats`, …) for the Land Market page. ~2.5k rows in one response.
+ */
+export async function fetchLandMarketDeeds(): Promise<LandMarketDeedRaw[]> {
+  try {
+    const res = await vapiClient.get<{ data: { deeds: LandMarketDeedRaw[] } }>("/land/deeds", {
+      params: { status: "market" },
+    });
+    return res.data?.data?.deeds ?? [];
+  } catch (error) {
+    logger.error(`vapi: fetchLandMarketDeeds: ${error instanceof Error ? error.message : error}`);
+    throw error;
+  }
+}
+
+/** Regions a player owns plots in, as `{ uid: region_uid, count }` rows. */
+export async function fetchOwnedLandRegions(player: string): Promise<LandOwnedRegionRaw[]> {
+  try {
+    const res = await vapiClient.get<{ data: LandOwnedRegionRaw[] }>(
+      `/land/deeds/owned/${encodeURIComponent(player)}`
+    );
+    return Array.isArray(res.data?.data) ? res.data.data : [];
+  } catch (error) {
+    logger.error(
+      `vapi: fetchOwnedLandRegions(${player}): ${error instanceof Error ? error.message : error}`
+    );
     throw error;
   }
 }

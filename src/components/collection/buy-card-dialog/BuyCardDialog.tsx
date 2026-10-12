@@ -40,7 +40,7 @@ import {
   CardRarity,
   DetailedPlayerCardCollectionItem,
 } from "@/types/card";
-import type { PurchaseCurrency, PurchasePlanItem } from "@/types/purchase/purchase-plan";
+import type { CardPurchasePlanItem, PurchaseCurrency } from "@/types/purchase/purchase-plan";
 import type { CardStats } from "@/types/spl/cardDetails";
 import type { SplSettings } from "@/types/spl/season";
 import {
@@ -93,7 +93,7 @@ export interface BuyCardDialogProps {
   accountBalances?: Record<string, { DEC: number; CREDITS: number }>;
   topOffsetPx?: number;
   onClose: () => void;
-  onAddToPurchasePlan: (items: PurchasePlanItem[]) => void;
+  onAddToPurchasePlan: (items: CardPurchasePlanItem[]) => void;
 }
 
 const PAGE_OPTIONS = [20, 50, 100] as const;
@@ -404,7 +404,7 @@ export default function BuyCardDialog({
     );
   }, [selectedRows]);
 
-  function toPurchaseItem(row: (typeof selectedRows)[number]): PurchasePlanItem {
+  function toPurchaseItem(row: (typeof selectedRows)[number]): CardPurchasePlanItem {
     return {
       account: selectedAccount,
       marketId: row.marketId,
@@ -489,7 +489,7 @@ export default function BuyCardDialog({
     setShiftAnchorIndex(clickedGlobalIndex);
   }
 
-  const selectedItems: PurchasePlanItem[] = selectedRows.map(toPurchaseItem);
+  const selectedItems: CardPurchasePlanItem[] = selectedRows.map(toPurchaseItem);
 
   const accountState = dynamicAccountStates[selectedAccount] ?? {
     highestLevel: Math.max(0, currentLevel ?? 0),
@@ -681,7 +681,7 @@ export default function BuyCardDialog({
     }
   }
 
-  async function runCheckoutForPlan(items: PurchasePlanItem[], currency: PurchaseCurrency) {
+  async function runCheckoutForPlan(items: CardPurchasePlanItem[], currency: PurchaseCurrency) {
     if (items.length === 0) return;
 
     setBuyBusy(true);
