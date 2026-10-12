@@ -809,50 +809,6 @@ export async function fetchPlayerTournamentIds(username: string, token: string):
 }
 
 // ---------------------------------------------------------------------------
-// Market transactions
-// ---------------------------------------------------------------------------
-
-export interface SplMarketCard {
-  uid: string;
-  card_detail_id: number;
-  edition: number;
-  gold: boolean;
-  xp: number;
-  level: number;
-  player: string;
-}
-
-export interface SplMarketStatus {
-  cards: SplMarketCard[];
-  success: boolean;
-}
-
-/** Fetch card details for a market transaction by its SPL ID. */
-export async function fetchMarketStatus(splId: string): Promise<SplMarketStatus | null> {
-  try {
-    const res = await splBaseClient.get("/market/status", { params: { id: splId } });
-    return res.data as SplMarketStatus;
-  } catch {
-    return null;
-  }
-}
-
-/** Fetch current card details by comma-separated card UIDs. */
-export async function fetchCardsByIds(ids: string): Promise<SplMarketCard[]> {
-  try {
-    const res = await splBaseClient.get("/cards/find", { params: { ids } });
-    if (!Array.isArray(res.data)) return [];
-    return res.data as SplMarketCard[];
-  } catch {
-    return [];
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Prices
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
 // Market transaction lookup
 // ---------------------------------------------------------------------------
 
