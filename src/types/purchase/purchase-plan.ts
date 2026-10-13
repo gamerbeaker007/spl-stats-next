@@ -1,10 +1,23 @@
 import { CardFoil } from "@/types/card";
+import type { LandRarity, LandTerrain, LandType } from "@/types/land/landMarket";
 
 export type PurchaseCurrency = "DEC" | "CREDITS";
 
-export interface PurchasePlanItem {
+/** Fields every cart item carries, whatever is being bought. */
+interface PurchasePlanItemBase {
+  /** Buying account. */
   account: string;
+  /** Unique cart key for the listing (dedupe + removal). */
   marketId: string;
+  priceUsd: number;
+  priceDec: number;
+  priceCredits: number;
+  seller?: string;
+}
+
+/** A card listing — bought with `sm_market_purchase`. `kind` is optional for back-compat. */
+export interface CardPurchasePlanItem extends PurchasePlanItemBase {
+  kind?: "card";
   uid?: string;
   cardDetailId: number;
   cardName: string;
@@ -12,10 +25,40 @@ export interface PurchasePlanItem {
   foil: CardFoil;
   level: number;
   cc: number;
-  priceUsd: number;
-  priceDec: number;
-  priceCredits: number;
-  seller?: string;
+}
+
+/**
+ * A land deed listing — bought with `sm_marketplace_purchase`. Always quantity 1
+ * (each deed is unique). `marketId` is `land:<listingItemId>` so it can never
+ * collide with a card market id.
+ */
+export interface LandPurchasePlanItem extends PurchasePlanItemBase {
+  kind: "land";
+  /** `market_id` from the deeds API — the purchase `listingItemId`. */
+  listingItemId: number;
+  /** DEEDS marketplace detail id (`item_detail_id`). */
+  detailId: number;
+  deedUid: string;
+  location: string;
+  regionName: string;
+  rarity: LandRarity | null;
+  terrain: LandTerrain | null;
+  landType: LandType | null;
+  imageUrl: string;
+}
+
+export type PurchasePlanItem = CardPurchasePlanItem | LandPurchasePlanItem;
+
+export function isLandPurchaseItem(item: PurchasePlanItem): item is LandPurchasePlanItem {
+  return item.kind === "land";
+}
+
+export function isCardPurchaseItem(item: PurchasePlanItem): item is CardPurchasePlanItem {
+  return item.kind !== "land";
+}
+
+export function landCartMarketId(listingItemId: number): string {
+  return `land:${listingItemId}`;
 }
 
 export interface MarketListingCard {

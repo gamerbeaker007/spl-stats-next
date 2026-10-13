@@ -12,6 +12,7 @@ import {
   MdMusicNote,
   MdScience,
   MdShoppingBag,
+  MdStorefront,
   MdStyle,
   MdTerrain,
   MdViewInAr,
@@ -26,6 +27,7 @@ interface CollectionNavItem {
 export const COLLECTION_NAV_ITEMS: CollectionNavItem[] = [
   { label: "Cards", href: "/collection/cards", icon: MdGridView },
   { label: "Buy Missing CC", href: "/collection/buy-missing-cc", icon: MdAddShoppingCart },
+  { label: "Land Market", href: "/collection/land-market", icon: MdStorefront },
   { label: "Skins", href: "/collection/skins", icon: MdBrush },
   { label: "Music", href: "/collection/music", icon: MdMusicNote },
   { label: "Packs", href: "/collection/packs", icon: MdShoppingBag },

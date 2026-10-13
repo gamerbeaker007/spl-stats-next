@@ -3,7 +3,7 @@
 import MarketAssetSummary from "@/components/collection/marketplace/MarketAssetSummary";
 import TransactionProgressPanel from "@/components/shared/TransactionProgressPanel";
 import { useMarketplaceTransaction } from "@/hooks/collection/useMarketplaceTransaction";
-import { buildSkinTransferPayloadAction } from "@/lib/backend/actions/marketplace-assets-actions";
+import { buildSkinTransferPayload } from "@/lib/frontend/purchase/payload-builders";
 import { broadcastTransferSkins } from "@/lib/frontend/purchase/splBroadcast";
 import { getActualOwnedQuantity } from "@/lib/shared/marketplace-assets";
 import type { MarketplaceAssetItem } from "@/types/marketplace-assets";
@@ -51,7 +51,7 @@ export default function SkinTransferDialog({
       label: "Transfer",
       message: `Sending ${effectiveQuantity} skin${effectiveQuantity === 1 ? "" : "s"} to ${recipient}...`,
       execute: async () => {
-        const { payload } = await buildSkinTransferPayloadAction({
+        const { payload } = await buildSkinTransferPayload({
           account,
           detailId: item.detailId,
           recipient,

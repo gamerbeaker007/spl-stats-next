@@ -10,7 +10,6 @@ import { SkinsFilterBar } from "@/components/collection/skins/SkinsFilterBar";
 import { SkinsResultsView } from "@/components/collection/skins/SkinsResultsView";
 import { LoadingSpinnerOverlay } from "@/components/ui/LoadingSpinnerOverlay";
 import { useMarketplaceAssetsPageData } from "@/hooks/collection/useMarketplaceAssetsPageData";
-import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import { useCardFilter } from "@/lib/frontend/context/CardFilterContext";
 import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
@@ -53,15 +52,15 @@ export default function SkinsPageClient() {
   const [viewMode, setViewMode] = useState<SkinViewMode>("grouped");
   const [dialogState, setDialogState] = useState<MarketActionState | null>(null);
 
-  const {
-    data,
-    loading,
-    error,
-    refresh: refreshMarketplaceData,
-  } = useMarketplaceAssetsPageData(selectedAccount || null, "SKINS", collectionRefreshVersion, {
-    includeDetailedCollection: true,
-    includeOutbidStatuses: true,
-  });
+  const { data, loading, error } = useMarketplaceAssetsPageData(
+    selectedAccount || null,
+    "SKINS",
+    collectionRefreshVersion,
+    {
+      includeDetailedCollection: true,
+      includeOutbidStatuses: true,
+    }
+  );
 
   // Grouped shows base card + its skins; flat shows only skin cards.
   const flatMode = viewMode === "flat";
@@ -258,15 +257,11 @@ export default function SkinsPageClient() {
     return { ...dialogState, item: currentItem };
   }, [data?.detailedCollection, data?.groups, dialogState]);
 
-  const handleCompleted = async () => {
+  const handleCompleted = () => {
     if (!selectedAccount) return;
 
-    await revalidateTagsAction([
-      { type: "marketplace", usernames: [selectedAccount] },
-      { type: "balances", usernames: [selectedAccount] },
-      { type: "player-skins", usernames: [selectedAccount] },
-    ]);
-    await refreshMarketplaceData();
+    // The refresh-version bump re-reads the marketplace data (and skips the
+    // memoized player listings).
     notifyBalancesRefresh();
     notifyCollectionRefresh();
   };

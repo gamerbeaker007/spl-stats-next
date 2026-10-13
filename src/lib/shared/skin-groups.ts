@@ -5,9 +5,11 @@ import {
   DEFAULT_SKIN_NAME,
   isSkinActive,
 } from "@/lib/shared/marketplace-assets";
-import type { DetailedPlayerCardCollectionItem } from "@/types/card";
+import { toCardRarity } from "@/lib/shared/rarity-utils";
+import { type CardColor, type DetailedPlayerCardCollectionItem, toCardRole } from "@/types/card";
 import type { UnifiedCardFilter } from "@/types/card-filter";
 import type { MarketplaceAssetGroup, MarketplaceAssetItem } from "@/types/marketplace-assets";
+import type { SplCardDetail } from "@/types/spl/cardDetails";
 
 /** Pick the collection card whose edition matches one of the group's skins, else the first owned card. */
 export function chooseRepresentativeCard(
@@ -132,4 +134,39 @@ export function resolveGroupBaseSkin(
       active: baseSkinActive,
     }),
   };
+}
+
+/**
+ * Card metadata per skin group, so the card filter also applies to groups whose
+ * base card the account does not own (or when no account is selected).
+ */
+export function buildPublicSkinFilterCards(
+  details: SplCardDetail[],
+  groups: MarketplaceAssetGroup[]
+): Record<number, FilterableCard[]> {
+  const detailById = new Map(details.map((detail) => [detail.id, detail]));
+  const cards: Record<number, FilterableCard[]> = {};
+
+  for (const group of groups) {
+    const detail = detailById.get(group.cardDetailId);
+    if (!detail) continue;
+
+    const editions = detail.editions
+      .split(",")
+      .map((edition) => Number.parseInt(edition.trim(), 10))
+      .filter((edition) => Number.isInteger(edition));
+    if (editions.length === 0) editions.push(detail.distribution?.[0]?.edition ?? 0);
+
+    cards[group.cardDetailId] = Array.from(new Set(editions)).map((edition) => ({
+      cardDetailId: detail.id,
+      edition,
+      tier: detail.tier ?? edition,
+      rarity: toCardRarity(detail.rarity),
+      color: detail.color as CardColor,
+      secondaryColor: detail.secondary_color ?? undefined,
+      role: toCardRole(detail.type),
+    }));
+  }
+
+  return cards;
 }

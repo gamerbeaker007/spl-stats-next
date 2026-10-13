@@ -1,6 +1,7 @@
 "use client";
 
-import { getOwnedAssetInstancesAction } from "@/lib/backend/actions/marketplace-assets-actions";
+import { fetchInventory, fetchMarketplaceAssetListings } from "@/lib/frontend/spl-browser-api";
+import { buildOwnedAssetInstances, listingsBySeller } from "@/lib/shared/marketplace-assets";
 import type { MarketplaceAssetName, OwnedAssetInstance } from "@/types/marketplace-assets";
 import { useCallback, useEffect, useState } from "react";
 
@@ -31,7 +32,16 @@ export function useOwnedAssetInstances(
       setLoading(true);
       setError(null);
       try {
-        const next = await getOwnedAssetInstancesAction(account, assetName, detailId);
+        const normalized = account.trim().toLowerCase();
+        const [inventory, listings] = await Promise.all([
+          fetchInventory(normalized),
+          fetchMarketplaceAssetListings(assetName, detailId),
+        ]);
+        const next = buildOwnedAssetInstances(
+          inventory,
+          listingsBySeller(listings, normalized),
+          detailId
+        );
         if (active()) setInstances(next);
       } catch (err) {
         if (active()) setError(err instanceof Error ? err.message : "Failed to load your copies");

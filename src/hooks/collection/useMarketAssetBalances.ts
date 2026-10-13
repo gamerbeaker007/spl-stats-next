@@ -1,11 +1,17 @@
 "use client";
 
-import { getPlayerMarketBalancesAction } from "@/lib/backend/actions/marketplace-assets-actions";
+import { fetchAccountBalances } from "@/lib/frontend/spl-browser-api";
+import { tokenBalance } from "@/lib/shared/marketplace-purchase";
 import { useCallback, useEffect, useState } from "react";
 
 export interface MarketBalances {
   dec: number;
   credits: number;
+}
+
+async function fetchMarketBalances(account: string): Promise<MarketBalances> {
+  const balances = await fetchAccountBalances(account);
+  return { dec: tokenBalance(balances, "DEC"), credits: tokenBalance(balances, "CREDITS") };
 }
 
 /**
@@ -22,7 +28,7 @@ export function useMarketAssetBalances(account: string, enabled = true) {
     setLoading(true);
     setError(null);
     try {
-      const next = await getPlayerMarketBalancesAction(account);
+      const next = await fetchMarketBalances(account);
       setBalances(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load balances");
@@ -42,7 +48,7 @@ export function useMarketAssetBalances(account: string, enabled = true) {
     setLoading(true);
     setError(null);
 
-    getPlayerMarketBalancesAction(account)
+    fetchMarketBalances(account)
       .then((next) => {
         if (active) setBalances(next);
       })

@@ -7,7 +7,7 @@ import { useDecPriceUsd } from "@/hooks/collection/useDecPriceUsd";
 import { useMarketAssetBalances } from "@/hooks/collection/useMarketAssetBalances";
 import { useMarketplaceAssetListings } from "@/hooks/collection/useMarketplaceAssetListings";
 import { useMarketplaceTransaction } from "@/hooks/collection/useMarketplaceTransaction";
-import { buildMarketplaceAssetPurchasePayloadAction } from "@/lib/backend/actions/marketplace-assets-actions";
+import { buildMarketplaceAssetPurchasePayload } from "@/lib/frontend/purchase/payload-builders";
 import { broadcastMarketplaceAssetPurchase } from "@/lib/frontend/purchase/splBroadcast";
 import { priceSelectionInCurrency, selectCheapestListings } from "@/lib/shared/marketplace-assets";
 import { credits_icon_url, dec_icon_url } from "@/lib/staticsIconUrls";
@@ -134,7 +134,7 @@ export default function BuyAssetDialog({
       label: `Buy (${currency})`,
       message: `Purchasing ${quantity} item${quantity === 1 ? "" : "s"}...`,
       execute: async () => {
-        const { payload } = await buildMarketplaceAssetPurchasePayloadAction({
+        const { payload } = await buildMarketplaceAssetPurchasePayload({
           account,
           assetName,
           detailId: item.detailId,

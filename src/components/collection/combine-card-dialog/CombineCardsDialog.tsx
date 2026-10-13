@@ -5,7 +5,7 @@ import type { DisplayRow } from "@/components/collection/buy-missing-cc/types";
 import CombineLevelButton, {
   type CombineLevelButtonVm,
 } from "@/components/collection/combine-card-dialog/CombineLevelButton";
-import { buildCombineCardsPayloadAction } from "@/lib/backend/actions/purchase-actions";
+import { buildCombineCardsPayload } from "@/lib/shared/transactions-builder";
 import { broadcastCombineCards, waitForTransactions } from "@/lib/frontend/purchase/splBroadcast";
 import {
   checkCombineStatus,
@@ -208,7 +208,7 @@ export default function CombineCardsDialog({
       // Broadcast combine transaction
       const txId = await broadcastCombineCards({
         account,
-        payload: await buildCombineCardsPayloadAction({ cardUids: combinePlan.cardUids }),
+        payload: buildCombineCardsPayload({ cardUids: combinePlan.cardUids }),
       });
 
       const [confirmation] = await waitForTransactions([txId]);

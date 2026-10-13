@@ -122,5 +122,26 @@ export const resource_grain_icon_url = `${WEB_URL}website/land/resources/grain.p
 export const resource_stone_icon_url = `${WEB_URL}website/land/resources/stone_500.webp`;
 export const resource_wood_icon_url = `${WEB_URL}website/land/resources/wood_500.webp`;
 export const resource_iron_icon_url = `${WEB_URL}website/land/resources/iron_500.webp`;
+export const resource_research_icon_url = `${WEB_URL}website/land/resources/research.png`;
+export const resource_aura_icon_url = `${WEB_URL}website/land/resources/aura_500.webp`;
+
+// Land deeds — mirrors splinter-lands-next `statics_icon_urls.ts`.
+/** `__NAME__` → terrain, rarity, plot status or magic element (e.g. `tundraOff.svg`). */
+export const land_side_menu_icon_url_placeholder = `${WEB_URL}website/ui_elements/lands/sideMenu/__NAME__Off.svg`;
+export const land_deed_surveyed_base_url = `${SPL_URL}assets/lands/deedsSurveyed`;
+export const land_deed_unsurveyed_url = `${WEB_URL}website/land/deed_unsurveyed.jpg`;
+export const land_unsurveyed_deed_icon_url = `${PEAKD_URL}23wC7viFdG9aaUG2ExWbVuUA3aXqt5W273W2Fa3NEGsWHsHHEw3JLbTX1o7pFQsCgh7qV.svg`;
+export const land_under_construction_icon_url = `${PEAKD_URL}AJg3Ws5boAJF5cdekBgVCzVRbBcLKjVuDYqXqTLAbgo6XoAVXTGuVYh8Ggn22S1.png`;
+export const land_keep_icon_url = `${PEAKD_URL}23tbKK6vhanQqScaFhakcFqXC68fpRjvinR6c9m34XLSYQpoHJAdUU7TM8mvrhH3TuuPP.png`;
+export const land_castle_icon_url = `${PEAKD_URL}23uFKKCjmeLHRVFz2EKnf8EazaPX7Ep1RhTiqWS6Hbv2HTLnsW1LFLg2jmTafgQQDdkEy.png`;
+export const land_unstable_totem_icon_url = `${SPL_URL}assets/lands/deedAssets/Icon_totem@2x.png`;
+export const land_building_in_box_icon_url = `${SPL_URL}assets/lands/deedAssets/Icon_hut@2x.png`;
+export const land_worksite_grain_icon_url = `${WEB_URL}website/land/worksite/img_worksite_grain_v2.webp`;
+export const land_worksite_wood_icon_url = `${WEB_URL}website/land/worksite/img_worksite_wood.webp`;
+export const land_worksite_iron_icon_url = `${WEB_URL}website/land/worksite/img_worksite_iron.webp`;
+export const land_worksite_stone_icon_url = `${WEB_URL}website/land/worksite/img_worksite_stone.webp`;
+export const land_worksite_research_icon_url = `${WEB_URL}website/land/worksite/img_worksite_research.png`;
+export const land_worksite_aura_icon_url = `${WEB_URL}website/land/worksite/img_worksite_aura.webp`;
+export const land_worksite_sps_icon_url = `${WEB_URL}website/land/worksite/img_worksite_sps.png`;
 
 export const ARCANE_GLIMMER_URL = `${WEB_URL}card_effects/arcane_glimmer_full.webp`;

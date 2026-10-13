@@ -7,7 +7,31 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ## [Unreleased]
 
+
 ---
+
+## [v1.28.0] - 2026-10-12
+
+### Added
+
+- **Land Market (`/collection/land-market`):** Browse ~2,500 land deeds in a sortable table or artwork grid, with pagination and filters for location, rarity, land type, terrain, resources, worksites, and special properties.
+- **Show Own Regions:** Filter land listings to regions where your selected account already owns a plot.
+- **Land Purchases:** Add land deeds to the shared shopping cart alongside cards. Listings and prices are revalidated before purchase to prevent buying unavailable or repriced items.
+
+### Improved
+
+- **Reduced Server Load:** Moved account-specific collection, marketplace, balance, card history, and other live SPL data requests directly to the browser, reducing server traffic and unnecessary caching.
+- **Faster Page Loads:** Eliminated duplicate requests, shared data across pages, and improved client-side request reuse. The Skins page now makes one marketplace request instead of four.
+- **Marketplace Performance:** Optimized asset and listing requests, reduced payload sizes, and reused account data when switching between marketplace pages.
+- **Checkout:** Purchase payloads and transaction confirmation now run in the browser, with live listing validation before signing.
+- **Caching & Reliability:** Refined caching for shared data, centralized SPL API endpoints, and improved retry behavior for rate-limited requests.
+- **Land Artwork:** Unified artwork resolution for magical land, castles, and keeps.
+- **Accessibility:** Improved keyboard navigation for filter controls.
+
+### Fixed
+
+- **Account Selection:** Card collection multi-select and single-account pages now maintain independent account selections.
+- **Collection Layout:** Fixed cart visibility detection on collection routes.
 
 ## [v1.27.0] - 2026-10-11
 

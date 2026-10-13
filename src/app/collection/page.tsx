@@ -8,6 +8,8 @@ const DESCRIPTIONS: Record<string, string> = {
   "/collection/cards": "Browse your full card collection with filters and details.",
   "/collection/buy-missing-cc":
     "Find and buy the cheapest missing cards to complete a bracket or max a card.",
+  "/collection/land-market":
+    "Browse, filter, and buy individual land plots listed on the marketplace.",
   "/collection/skins": "Browse skin ownership and buy, transfer, or list skins.",
   "/collection/music": "Browse music ownership and buy, transfer, or list tracks.",
 };

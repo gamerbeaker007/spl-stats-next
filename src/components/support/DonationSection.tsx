@@ -7,7 +7,7 @@ import {
   type DonationCurrency,
 } from "@/constants/support";
 import {
-  getSupportBalances,
+  getSupportHiveBalances,
   recordHiveTransferDonation,
   recordTokenTransferDonation,
 } from "@/lib/backend/actions/support-actions";
@@ -16,6 +16,8 @@ import {
   broadcastTokenTransfer,
   waitForTransactions,
 } from "@/lib/frontend/purchase/splBroadcast";
+import { fetchAccountBalances } from "@/lib/frontend/spl-browser-api";
+import { tokenBalance } from "@/lib/shared/marketplace-purchase";
 import { buildDonationTokenTransferPayload } from "@/lib/shared/support-op-builders";
 import { dec_icon_url, hbd_icon_url, hive_icon_url, sps_icon_url } from "@/lib/staticsIconUrls";
 import FavoriteIcon from "@mui/icons-material/Favorite";
@@ -98,9 +100,28 @@ export default function DonationSection({
   const refreshBalances = useCallback(async () => {
     if (!username) return;
     setRefreshing(true);
-    const result = await getSupportBalances();
-    setBalances({ dec: result.dec, sps: result.sps, hive: result.hive, hbd: result.hbd });
-    setBalanceError(result.error ?? null);
+    // DEC/SPS live from SPL in the browser; HIVE/HBD from the server.
+    const [spl, hive] = await Promise.allSettled([
+      fetchAccountBalances(username),
+      getSupportHiveBalances(),
+    ]);
+    const splBalances = spl.status === "fulfilled" ? spl.value : [];
+    const hiveBalances =
+      hive.status === "fulfilled" ? hive.value : { hive: 0, hbd: 0, error: undefined };
+    const errors = [
+      spl.status === "rejected" ? "Could not load DEC/SPS balances" : null,
+      hive.status === "rejected"
+        ? "Could not load HIVE/HBD balances"
+        : (hiveBalances.error ?? null),
+    ].filter(Boolean);
+
+    setBalances({
+      dec: tokenBalance(splBalances, "DEC"),
+      sps: tokenBalance(splBalances, "SPS"),
+      hive: hiveBalances.hive,
+      hbd: hiveBalances.hbd,
+    });
+    setBalanceError(errors.length > 0 ? errors.join("; ") : null);
     setRefreshing(false);
   }, [username]);
 

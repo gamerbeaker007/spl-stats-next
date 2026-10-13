@@ -2,31 +2,20 @@
 
 import { fetchPeakmonstersMarketPrices } from "@/lib/backend/api/peakmonsters/peakmonsters-api";
 import {
-  fetchAccountSkins,
   fetchCardCollection,
   fetchCardDetails,
-  fetchCurrentRewards,
-  fetchFrontierDraws,
-  fetchListingPrices,
   fetchMarketForSaleGrouped,
-  fetchPlayerBalances,
   fetchPlayerDetails,
-  fetchPlayerInventory,
-  fetchRankedDraws,
   fetchSettings,
+  fetchSplMetrics,
+  fetchSplPrices,
 } from "@/lib/backend/api/spl/spl-api";
-import {
-  fetchMarketplaceAssets,
-  fetchMarketplacePlayerAllListings,
-} from "@/lib/backend/api/spl/vapi-spl";
+import { fetchLandMarketDeeds } from "@/lib/backend/api/spl/vapi-spl";
 import { CACHE_TAGS } from "@/lib/backend/cache/cache-tags";
 import { getPlayerPoolBalances } from "@/lib/backend/services/pool-balances";
+import { LAND_MARKET_STALE_SECONDS, normalizeLandMarketDeeds } from "@/lib/shared/land-market";
 import { MARKET_PRICE_REFRESH_SECONDS } from "@/lib/shared/market-refresh";
-import type {
-  MarketplaceAssetItem,
-  MarketplaceAssetName,
-  MarketplacePlayerListing,
-} from "@/types/marketplace-assets";
+import type { LandMarketData } from "@/types/land/landMarket";
 import { cacheLife, cacheTag } from "next/cache";
 
 export async function getCachedSplSettings() {
@@ -50,91 +39,12 @@ export async function getCachedSplCardDetails() {
   return fetchCardDetails();
 }
 
-/**
- * Short-lived so the polling card pages see fresh prices; see MARKET_PRICE_REFRESH_SECONDS.
- * `fetchedAt` is when this cache entry was fetched from SPL, i.e. the real data age.
- *
- * Stale-while-revalidate would serve a 60s poll data up to ~2 intervals old, so:
- * - revalidate at half the interval: busy pages get a background refresh in between;
- * - expire at the interval: an entry older than that is never served, the request
- *   waits for a fresh SPL fetch instead.
- * Result: every poll gets data at most one interval old, and SPL is still hit at
- * most once per half interval no matter how many clients poll.
- */
-export async function getCachedSplGroupedMarket() {
-  "use cache";
-  cacheLife({
-    stale: MARKET_PRICE_REFRESH_SECONDS,
-    revalidate: MARKET_PRICE_REFRESH_SECONDS / 2,
-    expire: MARKET_PRICE_REFRESH_SECONDS,
-  });
-  cacheTag(CACHE_TAGS.splGroupedMarket);
-  const entries = await fetchMarketForSaleGrouped();
-  return { entries, fetchedAt: new Date().toISOString() };
-}
-
 export async function getCachedSplCardCollection(username: string) {
   "use cache";
   cacheLife("hours");
   const normalized = username.trim().toLowerCase();
   cacheTag(CACHE_TAGS.splCollection(normalized));
   return fetchCardCollection(normalized);
-}
-
-/**
- * Player balances (`/players/balances`).
- *
- * Deliberately kept on the short `minutes` profile even though most tokens in
- * the payload (DEC, SPS, SPSP, CREDITS, GLINT, …) change slowly: the same
- * response carries `ECR`/`FECR`, from which the dashboard derives ranked and
- * frontier **energy**. Energy is consumed per battle, so a stale ECR reading
- * would show energy that the player no longer has. One response feeds both, so
- * the strictest freshness requirement wins.
- */
-export async function getCachedSplPlayerBalances(username: string) {
-  "use cache";
-  cacheLife("minutes");
-  const normalized = username.trim().toLowerCase();
-  cacheTag(CACHE_TAGS.splBalances(normalized));
-  return fetchPlayerBalances(normalized);
-}
-
-/**
- * Player details (`/players/details`) — league, rating, season battle counts.
- * Changes with every battle, so short-lived.
- */
-export async function getCachedSplPlayerDetails(username: string) {
-  "use cache";
-  cacheLife("minutes");
-  const normalized = username.trim().toLowerCase();
-  cacheTag(CACHE_TAGS.splPlayerDetails(normalized));
-  return fetchPlayerDetails(normalized);
-}
-
-/**
- * Ranked + frontier draw status. Reflects claimable draws, so short-lived.
- */
-export async function getCachedSplPlayerDraws(username: string) {
-  "use cache";
-  cacheLife("minutes");
-  const normalized = username.trim().toLowerCase();
-  cacheTag(CACHE_TAGS.splDraws(normalized));
-  const [ranked, frontier] = await Promise.all([
-    fetchRankedDraws(normalized),
-    fetchFrontierDraws(normalized),
-  ]);
-  return { ranked, frontier };
-}
-
-/**
- * Current-season reward progress (glint per format). Accrues per battle.
- */
-export async function getCachedSplSeasonRewards(username: string) {
-  "use cache";
-  cacheLife("minutes");
-  const normalized = username.trim().toLowerCase();
-  cacheTag(CACHE_TAGS.splSeasonRewards(normalized));
-  return fetchCurrentRewards(normalized);
 }
 
 /**
@@ -161,7 +71,43 @@ export async function getCachedSplListingPrices() {
   "use cache";
   cacheLife("hours");
   cacheTag(CACHE_TAGS.splListingPrices);
-  return fetchListingPrices();
+  return fetchMarketForSaleGrouped();
+}
+
+/**
+ * Token USD prices (prices.splinterlands.com) for previews and display. Same
+ * window as the market price polling: SPL is hit at most once per half minute
+ * however many dialogs are open. Payload builders that convert a broadcast
+ * amount keep calling `fetchSplPrices()` directly for the live rate.
+ */
+export async function getCachedSplPrices() {
+  "use cache";
+  cacheLife({
+    stale: MARKET_PRICE_REFRESH_SECONDS,
+    revalidate: MARKET_PRICE_REFRESH_SECONDS / 2,
+    expire: MARKET_PRICE_REFRESH_SECONDS,
+  });
+  cacheTag(CACHE_TAGS.splPrices);
+  return fetchSplPrices();
+}
+
+/** Game-wide metrics (`/transactions/metrics`): daily data points, shared by every visitor. */
+export async function getCachedSplMetrics() {
+  "use cache";
+  cacheLife("hours");
+  cacheTag(CACHE_TAGS.splMetrics);
+  return fetchSplMetrics();
+}
+
+/**
+ * A player's join date never changes, so it is cached for as long as Next keeps
+ * the entry, so the metrics join-date picker doesn't refetch the full details payload.
+ */
+export async function getCachedSplJoinDate(username: string): Promise<string | null> {
+  "use cache";
+  cacheLife("max");
+  const details = await fetchPlayerDetails(username.trim().toLowerCase());
+  return details.join_date ?? null;
 }
 
 /**
@@ -174,72 +120,20 @@ export async function getCachedPeakmonstersMarketPrices() {
   return fetchPeakmonstersMarketPrices();
 }
 
-export async function getCachedSplPlayerInventory(username: string) {
-  "use cache";
-  cacheLife("minutes");
-  const normalized = username.trim().toLowerCase();
-  cacheTag(CACHE_TAGS.splMarketplace(normalized));
-  return fetchPlayerInventory(normalized);
-}
-
 /**
- * Marketplace landing assets (ownership counts + lowest prices) for a player.
- * Cached for minutes and tagged per account so a buy/list/transfer/delist can
- * invalidate it via `revalidateTagsAction([{ type: "marketplace", ... }])`.
+ * Every market-listed land deed, normalized once per refresh (JSON-in-string
+ * fields parsed, artwork resolved) so no visitor re-processes the ~2.5k rows.
+ * One shared entry for all visitors: SPL is hit at most once per minute.
+ * Stale-while-revalidate keeps serving the previous list while a refresh runs.
  */
-export async function getCachedMarketplaceAssets(
-  username: string,
-  assetName: MarketplaceAssetName
-): Promise<MarketplaceAssetItem[]> {
+export async function getCachedLandMarket(): Promise<LandMarketData> {
   "use cache";
-  cacheLife("minutes");
-  const normalized = username.trim().toLowerCase();
-  cacheTag(CACHE_TAGS.splMarketplace(normalized));
-
-  return fetchMarketplaceAssets(normalized, assetName);
-}
-
-/**
- * Public marketplace landing data for guest browsing (no account context).
- * Ownership-specific fields remain zero/empty while market-wide pricing and
- * circulation/listed counts stay available.
- */
-export async function getCachedMarketplaceAssetsPublic(
-  assetName: MarketplaceAssetName
-): Promise<MarketplaceAssetItem[]> {
-  "use cache";
-  cacheLife("minutes");
-  cacheTag(`spl:marketplace:public:${assetName.toLowerCase()}`);
-
-  return fetchMarketplaceAssets(null, assetName);
-}
-
-/**
- * Player's own marketplace listings across all marketplace asset types.
- * Cached with the same tag/lifetime as marketplace landing assets because these
- * quantities are part of marketplace ownership for quantity-based assets.
- */
-export async function getCachedMarketplacePlayerAllListings(
-  username: string
-): Promise<MarketplacePlayerListing[]> {
-  "use cache";
-  cacheLife("minutes");
-  const normalized = username.trim().toLowerCase();
-  cacheTag(CACHE_TAGS.splMarketplace(normalized));
-
-  return fetchMarketplacePlayerAllListings(normalized);
-}
-
-/**
- * Player's owned skins from `/players/skins`.
- * Cached for minutes and tagged per account so buy/transfer/list/delist/activate
- * actions can invalidate it via `revalidateTagsAction([{ type: "player-skins", ... }])`.
- */
-export async function getCachedPlayerSkins(username: string) {
-  "use cache";
-  cacheLife("minutes");
-  const normalized = username.trim().toLowerCase();
-  cacheTag(CACHE_TAGS.splPlayerSkins(normalized));
-
-  return fetchAccountSkins(normalized);
+  cacheLife({
+    stale: LAND_MARKET_STALE_SECONDS,
+    revalidate: LAND_MARKET_STALE_SECONDS,
+    expire: LAND_MARKET_STALE_SECONDS * 5,
+  });
+  cacheTag(CACHE_TAGS.splLandMarket);
+  const rows = await fetchLandMarketDeeds();
+  return { listings: normalizeLandMarketDeeds(rows), fetchedAt: new Date().toISOString() };
 }

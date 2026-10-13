@@ -11,8 +11,10 @@
 
 import logger from "@/lib/backend/log/logger.server";
 import { splApiConfig } from "@/lib/shared/config/splApiConfig";
+import { SPL_VAPI } from "@/lib/shared/config/spl-endpoints";
 import axios, { AxiosRequestConfig } from "axios";
 import * as rax from "retry-axios";
+import { splRetryConfig } from "@/lib/backend/api/spl/spl-retry";
 
 const SPL_USER_AGENT = process.env.SPL_USER_AGENT ?? "spl-stats-instance/1.0";
 
@@ -26,27 +28,7 @@ const splLandAuthClient = axios.create({
 });
 
 rax.attach(splLandAuthClient);
-splLandAuthClient.defaults.raxConfig = {
-  retry: 10,
-  retryDelay: 1000,
-  backoffType: "exponential",
-  statusCodesToRetry: [
-    [429, 429],
-    [500, 599],
-  ],
-  onRetryAttempt: async (err) => {
-    const cfg = rax.getConfig(err);
-    const status = axios.isAxiosError(err) ? err.response?.status : undefined;
-    const msg = axios.isAxiosError(err)
-      ? ((err.response?.data as Record<string, unknown>)?.error ??
-        err.response?.statusText ??
-        err.message)
-      : String(err);
-    logger.warn(
-      `[auth] Retry attempt #${cfg?.currentRetryAttempt}${status ? ` (HTTP ${status})` : ""}: ${msg}`
-    );
-  },
-};
+splLandAuthClient.defaults.raxConfig = splRetryConfig("[auth] ");
 
 /** Build Axios config that injects the JWT as a Bearer token. */
 function bearerConfig(jwtToken: string, extra?: AxiosRequestConfig): AxiosRequestConfig {
@@ -85,7 +67,7 @@ export async function fetchLandProductionOverview(
 ): Promise<VapiLandRegion[]> {
   try {
     const res = await splLandAuthClient.get<VapiLandProductionOverviewResponse>(
-      "/land/resources/production/overview",
+      SPL_VAPI.LAND_RESOURCES_PRODUCTION_OVERVIEW,
       bearerConfig(jwtToken, { params: { player } })
     );
     return res.data?.data?.regions?.items ?? [];

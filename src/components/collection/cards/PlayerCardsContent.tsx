@@ -2,8 +2,7 @@
 
 import { CardSection } from "@/components/collection/cards/CardSection";
 import type { CardSort } from "@/components/collection/cards/card-sort";
-import { useCardDetails } from "@/hooks/multi-account-dashboard/useCardDetails";
-import { getDetailedPlayerCardCollection } from "@/lib/backend/actions/player-actions";
+import { loadDetailedCollection } from "@/lib/frontend/collection-data";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { DetailedPlayerCardCollection } from "@/types/card";
 import type { CardWatch } from "@/types/card-watch";
@@ -39,34 +38,30 @@ export function PlayerCardsContent({
   const [cardCollection, setCardCollection] = useState<DetailedPlayerCardCollection | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const {
-    cardDetails,
-    loading: cardDetailsLoading,
-    error: cardDetailsError,
-  } = useCardDetails({ autoFetch: true });
   const { collectionRefreshVersion } = usePurchasePlan();
 
   useEffect(() => {
+    let active = true;
     const loadCards = async () => {
       setLoading(true);
       setError(null);
       try {
-        const collection = await getDetailedPlayerCardCollection(username);
-        setCardCollection(collection);
+        const collection = await loadDetailedCollection(username, collectionRefreshVersion);
+        if (active) setCardCollection(collection);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load card collection");
+        if (active) setError(err instanceof Error ? err.message : "Failed to load card collection");
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
     loadCards();
+    return () => {
+      active = false;
+    };
   }, [username, collectionRefreshVersion]);
 
-  const isLoading = loading || cardDetailsLoading;
-  const hasError = error || cardDetailsError;
-
-  if (isLoading) {
+  if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
         <CircularProgress />
@@ -74,15 +69,15 @@ export function PlayerCardsContent({
     );
   }
 
-  if (hasError) {
+  if (error) {
     return (
       <Alert severity="error" sx={{ mb: 3 }}>
-        {error || cardDetailsError}
+        {error}
       </Alert>
     );
   }
 
-  if (!cardCollection || !cardDetails) {
+  if (!cardCollection) {
     return (
       <Alert severity="info" sx={{ mb: 3 }}>
         No card collection data available

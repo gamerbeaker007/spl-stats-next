@@ -1,3 +1,4 @@
+import { toCardFoilInt } from "@/lib/shared/card-utils";
 import { getRarityId } from "@/lib/shared/rarity-utils";
 import type {
   BuildPurchasePlanInput,
@@ -7,6 +8,7 @@ import type {
   UpgradeRequirements,
 } from "@/types/buy-missing-cc";
 import { CardDetail, CardFoil, CardRarity } from "@/types/card";
+import type { SplPlayerCard } from "@/types/spl/card";
 import type { SplSettings } from "@/types/spl/season";
 
 export function getCardFirstPlayableLevel(combineRates: number[]): number {
@@ -431,6 +433,63 @@ export type CombineCardState = Pick<
   CardDetail,
   "uid" | "level" | "bcx" | "onWagon" | "onLand" | "inSet" | "listed" | "delegatedTo"
 >;
+
+export interface AccountCardContext {
+  accountState: { highestLevel: number; highestCc: number; totalCc: number };
+  combineCards: CombineCardState[];
+}
+
+/**
+ * The account's own copies of one card target (detail + edition + foil) from its
+ * `/cards/collection` response: highest level / CC, total CC, and combine state.
+ */
+export function buildAccountCardContext(
+  account: string,
+  collectionCards: SplPlayerCard[],
+  cardDetailId: number,
+  edition: number,
+  foil: CardFoil
+): AccountCardContext {
+  const foilInt = toCardFoilInt(foil);
+  const cards = collectionCards.filter(
+    (card) =>
+      card.player === account && // card should be owned
+      card.card_detail_id === cardDetailId &&
+      Number(card.edition) === edition &&
+      Number(card.foil) === foilInt
+  );
+
+  const accountState = cards.reduce(
+    (acc, card) => {
+      const level = card.level ?? 0;
+      const bcx = card.bcx ?? 0;
+      acc.totalCc += bcx;
+
+      if (level > acc.highestLevel) {
+        acc.highestLevel = level;
+        acc.highestCc = bcx;
+      } else if (level === acc.highestLevel) {
+        acc.highestCc = Math.max(acc.highestCc, bcx);
+      }
+
+      return acc;
+    },
+    { highestLevel: 0, highestCc: 0, totalCc: 0 }
+  );
+
+  const combineCards: CombineCardState[] = cards.map((card) => ({
+    uid: card.uid,
+    level: card.level,
+    bcx: card.bcx,
+    onWagon: card.wagon_uid !== null,
+    onLand: card.stake_ref_uid !== null,
+    inSet: card.set_id !== null,
+    listed: card.market_listing_type !== null,
+    delegatedTo: card.delegated_to,
+  }));
+
+  return { accountState, combineCards };
+}
 
 export interface CombineStatus {
   canCombine: boolean;

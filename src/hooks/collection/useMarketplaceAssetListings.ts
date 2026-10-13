@@ -1,6 +1,6 @@
 "use client";
 
-import { getMarketplaceAssetListingsAction } from "@/lib/backend/actions/marketplace-assets-actions";
+import { fetchMarketplaceAssetListings } from "@/lib/frontend/spl-browser-api";
 import type { MarketplaceAssetName, MarketplaceListingItem } from "@/types/marketplace-assets";
 import { useCallback, useEffect, useState } from "react";
 
@@ -26,7 +26,7 @@ export function useMarketplaceAssetListings(
       setError(null);
 
       try {
-        const next = await getMarketplaceAssetListingsAction(assetName, detailId);
+        const next = await fetchMarketplaceAssetListings(assetName, detailId);
         if (active()) setListings(next);
         return next;
       } catch (err) {

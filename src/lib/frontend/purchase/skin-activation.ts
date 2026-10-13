@@ -1,5 +1,5 @@
 import type { RunTxOptions } from "@/hooks/collection/useMarketplaceTransaction";
-import { buildActivateSkinPayloadAction } from "@/lib/backend/actions/marketplace-assets-actions";
+import { buildActivateSkinPayload } from "@/lib/frontend/purchase/payload-builders";
 import { broadcastSetSkin } from "@/lib/frontend/purchase/splBroadcast";
 import type { MarketplaceAssetItem } from "@/types/marketplace-assets";
 
@@ -13,7 +13,7 @@ export function buildSkinActivationTx(account: string, item: MarketplaceAssetIte
     label: "Activate",
     message: `Activating ${item.displayName}...`,
     execute: async () => {
-      const { payload } = await buildActivateSkinPayloadAction({
+      const { payload } = await buildActivateSkinPayload({
         account,
         detailId: item.detailId,
         cardDetailId: item.cardDetailId,

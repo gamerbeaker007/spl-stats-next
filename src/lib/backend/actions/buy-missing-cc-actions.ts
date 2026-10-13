@@ -1,20 +1,9 @@
 "use server";
 
-import {
-  getCachedSplCardCollection,
-  getCachedSplCardDetails,
-  getCachedSplGroupedMarket,
-  getCachedSplPlayerBalances,
-  getCachedSplSettings,
-} from "@/lib/backend/cache/spl-cache";
-import { getDetailedPlayerCardCollectionCached } from "@/lib/backend/services/collection-detailed";
-import type { CombineCardState } from "@/lib/shared/buy-missing-cc";
-import { toCardFoilInt } from "@/lib/shared/card-utils";
+import { getCachedSplCardDetails, getCachedSplSettings } from "@/lib/backend/cache/spl-cache";
 import { SOULKEEP_EDITIONS } from "@/lib/shared/edition-utils";
 import type { BuyMissingCcSnapshot } from "@/types/buy-missing-cc";
-import { CardFoil } from "@/types/card";
 import type { SplCardDetail } from "@/types/spl/cardDetails";
-import type { MarketPriceInfo } from "@/types/spl/market";
 import { cacheLife } from "next/cache";
 
 export async function getBuyMissingCcSharedDataAction() {
@@ -38,14 +27,6 @@ export async function getBuyMissingCcSharedDataAction() {
   };
 }
 
-function normalizeAccount(account: string): string {
-  const normalized = account.trim().toLowerCase();
-  if (!normalized) {
-    throw new Error("Account is required");
-  }
-  return normalized;
-}
-
 export async function getBuyCardDialogSharedContextAction(cardDetailId: number): Promise<{
   settings: BuyMissingCcSnapshot["settings"];
   cardDetail: SplCardDetail;
@@ -61,110 +42,4 @@ export async function getBuyCardDialogSharedContextAction(cardDetailId: number):
     settings: sharedData.settings,
     cardDetail: detail,
   };
-}
-
-export async function getBuyCardDialogAccountContextAction(
-  account: string,
-  cardDetailId: number,
-  edition: number,
-  foil: CardFoil
-): Promise<{
-  account: string;
-  accountState: { highestLevel: number; highestCc: number; totalCc: number };
-  balance: { DEC: number; CREDITS: number };
-  combineCards: CombineCardState[];
-}> {
-  const normalized = normalizeAccount(account);
-  const [collection, balances] = await Promise.all([
-    getCachedSplCardCollection(normalized),
-    getCachedSplPlayerBalances(normalized),
-  ]);
-
-  const cards = collection.cards.filter(
-    (card) =>
-      card.player === account && // card should be owned
-      card.card_detail_id === cardDetailId &&
-      Number(card.edition) === edition &&
-      Number(card.foil) === toCardFoilInt(foil)
-  );
-
-  const accountState = cards.reduce(
-    (acc, card) => {
-      const level = card.level ?? 0;
-      const bcx = card.bcx ?? 0;
-      acc.totalCc += bcx;
-
-      if (level > acc.highestLevel) {
-        acc.highestLevel = level;
-        acc.highestCc = bcx;
-      } else if (level === acc.highestLevel) {
-        acc.highestCc = Math.max(acc.highestCc, bcx);
-      }
-
-      return acc;
-    },
-    { highestLevel: 0, highestCc: 0, totalCc: 0 }
-  );
-
-  const combineCards: CombineCardState[] = cards.map((card) => ({
-    uid: card.uid,
-    level: card.level,
-    bcx: card.bcx,
-    onWagon: card.wagon_uid !== null,
-    onLand: card.stake_ref_uid !== null,
-    inSet: card.set_id !== null,
-    listed: card.market_listing_type !== null,
-    delegatedTo: card.delegated_to,
-  }));
-
-  return {
-    account: normalized,
-    accountState,
-    combineCards,
-    balance: {
-      DEC: balances.find((entry) => entry.token === "DEC")?.balance ?? 0,
-      CREDITS: balances.find((entry) => entry.token === "CREDITS")?.balance ?? 0,
-    },
-  };
-}
-
-export async function getBuyMissingCcDetailedCollectionAction(account: string) {
-  const normalized = normalizeAccount(account);
-  const [detailedCollection, groupedMarket, balances] = await Promise.all([
-    getDetailedPlayerCardCollectionCached(normalized, true),
-    getCachedSplGroupedMarket(),
-    getCachedSplPlayerBalances(normalized),
-  ]);
-
-  return {
-    account: normalized,
-    detailedCollection,
-    groupedMarket: groupedMarket.entries,
-    balances,
-  };
-}
-
-/** Edition-specific prices keyed by `${cardDetailId}-${edition}-${foilInt}`. */
-export async function getCollectionMarketPricesAction(): Promise<{
-  prices: Record<string, MarketPriceInfo>;
-  fetchedAt: string;
-}> {
-  const { entries, fetchedAt } = await getCachedSplGroupedMarket();
-  const result: Record<string, MarketPriceInfo> = {};
-  for (const entry of entries) {
-    const lpBcx = Number(entry.low_price_bcx) || 0;
-    const lp = Number(entry.low_price) || 0;
-    const qty = Number(entry.qty) || 0;
-    const key = `${entry.card_detail_id}-${entry.edition}-${entry.foil}`;
-    const existing = result[key];
-    if (!existing) {
-      result[key] = { qty, lowPriceBcx: lpBcx, lowPrice: lp };
-    } else {
-      existing.qty += qty;
-      if (lpBcx > 0 && (existing.lowPriceBcx === 0 || lpBcx < existing.lowPriceBcx))
-        existing.lowPriceBcx = lpBcx;
-      if (lp > 0 && (existing.lowPrice === 0 || lp < existing.lowPrice)) existing.lowPrice = lp;
-    }
-  }
-  return { prices: result, fetchedAt };
 }

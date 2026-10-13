@@ -1,13 +1,14 @@
 "use client";
 
-import { getCollectionMarketPricesAction } from "@/lib/backend/actions/buy-missing-cc-actions";
+import { loadMarketPrices } from "@/lib/frontend/collection-data";
 import { MARKET_PRICE_REFRESH_SECONDS } from "@/lib/shared/market-refresh";
 import type { MarketPriceInfo } from "@/types/spl/market";
 import { useEffect, useState } from "react";
 
 /**
- * Grouped market prices (and when the server fetched them from SPL) keyed by
- * `${cardDetailId}-${edition}-${foilInt}`, re-fetched every MARKET_PRICE_REFRESH_SECONDS while enabled.
+ * Grouped market prices (and when this tab fetched them from SPL, directly from
+ * the browser) keyed by `${cardDetailId}-${edition}-${foilInt}`, re-fetched every
+ * MARKET_PRICE_REFRESH_SECONDS while enabled.
  * Paused while the tab is hidden and
  * refreshed right away when it becomes visible again.
  */
@@ -22,7 +23,7 @@ export function useMarketPrices(enabled: boolean) {
 
     const load = () => {
       if (document.hidden) return;
-      getCollectionMarketPricesAction()
+      loadMarketPrices()
         .then((next) => {
           if (!cancelled) setData(next);
         })

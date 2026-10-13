@@ -8,9 +8,10 @@ import AccountSelectorBar from "@/components/shared/AccountSelectorBar";
 import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 import { useBuyMissingCcSharedData } from "@/hooks/cards/useBuyMissingCcSharedData";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
-import { getBuyMissingCcDetailedCollectionAction } from "@/lib/backend/actions/buy-missing-cc-actions";
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
+import { loadDetailedCollection } from "@/lib/frontend/collection-data";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
+import { fetchMarketForSaleGrouped } from "@/lib/frontend/spl-browser-api";
 import { useBuyMissingCcFilter } from "@/lib/frontend/context/BuyMissingCcFilterContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import {
@@ -151,10 +152,14 @@ export default function BuyMissingCcPageClient() {
           return;
         }
 
-        const snapshot = await getBuyMissingCcDetailedCollectionAction(selectedAccount);
+        // Both straight from SPL in the browser (the collection is memoized per tab).
+        const [detailedCollection, groupedMarket] = await Promise.all([
+          loadDetailedCollection(selectedAccount, collectionRefreshVersion, true),
+          fetchMarketForSaleGrouped(),
+        ]);
         if (!active) return;
 
-        const collectionItems = Object.values(snapshot.detailedCollection);
+        const collectionItems = Object.values(detailedCollection);
         const byKey: Record<string, AccountCardState> = {};
 
         for (const item of collectionItems) {
@@ -177,7 +182,7 @@ export default function BuyMissingCcPageClient() {
         }
 
         const groupedPriceByKey = new Map<string, { lowPrice: number; lowPriceBcx: number }>();
-        for (const market of snapshot.groupedMarket) {
+        for (const market of groupedMarket) {
           const key = `${market.card_detail_id}-${market.edition}-${toCardFoil(market.foil)}`;
 
           const prices = groupedPriceByKey.get(key) ?? {
@@ -668,10 +673,7 @@ export default function BuyMissingCcPageClient() {
             // Bust the cached collection BEFORE bumping the refresh version,
             // otherwise the reload re-reads the same pre-combine `"use cache"`
             // snapshot and the combine status recomputes to the identical state.
-            await revalidateTagsAction([
-              { type: "collection", usernames: [selectedAccount] },
-              { type: "balances", usernames: [selectedAccount] },
-            ]);
+            await revalidateTagsAction([{ type: "collection", usernames: [selectedAccount] }]);
             // Bump the shared refresh version so the collection reloads (the load
             // effect depends on collectionRefreshVersion).
             notifyCollectionRefresh();

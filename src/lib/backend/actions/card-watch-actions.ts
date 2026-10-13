@@ -1,7 +1,6 @@
 "use server";
 
 import { getCurrentUser } from "@/lib/backend/actions/auth-actions";
-import { getCollectionMarketPricesAction } from "@/lib/backend/actions/buy-missing-cc-actions";
 import { deleteCardWatch, listCardWatches, upsertCardWatch } from "@/lib/backend/db/card-watches";
 import logger from "@/lib/backend/log/logger.server";
 import { rethrowFrameworkErrors } from "@/lib/backend/next-errors";
@@ -32,26 +31,32 @@ export async function getCardWatchesAction(): Promise<CardWatch[]> {
   }
 }
 
-/** Snapshot prices are read server-side from the same grouped market data the page shows. */
+/** Upper bound for a USD price snapshot — far above any real card listing. */
+const MAX_WATCH_PRICE_USD = 1_000_000_000;
+
+function isValidPrice(value: number): boolean {
+  return Number.isFinite(value) && value >= 0 && value <= MAX_WATCH_PRICE_USD;
+}
+
+/**
+ * The "price at watch" snapshot comes from the browser, which reads the grouped
+ * market from SPL. It only ever writes the caller's own watch row and is only
+ * shown back to that user, so a tampered value can't affect anyone else; it is
+ * still range-checked.
+ */
 export async function watchCardAction(
   cardDetailId: number,
   edition: number,
-  foil: number
+  foil: number,
+  lowPriceBcx: number,
+  lowPrice: number
 ): Promise<void> {
   if (!isValidCard(cardDetailId, edition, foil)) throw new Error("Invalid card");
+  if (!isValidPrice(lowPriceBcx) || !isValidPrice(lowPrice)) throw new Error("Invalid price");
   try {
     const user = await getCurrentUser();
     if (!user) throw new Error("Not logged in");
-    const { prices } = await getCollectionMarketPricesAction();
-    const price = prices[`${cardDetailId}-${edition}-${foil}`];
-    await upsertCardWatch(
-      user.username,
-      cardDetailId,
-      edition,
-      foil,
-      price?.lowPriceBcx ?? 0,
-      price?.lowPrice ?? 0
-    );
+    await upsertCardWatch(user.username, cardDetailId, edition, foil, lowPriceBcx, lowPrice);
   } catch (error) {
     rethrowFrameworkErrors(error);
     logger.error(`watchCardAction error: ${error}`);

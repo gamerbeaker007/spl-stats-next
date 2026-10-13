@@ -5,7 +5,7 @@ import {
   fetchPeakMonsterTopBids,
 } from "@/lib/backend/api/peakmonsters/peakmonsters-api";
 import {
-  fetchCardHistory,
+  fetchAccountCardCollection,
   fetchFrontierDrawsPrizeOverview,
   fetchFrontierDrawsRecentPrizes,
   fetchFrontierJackpotMusic,
@@ -103,13 +103,6 @@ export async function getCachedMintHistory(foil: number, cardId: number) {
   return fetchMintHistory(foil, cardId);
 }
 
-export async function getCachedCardHistory(uid: string) {
-  "use cache";
-  cacheLife(JACKPOT_CACHE_LIFE);
-  cacheTag(CACHE_TAGS.splJackpot);
-  return fetchCardHistory(uid);
-}
-
 export async function getCachedPeakMonsterPrices() {
   "use cache";
   cacheLife(JACKPOT_CACHE_LIFE);
@@ -122,4 +115,12 @@ export async function getCachedPeakMonsterTopBids() {
   cacheLife(JACKPOT_CACHE_LIFE);
   cacheTag(CACHE_TAGS.splJackpot);
   return fetchPeakMonsterTopBids();
+}
+
+/** Cards held by a prize bucket account (`$FRONTIER_JACKPOT`, `$ETN_REWARD_FOILS`, …). */
+export async function getCachedAccountBucketCards(username: string) {
+  "use cache";
+  cacheLife(JACKPOT_CACHE_LIFE);
+  cacheTag(CACHE_TAGS.splJackpot);
+  return fetchAccountCardCollection(username);
 }

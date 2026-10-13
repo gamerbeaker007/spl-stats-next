@@ -6,16 +6,13 @@ import {
   fetchHiveAccountBalances,
   fetchHiveTransfer,
 } from "@/lib/backend/api/hive/hive-account-api";
-import {
-  fetchPlayerBalances,
-  fetchSplPrices,
-  fetchTransactionLookup,
-} from "@/lib/backend/api/spl/spl-api";
-import { parseTokenTransfer } from "@/lib/backend/api/spl/trxLookupParser";
+import { fetchTransactionLookup } from "@/lib/backend/api/spl/spl-api";
+import { parseTokenTransfer } from "@/lib/shared/trx-lookup-parser";
 import {
   fetchValidatorVotesByAccount,
   type ValidatorVote,
 } from "@/lib/backend/api/spl/spl-validator-api";
+import { getCachedSplPrices } from "@/lib/backend/cache/spl-cache";
 import { createSupportDonation, findSupportDonationByTx } from "@/lib/backend/db/support-donations";
 import logger from "@/lib/backend/log/logger.server";
 
@@ -61,50 +58,26 @@ export async function getValidatorVotes(): Promise<{
   }
 }
 
-export async function getSupportBalances(): Promise<{
-  dec: number;
-  sps: number;
+/**
+ * HIVE/HBD balances of the logged-in user. DEC/SPS are SPL balances, read live
+ * in the browser (`fetchAccountBalances`) like every other SPL balance.
+ */
+export async function getSupportHiveBalances(): Promise<{
   hive: number;
   hbd: number;
   error?: string;
 }> {
   const auth = await getAuthStatus();
   if (!auth.authenticated || !auth.username) {
-    return { dec: 0, sps: 0, hive: 0, hbd: 0, error: "Not authenticated" };
+    return { hive: 0, hbd: 0, error: "Not authenticated" };
   }
 
-  const [spl, hive] = await Promise.allSettled([
-    fetchPlayerBalances(auth.username),
-    fetchHiveAccountBalances(auth.username),
-  ]);
-
-  const errors: string[] = [];
-  let dec = 0;
-  let sps = 0;
-  let hiveBalance = 0;
-  let hbdBalance = 0;
-
-  if (spl.status === "fulfilled") {
-    dec = spl.value.find((entry) => entry.token === "DEC")?.balance ?? 0;
-    sps = spl.value.find((entry) => entry.token === "SPS")?.balance ?? 0;
-  } else {
-    errors.push("Could not load DEC/SPS balances");
+  try {
+    const hive = await fetchHiveAccountBalances(auth.username);
+    return { hive: hive.hive, hbd: hive.hbd };
+  } catch {
+    return { hive: 0, hbd: 0, error: "Could not load HIVE/HBD balances" };
   }
-
-  if (hive.status === "fulfilled") {
-    hiveBalance = hive.value.hive;
-    hbdBalance = hive.value.hbd;
-  } else {
-    errors.push("Could not load HIVE/HBD balances");
-  }
-
-  return {
-    dec,
-    sps,
-    hive: hiveBalance,
-    hbd: hbdBalance,
-    error: errors.length > 0 ? errors.join("; ") : undefined,
-  };
 }
 
 // ── Donation recording ───────────────────────────────────────────────────────
@@ -152,7 +125,7 @@ async function storeDonation(input: {
 }): Promise<DonationRecordResult> {
   let prices;
   try {
-    prices = await fetchSplPrices();
+    prices = await getCachedSplPrices();
   } catch (error) {
     logger.error("[support] failed to fetch prices for donation", {
       error: error instanceof Error ? error.message : String(error),

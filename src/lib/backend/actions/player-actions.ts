@@ -15,15 +15,10 @@ import {
   getCachedSplCardCollection,
   getCachedSplCardDetails,
   getCachedSplListingPrices,
-  getCachedSplPlayerBalances,
-  getCachedSplPlayerDetails,
-  getCachedSplPlayerDraws,
-  getCachedSplSeasonRewards,
 } from "@/lib/backend/cache/spl-cache";
 import { getSeasonBalances } from "@/lib/backend/db/season-balances";
 import { getAllSeasons, getLatestSeason, getSeasonById } from "@/lib/backend/db/seasons";
 import { rethrowFrameworkErrors } from "@/lib/backend/next-errors";
-import { getDetailedPlayerCardCollectionCached } from "@/lib/backend/services/collection-detailed";
 import { getPlayerCollectionValue } from "@/lib/collectionUtils";
 import {
   aggregatePurchaseRewards,
@@ -37,7 +32,6 @@ import {
   authPartial,
   type AuthenticatedResult,
 } from "@/lib/shared/authenticated-result";
-import { DetailedPlayerCardCollection } from "@/types/card";
 import { LandHarvestData } from "@/types/land/landHarvest";
 import { ParsedHistory, ParsedPlayerRewardHistory, PurchaseResult } from "@/types/parsedHistory";
 import { PlayerCardCollectionData } from "@/types/playerCardCollection";
@@ -54,22 +48,6 @@ import { getCurrentUser, getMonitoredAccounts } from "./auth-actions";
 // repeated dashboard mounts and multiple accounts share cached data instead of
 // hitting Splinterlands on every render.
 // ---------------------------------------------------------------------------
-
-export async function getPlayerDetails(username: string) {
-  return getCachedSplPlayerDetails(username);
-}
-
-export async function getPlayerBalances(username: string) {
-  return getCachedSplPlayerBalances(username);
-}
-
-export async function getPlayerDraws(username: string) {
-  return getCachedSplPlayerDraws(username);
-}
-
-export async function getPlayerSeasonRewards(username: string) {
-  return getCachedSplSeasonRewards(username);
-}
 
 /** Underlying DEC/SPS held in the player's DEC-SPS liquidity pool positions. */
 export async function getPlayerPoolBalances(username: string): Promise<PlayerPoolBalances> {
@@ -200,12 +178,6 @@ export async function getPlayerLandHarvest(
   username: string
 ): Promise<AuthenticatedResult<LandHarvestData>> {
   return withUsableJwt(username, () => getCachedLandHarvestData(username));
-}
-
-export async function getDetailedPlayerCardCollection(
-  username: string
-): Promise<DetailedPlayerCardCollection> {
-  return getDetailedPlayerCardCollectionCached(username);
 }
 
 // ---------------------------------------------------------------------------

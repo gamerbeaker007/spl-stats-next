@@ -13,7 +13,7 @@ import {
 import { fetchPeakmonstersMarketPrices } from "@/lib/backend/api/peakmonsters/peakmonsters-api";
 import {
   fetchCardCollection,
-  fetchListingPrices,
+  fetchMarketForSaleGrouped,
   fetchPlayerBalances,
   fetchSplPrices,
 } from "@/lib/backend/api/spl/spl-api";
@@ -353,7 +353,7 @@ export async function computePortfolioData(
   if (shouldStop()) return null;
   const [collectionRaw, listingPricesRaw, pkmPricesRaw, marketLandingAssets] = await Promise.all([
     fetchCardCollection(username),
-    fetchListingPrices(),
+    fetchMarketForSaleGrouped(),
     fetchPeakmonstersMarketPrices(),
     fetchMarketLanding(username),
   ]);

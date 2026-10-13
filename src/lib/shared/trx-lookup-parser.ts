@@ -53,6 +53,56 @@ function resolveTrxInfoFailure(trxInfo: SplTransactionLookupInfo): string | null
   return null;
 }
 
+/**
+ * Normalize a raw `/transactions/lookup` body (server or browser fetch) into the
+ * `{ trx_info }` shape. SPL answers an unknown tx with HTTP 200 +
+ * `{ error: "... not found." }`, which normalizes to `null`.
+ */
+export function normalizeTransactionLookup(raw: unknown): SplTransactionLookupResponse | null {
+  if (!raw || typeof raw !== "object") return null;
+
+  const wrapped = raw as { trx_info?: unknown };
+  if (wrapped.trx_info && typeof wrapped.trx_info === "object") {
+    return raw as SplTransactionLookupResponse;
+  }
+
+  const info = raw as Partial<SplTransactionLookupResponse["trx_info"]>;
+  if (
+    typeof info.id === "string" &&
+    typeof info.type === "string" &&
+    typeof info.player === "string" &&
+    typeof info.data === "string"
+  ) {
+    return {
+      trx_info: {
+        id: info.id,
+        type: info.type,
+        player: info.player,
+        data: info.data,
+        result: typeof info.result === "string" || info.result === null ? info.result : null,
+      },
+    };
+  }
+
+  return null;
+}
+
+/** Status for a normalized lookup; `null` (not indexed by SPL yet) counts as pending. */
+export function lookupTransactionStatus(
+  rawLookup: SplTransactionLookupResponse | null
+): LookupTransactionStatus {
+  if (!rawLookup) {
+    return {
+      ok: false,
+      resolved: false,
+      success: false,
+      message: "Transaction not found yet",
+    };
+  }
+
+  return lookupTransaction(rawLookup);
+}
+
 export function lookupTransaction(
   rawLookup: SplTransactionLookupResponse
 ): LookupTransactionStatus {

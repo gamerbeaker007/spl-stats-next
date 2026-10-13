@@ -5,7 +5,7 @@ import AssetCopyPicker from "@/components/collection/marketplace/AssetCopyPicker
 import TransactionProgressPanel from "@/components/shared/TransactionProgressPanel";
 import { useMarketplaceTransaction } from "@/hooks/collection/useMarketplaceTransaction";
 import { useOwnedAssetInstances } from "@/hooks/collection/useOwnedAssetInstances";
-import { buildInstanceTransferPayloadAction } from "@/lib/backend/actions/marketplace-assets-actions";
+import { buildInstanceTransferPayload } from "@/lib/frontend/purchase/payload-builders";
 import { broadcastTransferItems } from "@/lib/frontend/purchase/splBroadcast";
 import type { MarketplaceAssetItem, MarketplaceAssetName } from "@/types/marketplace-assets";
 import {
@@ -64,7 +64,7 @@ export default function InstanceTransferDialog({
       label: "Transfer",
       message: `Sending ${selectedUids.length} item${selectedUids.length === 1 ? "" : "s"} to ${recipient}...`,
       execute: async () => {
-        const { payload } = await buildInstanceTransferPayloadAction({
+        const { payload } = await buildInstanceTransferPayload({
           account,
           recipient,
           itemUids: selectedUids,

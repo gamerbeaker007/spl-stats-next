@@ -1,8 +1,7 @@
 "use server";
 
-import { fetchAccountCardCollection } from "@/lib/backend/api/spl/spl-api";
+import { getCachedAccountBucketCards } from "@/lib/backend/cache/jackpot-cache";
 import { getCachedSplCardDetails } from "@/lib/backend/cache/spl-cache";
-import { cacheLife } from "next/cache";
 
 export interface BucketFoilCount {
   foil: number;
@@ -21,11 +20,8 @@ export interface AccountBucketResult {
 }
 
 export async function getAccountBucket(username: string): Promise<AccountBucketResult> {
-  "use cache";
-  cacheLife("hours");
-
   const [cards, allCardDetails] = await Promise.all([
-    fetchAccountCardCollection(username),
+    getCachedAccountBucketCards(username),
     getCachedSplCardDetails(),
   ]);
 

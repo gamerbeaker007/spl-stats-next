@@ -2,17 +2,13 @@ export const CACHE_TAGS = {
   splSettings: "spl:settings",
   splMaintenance: "spl:maintenance",
   splCardDetails: "spl:card-details",
-  splGroupedMarket: "spl:grouped-market",
   splListingPrices: "spl:listing-prices",
   splMarketPrices: "spl:market-prices",
+  splPrices: "spl:prices",
+  splMetrics: "spl:metrics",
   splJackpot: "spl:jackpot",
+  splLandMarket: "spl:land-market",
   splCollection: (username: string) => `spl:collection:${username.toLowerCase()}`,
-  splBalances: (username: string) => `spl:balances:${username.toLowerCase()}`,
-  splMarketplace: (username: string) => `spl:marketplace:${username.toLowerCase()}`,
-  splPlayerSkins: (username: string) => `spl:player-skins:${username.toLowerCase()}`,
-  splPlayerDetails: (username: string) => `spl:player-details:${username.toLowerCase()}`,
-  splDraws: (username: string) => `spl:draws:${username.toLowerCase()}`,
-  splSeasonRewards: (username: string) => `spl:season-rewards:${username.toLowerCase()}`,
   splPoolBalances: (username: string) => `spl:pool-balances:${username.toLowerCase()}`,
   splDailyProgress: (username: string) => `spl:daily-progress:${username.toLowerCase()}`,
   splBrawl: (username: string) => `spl:brawl:${username.toLowerCase()}`,
@@ -27,10 +23,6 @@ export const CACHE_TAGS = {
 export function dashboardAccountTags(username: string): string[] {
   const normalized = username.trim().toLowerCase();
   return [
-    CACHE_TAGS.splBalances(normalized),
-    CACHE_TAGS.splPlayerDetails(normalized),
-    CACHE_TAGS.splDraws(normalized),
-    CACHE_TAGS.splSeasonRewards(normalized),
     CACHE_TAGS.splPoolBalances(normalized),
     CACHE_TAGS.splDailyProgress(normalized),
     CACHE_TAGS.splBrawl(normalized),
@@ -41,12 +33,9 @@ export function dashboardAccountTags(username: string): string[] {
 
 export type CacheInvalidationTarget =
   | { type: "collection"; usernames: string[] }
-  | { type: "balances"; usernames: string[] }
-  | { type: "marketplace"; usernames: string[] }
-  | { type: "player-skins"; usernames: string[] }
   | { type: "card-details" }
   | { type: "settings" }
   | { type: "maintenance" }
-  | { type: "grouped-market" }
+  | { type: "land-market" }
   | { type: "portfolio"; usernames: string[] }
   | { type: "dashboard-account"; usernames: string[] };

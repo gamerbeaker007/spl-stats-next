@@ -3,7 +3,7 @@
 import MarketAssetSummary from "@/components/collection/marketplace/MarketAssetSummary";
 import TransactionProgressPanel from "@/components/shared/TransactionProgressPanel";
 import { useMarketplaceTransaction } from "@/hooks/collection/useMarketplaceTransaction";
-import { buildTokenTransferPayloadAction } from "@/lib/backend/actions/marketplace-assets-actions";
+import { buildTokenTransferPayload } from "@/lib/frontend/purchase/payload-builders";
 import { broadcastTokenTransfer } from "@/lib/frontend/purchase/splBroadcast";
 import { getActualOwnedQuantity } from "@/lib/shared/marketplace-assets";
 import type { MarketplaceAssetItem, MarketplaceAssetName } from "@/types/marketplace-assets";
@@ -57,7 +57,7 @@ export default function QuantityTransferDialog({
       label: "Transfer",
       message: `Sending ${effectiveQuantity} item${effectiveQuantity === 1 ? "" : "s"} to ${recipient}...`,
       execute: async () => {
-        const { payload } = await buildTokenTransferPayloadAction({
+        const { payload } = await buildTokenTransferPayload({
           account,
           assetName,
           detailId: item.detailId,

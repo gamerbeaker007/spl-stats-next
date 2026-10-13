@@ -1,7 +1,7 @@
 "use client";
 
 import CurrencyAmountChip from "@/components/collection/top-bar/CurrencyAmountChip";
-import { getBalancesForAccountsAction } from "@/lib/backend/actions/purchase-actions";
+import { fetchBalancesForAccounts } from "@/lib/frontend/spl-browser-api";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { credits_icon_url, dec_icon_url, sps_icon_url } from "@/lib/staticsIconUrls";
@@ -24,7 +24,7 @@ function totalToken(rows: AccountBalances[], token: string): number {
 
 export default function TopBarBalances() {
   const { balanceRefreshVersion } = usePurchasePlan();
-  const { selectedAccount, collectionSelectedAccounts } = useAccounts();
+  const { selectedAccount, collectionSelectedAccounts, accountsReady } = useAccounts();
   const pathname = usePathname();
 
   const selectedAccounts = useMemo(() => {
@@ -45,6 +45,10 @@ export default function TopBarBalances() {
     return [];
   }, [collectionSelectedAccounts, pathname, selectedAccount]);
 
+  // Refetch only when the account list's content changes — the memo above returns a
+  // new array on every pathname / URL-sync change even when the accounts are the same.
+  const accountsKey = selectedAccounts.join(",");
+
   const [rows, setRows] = useState<AccountBalances[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -52,14 +56,15 @@ export default function TopBarBalances() {
     let active = true;
 
     async function load() {
+      if (!accountsReady) return;
       setLoading(true);
       try {
-        if (selectedAccounts.length === 0) {
+        if (!accountsKey) {
           if (active) setRows([]);
           return;
         }
 
-        const balances = await getBalancesForAccountsAction(selectedAccounts);
+        const balances = await fetchBalancesForAccounts(accountsKey.split(","));
         if (active) {
           setRows(balances);
         }
@@ -72,7 +77,7 @@ export default function TopBarBalances() {
     return () => {
       active = false;
     };
-  }, [balanceRefreshVersion, selectedAccounts]);
+  }, [accountsReady, balanceRefreshVersion, accountsKey]);
 
   const totals = useMemo(
     () => ({
@@ -119,9 +124,13 @@ export default function TopBarBalances() {
   return (
     <Tooltip title={tooltip} placement="bottom" arrow>
       <Box display={"flex"} flexWrap={"wrap"} gap={1} sx={{ alignItems: "center", px: 1 }}>
-        <CurrencyAmountChip currency="CREDITS" value={totals.credits} loading={loading} />
-        <CurrencyAmountChip currency="DEC" value={totals.dec} loading={loading} />
-        <CurrencyAmountChip currency="SPS" value={totals.sps} loading={loading} />
+        <CurrencyAmountChip
+          currency="CREDITS"
+          value={totals.credits}
+          loading={loading || !accountsReady}
+        />
+        <CurrencyAmountChip currency="DEC" value={totals.dec} loading={loading || !accountsReady} />
+        <CurrencyAmountChip currency="SPS" value={totals.sps} loading={loading || !accountsReady} />
       </Box>
     </Tooltip>
   );

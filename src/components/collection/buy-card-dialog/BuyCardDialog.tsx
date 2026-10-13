@@ -2,16 +2,17 @@
 
 import BracketFilter from "@/components/collection/buy-missing-cc/BracketFilter";
 import { useMarketListings } from "@/hooks/cards/useMarketListings";
-import {
-  getBuyCardDialogAccountContextAction,
-  getBuyCardDialogSharedContextAction,
-} from "@/lib/backend/actions/buy-missing-cc-actions";
+import { getBuyCardDialogSharedContextAction } from "@/lib/backend/actions/buy-missing-cc-actions";
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
-import { buildCombineCardsPayloadAction } from "@/lib/backend/actions/purchase-actions";
+import { buildCombineCardsPayload } from "@/lib/shared/transactions-builder";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { checkoutItems } from "@/lib/frontend/purchase/checkout";
+import { loadCardCollection } from "@/lib/frontend/collection-data";
+import { fetchAccountBalances } from "@/lib/frontend/spl-browser-api";
+import { tokenBalance } from "@/lib/shared/marketplace-purchase";
 import { broadcastCombineCards, waitForTransactions } from "@/lib/frontend/purchase/splBroadcast";
 import {
+  buildAccountCardContext,
   buildPurchasePlan,
   calculateUpgradeRequirements,
   checkCombineStatus,
@@ -40,7 +41,7 @@ import {
   CardRarity,
   DetailedPlayerCardCollectionItem,
 } from "@/types/card";
-import type { PurchaseCurrency, PurchasePlanItem } from "@/types/purchase/purchase-plan";
+import type { CardPurchasePlanItem, PurchaseCurrency } from "@/types/purchase/purchase-plan";
 import type { CardStats } from "@/types/spl/cardDetails";
 import type { SplSettings } from "@/types/spl/season";
 import {
@@ -93,7 +94,7 @@ export interface BuyCardDialogProps {
   accountBalances?: Record<string, { DEC: number; CREDITS: number }>;
   topOffsetPx?: number;
   onClose: () => void;
-  onAddToPurchasePlan: (items: PurchasePlanItem[]) => void;
+  onAddToPurchasePlan: (items: CardPurchasePlanItem[]) => void;
 }
 
 const PAGE_OPTIONS = [20, 50, 100] as const;
@@ -279,14 +280,26 @@ export default function BuyCardDialog({
     async function loadAccountContext() {
       setContextLoading(true);
       try {
-        const context = await getBuyCardDialogAccountContextAction(
-          selectedAccount,
-          cardDetailId,
-          edition,
-          selectedFoil
-        );
+        // Balances and ownership are live data (browser); the collection is shared
+        // with the page that opened the dialog (memoized per tab).
+        const account = selectedAccount.trim().toLowerCase();
+        const [collection, balances] = await Promise.all([
+          loadCardCollection(account, collectionRefreshVersion),
+          fetchAccountBalances(account),
+        ]);
 
         if (!active) return;
+
+        const context = {
+          account,
+          ...buildAccountCardContext(
+            account,
+            collection.cards,
+            cardDetailId,
+            edition,
+            selectedFoil
+          ),
+        };
 
         setDynamicAccountStates((prev) => ({
           ...prev,
@@ -295,7 +308,10 @@ export default function BuyCardDialog({
 
         setDynamicBalances((prev) => ({
           ...prev,
-          [context.account]: context.balance,
+          [context.account]: {
+            DEC: tokenBalance(balances, "DEC"),
+            CREDITS: tokenBalance(balances, "CREDITS"),
+          },
         }));
         setDynamicCombineCards((prev) => ({
           ...prev,
@@ -404,7 +420,7 @@ export default function BuyCardDialog({
     );
   }, [selectedRows]);
 
-  function toPurchaseItem(row: (typeof selectedRows)[number]): PurchasePlanItem {
+  function toPurchaseItem(row: (typeof selectedRows)[number]): CardPurchasePlanItem {
     return {
       account: selectedAccount,
       marketId: row.marketId,
@@ -489,7 +505,7 @@ export default function BuyCardDialog({
     setShiftAnchorIndex(clickedGlobalIndex);
   }
 
-  const selectedItems: PurchasePlanItem[] = selectedRows.map(toPurchaseItem);
+  const selectedItems: CardPurchasePlanItem[] = selectedRows.map(toPurchaseItem);
 
   const accountState = dynamicAccountStates[selectedAccount] ?? {
     highestLevel: Math.max(0, currentLevel ?? 0),
@@ -651,7 +667,7 @@ export default function BuyCardDialog({
     try {
       const txId = await broadcastCombineCards({
         account: selectedAccount,
-        payload: await buildCombineCardsPayloadAction({ cardUids: combinePlan.cardUids }),
+        payload: buildCombineCardsPayload({ cardUids: combinePlan.cardUids }),
       });
 
       const [confirmation] = await waitForTransactions([txId]);
@@ -667,10 +683,7 @@ export default function BuyCardDialog({
       // Bust the cached collection/balances BEFORE bumping the refresh version,
       // otherwise the reload re-reads the same pre-combine `"use cache"` snapshot
       // and the combine status recomputes to the identical (stale) state.
-      await revalidateTagsAction([
-        { type: "collection", usernames: [selectedAccount] },
-        { type: "balances", usernames: [selectedAccount] },
-      ]);
+      await revalidateTagsAction([{ type: "collection", usernames: [selectedAccount] }]);
       notifyBalancesRefresh();
       notifyCollectionRefresh();
     } catch (err) {
@@ -681,7 +694,7 @@ export default function BuyCardDialog({
     }
   }
 
-  async function runCheckoutForPlan(items: PurchasePlanItem[], currency: PurchaseCurrency) {
+  async function runCheckoutForPlan(items: CardPurchasePlanItem[], currency: PurchaseCurrency) {
     if (items.length === 0) return;
 
     setBuyBusy(true);
@@ -724,16 +737,14 @@ export default function BuyCardDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      // Sized by its content (tables) up to "lg" instead of stretching to "xl";
-      // minWidth from md keeps it stable when switching tabs; smaller screens keep MUI's 100% - margins.
-      maxWidth="lg"
+      maxWidth="xl"
       sx={{
         mt: `${topOffsetPx ?? 0}px`,
       }}
       slotProps={{ paper: { sx: { minWidth: { md: 800 } } } }}
     >
-      <DialogTitle>
-        <Stack direction="row" alignItems="center" spacing={2}>
+      <DialogTitle sx={{ px: 2, py: 1 }}>
+        <Stack direction="row" alignItems="center" spacing={1}>
           <Typography variant="h6">CC - {name}</Typography>
           {titleSetIcon && (
             <Image src={titleSetIcon} alt={titleSetLabel ?? "Set"} width={24} height={24} />
@@ -743,11 +754,37 @@ export default function BuyCardDialog({
           )}
         </Stack>
       </DialogTitle>
-      <DialogContent dividers>
-        <Stack spacing={2}>
+      <DialogContent
+        dividers
+        sx={{
+          px: 2,
+          py: 1,
+          "&.MuiDialogContent-root": {
+            paddingTop: 1,
+          },
+        }}
+      >
+        <Stack spacing={1}>
           <Tabs
             value={activeMode}
             onChange={(_event, value: BuyCardDialogMode) => setActiveMode(value)}
+            sx={{
+              minHeight: 36,
+              mt: 0.5,
+              mb: 0.5,
+              // mb: 0.5,
+              "& .MuiTabs-indicator": {
+                bottom: 4,
+              },
+              "& .MuiTab-root": {
+                minHeight: 34,
+                minWidth: 0,
+                px: 0.5,
+                py: 0.5,
+                mr: 0.5,
+                fontWeight: 500,
+              },
+            }}
           >
             <Tab value="target-level" label="Target Level" />
             <Tab value="manual-listings" label="Manual Listings" />

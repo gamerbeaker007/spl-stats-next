@@ -35,7 +35,17 @@ export default function IconFilterGroup<T extends string | number>({
           return (
             <Tooltip key={String(value)} title={label} placement="top" arrow>
               <Box
+                role="button"
+                tabIndex={0}
+                aria-label={label}
+                aria-pressed={active}
                 onClick={() => toggle(value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    toggle(value);
+                  }
+                }}
                 sx={{
                   width: 36,
                   height: 36,
@@ -51,6 +61,11 @@ export default function IconFilterGroup<T extends string | number>({
                   opacity: active ? 1 : 0.5,
                   transition: "all 0.15s",
                   "&:hover": { bgcolor: "action.hover", opacity: 1 },
+                  "&:focus-visible": {
+                    outline: 2,
+                    outlineStyle: "solid",
+                    outlineColor: "primary.main",
+                  },
                 }}
               >
                 <Image

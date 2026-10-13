@@ -5,7 +5,9 @@ import {
   unwatchCardAction,
   watchCardAction,
 } from "@/lib/backend/actions/card-watch-actions";
+import { loadMarketPrices } from "@/lib/frontend/collection-data";
 import type { CardWatch } from "@/types/card-watch";
+import type { MarketPriceInfo } from "@/types/spl/market";
 import { useCallback, useEffect, useState } from "react";
 
 function toMap(list: CardWatch[]): Record<string, CardWatch> {
@@ -28,11 +30,29 @@ export function useCardWatches(enabled: boolean) {
     getCardWatchesAction().then((list) => setWatches(toMap(list)));
   }, [enabled]);
 
+  /**
+   * `marketPrices` is the price map the page already has (from SPL in the browser);
+   * when the page hasn't loaded prices, the grouped market is fetched once here.
+   * The snapshot is the user's own reference point, so trusting the client is fine.
+   */
   const toggleWatch = useCallback(
-    async (cardDetailId: number, edition: number, foil: number) => {
+    async (
+      cardDetailId: number,
+      edition: number,
+      foil: number,
+      marketPrices?: Record<string, MarketPriceInfo>
+    ) => {
       const key = `${cardDetailId}-${edition}-${foil}`;
       const watched = Boolean(watches[key]);
-      // Optimistic; the reload below brings in the server-side price snapshot.
+      let price: MarketPriceInfo | undefined;
+      if (!watched) {
+        try {
+          price = (marketPrices ?? (await loadMarketPrices()).prices)[key];
+        } catch {
+          // No price available: the watch is still saved, with a 0 snapshot.
+        }
+      }
+      // Optimistic; the reload below restores the saved state.
       setWatches((current) => {
         const next = { ...current };
         if (watched) delete next[key];
@@ -41,15 +61,22 @@ export function useCardWatches(enabled: boolean) {
             cardDetailId,
             edition,
             foil,
-            lowPriceBcxAtWatch: 0,
-            lowPriceAtWatch: 0,
+            lowPriceBcxAtWatch: price?.lowPriceBcx ?? 0,
+            lowPriceAtWatch: price?.lowPrice ?? 0,
             watchedAt: new Date(),
           };
         return next;
       });
       try {
         if (watched) await unwatchCardAction(cardDetailId, edition, foil);
-        else await watchCardAction(cardDetailId, edition, foil);
+        else
+          await watchCardAction(
+            cardDetailId,
+            edition,
+            foil,
+            price?.lowPriceBcx ?? 0,
+            price?.lowPrice ?? 0
+          );
       } catch {
         // Reload below restores the server state, undoing the optimistic update.
       }

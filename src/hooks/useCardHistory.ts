@@ -1,6 +1,6 @@
 "use client";
 
-import { getCardHistory } from "@/lib/backend/actions/jackpot-prizes/cardHistory";
+import { fetchCardHistory as fetchCardHistoryInBrowser } from "@/lib/frontend/spl-browser-api";
 import { useCallback, useState } from "react";
 import { CardHistoryResponse } from "@/types/jackpot-prizes/cardHistory";
 
@@ -11,6 +11,10 @@ interface UseCardHistoryReturn {
   fetchCardHistory: (cardId: string) => Promise<void>;
 }
 
+/**
+ * Card uid history, read from SPL in the browser (jackpot detail pane and the
+ * collection history dialog) — a click-driven lookup that costs the server nothing.
+ */
 export function useCardHistory(): UseCardHistoryReturn {
   const [cardHistory, setCardHistory] = useState<CardHistoryResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
@@ -26,7 +30,7 @@ export function useCardHistory(): UseCardHistoryReturn {
     setError(null);
 
     try {
-      const result = await getCardHistory(cardId);
+      const result = await fetchCardHistoryInBrowser(cardId);
 
       // Check for API-level errors
       if (!Array.isArray(result)) {

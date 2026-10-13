@@ -170,8 +170,14 @@ function DashboardContent() {
           addAccountInput={addAccountInput}
           onAddAccountInputChange={setAddAccountInput}
           onAddAccount={() => {
-            addLocalAccount(addAccountInput);
+            const added = addAccountInput.trim().toLowerCase();
+            if (!added) return;
+            addLocalAccount(added);
             setAddAccountInput("");
+            // Add it to this page's selection through the URL (`selectedUsersFromUrl`
+            // syncs it into `collectionSelectedAccounts`); `addLocalAccount` leaves that alone.
+            const nextUsers = [added, ...selectedUsers.filter((user) => user !== added)];
+            router.replace(`${pathname}?users=${encodeURIComponent(nextUsers.join(","))}`);
           }}
           monitoredAccounts={monitoredAccounts}
           localAccounts={savedAccounts}
@@ -261,7 +267,12 @@ function DashboardContent() {
             marketPrices={marketPrices}
             pricesFetchedAt={pricesFetchedAt}
             watches={watches}
-            onToggleWatch={isAuthenticated ? toggleWatch : undefined}
+            onToggleWatch={
+              isAuthenticated
+                ? (cardDetailId, edition, foil) =>
+                    toggleWatch(cardDetailId, edition, foil, marketPrices)
+                : undefined
+            }
             watchedOnly={isAuthenticated && watchedOnly}
             sort={sort}
             onSortChange={setSort}
