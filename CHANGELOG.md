@@ -7,6 +7,14 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ## [Unreleased]
 
+---
+
+## [v1.29.0] - 2026-10-12
+
+### Added
+
+- Major chest skins added to jackpot prizes chest
+
 
 ---
 

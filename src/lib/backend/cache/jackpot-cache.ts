@@ -12,6 +12,7 @@ import {
   fetchJackPotGold,
   fetchJackPotSkins,
   fetchJackpotMusic,
+  fetchMajorJackpotSkins,
   fetchMinorJackpotSkins,
   fetchMintHistory,
   fetchMintHistoryByDate,
@@ -70,6 +71,13 @@ export async function getCachedMinorJackpotSkins() {
   cacheLife(JACKPOT_CACHE_LIFE);
   cacheTag(CACHE_TAGS.splJackpot);
   return fetchMinorJackpotSkins();
+}
+
+export async function getCachedMajorJackpotSkins() {
+  "use cache";
+  cacheLife(JACKPOT_CACHE_LIFE);
+  cacheTag(CACHE_TAGS.splJackpot);
+  return fetchMajorJackpotSkins();
 }
 
 export async function getCachedJackpotMusic() {

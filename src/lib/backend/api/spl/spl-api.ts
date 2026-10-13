@@ -430,6 +430,11 @@ export async function fetchMinorJackpotSkins(): Promise<SplSkin[]> {
   return fetchAccountSkins("$MINOR_JACKPOT_SKINS");
 }
 
+/** Fetch skins held by the $MAJOR_JACKPOT_SKINS account. */
+export async function fetchMajorJackpotSkins(): Promise<SplSkin[]> {
+  return fetchAccountSkins("$MAJOR_JACKPOT_SKINS");
+}
+
 /**
  * Fetch pack jackpot gold from Splinterlands API
  */

@@ -7,20 +7,23 @@ import { getCardDetails } from "@/lib/backend/actions/jackpot-prizes/cardDetails
 import { getJackpotMusic } from "@/lib/backend/actions/jackpot-prizes/jackpotMusic";
 import {
   getJackpotSkins,
+  getMajorJackpotSkins,
   getMinorJackpotSkins,
 } from "@/lib/backend/actions/jackpot-prizes/jackpotSkins";
 import { Alert, Box, Container, Divider, Typography } from "@mui/material";
 import { Suspense } from "react";
 
 async function JackpotPrizesContent() {
-  let jackpotSkins, minorJackpotSkins, jackpotMusicData, cardDetails;
+  let jackpotSkins, minorJackpotSkins, majorJackpotSkins, jackpotMusicData, cardDetails;
   try {
-    [jackpotSkins, minorJackpotSkins, jackpotMusicData, cardDetails] = await Promise.all([
-      getJackpotSkins(),
-      getMinorJackpotSkins(),
-      getJackpotMusic(),
-      getCardDetails(),
-    ]);
+    [jackpotSkins, minorJackpotSkins, majorJackpotSkins, jackpotMusicData, cardDetails] =
+      await Promise.all([
+        getJackpotSkins(),
+        getMinorJackpotSkins(),
+        getMajorJackpotSkins(),
+        getJackpotMusic(),
+        getCardDetails(),
+      ]);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return (
@@ -42,7 +45,7 @@ async function JackpotPrizesContent() {
         <Typography variant="body2" component="div">
           <strong>Found in the minor chests as jackpot prizes</strong>
           <br />
-          • Minor: 0.05%
+          • Minor: 1%
           <br />
         </Typography>
       </Alert>
@@ -75,6 +78,47 @@ async function JackpotPrizesContent() {
       )}
       <Divider sx={{ my: 4 }} />
 
+      {/* Major Jackpot Skins */}
+      <Typography variant="h4" component="h2" gutterBottom>
+        Major Chest Jackpot Skins
+      </Typography>
+      <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
+        <Typography variant="body2" component="div">
+          <strong>Found in the major chests as jackpot prizes</strong>
+          <br />
+          • Major: 2%
+          <br />
+        </Typography>
+      </Alert>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, 1fr)",
+            md: "repeat(3, 1fr)",
+            lg: "repeat(4, 1fr)",
+          },
+          gap: 3,
+        }}
+      >
+        {majorJackpotSkins.map((item) => (
+          <SkinsCard
+            key={`major-jackpot-skins-${item.skin_detail_id}`}
+            item={item}
+            cardDetails={cardDetails}
+          />
+        ))}
+      </Box>
+      {majorJackpotSkins.length === 0 && (
+        <Box textAlign="center" mt={4}>
+          <Typography variant="h6" color="text.secondary">
+            No major jackpot skins data available
+          </Typography>
+        </Box>
+      )}
+      <Divider sx={{ my: 4 }} />
+
       {/* Second Part - Jackpot Skins Data */}
       <Typography variant="h4" component="h2" gutterBottom>
         Ultimate Chest Jackpot Skins
@@ -83,7 +127,7 @@ async function JackpotPrizesContent() {
         <Typography variant="body2" component="div">
           <strong>Found in the ultimate chests as jackpot prizes</strong>
           <br />
-          • Ultimate: 1%
+          • Ultimate: 3%
           <br />
         </Typography>
       </Alert>
