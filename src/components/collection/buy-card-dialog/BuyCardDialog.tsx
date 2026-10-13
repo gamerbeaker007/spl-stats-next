@@ -737,16 +737,14 @@ export default function BuyCardDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      // Sized by its content (tables) up to "lg" instead of stretching to "xl";
-      // minWidth from md keeps it stable when switching tabs; smaller screens keep MUI's 100% - margins.
-      maxWidth="lg"
+      maxWidth="xl"
       sx={{
         mt: `${topOffsetPx ?? 0}px`,
       }}
       slotProps={{ paper: { sx: { minWidth: { md: 800 } } } }}
     >
-      <DialogTitle>
-        <Stack direction="row" alignItems="center" spacing={2}>
+      <DialogTitle sx={{ px: 2, py: 1 }}>
+        <Stack direction="row" alignItems="center" spacing={1}>
           <Typography variant="h6">CC - {name}</Typography>
           {titleSetIcon && (
             <Image src={titleSetIcon} alt={titleSetLabel ?? "Set"} width={24} height={24} />
@@ -756,11 +754,37 @@ export default function BuyCardDialog({
           )}
         </Stack>
       </DialogTitle>
-      <DialogContent dividers>
-        <Stack spacing={2}>
+      <DialogContent
+        dividers
+        sx={{
+          px: 2,
+          py: 1,
+          "&.MuiDialogContent-root": {
+            paddingTop: 1,
+          },
+        }}
+      >
+        <Stack spacing={1}>
           <Tabs
             value={activeMode}
             onChange={(_event, value: BuyCardDialogMode) => setActiveMode(value)}
+            sx={{
+              minHeight: 36,
+              mt: 0.5,
+              mb: 0.5,
+              // mb: 0.5,
+              "& .MuiTabs-indicator": {
+                bottom: 4,
+              },
+              "& .MuiTab-root": {
+                minHeight: 34,
+                minWidth: 0,
+                px: 0.5,
+                py: 0.5,
+                mr: 0.5,
+                fontWeight: 500,
+              },
+            }}
           >
             <Tab value="target-level" label="Target Level" />
             <Tab value="manual-listings" label="Manual Listings" />
