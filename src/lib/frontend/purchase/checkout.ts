@@ -94,10 +94,12 @@ function invalidationTargets(
   const targets: CacheInvalidationTarget[] = [];
 
   if (cardAccounts.length > 0) {
-    targets.push({ type: "collection", usernames: cardAccounts }, { type: "grouped-market" });
+    targets.push({ type: "collection", usernames: cardAccounts });
   }
   if (landAccounts.length > 0) {
-    targets.push({ type: "land-market" }, { type: "land-owned", usernames: landAccounts });
+    // Owned regions are read live in the browser (`useOwnedLandRegions`); the
+    // purchase plan's refresh version bump re-reads them.
+    targets.push({ type: "land-market" });
   }
   return targets;
 }

@@ -1,4 +1,3 @@
-import { getCachedSplCardCollection, getCachedSplCardDetails } from "@/lib/backend/cache/spl-cache";
 import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 import { toCardFoil } from "@/lib/shared/card-utils";
 import { CardSetName } from "@/lib/shared/edition-utils";
@@ -11,6 +10,7 @@ import {
   DetailedPlayerCardCollectionItem,
   toCardRole,
 } from "@/types/card";
+import type { SplCardCollection } from "@/types/spl/card";
 import { SplCardDetail } from "@/types/spl/cardDetails";
 
 /**
@@ -61,16 +61,17 @@ function buildCollectionItem(
   };
 }
 
-export async function getDetailedPlayerCardCollectionCached(
+/**
+ * Every card detail × edition, with the player's cards attached. Pure, so the
+ * server (skins page) and the browser (cards, Buy Missing CC) build it the same way.
+ */
+export function buildDetailedPlayerCardCollection(
   username: string,
+  collection: SplCardCollection,
+  cardDetails: SplCardDetail[],
   ownedCardOnly: boolean = false
-): Promise<DetailedPlayerCardCollection> {
+): DetailedPlayerCardCollection {
   const normalized = username.trim().toLowerCase();
-  const [collection, cardDetails] = await Promise.all([
-    getCachedSplCardCollection(normalized),
-    getCachedSplCardDetails(),
-  ]);
-
   const detailedMap: DetailedPlayerCardCollection = {};
   const detailById = new Map<number, SplCardDetail>();
 

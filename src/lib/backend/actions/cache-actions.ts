@@ -23,20 +23,6 @@ export async function revalidateTagsAction(targets: CacheInvalidationTarget[]) {
       continue;
     }
 
-    if (target.type === "marketplace") {
-      for (const username of uniqueLower(target.usernames)) {
-        revalidateTag(CACHE_TAGS.splMarketplace(username), REVALIDATE_PROFILE);
-      }
-      continue;
-    }
-
-    if (target.type === "player-skins") {
-      for (const username of uniqueLower(target.usernames)) {
-        revalidateTag(CACHE_TAGS.splPlayerSkins(username), REVALIDATE_PROFILE);
-      }
-      continue;
-    }
-
     if (target.type === "card-details") {
       revalidateTag(CACHE_TAGS.splCardDetails, REVALIDATE_PROFILE);
       continue;
@@ -52,20 +38,8 @@ export async function revalidateTagsAction(targets: CacheInvalidationTarget[]) {
       continue;
     }
 
-    if (target.type === "grouped-market") {
-      revalidateTag(CACHE_TAGS.splGroupedMarket, REVALIDATE_PROFILE);
-      continue;
-    }
-
     if (target.type === "land-market") {
       revalidateTag(CACHE_TAGS.splLandMarket, REVALIDATE_PROFILE);
-      continue;
-    }
-
-    if (target.type === "land-owned") {
-      for (const username of uniqueLower(target.usernames)) {
-        revalidateTag(CACHE_TAGS.splLandOwned(username), REVALIDATE_PROFILE);
-      }
       continue;
     }
 

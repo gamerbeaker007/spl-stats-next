@@ -10,7 +10,6 @@ import MarketFilterBar from "@/components/collection/marketplace/MarketFilterBar
 import { LoadingSpinnerOverlay } from "@/components/ui/LoadingSpinnerOverlay";
 import { useIncrementalViewportList } from "@/hooks/collection/useIncrementalViewportList";
 import { useMarketplaceAssetsPageData } from "@/hooks/collection/useMarketplaceAssetsPageData";
-import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
@@ -79,15 +78,15 @@ export default function MarketplaceAssetSection({
   const [filter, setFilter] = useState<MarketAssetFilter>(DEFAULT_MARKET_ASSET_FILTER);
   const [dialogState, setDialogState] = useState<MarketActionState | null>(null);
 
-  const {
-    data,
-    loading,
-    error,
-    refresh: refreshMarketplaceData,
-  } = useMarketplaceAssetsPageData(selectedAccount || null, assetName, collectionRefreshVersion, {
-    includeDetailedCollection: false,
-    includeOutbidStatuses: true,
-  });
+  const { data, loading, error } = useMarketplaceAssetsPageData(
+    selectedAccount || null,
+    assetName,
+    collectionRefreshVersion,
+    {
+      includeDetailedCollection: false,
+      includeOutbidStatuses: true,
+    }
+  );
 
   const outbidStatuses = useMemo(
     () => new Map((data?.outbidStatuses ?? []).map((status) => [status.detailId, status])),
@@ -153,19 +152,11 @@ export default function MarketplaceAssetSection({
     return { ...dialogState, item: currentItem };
   }, [data?.items, dialogState]);
 
-  const handleCompleted = async () => {
+  const handleCompleted = () => {
     if (!selectedAccount) return;
 
-    // Invalidate the server caches first so the client re-fetch gets fresh data.
-    const tags: Parameters<typeof revalidateTagsAction>[0] = [
-      { type: "marketplace", usernames: [selectedAccount] },
-    ];
-    if (assetName === "SKINS") {
-      tags.push({ type: "player-skins", usernames: [selectedAccount] });
-    }
-
-    await revalidateTagsAction(tags);
-    await refreshMarketplaceData();
+    // The refresh-version bump re-reads the marketplace data (and skips the
+    // memoized player listings).
     notifyBalancesRefresh();
     notifyCollectionRefresh();
   };

@@ -6,7 +6,6 @@ import {
 } from "@/lib/backend/api/peakmonsters/peakmonsters-api";
 import {
   fetchAccountCardCollection,
-  fetchCardHistory,
   fetchFrontierDrawsPrizeOverview,
   fetchFrontierDrawsRecentPrizes,
   fetchFrontierJackpotMusic,
@@ -102,13 +101,6 @@ export async function getCachedMintHistory(foil: number, cardId: number) {
   cacheLife(JACKPOT_CACHE_LIFE);
   cacheTag(CACHE_TAGS.splJackpot);
   return fetchMintHistory(foil, cardId);
-}
-
-export async function getCachedCardHistory(uid: string) {
-  "use cache";
-  cacheLife(JACKPOT_CACHE_LIFE);
-  cacheTag(CACHE_TAGS.splJackpot);
-  return fetchCardHistory(uid);
 }
 
 export async function getCachedPeakMonsterPrices() {

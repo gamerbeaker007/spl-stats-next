@@ -39,6 +39,12 @@ type AccountsContextType = {
   addLocalAccount: (account: string) => void;
   removeLocalAccount: (account: string) => void;
   refreshMonitoredAccounts: () => Promise<void>;
+  /**
+   * True once the stored selection is restored and reconciled against the loaded
+   * account options. Before that `selectedAccount` can still change (e.g. `""` →
+   * stored account), so data loaders keyed on it should wait to avoid a wasted fetch.
+   */
+  accountsReady: boolean;
 };
 
 const AccountsContext = createContext<AccountsContextType | undefined>(undefined);
@@ -97,7 +103,7 @@ function readStoredState(): StoredAccountsState {
 }
 
 export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const { user, reAuthVersion, tokenStatusVersion } = useAuth();
+  const { user, loading: authLoading, reAuthVersion, tokenStatusVersion } = useAuth();
 
   const [savedAccounts, setSavedAccounts] = useState<string[]>([]);
   const [selectedAccount, setSelectedAccountState] = useState("");
@@ -106,6 +112,9 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
   const [monitoredAccountTokens, setMonitoredAccountTokens] = useState<
     Record<string, MonitoredAccountToken>
   >({});
+  const [hydrated, setHydrated] = useState(false);
+  /** The logged-in account the monitored list was last loaded for (`null`: not yet). */
+  const [monitoredLoadedFor, setMonitoredLoadedFor] = useState<string | null>(null);
 
   const loggedInAccount = normalizeAccount(user?.username);
 
@@ -117,16 +126,24 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
     setSavedAccounts(stored.savedAccounts);
     setSelectedAccountState(stored.selectedAccount);
     setCollectionSelectedAccountsState(stored.collectionSelectedAccounts);
+    setHydrated(true);
   }, []);
 
   const refreshMonitoredAccounts = useCallback(async () => {
     if (!loggedInAccount) {
       setMonitoredAccounts([]);
       setMonitoredAccountTokens({});
+      setMonitoredLoadedFor("");
       return;
     }
 
-    const rows = await getMonitoredAccounts();
+    let rows: Awaited<ReturnType<typeof getMonitoredAccounts>>;
+    try {
+      rows = await getMonitoredAccounts();
+    } finally {
+      // Even on failure: reconcile against what is known rather than never.
+      setMonitoredLoadedFor(loggedInAccount);
+    }
     setMonitoredAccounts(normalizeAccounts(rows.map((entry) => entry.username)));
     // The same rows already carry the SPL token state, so publishing it here
     // costs no extra round trip and replaces the per-card `getAccountTokenStatus`
@@ -189,10 +206,16 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
     [loggedInAccount, monitoredAccounts, savedAccounts]
   );
 
+  // Account options are only complete once auth and the monitored accounts have
+  // loaded. Reconciling earlier would drop a stored monitored account and then
+  // re-select it, making every account-keyed loader fetch twice.
+  const optionsLoaded = hydrated && !authLoading && monitoredLoadedFor === loggedInAccount;
+
   useEffect(() => {
     // Reconcile the persisted selection against the currently valid account
     // options (which arrive asynchronously). Both writes are guarded by an
     // equality check so this converges rather than looping.
+    if (!optionsLoaded) return;
     const safeSelected =
       selectedAccount && accountOptions.includes(selectedAccount)
         ? selectedAccount
@@ -200,12 +223,11 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
           ? loggedInAccount
           : (accountOptions[0] ?? "");
 
-    const safeCollection = normalizeAccounts(
+    // Only drops accounts that are no longer options; an empty selection stays
+    // empty (the cards page then falls back to `selectedAccount`).
+    const nextCollection = normalizeAccounts(
       collectionSelectedAccounts.filter((account) => accountOptions.includes(account))
     );
-
-    const nextCollection =
-      safeCollection.length > 0 ? safeCollection : safeSelected ? [safeSelected] : [];
 
     if (safeSelected !== selectedAccount) {
       setSelectedAccountState(safeSelected);
@@ -218,12 +240,14 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
     accountOptions,
     collectionSelectedAccounts,
     loggedInAccount,
+    optionsLoaded,
     selectedAccount,
     setCollectionSelectedAccountsState,
   ]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    // Writing before hydration would overwrite the stored state with the empty defaults.
+    if (typeof window === "undefined" || !hydrated) return;
 
     const nextState: StoredAccountsState = {
       savedAccounts,
@@ -232,30 +256,23 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(nextState));
-  }, [collectionSelectedAccounts, savedAccounts, selectedAccount]);
+  }, [collectionSelectedAccounts, hydrated, savedAccounts, selectedAccount]);
 
-  const setSelectedAccount = useCallback(
-    (account: string) => {
-      const normalized = normalizeAccount(account);
-      if (!normalized) return;
-      setSelectedAccountState(normalized);
-      setCollectionSelectedAccountsState((current) => {
-        if (current.includes(normalized)) return current;
-        return [normalized, ...current].slice(0, 8);
-      });
-    },
-    [setCollectionSelectedAccountsState]
-  );
+  // Single-account pick (every page but /collection/cards). Leaves
+  // `collectionSelectedAccounts` alone — only the cards page writes that.
+  const setSelectedAccount = useCallback((account: string) => {
+    const normalized = normalizeAccount(account);
+    if (!normalized) return;
+    setSelectedAccountState(normalized);
+  }, []);
 
   const setCollectionSelectedAccounts = useCallback(
     (accounts: string[]) => {
       const normalized = normalizeAccounts(accounts).filter((account) =>
         accountOptions.includes(account)
       );
+      // Cards-page selection only; the single-account selection stays independent.
       setCollectionSelectedAccountsState(normalized);
-      if (normalized[0]) {
-        setSelectedAccountState(normalized[0]);
-      }
     },
     [accountOptions]
   );
@@ -266,10 +283,6 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
 
     setSavedAccounts((current) => normalizeAccounts([...current, normalized]));
     setSelectedAccountState(normalized);
-    setCollectionSelectedAccountsState((current) => {
-      if (current.includes(normalized)) return current;
-      return [normalized, ...current];
-    });
   }, []);
 
   const removeLocalAccount = useCallback(
@@ -300,6 +313,7 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
       addLocalAccount,
       removeLocalAccount,
       refreshMonitoredAccounts,
+      accountsReady: optionsLoaded,
     }),
     [
       accountOptions,
@@ -307,6 +321,7 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
       collectionSelectedAccounts,
       monitoredAccounts,
       monitoredAccountTokens,
+      optionsLoaded,
       refreshMonitoredAccounts,
       removeLocalAccount,
       savedAccounts,

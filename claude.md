@@ -41,19 +41,30 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
   | --- | --- | --- |
   | Balances `/players/balances` | Browser (live) | `fetchBalancesForAccounts` / `fetchAccountBalances` |
   | Inventory `/players/inventory` | Browser (live) | `fetchInventory` |
+  | Card collection `/cards/collection` on /collection/* (cards, Buy Missing CC, buy dialog, skins) | Browser (live, per-tab memo) | `loadCardCollection` / `loadDetailedCollection` (`lib/frontend/collection-data.ts`) |
+  | Grouped market prices `/market/for_sale_grouped` on /collection/* | Browser (live, no memo; polled every 60 s while shown) | `fetchMarketForSaleGrouped` / `loadMarketPrices` |
+  | Marketplace holdings (vapi `/market/landing`, `/market/meta/asset`, `/market/player/all_listings`) + player skins `/players/skins` | Browser (landing live; per-tab memo: item meta per asset type 10 min, player listings per account 60 s + refresh version; checkout pre-flight always live) | `loadMarketplacePageData` / `loadOwnedAsset` (`lib/frontend/marketplace-data.ts`) |
+  | Dashboard player details `/players/details`, draws `/ranked_draws/status` + `/frontier_draws/status`, season rewards `/players/current_rewards` | Browser (live) | `fetchPlayerDetails`, `fetchPlayerDraws`, `fetchCurrentRewards` |
+  | Card history `/cards/history` (jackpot detail pane, /collection/* history dialog) | Browser (live) | `fetchCardHistory` via `useCardHistory` |
+  | Owned land regions (vapi `/land/deeds/owned`) | Browser (live, 5 min per-account memo) | `fetchOwnedLandRegions` via `useOwnedLandRegions` |
   | Card listings `/market/market_query_by_card` | Browser (live) | `fetchMarketListingRows` |
   | Asset + deed listings (vapi `/market/listing-items`) | Browser (live) | `fetchMarketplaceAssetListings`, `fetchDeedListingsPage` |
   | Tx lookup `/transactions/lookup` (polling after broadcast) | Browser (live) | `waitForTransactions` |
-  | Shared data: card details, settings, grouped market, listing prices, land market, jackpot, metrics, token prices, PeakMonsters | Server cache | `getCached*` in `spl-cache.ts` / `jackpot-cache.ts` |
-  | Slow per-account data: collection, player details, draws, rewards, skins, pool balances, owned land, marketplace holdings (landing / `all_listings`) | Server cache + tag invalidation after actions | `getCached*` |
+  | Shared data: card details (browser memoizes the action response per tab), settings, listing prices (`/market/for_sale_grouped`, dashboard collection value), land market, jackpot, metrics, token prices, PeakMonsters | Server cache | `getCached*` in `spl-cache.ts` / `jackpot-cache.ts` |
+  | Slow per-account data: collection (dashboard collection value: combined server-side with the large shared price lists), pool balances (half shared pool data; logic shared with the worker) | Server cache + tag invalidation after actions | `getCached*` |
   | JWT data (daily progress, brawl, land harvest, history) | Server (cached) | `spl-authenticated-cache.ts` |
   | Worker (`scripts/`) | Raw server fetch | separate process, no `"use cache"` |
 
   - **Browser (live)** accessors live only in `src/lib/frontend/spl-browser-api.ts`. They count against the visitor's IP. **No server fallback:** a visitor who can't reach SPL from the browser can't play the game either, so failures throw and surface through the caller's error state (tx polling treats a failure as "not yet"). Browser SPL hosts must be in CSP `connect-src` (`next.config.ts`). The browser uses the `splApiConfig` defaults, so a self-hosted custom `SPL_API_BASE_URL` / `SPL_VAPI_BASE_URL` is not seen by the browser.
   - Never move JWT calls or PeakMonsters (no CORS) to the browser.
+  - Move data to the browser by **who shares it**, not by call count. Shared data (card details, settings, prices) costs the server O(1) SPL calls per TTL regardless of visitors — keep it server-cached. Per-account data costs O(accounts) and the server must ship it per visitor — prefer the browser. Polled shared data (grouped market) is the exception: the browser saves a server action per tab per poll.
+  - Endpoint paths come from `src/lib/shared/config/spl-endpoints.ts` (`SPL_API`, `SPL_VAPI`, `SPL_PRICES_API`) — never hardcode a path.
   - **Payload builders run in the browser** (`lib/frontend/purchase/payload-builders.ts`, pure logic in `lib/shared`). Their checks are a UX pre-flight: the user signs their own tx, and SPL validates balance, listing state and DEC price (`dec_mismatch_percent` 1.5% absorbs the ≤60 s DEC cache age).
   - **Exceptions (server tx lookup):** donation recording (`support-actions.ts`) verifies the tx server-side before a DB write, and Hive blog generation (`hive-blog-market.ts`) is a server-side report. Both look up a known tx id once, not by polling.
 - SPL api/auth axios clients share `splRetryConfig()` (`spl-retry.ts`): 8 retries at 5s/10s/20s/30s/1m/2m/4m/8m50s (~17 min).
+
+- `AccountsContext.accountsReady`: the stored selection is only reconciled once auth + monitored accounts have loaded (otherwise a monitored account is dropped and re-selected, refetching everything). Loaders keyed on `selectedAccount` that would otherwise fetch for an empty/public account first (`TopBarBalances`, `useMarketplaceAssetsPageData`) wait for it.
+- Response compression: Next's built-in gzip (`compress` default) covers pages and Server Action responses; no reverse proxy needed for it.
 
 ### Admin
 
@@ -85,7 +96,7 @@ Next.js 16 app for Splinterlands portfolio statistics. Authentication via Hive K
 - **Interruptible and resumable** via `AccountSyncState` (progress committed per season/token).
 - Graceful shutdown on SIGTERM/SIGINT: finishes current account, then exits.
 - **No Next.js `"use cache"` in the worker.** The worker is a standalone `tsx` process (`docker-entrypoint-worker.sh`), not the Next.js server, so the `getCachedSpl*` functions in `lib/backend/cache/spl-cache.ts` are unusable here — calling them throws `` `cacheLife()` is only available with the `cacheComponents` config `` (the Next compiler/runtime isn't active). The worker and web app are also separate processes with no shared `cacheHandler`, so neither can populate or invalidate the other's cache. The worker calls the raw `fetch*` API functions directly and any cache invalidation for the web app happens through the app itself (`revalidateTagsAction`), not the worker.
-- **Redundant per-cycle fetches are intentionally not cached.** `fetchCardDetails()` runs once per account in `syncBattleHistory`, but battle sync is limited to `BATTLE_SYNC_ACCOUNTS` (a few accounts). The three global price fetches (`fetchListingPrices`, `fetchSplPrices`, `fetchPeakmonstersMarketPrices`) run once per account in `syncPortfolio`, but portfolio snapshots are gated to once-per-UTC-day per account. Both are low-volume, so per-cycle memoization was judged not worth the added complexity. Revisit if account counts or sync frequency grow substantially.
+- **Redundant per-cycle fetches are intentionally not cached.** `fetchCardDetails()` runs once per account in `syncBattleHistory`, but battle sync is limited to `BATTLE_SYNC_ACCOUNTS` (a few accounts). The three global price fetches (`fetchMarketForSaleGrouped`, `fetchSplPrices`, `fetchPeakmonstersMarketPrices`) run once per account in `syncPortfolio`, but portfolio snapshots are gated to once-per-UTC-day per account. Both are low-volume, so per-cycle memoization was judged not worth the added complexity. Revisit if account counts or sync frequency grow substantially.
 - Current flows: season balance collection + leaderboard sync (foundation/wild/modern) + battle history sync.
 - `SeasonBalance`: pre-aggregated per `(username, seasonId, token, type)`. Two amount fields: `earned` (sum of positive transactions) and `cost` (sum of absolute negative transactions). `count` = number of transactions aggregated.
 - Spillover transactions attributed to previous season.
@@ -260,3 +271,13 @@ scripts/
 - Next release remove CSV import (security risk). Once removed, drop `bodySizeLimit` in `next.config.ts` `serverActions` from `"5mb"` to `"256kb"`. Also update nginx `client_max_body_size` to match.
 
 ### Future features
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

@@ -1,6 +1,6 @@
 "use client";
 
-import { getPlayerSeasonRewards } from "@/lib/backend/actions/player-actions";
+import { fetchCurrentRewards } from "@/lib/frontend/spl-browser-api";
 import { SPLSeasonRewards } from "@/types/spl/seasonRewards";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -47,7 +47,7 @@ export function usePlayerSeasonRewards(
       setError(null);
 
       try {
-        const rewards = await getPlayerSeasonRewards(username);
+        const rewards = await fetchCurrentRewards(username);
         if (isMountedRef.current) {
           retryCountRef.current = 0;
           setSeasonRewards(rewards);

@@ -11,6 +11,7 @@
 
 import logger from "@/lib/backend/log/logger.server";
 import { splApiConfig } from "@/lib/shared/config/splApiConfig";
+import { SPL_VAPI } from "@/lib/shared/config/spl-endpoints";
 import axios, { AxiosRequestConfig } from "axios";
 import * as rax from "retry-axios";
 import { splRetryConfig } from "@/lib/backend/api/spl/spl-retry";
@@ -66,7 +67,7 @@ export async function fetchLandProductionOverview(
 ): Promise<VapiLandRegion[]> {
   try {
     const res = await splLandAuthClient.get<VapiLandProductionOverviewResponse>(
-      "/land/resources/production/overview",
+      SPL_VAPI.LAND_RESOURCES_PRODUCTION_OVERVIEW,
       bearerConfig(jwtToken, { params: { player } })
     );
     return res.data?.data?.regions?.items ?? [];

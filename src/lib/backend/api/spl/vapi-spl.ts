@@ -5,24 +5,8 @@
  */
 import logger from "@/lib/backend/log/logger.server";
 import { splApiConfig } from "@/lib/shared/config/splApiConfig";
-import {
-  buildMarketplaceAssetItems,
-  normalizeMarketplaceAssetMetaDetail,
-  normalizeMarketplaceLandingAsset,
-  normalizeMarketplacePlayerListing,
-  parseMarketplaceAssetName,
-} from "@/lib/shared/marketplace-assets";
-import type {
-  MarketplaceAssetItem,
-  MarketplaceAssetMetaDetail,
-  MarketplaceAssetMetaDetailRaw,
-  MarketplaceAssetName,
-  MarketplaceLandingAsset,
-  MarketplaceLandingAssetRaw,
-  MarketplacePlayerListing,
-  MarketplacePlayerListingRaw,
-} from "@/types/marketplace-assets";
-import type { LandMarketDeedRaw, LandOwnedRegionRaw } from "@/types/land/landMarket";
+import { SPL_VAPI } from "@/lib/shared/config/spl-endpoints";
+import type { LandMarketDeedRaw } from "@/types/land/landMarket";
 import axios from "axios";
 import * as rax from "retry-axios";
 
@@ -141,7 +125,7 @@ function parseNumeric(value: number | string | null | undefined): number {
 /** Fetch all deeds owned by a player (their "collection"). */
 export async function fetchOwnedDeeds(player: string): Promise<VapiDeed[]> {
   try {
-    const res = await vapiClient.get<VapiDeedsResponse>("/land/deeds", {
+    const res = await vapiClient.get<VapiDeedsResponse>(SPL_VAPI.LAND_DEEDS, {
       params: { status: "collection", player },
     });
     return res.data?.data?.deeds ?? [];
@@ -158,7 +142,7 @@ export async function fetchOwnedDeeds(player: string): Promise<VapiDeed[]> {
  */
 export async function fetchMarketDeeds(): Promise<VapiDeed[]> {
   try {
-    const res = await vapiClient.get<VapiDeedsResponse>("/land/deeds", {
+    const res = await vapiClient.get<VapiDeedsResponse>(SPL_VAPI.LAND_DEEDS, {
       params: { status: "market" },
     });
     return res.data?.data?.deeds ?? [];
@@ -174,27 +158,15 @@ export async function fetchMarketDeeds(): Promise<VapiDeed[]> {
  */
 export async function fetchLandMarketDeeds(): Promise<LandMarketDeedRaw[]> {
   try {
-    const res = await vapiClient.get<{ data: { deeds: LandMarketDeedRaw[] } }>("/land/deeds", {
-      params: { status: "market" },
-    });
+    const res = await vapiClient.get<{ data: { deeds: LandMarketDeedRaw[] } }>(
+      SPL_VAPI.LAND_DEEDS,
+      {
+        params: { status: "market" },
+      }
+    );
     return res.data?.data?.deeds ?? [];
   } catch (error) {
     logger.error(`vapi: fetchLandMarketDeeds: ${error instanceof Error ? error.message : error}`);
-    throw error;
-  }
-}
-
-/** Regions a player owns plots in, as `{ uid: region_uid, count }` rows. */
-export async function fetchOwnedLandRegions(player: string): Promise<LandOwnedRegionRaw[]> {
-  try {
-    const res = await vapiClient.get<{ data: LandOwnedRegionRaw[] }>(
-      `/land/deeds/owned/${encodeURIComponent(player)}`
-    );
-    return Array.isArray(res.data?.data) ? res.data.data : [];
-  } catch (error) {
-    logger.error(
-      `vapi: fetchOwnedLandRegions(${player}): ${error instanceof Error ? error.message : error}`
-    );
     throw error;
   }
 }
@@ -206,9 +178,12 @@ export async function fetchOwnedLandRegions(player: string): Promise<LandOwnedRe
 /** Returns total DEC staked across all land plots for a player. */
 export async function fetchStakedDec(player: string): Promise<number> {
   try {
-    const res = await vapiClient.get<{ data: VapiStakedDecEntry[] }>("/land/stake/decstaked", {
-      params: { player },
-    });
+    const res = await vapiClient.get<{ data: VapiStakedDecEntry[] }>(
+      SPL_VAPI.LAND_STAKE_DEC_STAKED,
+      {
+        params: { player },
+      }
+    );
     const entries = res.data?.data ?? [];
     return entries.reduce((sum, e) => sum + (e.amount ?? 0), 0);
   } catch (error) {
@@ -226,7 +201,7 @@ export async function fetchStakedDec(player: string): Promise<number> {
 /** Fetch all resource liquidity pools (gives resource_price in DEC per unit). */
 export async function fetchLandResourcePools(): Promise<VapiResourcePool[]> {
   try {
-    const res = await vapiClient.get<VapiLandResourcePool>("/land/liquidity/pools");
+    const res = await vapiClient.get<VapiLandResourcePool>(SPL_VAPI.LAND_LIQUIDITY_POOLS);
     return res.data?.data ?? [];
   } catch (error) {
     logger.error(`vapi: fetchLandResourcePools: ${error instanceof Error ? error.message : error}`);
@@ -243,7 +218,7 @@ export async function fetchPlayerLiquidityPoolsSps(
 ): Promise<VapiPlayerLiquidityEntry[]> {
   try {
     const res = await vapiClient.get<VapiPlayerLiquidityResponse>(
-      `/land/liquidity/pools/${encodeURIComponent(player)}/SPS`
+      SPL_VAPI.LAND_LIQUIDITY_PLAYER_POOL(player, "SPS")
     );
     return res.data?.data?.single ?? [];
   } catch (error) {
@@ -264,7 +239,7 @@ export async function fetchPlayerLiquidityPoolShares(
 ): Promise<VapiPlayerLiquidityPosition | null> {
   try {
     const res = await vapiClient.get<VapiPlayerLiquidityResponse>(
-      `/land/liquidity/pools/${encodeURIComponent(player)}/${encodeURIComponent(poolSymbol)}`
+      SPL_VAPI.LAND_LIQUIDITY_PLAYER_POOL(player, poolSymbol)
     );
 
     const expectedToken = `DEC-${poolSymbol.toUpperCase()}`;
@@ -290,7 +265,9 @@ export async function fetchPlayerLiquidityPoolShares(
  */
 export async function fetchDecSpsLiquidityPoolInfo(): Promise<VapiLiquidityPoolInfo | null> {
   try {
-    const res = await vapiClient.get<VapiLiquidityPoolInfoResponse>("/land/liquidity/pools/100");
+    const res = await vapiClient.get<VapiLiquidityPoolInfoResponse>(
+      SPL_VAPI.LAND_LIQUIDITY_POOL(100)
+    );
     const info = res.data?.data;
     if (!info || info.token_symbol !== "SPS") return null;
     return info;
@@ -349,7 +326,7 @@ export async function calculateDECSPSPoolValue(
 /** Fetch how much of a given resource a player currently holds. */
 export async function fetchOwnedResource(player: string, resource: string): Promise<number> {
   try {
-    const res = await vapiClient.get<VapiResourcesResponse>("/land/resources/owned", {
+    const res = await vapiClient.get<VapiResourcesResponse>(SPL_VAPI.LAND_RESOURCES_OWNED, {
       params: { player, resource },
     });
     const entries = res.data?.data ?? [];
@@ -379,7 +356,7 @@ export async function fetchListingItem(
   listingItemId: number
 ): Promise<VapiListingItemResponse | null> {
   try {
-    const res = await vapiClient.get<VapiListingItemResponse>("/market/debug/listing-item", {
+    const res = await vapiClient.get<VapiListingItemResponse>(SPL_VAPI.MARKET_DEBUG_LISTING_ITEM, {
       params: { listingItemId },
     });
     return res.data;
@@ -416,7 +393,7 @@ export async function fetchMarketLanding(player: string): Promise<VapiMarketLand
     const res = await vapiClient.get<{
       status: string;
       data: { assets: VapiMarketLandingAsset[] };
-    }>("/market/landing", { params: { player } });
+    }>(SPL_VAPI.MARKET_LANDING, { params: { player } });
     return res.data?.data?.assets ?? [];
   } catch (error) {
     logger.error(
@@ -424,93 +401,4 @@ export async function fetchMarketLanding(player: string): Promise<VapiMarketLand
     );
     throw error;
   }
-}
-
-export async function fetchMarketplaceLandingAssets(
-  player: string | null,
-  assetName: MarketplaceAssetName
-): Promise<MarketplaceLandingAsset[]> {
-  try {
-    const params = player ? { player, assets: assetName } : { assets: assetName };
-    const res = await vapiClient.get<{
-      status: string;
-      data: { assets: MarketplaceLandingAssetRaw[] };
-    }>("/market/landing", { params });
-
-    return (res.data?.data?.assets ?? []).map((asset) => {
-      const normalizedAssetName = parseMarketplaceAssetName(asset.assetName);
-      return normalizeMarketplaceLandingAsset(asset, normalizedAssetName);
-    });
-  } catch (error) {
-    logger.error(
-      `vapi: fetchMarketplaceLandingAssets(${player}, ${assetName}): ${
-        error instanceof Error ? error.message : error
-      }`
-    );
-    throw error;
-  }
-}
-
-export async function fetchMarketplaceAssetMeta(
-  assetName: MarketplaceAssetName,
-  detailIds: string[]
-): Promise<MarketplaceAssetMetaDetail[]> {
-  try {
-    const res = await vapiClient.get<{
-      status: string;
-      data: { details: MarketplaceAssetMetaDetailRaw[] };
-    }>(`/market/meta/asset/${encodeURIComponent(assetName)}`, {
-      params: { detailIds: detailIds.join(",") },
-    });
-
-    return (res.data?.data?.details ?? []).map(normalizeMarketplaceAssetMetaDetail);
-  } catch (error) {
-    logger.error(
-      `vapi: fetchMarketplaceAssetMeta(${assetName}): ${
-        error instanceof Error ? error.message : error
-      }`
-    );
-    throw error;
-  }
-}
-
-export async function fetchMarketplacePlayerAllListings(
-  player: string
-): Promise<MarketplacePlayerListing[]> {
-  try {
-    const res = await vapiClient.get<{
-      status: string;
-      data: MarketplacePlayerListingRaw[];
-    }>("/market/player/all_listings", { params: { player } });
-
-    return (res.data?.data ?? []).flatMap((listing) => {
-      try {
-        return [normalizeMarketplacePlayerListing(listing)];
-      } catch {
-        return [];
-      }
-    });
-  } catch (error) {
-    logger.error(
-      `vapi: fetchMarketplacePlayerAllListings(${player}): ${
-        error instanceof Error ? error.message : error
-      }`
-    );
-    throw error;
-  }
-}
-
-export async function fetchMarketplaceAssets(
-  player: string | null,
-  assetName: MarketplaceAssetName
-): Promise<MarketplaceAssetItem[]> {
-  const landing = await fetchMarketplaceLandingAssets(player, assetName);
-  const detailIds = landing.map((asset) => asset.detailId);
-
-  if (detailIds.length === 0) {
-    return [];
-  }
-
-  const meta = await fetchMarketplaceAssetMeta(assetName, detailIds);
-  return buildMarketplaceAssetItems(landing, meta, assetName);
 }

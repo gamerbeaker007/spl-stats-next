@@ -27,8 +27,8 @@ import {
 } from "@/types/land/landMarket";
 
 /**
- * Freshness windows, shared by the server cache (`getCachedLandMarket`,
- * `getCachedOwnedLandRegions`) and the client hooks so both agree on "stale".
+ * Freshness windows: the land market's server cache (`getCachedLandMarket`) and
+ * the client hooks, which also memoize owned regions (read live in the browser).
  */
 export const LAND_MARKET_STALE_SECONDS = 60;
 export const LAND_OWNED_STALE_SECONDS = 5 * 60;

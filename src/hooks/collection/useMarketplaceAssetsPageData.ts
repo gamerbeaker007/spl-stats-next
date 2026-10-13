@@ -1,7 +1,10 @@
 "use client";
 
-import { getMarketplaceAssetsPageDataAction } from "@/lib/backend/actions/marketplace-assets-actions";
+import { loadCardDetails, loadDetailedCollection } from "@/lib/frontend/collection-data";
+import { useAccounts } from "@/lib/frontend/context/AccountsContext";
+import { loadMarketplacePageData } from "@/lib/frontend/marketplace-data";
 import type { FilterableCard } from "@/lib/shared/card-filter-utils";
+import { buildPublicSkinFilterCards } from "@/lib/shared/skin-groups";
 import type { DetailedPlayerCardCollection } from "@/types/card";
 import type {
   MarketplaceAssetGroup,
@@ -24,6 +27,7 @@ export interface MarketplaceAssetsPageData {
 }
 
 export interface MarketplaceAssetsPageDataLoadOptions {
+  /** Also load the account's card collection + card filter metadata (skins page). */
   includeDetailedCollection?: boolean;
   includeOutbidStatuses?: boolean;
 }
@@ -34,6 +38,7 @@ export function useMarketplaceAssetsPageData(
   refreshVersion = 0,
   options: MarketplaceAssetsPageDataLoadOptions = {}
 ) {
+  const { accountsReady } = useAccounts();
   const [data, setData] = useState<MarketplaceAssetsPageData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,10 +51,22 @@ export function useMarketplaceAssetsPageData(
       setError(null);
 
       try {
-        const next = await getMarketplaceAssetsPageDataAction(account ?? null, assetName, {
-          includeDetailedCollection,
-          includeOutbidStatuses,
-        });
+        // Marketplace holdings and the collection are read from SPL in the browser;
+        // card details come from the server cache, memoized per tab.
+        const [marketplace, detailedCollection, cardDetails] = await Promise.all([
+          loadMarketplacePageData(account, assetName, includeOutbidStatuses, refreshVersion),
+          account && includeDetailedCollection
+            ? loadDetailedCollection(account, refreshVersion)
+            : Promise.resolve<DetailedPlayerCardCollection>({}),
+          assetName === "SKINS" && includeDetailedCollection
+            ? loadCardDetails()
+            : Promise.resolve([]),
+        ]);
+        const next: MarketplaceAssetsPageData = {
+          ...marketplace,
+          detailedCollection,
+          publicSkinFilterCards: buildPublicSkinFilterCards(cardDetails, marketplace.groups),
+        };
         if (active()) setData(next);
         return next;
       } catch (err) {
@@ -60,19 +77,19 @@ export function useMarketplaceAssetsPageData(
         if (active()) setLoading(false);
       }
     },
-    [account, assetName, includeDetailedCollection, includeOutbidStatuses]
+    [account, assetName, includeDetailedCollection, includeOutbidStatuses, refreshVersion]
   );
 
   useEffect(() => {
+    // Until the selection settles, `account` may still flip (`null` → stored account).
+    if (!accountsReady) return;
     let active = true;
     load(() => active);
 
     return () => {
       active = false;
     };
-  }, [account, load, refreshVersion]);
+  }, [account, accountsReady, load, refreshVersion]);
 
-  const refresh = useCallback(() => load(() => true), [load]);
-
-  return { data, loading, error, refresh };
+  return { data, loading: loading || !accountsReady, error };
 }

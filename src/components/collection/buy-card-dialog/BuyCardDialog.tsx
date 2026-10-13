@@ -2,18 +2,17 @@
 
 import BracketFilter from "@/components/collection/buy-missing-cc/BracketFilter";
 import { useMarketListings } from "@/hooks/cards/useMarketListings";
-import {
-  getBuyCardDialogAccountContextAction,
-  getBuyCardDialogSharedContextAction,
-} from "@/lib/backend/actions/buy-missing-cc-actions";
+import { getBuyCardDialogSharedContextAction } from "@/lib/backend/actions/buy-missing-cc-actions";
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { buildCombineCardsPayload } from "@/lib/shared/transactions-builder";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { checkoutItems } from "@/lib/frontend/purchase/checkout";
+import { loadCardCollection } from "@/lib/frontend/collection-data";
 import { fetchAccountBalances } from "@/lib/frontend/spl-browser-api";
 import { tokenBalance } from "@/lib/shared/marketplace-purchase";
 import { broadcastCombineCards, waitForTransactions } from "@/lib/frontend/purchase/splBroadcast";
 import {
+  buildAccountCardContext,
   buildPurchasePlan,
   calculateUpgradeRequirements,
   checkCombineStatus,
@@ -281,18 +280,26 @@ export default function BuyCardDialog({
     async function loadAccountContext() {
       setContextLoading(true);
       try {
-        // Balances are live data (browser); ownership comes from the cached collection.
-        const [context, balances] = await Promise.all([
-          getBuyCardDialogAccountContextAction(
-            selectedAccount,
+        // Balances and ownership are live data (browser); the collection is shared
+        // with the page that opened the dialog (memoized per tab).
+        const account = selectedAccount.trim().toLowerCase();
+        const [collection, balances] = await Promise.all([
+          loadCardCollection(account, collectionRefreshVersion),
+          fetchAccountBalances(account),
+        ]);
+
+        if (!active) return;
+
+        const context = {
+          account,
+          ...buildAccountCardContext(
+            account,
+            collection.cards,
             cardDetailId,
             edition,
             selectedFoil
           ),
-          fetchAccountBalances(selectedAccount),
-        ]);
-
-        if (!active) return;
+        };
 
         setDynamicAccountStates((prev) => ({
           ...prev,

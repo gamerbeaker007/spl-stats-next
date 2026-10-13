@@ -12,6 +12,7 @@
 import { isAuthFailure } from "@/lib/backend/api/spl/spl-errors";
 import logger from "@/lib/backend/log/logger.server";
 import { splApiConfig } from "@/lib/shared/config/splApiConfig";
+import { SPL_API } from "@/lib/shared/config/spl-endpoints";
 import {
   ClaimDailyData,
   ClaimDailyResult,
@@ -90,7 +91,7 @@ export async function fetchBalanceHistoryPage(
 
   try {
     const res = await splAuthClient.get(
-      "/players/balance_history",
+      SPL_API.PLAYER_BALANCE_HISTORY,
       bearerConfig(jwtToken, { params })
     );
     if (!res.data || !Array.isArray(res.data)) return [];
@@ -124,7 +125,7 @@ export async function fetchUnclaimedBalanceHistoryPage(
 
   try {
     const res = await splAuthClient.get(
-      "/players/unclaimed_balance_history",
+      SPL_API.PLAYER_UNCLAIMED_BALANCE_HISTORY,
       bearerConfig(jwtToken, { params })
     );
     if (!res.data || !Array.isArray(res.data)) return [];
@@ -155,7 +156,7 @@ export async function fetchBrawlDetails(
   };
   const config = jwtToken ? bearerConfig(jwtToken, { params }) : { params };
   try {
-    const res = await splAuthClient.get("/tournaments/find_brawl", config);
+    const res = await splAuthClient.get(SPL_API.TOURNAMENT_FIND_BRAWL, config);
     if (!res.data) throw new Error("Invalid response from Splinterlands API");
     return res.data as SplBrawlDetails;
   } catch (error) {
@@ -193,7 +194,7 @@ export async function fetchBattleHistory(
         ...(format !== "wild" ? { format } : {}),
       };
       const res = await splAuthClient.get<SplBattleHistoryResponse>(
-        "/battle/history2",
+        SPL_API.BATTLE_HISTORY,
         bearerConfig(jwtToken, { params })
       );
       const list = res.data?.battles;
@@ -231,7 +232,7 @@ export async function fetchDailyProgress(
 ): Promise<SplDailyProgress> {
   try {
     const res = await splAuthClient.get(
-      "/dailies/progress",
+      SPL_API.DAILIES_PROGRESS,
       bearerConfig(jwtToken, { params: { username: player, format } })
     );
     if (!res.data) throw new Error("Invalid response from Splinterlands API");
@@ -332,7 +333,7 @@ export async function fetchPlayerHistory(
   if (beforeBlock) params.before_block = beforeBlock;
 
   try {
-    const res = await splAuthClient.get("/players/history", bearerConfig(jwtToken, { params }));
+    const res = await splAuthClient.get(SPL_API.PLAYER_HISTORY, bearerConfig(jwtToken, { params }));
     if (!Array.isArray(res.data)) throw new Error("Invalid response: expected array");
     return (res.data as SplHistory[])
       .map(parseHistoryToInternalTypes)
@@ -422,7 +423,10 @@ export async function fetchMarketHistoryByDateRange(
 
     let batch: SplHistory[] = [];
     try {
-      const res = await splAuthClient.get("/players/history", bearerConfig(jwtToken, { params }));
+      const res = await splAuthClient.get(
+        SPL_API.PLAYER_HISTORY,
+        bearerConfig(jwtToken, { params })
+      );
       if (Array.isArray(res.data)) batch = res.data as SplHistory[];
     } catch {
       break;
@@ -464,7 +468,7 @@ export type TokenVerifyResult = "valid" | "invalid" | "error";
 export async function verifySplJwt(username: string, jwtToken: string): Promise<TokenVerifyResult> {
   try {
     const res = await splAuthClient.get<SplBalanceHistoryResponse>(
-      "/players/balance_history",
+      SPL_API.PLAYER_BALANCE_HISTORY,
       bearerConfig(jwtToken, {
         params: { limit: 1, offset: 0, username, token_type: "SPS" },
       })

@@ -1,10 +1,9 @@
+import { getPlayerBrawl, getPlayerPoolBalances } from "@/lib/backend/actions/player-actions";
 import {
-  getPlayerBrawl,
-  getPlayerDetails,
-  getPlayerDraws,
-  getPlayerPoolBalances,
-} from "@/lib/backend/actions/player-actions";
-import { fetchAccountBalances } from "@/lib/frontend/spl-browser-api";
+  fetchAccountBalances,
+  fetchPlayerDetails,
+  fetchPlayerDraws,
+} from "@/lib/frontend/spl-browser-api";
 import { toSectionAuthState } from "@/lib/shared/authenticated-result";
 import { PlayerStatusData } from "@/types/playerStatus";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -51,8 +50,8 @@ export function usePlayerStatus(
       const [balancesResult, drawsResult, detailsResult, poolBalancesResult] =
         await Promise.allSettled([
           fetchAccountBalances(username),
-          getPlayerDraws(username),
-          getPlayerDetails(username),
+          fetchPlayerDraws(username),
+          fetchPlayerDetails(username),
           getPlayerPoolBalances(username),
         ]);
 

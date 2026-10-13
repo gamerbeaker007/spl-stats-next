@@ -1,8 +1,8 @@
 import logger from "@/lib/backend/log/logger.server";
 import { splApiConfig } from "@/lib/shared/config/splApiConfig";
+import { SPL_API, SPL_PRICES_API, SPL_PRICES_BASE_URL } from "@/lib/shared/config/spl-endpoints";
 import { normalizeTransactionLookup } from "@/lib/shared/trx-lookup-parser";
 import { SplCAGoldReward } from "@/types/jackpot-prizes/cardCollection";
-import { CardHistoryResponse } from "@/types/jackpot-prizes/cardHistory";
 import { PackJackpotCard } from "@/types/jackpot-prizes/packJackpot";
 import { RankedDrawsPrizeCard } from "@/types/jackpot-prizes/rankedDraws";
 import { MintHistoryByDateItem, MintHistoryResponse } from "@/types/jackpot-prizes/shared";
@@ -18,8 +18,6 @@ import {
   SplCompleteFortuneDraws,
   SplFortuneDraw,
   SplFortuneEntry,
-  SplFrontierDrawStatus,
-  SplRankedDrawStatus,
 } from "@/types/spl/draws";
 import {
   SplInventoryItem,
@@ -31,7 +29,6 @@ import { SplFormats, SplLeaderboardPlayer, SplLeaderboardResponse } from "@/type
 import { SplCardListingPriceEntry } from "@/types/spl/market";
 import type { SplMetricEntry } from "@/types/spl/metrics";
 import { SplSeasonInfo, SplSettings } from "@/types/spl/season";
-import { SPLSeasonRewards } from "@/types/spl/seasonRewards";
 import axios from "axios";
 import * as rax from "retry-axios";
 import { splRetryConfig } from "@/lib/backend/api/spl/spl-retry";
@@ -66,7 +63,7 @@ export async function splLogin(
   timestamp: number,
   signature: string
 ): Promise<SplLoginResponse> {
-  const url = "players/v2/login";
+  const url = SPL_API.LOGIN;
 
   logger.info(`splLogin called for user: ${username}`);
   const params = {
@@ -118,7 +115,7 @@ export async function splLogin(
 /** Fetch the current active season from /settings. */
 export async function fetchSettings(): Promise<SplSettings> {
   try {
-    const res = await splBaseClient.get("/settings");
+    const res = await splBaseClient.get(SPL_API.SETTINGS);
     return res.data as SplSettings;
   } catch (error) {
     logger.error(
@@ -131,7 +128,7 @@ export async function fetchSettings(): Promise<SplSettings> {
 /** Fetch season info by id from /season?id=N. */
 export async function fetchSeason(seasonId: number): Promise<SplSeasonInfo> {
   try {
-    const res = await splBaseClient.get("/season", { params: { id: seasonId } });
+    const res = await splBaseClient.get(SPL_API.SEASON, { params: { id: seasonId } });
     return res.data as SplSeasonInfo;
   } catch (error) {
     logger.error(
@@ -151,7 +148,7 @@ export async function fetchSeason(seasonId: number): Promise<SplSeasonInfo> {
  */
 export async function fetchSplMetrics(): Promise<SplMetricEntry[]> {
   try {
-    const res = await splBaseClient.get("/transactions/metrics");
+    const res = await splBaseClient.get(SPL_API.METRICS);
     if (!res.data || !Array.isArray(res.data)) {
       throw new Error("Invalid response from Splinterlands API: expected array");
     }
@@ -171,7 +168,7 @@ export async function fetchSplMetrics(): Promise<SplMetricEntry[]> {
 /** Fetch full player details (includes season, guild, league info) from /players/details. */
 export async function fetchPlayerDetails(username: string): Promise<SplPlayerDetails> {
   try {
-    const res = await splBaseClient.get("/players/details", {
+    const res = await splBaseClient.get(SPL_API.PLAYER_DETAILS, {
       params: { name: username, season_details: true, format: "all" },
     });
     return res.data as SplPlayerDetails;
@@ -198,7 +195,7 @@ export async function fetchLeaderboardWithPlayer(
   format: SplFormats
 ): Promise<SplLeaderboardPlayer | null> {
   try {
-    const res = await splBaseClient.get("/players/leaderboard_with_player", {
+    const res = await splBaseClient.get(SPL_API.PLAYER_LEADERBOARD_WITH_PLAYER, {
       params: { season, format, username },
     });
     const data = res.data as SplLeaderboardResponse & { error?: string };
@@ -237,7 +234,7 @@ export async function fetchLeaderboardWithPlayer(
 /** Fetch all balances for a player from /players/balances. */
 export async function fetchPlayerBalances(username: string): Promise<SplBalance[]> {
   try {
-    const res = await splBaseClient.get("/players/balances", { params: { username } });
+    const res = await splBaseClient.get(SPL_API.PLAYER_BALANCES, { params: { username } });
     if (!res.data || !Array.isArray(res.data)) {
       throw new Error("Invalid response from Splinterlands API: expected array");
     }
@@ -251,45 +248,13 @@ export async function fetchPlayerBalances(username: string): Promise<SplBalance[
 }
 
 // ---------------------------------------------------------------------------
-// Draws (public — no token required)
-// ---------------------------------------------------------------------------
-
-/** Fetch ranked draw status for a player. */
-export async function fetchRankedDraws(username: string): Promise<SplRankedDrawStatus> {
-  try {
-    const res = await splBaseClient.get("/ranked_draws/status", { params: { username } });
-    if (!res.data) throw new Error("Invalid response from Splinterlands API");
-    return res.data as SplRankedDrawStatus;
-  } catch (error) {
-    logger.error(
-      `Failed to fetch ranked draws for ${username}: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-    throw error;
-  }
-}
-
-/** Fetch frontier draw status for a player. */
-export async function fetchFrontierDraws(username: string): Promise<SplFrontierDrawStatus> {
-  try {
-    const res = await splBaseClient.get("/frontier_draws/status", { params: { username } });
-    if (!res.data) throw new Error("Invalid response from Splinterlands API");
-    return res.data as SplFrontierDrawStatus;
-  } catch (error) {
-    logger.error(
-      `Failed to fetch frontier draws for ${username}: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-    throw error;
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Cards (public — no token required)
 // ---------------------------------------------------------------------------
 
 /** Fetch a player's card collection from /cards/collection/<username>. */
 export async function fetchCardCollection(username: string): Promise<SplCardCollection> {
   try {
-    const res = await splBaseClient.get(`/cards/collection/${encodeURIComponent(username)}`);
+    const res = await splBaseClient.get(SPL_API.CARDS_COLLECTION(username));
     if (!res.data) throw new Error("Invalid response from Splinterlands API");
     return res.data as SplCardCollection;
   } catch (error) {
@@ -303,7 +268,7 @@ export async function fetchCardCollection(username: string): Promise<SplCardColl
 /** Fetch all card details from /cards/get_details. */
 export async function fetchCardDetails(): Promise<SplCardDetail[]> {
   try {
-    const res = await splBaseClient.get("/cards/get_details");
+    const res = await splBaseClient.get(SPL_API.CARD_DETAILS);
     if (!res.data || !Array.isArray(res.data)) {
       throw new Error("Invalid response from Splinterlands API: expected array");
     }
@@ -325,7 +290,7 @@ export async function fetchCardDetails(): Promise<SplCardDetail[]> {
  * Public API — no auth token required.
  */
 export async function fetchBattleResult(battleId: string): Promise<SplBattleResult> {
-  const res = await splBaseClient.get<SplBattleResult>("/battle/result", {
+  const res = await splBaseClient.get<SplBattleResult>(SPL_API.BATTLE_RESULT, {
     params: { id: battleId },
   });
   return res.data;
@@ -335,20 +300,6 @@ export async function fetchBattleResult(battleId: string): Promise<SplBattleResu
 // Season Rewards (public — no token required)
 // ---------------------------------------------------------------------------
 
-/** Fetch current season reward info for a player. */
-export async function fetchCurrentRewards(username: string): Promise<SPLSeasonRewards> {
-  try {
-    const res = await splBaseClient.get("/players/current_rewards", { params: { username } });
-    if (!res.data) throw new Error("Invalid response from Splinterlands API");
-    return res.data as SPLSeasonRewards;
-  } catch (error) {
-    logger.error(
-      `Failed to fetch current rewards for ${username}: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-    throw error;
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Market (public — no token required)
 // ---------------------------------------------------------------------------
@@ -356,7 +307,7 @@ export async function fetchCurrentRewards(username: string): Promise<SPLSeasonRe
 /** Fetch grouped market listing prices from /market/for_sale_grouped. */
 export async function fetchMarketForSaleGrouped(): Promise<SplCardListingPriceEntry[]> {
   try {
-    const res = await splBaseClient.get("/market/for_sale_grouped");
+    const res = await splBaseClient.get(SPL_API.MARKET_FOR_SALE_GROUPED);
     if (!res.data) throw new Error("Invalid response from Splinterlands API");
     return res.data as SplCardListingPriceEntry[];
   } catch (error) {
@@ -367,16 +318,11 @@ export async function fetchMarketForSaleGrouped(): Promise<SplCardListingPriceEn
   }
 }
 
-/** Backward-compatible alias used by older code paths. */
-export async function fetchListingPrices(): Promise<SplCardListingPriceEntry[]> {
-  return fetchMarketForSaleGrouped();
-}
-
 /**
  * Fetch pack jackpot overview from Splinterlands API
  */
 export async function fetchPackJackpotOverview(edition: number = 14): Promise<PackJackpotCard[]> {
-  const url = "/cards/pack_jackpot_overview";
+  const url = SPL_API.PACK_JACKPOT_OVERVIEW;
   console.info(`Fetching pack jackpot overview for edition ${edition}`);
 
   try {
@@ -407,7 +353,7 @@ export async function fetchMintHistory(
   cardDetailId: number
 ): Promise<MintHistoryResponse> {
   try {
-    const res = await splBaseClient.get("/cards/mint_history", {
+    const res = await splBaseClient.get(SPL_API.MINT_HISTORY, {
       params: { foil, card_detail_id: cardDetailId },
     });
     const data = res.data;
@@ -431,7 +377,7 @@ export async function fetchMintHistoryByDate(
   edition: number = 14
 ): Promise<MintHistoryByDateItem[]> {
   try {
-    const res = await splBaseClient.get("/cards/mint_history", {
+    const res = await splBaseClient.get(SPL_API.MINT_HISTORY, {
       params: { foil, by_date: true, by_date_edition: edition },
     });
     const data = res.data;
@@ -460,7 +406,7 @@ export async function fetchMintHistoryByDate(
  */
 export async function fetchAccountSkins(username: string): Promise<SplSkin[]> {
   try {
-    const res = await splBaseClient.get("/players/skins", { params: { username } });
+    const res = await splBaseClient.get(SPL_API.PLAYER_SKINS, { params: { username } });
     const data = res.data;
     if (!data || !Array.isArray(data)) {
       throw new Error("Invalid response from Splinterlands API: expected array");
@@ -488,7 +434,7 @@ export async function fetchMinorJackpotSkins(): Promise<SplSkin[]> {
  * Fetch pack jackpot gold from Splinterlands API
  */
 export async function fetchJackPotGold(): Promise<SplCAGoldReward[]> {
-  const url = "/cards/ca_gold_rewards";
+  const url = SPL_API.CA_GOLD_REWARDS;
   console.info(`Fetching pack jackpot gold for username $JACKPOT_GOLD`);
 
   try {
@@ -513,7 +459,7 @@ export async function fetchJackPotGold(): Promise<SplCAGoldReward[]> {
  * Fetch ranked draws prize overview from Splinterlands API
  */
 export async function fetchRankedDrawsPrizeOverview(): Promise<RankedDrawsPrizeCard[]> {
-  const url = "/ranked_draws/prize_overview";
+  const url = SPL_API.RANKED_DRAWS_PRIZE_OVERVIEW;
   console.info("Fetching ranked draws prize overview");
 
   try {
@@ -537,43 +483,10 @@ export async function fetchRankedDrawsPrizeOverview(): Promise<RankedDrawsPrizeC
 }
 
 /**
- * Fetches card history for a specific card ID
- * @param cardId - The card ID (e.g., "C7-378-G32ZII2HWG")
- * @returns Array of card history items
- */
-export async function fetchCardHistory(cardId: string): Promise<CardHistoryResponse> {
-  try {
-    console.info(`Fetching card history for card ID: ${cardId}`);
-
-    const response = await splBaseClient.get("/cards/history", {
-      params: {
-        id: cardId,
-      },
-    });
-
-    const { data } = response;
-
-    // Handle API-level error even if HTTP status is 200
-    if (!data || !Array.isArray(data)) {
-      throw new Error("Invalid response from Splinterlands API: expected array");
-    }
-
-    console.info(`Fetched ${data.length} card history entries for card ${cardId}`);
-
-    return data as CardHistoryResponse;
-  } catch (error) {
-    console.error(
-      `Failed to fetch card history for ${cardId}: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-    throw error;
-  }
-}
-
-/**
  * Fetch ranked draws prize overview from Splinterlands API
  */
 export async function fetchFrontierDrawsPrizeOverview(): Promise<RankedDrawsPrizeCard[]> {
-  const url = "/frontier_draws/prize_overview";
+  const url = SPL_API.FRONTIER_DRAWS_PRIZE_OVERVIEW;
   console.info("Fetching frontier draws prize overview");
 
   try {
@@ -601,7 +514,7 @@ export async function fetchFrontierDrawsPrizeOverview(): Promise<RankedDrawsPriz
  * Used for bucket accounts such as $FRONTIER_JACKPOT, $JACKPOT, $ETN_REWARD_FOILS, etc.
  */
 export async function fetchAccountCardCollection(username: string): Promise<SplPlayerCardDetail[]> {
-  const url = `/cards/collection/${encodeURIComponent(username)}`;
+  const url = SPL_API.CARDS_COLLECTION(username);
   logger.info(`Fetching card collection for account ${username}`);
 
   try {
@@ -625,7 +538,7 @@ export async function fetchAccountCardCollection(username: string): Promise<SplP
  * Fetch music inventory from Splinterlands API for $MUSIC_JACKPOT
  */
 export async function fetchJackpotMusic(): Promise<SplInventoryItem[]> {
-  const url = "/players/inventory";
+  const url = SPL_API.PLAYER_INVENTORY;
   console.info(`Fetching music inventory for username $MUSIC_JACKPOT`);
 
   try {
@@ -655,7 +568,7 @@ export async function fetchJackpotMusic(): Promise<SplInventoryItem[]> {
  * Fetch music inventory from Splinterlands API for $FRONTIER_MUSIC_JACKPOT
  */
 export async function fetchFrontierJackpotMusic(): Promise<SplInventoryItem[]> {
-  const url = "/players/inventory";
+  const url = SPL_API.PLAYER_INVENTORY;
   console.info(`Fetching music inventory for username $FRONTIER_MUSIC_JACKPOT`);
 
   try {
@@ -685,7 +598,7 @@ export async function fetchFrontierJackpotMusic(): Promise<SplInventoryItem[]> {
  * Fetch recent prizes from ranked draws
  */
 export async function fetchRankedDrawsRecentPrizes(foil: number): Promise<MintHistoryByDateItem[]> {
-  const url = "/ranked_draws/recent_prizes";
+  const url = SPL_API.RANKED_DRAWS_RECENT_PRIZES;
   console.info(`Fetching ranked draws recent prizes for foil ${foil}`);
 
   try {
@@ -710,7 +623,7 @@ export async function fetchRankedDrawsRecentPrizes(foil: number): Promise<MintHi
 export async function fetchFrontierDrawsRecentPrizes(
   foil: number
 ): Promise<MintHistoryByDateItem[]> {
-  const url = "/frontier_draws/recent_prizes";
+  const url = SPL_API.FRONTIER_DRAWS_RECENT_PRIZES;
   console.info(`Fetching frontier draws recent prizes for foil ${foil}`);
 
   try {
@@ -742,7 +655,7 @@ export interface SplPrices {
 }
 
 const splPricesClient = axios.create({
-  baseURL: "https://prices.splinterlands.com",
+  baseURL: SPL_PRICES_BASE_URL,
   timeout: 15000,
   headers: { "User-Agent": SPL_USER_AGENT },
 });
@@ -779,7 +692,7 @@ export interface SplTournament {
 /** Fetch a single tournament by ID. */
 export async function fetchTournament(id: string): Promise<SplTournament | null> {
   try {
-    const res = await splBaseClient.get("/tournaments/find", { params: { id } });
+    const res = await splBaseClient.get(SPL_API.TOURNAMENT_FIND, { params: { id } });
     return res.data as SplTournament;
   } catch {
     return null;
@@ -789,7 +702,7 @@ export async function fetchTournament(id: string): Promise<SplTournament | null>
 /** Fetch tournament IDs from player's token_transfer history (last 500 entries). */
 export async function fetchPlayerTournamentIds(username: string, token: string): Promise<string[]> {
   try {
-    const res = await splBaseClient.get("/players/history", {
+    const res = await splBaseClient.get(SPL_API.PLAYER_HISTORY, {
       params: { username, token, types: "token_transfer", from_block: -1, limit: 500 },
     });
     if (!Array.isArray(res.data)) return [];
@@ -817,7 +730,7 @@ export async function fetchTransactionLookup(
   trxId: string
 ): Promise<SplTransactionLookupResponse | null> {
   try {
-    const res = await splBaseClient.get<Record<string, unknown>>("/transactions/lookup", {
+    const res = await splBaseClient.get<Record<string, unknown>>(SPL_API.TRANSACTION_LOOKUP, {
       params: { trx_id: trxId },
     });
     return normalizeTransactionLookup(res.data);
@@ -833,7 +746,7 @@ export async function fetchTransactionLookup(
 /** Fetch current token prices from prices.splinterlands.com/prices. */
 export async function fetchSplPrices(): Promise<SplPrices> {
   try {
-    const res = await splPricesClient.get<SplPrices>("/prices");
+    const res = await splPricesClient.get<SplPrices>(SPL_PRICES_API.PRICES);
     if (!res.data || typeof res.data.hive !== "number") {
       throw new Error("Invalid prices response");
     }
@@ -848,7 +761,7 @@ export async function fetchSplPrices(): Promise<SplPrices> {
 
 export async function fetchCompletedFrontierDraws(): Promise<SplFortuneDraw[]> {
   try {
-    const res = await splBaseClient.get("/frontier_draws/complete");
+    const res = await splBaseClient.get(SPL_API.FRONTIER_DRAWS_COMPLETE);
     if (!res.data) {
       throw new Error("Invalid response from Splinterlands API");
     }
@@ -863,7 +776,7 @@ export async function fetchCompletedFrontierDraws(): Promise<SplFortuneDraw[]> {
 
 export async function fetchCompletedRankedDraws(): Promise<SplFortuneDraw[]> {
   try {
-    const res = await splBaseClient.get("/ranked_draws/complete");
+    const res = await splBaseClient.get(SPL_API.RANKED_DRAWS_COMPLETE);
     if (!res.data) {
       throw new Error("Invalid response from Splinterlands API");
     }
@@ -878,7 +791,7 @@ export async function fetchCompletedRankedDraws(): Promise<SplFortuneDraw[]> {
 
 export async function fetchRankedDrawEntries(drawId: number): Promise<SplFortuneEntry[]> {
   try {
-    const res = await splBaseClient.get("/ranked_draws/entries_completed", {
+    const res = await splBaseClient.get(SPL_API.RANKED_DRAWS_ENTRIES_COMPLETED, {
       params: { id: drawId },
     });
     if (!res.data || !Array.isArray(res.data)) {
@@ -895,7 +808,7 @@ export async function fetchRankedDrawEntries(drawId: number): Promise<SplFortune
 
 export async function fetchFrontierDrawEntries(drawId: number): Promise<SplFortuneEntry[]> {
   try {
-    const res = await splBaseClient.get("/frontier_draws/entries_completed", {
+    const res = await splBaseClient.get(SPL_API.FRONTIER_DRAWS_ENTRIES_COMPLETED, {
       params: { id: drawId },
     });
     if (!res.data || !Array.isArray(res.data)) {
@@ -912,7 +825,7 @@ export async function fetchFrontierDrawEntries(drawId: number): Promise<SplFortu
 
 export async function fetchRankedDrawAvailablePrizes(atDate: Date): Promise<SplAvailablePrize[]> {
   try {
-    const res = await splBaseClient.get("/ranked_draws/available_prizes", {
+    const res = await splBaseClient.get(SPL_API.RANKED_DRAWS_AVAILABLE_PRIZES, {
       params: { at_date: new Date(atDate).toISOString() },
     });
     if (!res.data || !Array.isArray(res.data)) {
@@ -929,7 +842,7 @@ export async function fetchRankedDrawAvailablePrizes(atDate: Date): Promise<SplA
 
 export async function fetchFrontierDrawAvailablePrizes(atDate: Date): Promise<SplAvailablePrize[]> {
   try {
-    const res = await splBaseClient.get("/frontier_draws/available_prizes", {
+    const res = await splBaseClient.get(SPL_API.FRONTIER_DRAWS_AVAILABLE_PRIZES, {
       params: { at_date: new Date(atDate).toISOString() },
     });
     if (!res.data || !Array.isArray(res.data)) {

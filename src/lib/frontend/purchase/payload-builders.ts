@@ -1,15 +1,13 @@
 "use client";
 
-import {
-  getDecPriceUsdAction,
-  getOwnedAssetAction,
-  getPlayerSkinsAction,
-} from "@/lib/backend/actions/marketplace-assets-actions";
+import { getDecPriceUsdAction } from "@/lib/backend/actions/marketplace-assets-actions";
+import { loadOwnedAsset } from "@/lib/frontend/marketplace-data";
 import {
   fetchAccountBalances,
   fetchDeedListingsPage,
   fetchInventory,
   fetchMarketplaceAssetListings,
+  fetchPlayerSkins,
 } from "@/lib/frontend/spl-browser-api";
 import {
   type LandPurchasePayloadResult,
@@ -186,7 +184,7 @@ export async function buildQuantityListPayload(args: {
   validatePositiveInteger(args.quantity, "Quantity");
   validateUsdPrice(args.priceUsd);
 
-  const owned = await getOwnedAssetAction(account, args.assetName, args.detailId);
+  const owned = await loadOwnedAsset(account, args.assetName, args.detailId);
   if (getAvailableToListQuantity(owned) < args.quantity) {
     throw new Error("Listing quantity exceeds available amount");
   }
@@ -215,7 +213,7 @@ export async function buildActivateSkinPayload(args: {
 
   if (args.baseSkin) {
     const cardDetailId = validateCardDetailId(args.cardDetailId);
-    const playerSkins = await getPlayerSkinsAction(account);
+    const playerSkins = await fetchPlayerSkins(account);
     const activeSkinForCard = playerSkins.find(
       (skin) => skin.card_detail_id === cardDetailId && skin.active
     );
@@ -229,7 +227,7 @@ export async function buildActivateSkinPayload(args: {
     };
   }
 
-  const skin = await getOwnedAssetAction(account, "SKINS", args.detailId);
+  const skin = await loadOwnedAsset(account, "SKINS", args.detailId);
 
   if (getActualOwnedQuantity(skin) < 1) {
     throw new Error("You do not own this skin");
@@ -258,7 +256,7 @@ export async function buildSkinTransferPayload(args: {
   const recipient = validateRecipient(args.recipient, account);
   validatePositiveInteger(args.quantity, "Quantity");
 
-  const skin = await getOwnedAssetAction(account, "SKINS", args.detailId);
+  const skin = await loadOwnedAsset(account, "SKINS", args.detailId);
   if (getActualOwnedQuantity(skin) < args.quantity) {
     throw new Error("Transfer quantity exceeds owned skins");
   }
@@ -287,7 +285,7 @@ export async function buildTokenTransferPayload(args: {
   const recipient = validateRecipient(args.recipient, account);
   validatePositiveInteger(args.quantity, "Quantity");
 
-  const owned = await getOwnedAssetAction(account, args.assetName, args.detailId);
+  const owned = await loadOwnedAsset(account, args.assetName, args.detailId);
   if (getActualOwnedQuantity(owned) < args.quantity) {
     throw new Error("Transfer quantity exceeds owned amount");
   }
