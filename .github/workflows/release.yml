@@ -56,6 +56,7 @@ jobs:
             ${{ env.IMAGE_NAME }}:latest
           build-args: |
             APP_VERSION=${{ steps.version.outputs.tag }}
+            DEPLOYMENT_ID=${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

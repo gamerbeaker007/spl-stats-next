@@ -105,8 +105,11 @@ export function PlayerCardContent({
       {/* Card header — always rendered */}
       <PlayerInfo
         username={username}
-        playerDetails={categories.rating ? player?.playerDetails : undefined}
+        playerDetails={
+          categories.rating || categories.ratingEmblem ? player?.playerDetails : undefined
+        }
         showRating={categories.rating}
+        showEmblem={categories.ratingEmblem}
       />
 
       {reAuthSections.length > 0 && reAuthState && (

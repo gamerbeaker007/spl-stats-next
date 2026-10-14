@@ -6,6 +6,7 @@ import logger from "@/lib/backend/log/logger.server";
 import { rethrowFrameworkErrors } from "@/lib/backend/next-errors";
 import {
   getDefaultCategories,
+  withDefaultCategories,
   type MultiAccountDashboardCategories,
 } from "@/lib/shared/dashboard-categories";
 
@@ -14,7 +15,8 @@ export async function getDashboardConfigAction(): Promise<MultiAccountDashboardC
     const user = await getCurrentUser();
     if (!user) return getDefaultCategories();
     const prefs = await getUserPreferences(user.id);
-    return prefs?.multiAccountDashboard?.categories ?? getDefaultCategories();
+    const saved = prefs?.multiAccountDashboard?.categories;
+    return saved ? withDefaultCategories(saved) : getDefaultCategories();
   } catch (error) {
     rethrowFrameworkErrors(error);
     logger.error(`getDashboardConfigAction error: ${error}`);

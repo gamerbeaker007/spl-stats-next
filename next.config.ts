@@ -3,6 +3,11 @@ import { name, version } from "./package.json";
 
 const isDev = process.env.NODE_ENV === "development";
 
+// Unique per build (Docker build arg, CI passes the git SHA). Enables Next.js version-skew
+// protection (stale tabs hard-reload on navigation) and the "new version available" snackbar.
+// Unset in dev / plain local builds → both are off.
+const deploymentId = process.env.DEPLOYMENT_ID || undefined;
+
 // The browser uses the same SPL hosts as splApiConfig (test stack when NEXT_PUBLIC_SPL_DEV_API=true).
 const splConnectSrc =
   process.env.NEXT_PUBLIC_SPL_DEV_API === "true"
@@ -37,9 +42,11 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   cacheComponents: true,
+  deploymentId,
   env: {
     NEXT_PUBLIC_APP_NAME: name,
     NEXT_PUBLIC_APP_VERSION: version,
+    NEXT_PUBLIC_DEPLOYMENT_ID: deploymentId ?? "",
   },
 
   async headers() {

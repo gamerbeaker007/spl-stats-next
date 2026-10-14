@@ -25,6 +25,10 @@ ENV DATABASE_URL=${DATABASE_URL}
 ARG APP_VERSION=dev
 ENV APP_VERSION=${APP_VERSION}
 
+# Unique per build (git SHA from CI) — baked into the bundle for version-skew detection
+ARG DEPLOYMENT_ID=""
+ENV DEPLOYMENT_ID=${DEPLOYMENT_ID}
+
 # Generate Prisma client and build app
 RUN npx prisma generate
 RUN npm run build

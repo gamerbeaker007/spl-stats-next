@@ -11,6 +11,7 @@ interface Props {
   username: string;
   playerDetails?: SplPlayerDetails;
   showRating?: boolean;
+  showEmblem?: boolean;
 }
 
 const avatarSize = 25;
@@ -55,7 +56,12 @@ function getNullRatingInfo(battles: number = 0): React.ReactNode {
   );
 }
 
-export default function PlayerInfo({ username, playerDetails, showRating = true }: Props) {
+export default function PlayerInfo({
+  username,
+  playerDetails,
+  showRating = true,
+  showEmblem = true,
+}: Props) {
   const result = playerDetails ? getHighestRatingFormat(playerDetails) : null;
   const highestFormatDetails = result?.playerHighestFormatInfo || null;
   const format = result?.format || null;
@@ -105,7 +111,7 @@ export default function PlayerInfo({ username, playerDetails, showRating = true 
         <Typography variant="h6">{username}</Typography>
       </Box>
       <Box display={"flex"} flexDirection="row">
-        {logoUrl && (
+        {showEmblem && logoUrl && (
           <Avatar
             src={logoUrl}
             alt={`${format} league logo`}

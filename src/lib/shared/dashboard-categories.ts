@@ -5,6 +5,7 @@ export type DashboardCategoryGroup = "General" | "Balances" | "Gameplay" | "Rank
 export type DashboardCategoryId =
   | "history"
   | "rating"
+  | "ratingEmblem"
   | "balanceMain"
   | "balanceElectronium"
   | "balancePotions"
@@ -39,6 +40,13 @@ export const DASHBOARD_CATEGORY_DEFINITIONS: Record<DashboardCategoryId, Dashboa
   rating: {
     id: "rating",
     label: "Rating",
+    group: "General",
+    defaultEnabled: true,
+    dataSources: ["playerStatus"],
+  },
+  ratingEmblem: {
+    id: "ratingEmblem",
+    label: "Rating Emblem",
     group: "General",
     defaultEnabled: true,
     dataSources: ["playerStatus"],
@@ -148,6 +156,21 @@ export function getDefaultCategories(): MultiAccountDashboardCategories {
   return Object.fromEntries(
     Object.values(DASHBOARD_CATEGORY_DEFINITIONS).map((def) => [def.id, def.defaultEnabled])
   ) as MultiAccountDashboardCategories;
+}
+
+/**
+ * Fills categories missing from a stored config (added after it was saved) with defaults.
+ * `ratingEmblem` was split off `rating` — older configs inherit the `rating` choice.
+ */
+export function withDefaultCategories(
+  saved: Partial<MultiAccountDashboardCategories>
+): MultiAccountDashboardCategories {
+  const ratingEmblem = saved.ratingEmblem ?? saved.rating;
+  return {
+    ...getDefaultCategories(),
+    ...saved,
+    ...(ratingEmblem !== undefined && { ratingEmblem }),
+  };
 }
 
 export function resolveRequiredSources(

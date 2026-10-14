@@ -9,6 +9,16 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.30.0] - 2026-10-14
+
+### Added
+
+- **New version snackbar:** Tabs left open across a deploy now show a "new version available — reload" prompt at the top. Builds get a per-deploy `deploymentId` (git SHA via the `DEPLOYMENT_ID` Docker build arg), which also enables Next.js version-skew protection: stale tabs hard-reload on navigation instead of hitting "Failed to find Server Action".
+- **Multi-dashboard "Rating Emblem" option:** The league emblem has its own toggle in the dashboard config, separate from "Rating". Saved configs keep their current look: the emblem follows the old "Rating" setting until changed.
+- **Node unit tests:** `npm run test:node` runs Vitest on `src/**/*.node.test.ts`
+
+---
+
 ## [v1.29.0] - 2026-10-12
 
 ### Added

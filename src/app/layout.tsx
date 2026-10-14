@@ -1,4 +1,5 @@
 import NavShell from "@/components/nav/NavShell";
+import NewVersionSnackbar from "@/components/shared/NewVersionSnackbar";
 import TestModeChip from "@/components/test-mode/TestModeChip";
 import { AccountsProvider } from "@/lib/frontend/context/AccountsContext";
 import { AuthProvider } from "@/lib/frontend/context/AuthContext";
@@ -31,6 +32,7 @@ export default function RootLayout({
               </AccountsProvider>
             </AuthProvider>
             <TestModeChip />
+            <NewVersionSnackbar />
           </ThemeSetup>
         </AppRouterCacheProvider>
       </body>
