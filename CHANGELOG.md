@@ -9,6 +9,12 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.30.1] - 2026-10-14
+
+- Add frontier skins to jackpot prizes
+
+---
+
 ## [v1.30.0] - 2026-10-14
 
 ### Added

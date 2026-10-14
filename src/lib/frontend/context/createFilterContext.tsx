@@ -33,7 +33,6 @@ export function createFilterContext<F extends UnifiedCardFilter>(defaults: F, st
     useEffect(() => {
       // Hydrate from localStorage after mount — reading it during render would
       // cause an SSR/client hydration mismatch, so the sync must live in an effect.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFilterState(loadFromStorage());
       setHydrated(true);
     }, []);

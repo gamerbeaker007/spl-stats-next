@@ -6,6 +6,7 @@ import { SkinsCard } from "@/components/jackpot-prizes/SkinsCard";
 import { getCardDetails } from "@/lib/backend/actions/jackpot-prizes/cardDetails";
 import { getJackpotMusic } from "@/lib/backend/actions/jackpot-prizes/jackpotMusic";
 import {
+  getFrontierJackpotSkins,
   getJackpotSkins,
   getMajorJackpotSkins,
   getMinorJackpotSkins,
@@ -14,16 +15,28 @@ import { Alert, Box, Container, Divider, Typography } from "@mui/material";
 import { Suspense } from "react";
 
 async function JackpotPrizesContent() {
-  let jackpotSkins, minorJackpotSkins, majorJackpotSkins, jackpotMusicData, cardDetails;
+  let jackpotSkins,
+    minorJackpotSkins,
+    majorJackpotSkins,
+    frontierJackpotSkins,
+    jackpotMusicData,
+    cardDetails;
   try {
-    [jackpotSkins, minorJackpotSkins, majorJackpotSkins, jackpotMusicData, cardDetails] =
-      await Promise.all([
-        getJackpotSkins(),
-        getMinorJackpotSkins(),
-        getMajorJackpotSkins(),
-        getJackpotMusic(),
-        getCardDetails(),
-      ]);
+    [
+      jackpotSkins,
+      minorJackpotSkins,
+      majorJackpotSkins,
+      frontierJackpotSkins,
+      jackpotMusicData,
+      cardDetails,
+    ] = await Promise.all([
+      getJackpotSkins(),
+      getMinorJackpotSkins(),
+      getMajorJackpotSkins(),
+      getFrontierJackpotSkins(),
+      getJackpotMusic(),
+      getCardDetails(),
+    ]);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return (
@@ -159,6 +172,49 @@ async function JackpotPrizesContent() {
         </Box>
       )}
       <Divider sx={{ my: 4 }} />
+
+      {/* Frontier Jackpot Skins Data */}
+      <Typography variant="h4" component="h2" gutterBottom>
+        Frontier Jackpot Skins
+      </Typography>
+      <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
+        <Typography variant="body2" component="div">
+          <strong>Found in the frontier as jackpot prizes</strong>
+          <br />
+          • Frontier daily rewards: 2%
+          <br />
+        </Typography>
+      </Alert>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: {
+            xs: "1fr",
+            sm: "repeat(2, 1fr)",
+            md: "repeat(3, 1fr)",
+            lg: "repeat(4, 1fr)",
+          },
+          gap: 3,
+        }}
+      >
+        {frontierJackpotSkins.map((item) => (
+          <SkinsCard
+            key={`frontier-jackpot-skins-${item.skin_detail_id}`}
+            item={item}
+            cardDetails={cardDetails}
+          />
+        ))}
+      </Box>
+      {frontierJackpotSkins.length === 0 && (
+        <Box textAlign="center" mt={4}>
+          <Typography variant="h6" color="text.secondary">
+            No frontier jackpot skins data available
+          </Typography>
+        </Box>
+      )}
+
+      <Divider sx={{ my: 4 }} />
+
       {/* Third Part - Chest Jackpot Music Data */}
       <Typography variant="h4" component="h2" gutterBottom>
         Jackpot Music (Chest)

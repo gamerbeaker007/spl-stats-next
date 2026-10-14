@@ -2,6 +2,7 @@
 
 import { SplSkin } from "@/types/spl/jackpot";
 import {
+  getCachedFrontierJackpotSkins,
   getCachedJackpotSkins,
   getCachedMajorJackpotSkins,
   getCachedMinorJackpotSkins,
@@ -17,4 +18,8 @@ export async function getMinorJackpotSkins(): Promise<SplSkin[]> {
 
 export async function getMajorJackpotSkins(): Promise<SplSkin[]> {
   return await getCachedMajorJackpotSkins();
+}
+
+export async function getFrontierJackpotSkins(): Promise<SplSkin[]> {
+  return await getCachedFrontierJackpotSkins();
 }

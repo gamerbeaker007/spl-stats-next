@@ -21,7 +21,7 @@ export function NewVersionSnackbarView({ open, onReload, onDismiss }: NewVersion
       <Alert
         severity="info"
         variant="filled"
-        sx={{borderRadius: 6}}
+        sx={{ borderRadius: 6 }}
         action={
           <>
             <Button color="inherit" size="small" startIcon={<MdRefresh />} onClick={onReload}>

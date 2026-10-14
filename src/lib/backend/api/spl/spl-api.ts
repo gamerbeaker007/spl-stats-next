@@ -1,6 +1,7 @@
+import { splRetryConfig } from "@/lib/backend/api/spl/spl-retry";
 import logger from "@/lib/backend/log/logger.server";
-import { splApiConfig } from "@/lib/shared/config/splApiConfig";
 import { SPL_API, SPL_PRICES_API, SPL_PRICES_BASE_URL } from "@/lib/shared/config/spl-endpoints";
+import { splApiConfig } from "@/lib/shared/config/splApiConfig";
 import { normalizeTransactionLookup } from "@/lib/shared/trx-lookup-parser";
 import { SplCAGoldReward } from "@/types/jackpot-prizes/cardCollection";
 import { PackJackpotCard } from "@/types/jackpot-prizes/packJackpot";
@@ -31,7 +32,6 @@ import type { SplMetricEntry } from "@/types/spl/metrics";
 import { SplSeasonInfo, SplSettings } from "@/types/spl/season";
 import axios from "axios";
 import * as rax from "retry-axios";
-import { splRetryConfig } from "@/lib/backend/api/spl/spl-retry";
 
 const SPL_BASE_URL = `${splApiConfig.publicBaseUrl}/`;
 
@@ -433,6 +433,11 @@ export async function fetchMinorJackpotSkins(): Promise<SplSkin[]> {
 /** Fetch skins held by the $MAJOR_JACKPOT_SKINS account. */
 export async function fetchMajorJackpotSkins(): Promise<SplSkin[]> {
   return fetchAccountSkins("$MAJOR_JACKPOT_SKINS");
+}
+
+/** Fetch skins held by the $FRONTIER_JACKPOT_SKINS account. */
+export async function fetchFrontierJackpotSkins(): Promise<SplSkin[]> {
+  return fetchAccountSkins("$FRONTIER_SKIN_JACKPOT");
 }
 
 /**

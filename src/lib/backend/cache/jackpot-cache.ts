@@ -9,6 +9,7 @@ import {
   fetchFrontierDrawsPrizeOverview,
   fetchFrontierDrawsRecentPrizes,
   fetchFrontierJackpotMusic,
+  fetchFrontierJackpotSkins,
   fetchJackPotGold,
   fetchJackPotSkins,
   fetchJackpotMusic,
@@ -78,6 +79,13 @@ export async function getCachedMajorJackpotSkins() {
   cacheLife(JACKPOT_CACHE_LIFE);
   cacheTag(CACHE_TAGS.splJackpot);
   return fetchMajorJackpotSkins();
+}
+
+export async function getCachedFrontierJackpotSkins() {
+  "use cache";
+  cacheLife(JACKPOT_CACHE_LIFE);
+  cacheTag(CACHE_TAGS.splJackpot);
+  return fetchFrontierJackpotSkins();
 }
 
 export async function getCachedJackpotMusic() {
