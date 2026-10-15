@@ -13,6 +13,7 @@ export interface PlayerLeaderboardEntry {
   league: number | null;
   maxLeague: number | null;
   rshares: number | null;
+  leaderboard: string | null;
 }
 
 export async function upsertPlayerLeaderboard(entry: PlayerLeaderboardEntry) {
@@ -37,6 +38,7 @@ export async function upsertPlayerLeaderboard(entry: PlayerLeaderboardEntry) {
       league: entry.league,
       maxLeague: entry.maxLeague,
       rshares: entry.rshares,
+      leaderboard: entry.leaderboard,
     },
     update: {
       rating: entry.rating,
@@ -51,6 +53,7 @@ export async function upsertPlayerLeaderboard(entry: PlayerLeaderboardEntry) {
       league: entry.league,
       maxLeague: entry.maxLeague,
       rshares: entry.rshares,
+      leaderboard: entry.leaderboard ?? undefined,
     },
   });
 }
@@ -79,6 +82,7 @@ export async function getPlayerLeaderboardForSeason(
     league: r.league,
     maxLeague: r.maxLeague,
     rshares: r.rshares,
+    leaderboard: r.leaderboard,
   }));
 }
 
@@ -111,5 +115,6 @@ export async function getPlayerLeaderboardHistory(
     league: r.league,
     maxLeague: r.maxLeague,
     rshares: r.rshares,
+    leaderboard: r.leaderboard,
   }));
 }

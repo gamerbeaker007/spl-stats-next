@@ -7,6 +7,17 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ## [Unreleased]
 
+
+---
+
+## [v1.32.0] - 2026-10-15
+
+### Changed
+
+- **Modern league names in Hive Blog reports:** Modern leaderboard rows now use their Division labels and retain the existing modern league emblem; other formats keep their current league names.
+- **Leaderboard label in Hive Blog reports:** The API's leaderboard label is now stored alongside each season/format entry and displayed next to the league name. Generating a report refreshes that season's leaderboard data, including for seasons already scanned by the worker.
+- **Format-specific Hive Blog leagues:** Wild continues to use its legacy league name. Modern displays the API leaderboard with its Division determined from the season rating thresholds in cached SPL settings. The one-time historical label refresh covers both formats and is marked for removal after one or two seasons.
+
 ---
 
 ## [v1.31.1] - 2026-10-15

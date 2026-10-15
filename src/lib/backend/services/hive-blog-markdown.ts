@@ -132,8 +132,12 @@ function buildBattleSectionLines(acc: HiveBlogAccountData): string[] {
       "| Format | League | Battles | Wins | Win% | Rating | Rank |",
       "|--------|--------|--------:|-----:|-----:|-------:|-----:|",
       ...acc.leaderboard.map((r) => {
+        const leagueName =
+          r.format === "modern" && r.leaderboard
+            ? `${r.leaderboard}${r.division ? ` (${r.division})` : ""}`
+            : r.league;
         const leagueCell =
-          r.leagueNum != null ? `${leagueIconMd(r.format, r.leagueNum)} ${r.league}` : r.league;
+          r.leagueNum != null ? `${leagueIconMd(r.format, r.leagueNum)} ${leagueName}` : leagueName;
         return `| ${capitalize(r.format)} | ${leagueCell} | ${r.battles} | ${r.wins} | ${r.winPct}% | ${r.rating} | ${r.rank != null ? `#${r.rank}` : "—"} |`;
       }),
       ""

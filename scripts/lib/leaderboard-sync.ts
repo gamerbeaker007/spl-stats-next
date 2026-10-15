@@ -68,6 +68,7 @@ export async function syncLeaderboard(
             league: player.league ?? null,
             maxLeague: player.max_league ?? null,
             rshares: player.rshares ?? null,
+            leaderboard: player.leaderboard ?? null,
           });
         }
 

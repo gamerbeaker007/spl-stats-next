@@ -10,6 +10,10 @@ export interface SplSettings {
     id: number;
     ends: string;
   };
+  modern_bracket_leagues?: Array<{
+    name: string;
+    min_rating: number;
+  }>;
   maintenance_mode: boolean;
   combine_rates?: number[][];
   combine_rates_gold?: number[][];
