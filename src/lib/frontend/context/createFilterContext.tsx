@@ -1,7 +1,8 @@
 "use client";
 
 import type { UnifiedCardFilter } from "@/types/card-filter";
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { useLocalStorageValue } from "@/hooks/useLocalStorageValue";
+import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 
 export interface FilterContextValue<F extends UnifiedCardFilter> {
   filter: F;
@@ -13,52 +14,43 @@ export interface FilterContextValue<F extends UnifiedCardFilter> {
 export function createFilterContext<F extends UnifiedCardFilter>(defaults: F, storageKey?: string) {
   const Context = createContext<FilterContextValue<F> | undefined>(undefined);
 
-  function loadFromStorage(): F {
-    if (!storageKey) return { ...defaults };
+  function parseStoredFilter(raw: string | null | undefined): F {
+    if (!raw) return { ...defaults };
     try {
-      const raw = localStorage.getItem(storageKey);
-      if (raw) return { ...defaults, ...(JSON.parse(raw) as Partial<F>) };
+      return { ...defaults, ...(JSON.parse(raw) as Partial<F>) };
     } catch {
-      // ignore parse or storage errors
+      // Ignore malformed stored state and fall back to the defaults.
     }
     return { ...defaults };
   }
 
   function Provider({ children }: { children: ReactNode }) {
-    // Start from defaults so the first client render matches the server-rendered
-    // HTML. Persisted state is loaded after mount to avoid a hydration mismatch.
-    const [filter, setFilterState] = useState<F>(() => ({ ...defaults }));
-    const [hydrated, setHydrated] = useState(false);
+    const [storedValue, setStoredValue] = useLocalStorageValue(storageKey ?? "");
+    const [filterOverride, setFilterOverride] = useState<F | null>(null);
+    const filter = filterOverride ?? parseStoredFilter(storageKey ? storedValue : null);
 
-    useEffect(() => {
-      // Hydrate from localStorage after mount — reading it during render would
-      // cause an SSR/client hydration mismatch, so the sync must live in an effect.
-      setFilterState(loadFromStorage());
-      setHydrated(true);
-    }, []);
+    const persistFilter = useCallback(
+      (next: F) => {
+        setFilterOverride(next);
+        if (storageKey) setStoredValue(JSON.stringify(next));
+      },
+      [setStoredValue]
+    );
 
-    useEffect(() => {
-      // Don't persist until the stored value has been loaded, otherwise the
-      // initial defaults would clobber it before hydration completes.
-      if (!storageKey || !hydrated) return;
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(filter));
-      } catch {
-        // ignore storage errors
-      }
-    }, [filter, hydrated]);
+    const setFilter = useCallback(
+      (updates: Partial<F>) => persistFilter({ ...filter, ...updates }),
+      [filter, persistFilter]
+    );
 
-    const setFilter = useCallback((updates: Partial<F>) => {
-      setFilterState((prev) => ({ ...prev, ...updates }));
-    }, []);
+    const resetFilter = useCallback(
+      (overrides?: Partial<F>) => persistFilter({ ...defaults, ...overrides }),
+      [persistFilter]
+    );
 
-    const resetFilter = useCallback((overrides?: Partial<F>) => {
-      setFilterState({ ...defaults, ...overrides });
-    }, []);
-
-    const toggleFilterOpen = useCallback(() => {
-      setFilterState((prev) => ({ ...prev, filterOpen: !prev.filterOpen }));
-    }, []);
+    const toggleFilterOpen = useCallback(
+      () => persistFilter({ ...filter, filterOpen: !filter.filterOpen }),
+      [filter, persistFilter]
+    );
 
     return (
       <Context.Provider value={{ filter, setFilter, resetFilter, toggleFilterOpen }}>

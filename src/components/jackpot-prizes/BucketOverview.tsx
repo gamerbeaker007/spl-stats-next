@@ -1,8 +1,9 @@
-import { BucketCardEntry } from "@/lib/backend/actions/jackpot-prizes/accountBucket";
 import { getCardImageV2 } from "@/lib/shared/card-image-utils";
 import { getFoilLabel } from "@/lib/shared/card-utils";
-import { Box, Typography } from "@mui/material";
+import type { BucketCardEntry } from "@/types/jackpot-prizes/bucket";
+import { Box, Stack, Typography } from "@mui/material";
 import Image from "next/image";
+import { DataFreshness } from "./DataFreshness";
 
 const FOIL_SHORT: Record<number, string> = {
   0: "Reg",
@@ -83,20 +84,23 @@ interface Props {
   cards: BucketCardEntry[];
 }
 
-export function FrontierBucketOverview({ cards }: Props) {
+export function BucketOverview({ cards, settledAt }: Props & { settledAt: number | null }) {
   if (cards.length === 0) {
     return (
       <Typography variant="body2" color="text.secondary">
-        No cards currently in the frontier jackpot bucket.
+        No cards currently in this prize bucket.
       </Typography>
     );
   }
 
   return (
     <Box>
-      <Typography variant="h6" fontWeight="bold" gutterBottom>
-        Cards Left in Bucket
-      </Typography>
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+        <Typography variant="h6" fontWeight="bold" gutterBottom>
+          Cards Left in Bucket
+        </Typography>
+        <DataFreshness timestamp={settledAt} source="browser" provider="Splinterlands" />
+      </Stack>
       <Box
         sx={{
           display: "flex",

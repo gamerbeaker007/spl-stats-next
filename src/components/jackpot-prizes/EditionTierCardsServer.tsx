@@ -34,6 +34,7 @@ export async function EditionTierCardsServer({
   return (
     <ClientCardGrid
       prizeData={data.prizeData}
+      fetchedAt={data.fetchedAt}
       cardDetails={data.cardDetails}
       title={title}
       subtitle={subtitle}

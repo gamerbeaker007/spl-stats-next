@@ -1,18 +1,20 @@
 "use client";
 
+import { DataFreshness } from "@/components/jackpot-prizes/DataFreshness";
 import RarityFilter from "@/components/jackpot-prizes/RarityFilter";
-import { Alert, Box, Container, Divider, Typography } from "@mui/material";
+import { SplCardDetail } from "@/types/spl/cardDetails";
+import { Alert, Box, Container, Divider, Stack, Typography } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
 import { SplCAGoldReward } from "../../../types/jackpot-prizes/cardCollection";
 import { CAGoldRewardCardDetail } from "./CAGoldRerwardCardDetail";
-import { SplCardDetail } from "@/types/spl/cardDetails";
 
 interface Props {
   caGoldRewards: SplCAGoldReward[];
   cardDetails: SplCardDetail[];
+  fetchedAt: string;
 }
 
-export default function CAGoldRewardsClient({ caGoldRewards, cardDetails }: Props) {
+export default function CAGoldRewardsClient({ caGoldRewards, cardDetails, fetchedAt }: Props) {
   const [selectedRarities, setSelectedRarities] = useState<number[]>([]);
 
   const toggleRarity = useCallback((rarity: number) => {
@@ -32,9 +34,12 @@ export default function CAGoldRewardsClient({ caGoldRewards, cardDetails }: Prop
   return (
     <Container maxWidth="lg" sx={{ mt: 4, pb: 4 }}>
       {/* Page Title */}
-      <Typography variant="h4" component="h1" gutterBottom>
-        Jackpot Gold
-      </Typography>
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Jackpot Gold
+        </Typography>
+        <DataFreshness timestamp={fetchedAt} source="server-cache" provider="Splinterlands" />
+      </Stack>
 
       <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
         <Typography variant="body2" component="div">

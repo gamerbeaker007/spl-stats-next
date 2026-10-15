@@ -22,7 +22,8 @@ async function LandMintHistoryContent() {
 
   return (
     <ClientCardGrid
-      prizeData={jackpotData}
+      prizeData={jackpotData.data}
+      fetchedAt={jackpotData.fetchedAt}
       cardDetails={cardDetails}
       title="Land Mint Jackpot Prize Overview"
       subtitle="Discover cards available in Land"

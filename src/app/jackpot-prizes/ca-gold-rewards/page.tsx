@@ -18,7 +18,13 @@ async function CAGoldRewardsContent() {
     );
   }
 
-  return <CAGoldRewardsClient caGoldRewards={caGoldRewards} cardDetails={cardDetails} />;
+  return (
+    <CAGoldRewardsClient
+      caGoldRewards={caGoldRewards.data}
+      fetchedAt={caGoldRewards.fetchedAt}
+      cardDetails={cardDetails}
+    />
+  );
 }
 
 export default function CAGoldRewardsPage() {

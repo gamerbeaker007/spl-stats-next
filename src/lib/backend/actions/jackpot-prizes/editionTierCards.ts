@@ -13,6 +13,7 @@ const BATCH_SIZE = 5;
 export interface EditionTierResult {
   prizeData: CardPrizeData[];
   cardDetails: SplCardDetail[];
+  fetchedAt: string;
 }
 
 export async function getEditionTierCards(
@@ -34,16 +35,18 @@ export async function getEditionTierCards(
 
   // Any failure throws, so this hours-long cache never stores zeros for failed calls.
   const prizeData: CardPrizeData[] = [];
+  const fetchedAtValues: string[] = [];
   for (let i = 0; i < targetCards.length; i += BATCH_SIZE) {
     const batch = await Promise.all(
       targetCards.slice(i, i + BATCH_SIZE).map(async (card): Promise<CardPrizeData> => {
         const results = await Promise.all(
           FOIL_TYPES.map((foil) => getCachedMintHistory(foil, card.id))
         );
+        results.forEach((result) => fetchedAtValues.push(result.fetchedAt));
         const foils: FoilStats[] = FOIL_TYPES.map((foil, j) => ({
           foil,
-          minted: results[j].total_minted,
-          total: results[j].total,
+          minted: results[j].data.total_minted,
+          total: results[j].data.total,
         }));
 
         return {
@@ -57,5 +60,10 @@ export async function getEditionTierCards(
     prizeData.push(...batch);
   }
 
-  return { prizeData, cardDetails: targetCards };
+  return {
+    prizeData,
+    cardDetails: targetCards,
+    fetchedAt:
+      fetchedAtValues.sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? new Date().toISOString(),
+  };
 }

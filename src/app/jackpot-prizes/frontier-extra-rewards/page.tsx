@@ -1,16 +1,48 @@
-import { BucketServer } from "@/components/jackpot-prizes/BucketServer";
+import { BucketClient } from "@/components/jackpot-prizes/BucketClient";
 import { EditionTierCardsServer } from "@/components/jackpot-prizes/EditionTierCardsServer";
 import LoadingSkeleton from "@/components/jackpot-prizes/LoadingSkeleton";
-import { Box, Container, Divider } from "@mui/material";
+import { getCardDetails } from "@/lib/backend/actions/jackpot-prizes/cardDetails";
+import { Alert, Box, Container, Divider, Typography } from "@mui/material";
 import { Suspense } from "react";
+
+async function FrontierBuckets() {
+  let cardDetails;
+  let errorMessage: string | null = null;
+  try {
+    cardDetails = await getCardDetails();
+  } catch (error) {
+    errorMessage = error instanceof Error ? error.message : "Unknown error";
+  }
+
+  if (!cardDetails) {
+    return (
+      <Alert severity="error">
+        Could not load bucket card details: {errorMessage ?? "Unknown error"}
+      </Alert>
+    );
+  }
+
+  return (
+    <Box>
+      <Typography variant="h5" gutterBottom>
+        Frontier Extra Rewards Buckets
+      </Typography>
+      <BucketClient username="$FRONTIER_JACKPOT" cardDetails={cardDetails} />
+      <Divider sx={{ my: 3 }} />
+      <Typography variant="h5" gutterBottom>
+        Frontier Vanguard Rewards Buckets
+      </Typography>
+      <BucketClient username="$COMMUNITY_JACKPOT" cardDetails={cardDetails} />
+    </Box>
+  );
+}
 
 export default function FrontierExtraRewardsPage() {
   return (
     <Box>
       <Container maxWidth="xl" sx={{ py: 3 }}>
         <Suspense fallback={<LoadingSkeleton />}>
-          <BucketServer username="$FRONTIER_JACKPOT" />
-          <BucketServer username="$COMMUNITY_JACKPOT" />
+          <FrontierBuckets />
         </Suspense>
       </Container>
       <Divider />
@@ -20,7 +52,7 @@ export default function FrontierExtraRewardsPage() {
           tier={15}
           title="Frontier Extra Cards"
           subtitle="Extra cards from the frontier era"
-          recentWinnersLabel="Recent Winners \u2013 Frontier Extra (last 8 days)"
+          recentWinnersLabel="Recent Winners Frontier Extra (last 8 days)"
         />
       </Suspense>
     </Box>

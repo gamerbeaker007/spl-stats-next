@@ -5,11 +5,12 @@ import {
   getCachedPeakMonsterPrices,
   getCachedPeakMonsterTopBids,
 } from "@/lib/backend/cache/jackpot-cache";
+import type { CachedData } from "@/types/jackpot-prizes/freshness";
 
-export async function getPeakMonsterPricesAction(): Promise<PKPricesResponse> {
+export async function getPeakMonsterPricesAction(): Promise<CachedData<PKPricesResponse>> {
   return await getCachedPeakMonsterPrices();
 }
 
-export async function getPeakMonsterTopBidsAction(): Promise<PKBidsResponse> {
+export async function getPeakMonsterTopBidsAction(): Promise<CachedData<PKBidsResponse>> {
   return await getCachedPeakMonsterTopBids();
 }

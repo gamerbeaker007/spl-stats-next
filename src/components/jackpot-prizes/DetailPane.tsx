@@ -1,9 +1,10 @@
 "use client";
 
+import { DataFreshness } from "@/components/jackpot-prizes/DataFreshness";
 import CardHistoryTable from "@/components/shared/CardHistoryTable";
-import { useCardHistory } from "@/hooks/useCardHistory";
 import { useMintData } from "@/hooks/jackpot-prizes/useMintData";
 import { usePeakMonsterPrices } from "@/hooks/jackpot-prizes/usePeakMonsterPrices";
+import { useCardHistory } from "@/hooks/useCardHistory";
 import { getFoilLabel } from "@/lib/shared/card-utils";
 import { CardPrizeData, MintHistoryItem } from "@/types/jackpot-prizes/shared";
 import { SplCardDetail } from "@/types/spl/cardDetails";
@@ -14,6 +15,7 @@ import {
   CircularProgress,
   IconButton,
   Paper,
+  Stack,
   SwipeableDrawer,
   Tooltip,
   Typography,
@@ -38,14 +40,20 @@ type PaneView = "mints" | "history";
 
 export default function DetailPane({ selection, onClose }: Props) {
   const { card, foil } = selection ?? {};
-  const { getMintData, fetchMintData } = useMintData();
+  const { getMintData, getMintDataFetchedAt, fetchMintData } = useMintData();
   const {
     cardHistory,
     loading: historyLoading,
     error: historyError,
+    checkedAt: historyCheckedAt,
     fetchCardHistory,
   } = useCardHistory();
-  const { getPriceForCard, getTopBidForCard, loading: priceLoading } = usePeakMonsterPrices();
+  const {
+    getPriceForCard,
+    getTopBidForCard,
+    loading: priceLoading,
+    fetchedAt: pricesFetchedAt,
+  } = usePeakMonsterPrices();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
@@ -70,6 +78,7 @@ export default function DetailPane({ selection, onClose }: Props) {
   }, [card, foil, fetchMintData, getMintData]);
 
   const mintInfo = card && foil !== undefined ? getMintData(card.id, foil) : null;
+  const mintFetchedAt = card && foil !== undefined ? getMintDataFetchedAt(card.id, foil) : null;
   const isLoadingMints = !mintInfo;
 
   const cardPrice = card && foil !== undefined ? getPriceForCard(card.id, foil) : null;
@@ -90,8 +99,8 @@ export default function DetailPane({ selection, onClose }: Props) {
     >
       {/* PeakMonsters attribution */}
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 1 }}>
-        <Tooltip title="Data from PeakMonsters" placement="top">
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+          <Tooltip title="Data from PeakMonsters" placement="top">
             <Image
               src="https://peakmonsters.com/app/img/logo_light_large.de4cbfe1.png"
               alt="PeakMonsters"
@@ -100,11 +109,20 @@ export default function DetailPane({ selection, onClose }: Props) {
               style={{ objectFit: "contain" }}
               unoptimized
             />
+          </Tooltip>
+          <Stack direction="row" alignItems="center" spacing={0.5}>
             <Typography variant="caption" color="text.secondary">
               Market Prices
             </Typography>
-          </Box>
-        </Tooltip>
+            {!priceLoading && (
+              <DataFreshness
+                timestamp={pricesFetchedAt}
+                source="server-cache"
+                provider="PeakMonsters"
+              />
+            )}
+          </Stack>
+        </Box>
       </Box>
 
       {priceLoading ? (
@@ -211,11 +229,23 @@ export default function DetailPane({ selection, onClose }: Props) {
         <Typography variant="subtitle1" fontWeight="bold" noWrap>
           {card!.name}
         </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {view === "mints"
-            ? `${getFoilLabel(foil!)} — Mint List`
-            : `Card History — ${historyPlayer}`}
-        </Typography>
+        <Stack direction="row" alignItems="center" spacing={0.5}>
+          <Typography variant="caption" color="text.secondary">
+            {view === "mints"
+              ? `${getFoilLabel(foil!)} — Mint List`
+              : `Card History — ${historyPlayer}`}
+          </Typography>
+          {selection && view === "mints" && (
+            <DataFreshness
+              timestamp={mintFetchedAt}
+              source="server-cache"
+              provider="Splinterlands"
+            />
+          )}
+          {selection && view === "history" && (
+            <DataFreshness timestamp={historyCheckedAt} source="browser" provider="Splinterlands" />
+          )}
+        </Stack>
       </Box>
       {isMobile && (
         <IconButton size="small" onClick={onClose}>
@@ -248,8 +278,14 @@ export default function DetailPane({ selection, onClose }: Props) {
           <Box sx={{ width: 40, height: 4, borderRadius: 2, bgcolor: "divider" }} />
         </Box>
         {header}
-        {selection && view === "mints" && priceSection}
+        {selection && view === "mints" && (
+          <DataFreshness timestamp={mintFetchedAt} source="server-cache" provider="Splinterlands" />
+        )}
+        {selection && view === "history" && (
+          <DataFreshness timestamp={historyCheckedAt} source="browser" provider="Splinterlands" />
+        )}
 
+        {selection && view === "mints" && priceSection}
         {/* Content */}
         <Box sx={{ flex: 1, overflowY: "auto", p: 2 }}>
           {view === "mints" && (

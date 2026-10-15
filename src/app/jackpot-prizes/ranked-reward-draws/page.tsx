@@ -20,7 +20,8 @@ async function RankedRewardDrawsContent() {
 
   return (
     <ClientCardGrid
-      prizeData={rankedDrawsData}
+      prizeData={rankedDrawsData.data}
+      fetchedAt={rankedDrawsData.fetchedAt}
       cardDetails={cardDetails}
       title="Ranked Reward Draws Prize Overview"
       subtitle="Discover cards available in ranked reward draws"

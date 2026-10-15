@@ -9,6 +9,21 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.31.1] - 2026-10-15
+
+### Changed
+
+- **Live jackpot prize account data:** Jackpot bucket cards, skins and music inventories now load directly from the Splinterlands API in the browser instead of using the 15-minute server cache, so visitors see out-of-stock prize counts sooner.
+
+### Improved
+
+- **Jackpot data freshness:** Jackpot-prize pages now show when cached data was refreshed or when browser/database data was checked, displayed in the browser's local timezone. No background polling was added.
+
+- **Jackpot freshness display:** Replaced inline freshness text with a timestamp icon whose tooltip shows the exact time in the viewer's local timezone.
+
+
+---
+
 ## [v1.31.0] - 2026-10-15
 
 ### Changed

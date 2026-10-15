@@ -1,10 +1,11 @@
 "use client";
 
+import { DataFreshness } from "@/components/jackpot-prizes/DataFreshness";
 import { RecentWinnersCarousel } from "@/components/jackpot-prizes/RecentWinnersCarousel";
 import { useRecentWinners } from "@/hooks/jackpot-prizes/useRecentWinners";
 import { RecentWinner } from "@/types/jackpot-prizes/shared";
 import { SplCardDetail } from "@/types/spl/cardDetails";
-import { Box, Divider, Skeleton, Typography } from "@mui/material";
+import { Box, Divider, Skeleton, Stack, Typography } from "@mui/material";
 import { useMemo } from "react";
 
 export interface RecentWinnersConfig {
@@ -19,7 +20,7 @@ interface EntryProps {
 }
 
 function SingleWinnersEntry({ config, cardDetails }: EntryProps) {
-  const { winners, loading } = useRecentWinners(config.edition);
+  const { winners, loading, fetchedAt } = useRecentWinners(config.edition);
 
   const filtered: RecentWinner[] = useMemo(() => {
     if (config.tier === undefined) return winners;
@@ -30,9 +31,12 @@ function SingleWinnersEntry({ config, cardDetails }: EntryProps) {
 
   return (
     <Box sx={{ mb: 2, mt: 3 }}>
-      <Typography variant="h6" gutterBottom>
-        {config.label}
-      </Typography>
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
+        <Typography variant="h6" gutterBottom>
+          {config.label}
+        </Typography>
+        <DataFreshness timestamp={fetchedAt} source="server-cache" provider="Splinterlands" />
+      </Stack>
       {loading ? (
         <Box sx={{ display: "flex", gap: "10px", py: 1, overflow: "hidden", maxWidth: "100%" }}>
           {Array.from({ length: 7 }).map((_, i) => (

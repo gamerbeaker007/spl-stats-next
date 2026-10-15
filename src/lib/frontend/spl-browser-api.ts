@@ -2,8 +2,8 @@
 
 import { getDecPriceUsdAction } from "@/lib/backend/actions/marketplace-assets-actions";
 import { toCardFoil, toCardFoilInt } from "@/lib/shared/card-utils";
-import { splApiConfig } from "@/lib/shared/config/splApiConfig";
 import { SPL_API, SPL_VAPI } from "@/lib/shared/config/spl-endpoints";
+import { splApiConfig } from "@/lib/shared/config/splApiConfig";
 import {
   normalizeMarketplaceAssetMetaDetail,
   normalizeMarketplaceLandingAsset,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/shared/marketplace-assets";
 import { normalizeTransactionLookup } from "@/lib/shared/trx-lookup-parser";
 import type { CardFoil } from "@/types/card";
+import type { CardHistoryResponse } from "@/types/jackpot-prizes/cardHistory";
 import type { LandOwnedRegionRaw } from "@/types/land/landMarket";
 import type {
   FetchMarketplaceListingItemsParams,
@@ -33,20 +34,20 @@ import type {
   SplMarketListingsResponse,
   SplTransactionLookupResponse,
 } from "@/types/purchase/purchase-plan";
-import type { CardHistoryResponse } from "@/types/jackpot-prizes/cardHistory";
 import type { SplBalance } from "@/types/spl/balances";
 import type { SplCardCollection } from "@/types/spl/card";
 import type { SplPlayerDetails } from "@/types/spl/details";
 import type { SplFrontierDrawStatus, SplRankedDrawStatus } from "@/types/spl/draws";
+import type { SplInventoryItem, SplSkin } from "@/types/spl/jackpot";
 import type { SplCardListingPriceEntry } from "@/types/spl/market";
 import type { SPLSeasonRewards } from "@/types/spl/seasonRewards";
-import type { SplInventoryItem, SplSkin } from "@/types/spl/jackpot";
 
 /**
  * The only path for every "browser (live)" SPL data type (see CLAUDE.md):
  * balances, inventory, card collection, grouped market prices, card history,
  * owned land regions, marketplace holdings (landing / player listings / skins),
- * dashboard player details / draws / season rewards,
+ * dashboard player details / draws / season rewards, and jackpot prize account
+ * collections / inventories / skins,
  * card + marketplace listings, and tx lookup. These reads
  * count against the visitor's IP rate limit instead of the server's. The SPL
  * hosts answer CORS for any origin; they're allowed in the CSP `connect-src`
@@ -134,6 +135,20 @@ export async function fetchInventory(username: string): Promise<SplInventoryItem
   return data as SplInventoryItem[];
 }
 
+/** Inventory for a named SPL account, including system accounts prefixed with `$`. */
+export async function fetchAccountInventory(account: string): Promise<SplInventoryItem[]> {
+  const data = await apiGet(SPL_API.PLAYER_INVENTORY, { username: account.trim() });
+  if (!Array.isArray(data)) throw new Error("Invalid account inventory response");
+  return data as SplInventoryItem[];
+}
+
+/** Skins held by a named SPL account, including system accounts prefixed with `$`. */
+export async function fetchAccountSkins(account: string): Promise<SplSkin[]> {
+  const data = await apiGet(SPL_API.PLAYER_SKINS, { username: account.trim() });
+  if (!Array.isArray(data)) throw new Error("Invalid account skins response");
+  return data as SplSkin[];
+}
+
 // ---------------------------------------------------------------------------
 // Dashboard: player details, draws, current season rewards
 // ---------------------------------------------------------------------------
@@ -178,11 +193,20 @@ export async function fetchCurrentRewards(username: string): Promise<SPLSeasonRe
 // Cards (`/cards/collection`, `/cards/history`) and grouped market prices
 // ---------------------------------------------------------------------------
 
-/** Every card the account owns or has delegated to it. Large (MBs) for big accounts. */
-export async function fetchCardCollection(username: string): Promise<SplCardCollection> {
+/**
+ * Every card the account owns or has delegated to it. Large (MBs) for big accounts.
+ * The `preserveCase` option keeps the account name as-is, otherwise it's lowercased.
+ * For example for sprecial account like $JACKPOT
+ * */
+export async function fetchCardCollection(
+  username: string,
+  { preserveCase = false }: { preserveCase?: boolean } = {}
+): Promise<SplCardCollection> {
+  const account = username.trim();
+  const collectionAccount = preserveCase ? account : account.toLowerCase();
   const data = (await requestJson(
     splApiConfig.publicBaseUrl,
-    SPL_API.CARDS_COLLECTION(username.trim().toLowerCase())
+    SPL_API.CARDS_COLLECTION(collectionAccount)
   )) as SplCardCollection | null;
   if (!Array.isArray(data?.cards)) throw new Error("Invalid card collection response");
   return data;

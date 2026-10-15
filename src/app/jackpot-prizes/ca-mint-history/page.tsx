@@ -20,7 +20,8 @@ async function CAMintHistoryContent() {
 
   return (
     <ClientCardGrid
-      prizeData={jackpotData}
+      prizeData={jackpotData.data}
+      fetchedAt={jackpotData.fetchedAt}
       cardDetails={cardDetails}
       title="Conclave Arcana Jackpot Prize Overview"
       subtitle="Discover cards available in CA packs"

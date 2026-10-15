@@ -20,7 +20,8 @@ async function FrontierRewardDrawsContent() {
 
   return (
     <ClientCardGrid
-      prizeData={frontierDrawsData}
+      prizeData={frontierDrawsData.data}
+      fetchedAt={frontierDrawsData.fetchedAt}
       cardDetails={cardDetails}
       title="Frontier Reward Draws Prize Overview"
       subtitle="Discover cards available in frontier reward draws"

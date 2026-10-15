@@ -6,6 +6,7 @@ interface Settled<T> {
   key: string;
   data: T | undefined;
   error: string | null;
+  settledAt: number | null;
 }
 
 export interface UseAsyncDataOptions {
@@ -19,6 +20,8 @@ export interface UseAsyncDataReturn<T> {
   data: T | undefined;
   loading: boolean;
   error: string | null;
+  /** Local timestamp when the current successful request completed. */
+  settledAt: number | null;
   /**
    * Re-runs the loader for the current key; never rejects (failures land in `error`).
    * `silent` keeps `loading` false, for a background refresh that shouldn't flash a spinner.
@@ -62,11 +65,12 @@ export function useAsyncData<T>(
   const settle = useCallback((settledKey: string, result: { data: T } | { error: unknown }) => {
     setSettled((prev) =>
       "data" in result
-        ? { key: settledKey, data: result.data, error: null }
+        ? { key: settledKey, data: result.data, error: null, settledAt: Date.now() }
         : {
             key: settledKey,
             data: prev?.key === settledKey ? prev.data : undefined,
             error: toErrorMessage(result.error, errorMessageRef.current),
+            settledAt: prev?.key === settledKey ? prev.settledAt : null,
           }
     );
   }, []);
@@ -116,6 +120,7 @@ export function useAsyncData<T>(
     data: key === null ? undefined : isCurrent || keepPreviousData ? settled?.data : undefined,
     loading: key !== null && (!isCurrent || refetching > 0),
     error: isCurrent ? settled.error : null,
+    settledAt: isCurrent ? settled.settledAt : null,
     refetch,
     mutate,
   };

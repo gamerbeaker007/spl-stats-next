@@ -12,6 +12,7 @@ interface UsePeakMonsterPricesReturn {
   bids: PKBid[];
   loading: boolean;
   error: string | null;
+  fetchedAt: string | null;
   getPriceForCard: (cardDetailId: number, foil: number) => PKPrice | null;
   getTopBidForCard: (cardDetailId: number, foil: number) => PKBid | null;
 }
@@ -21,6 +22,7 @@ export function usePeakMonsterPrices(): UsePeakMonsterPricesReturn {
   const [bids, setBids] = useState<PKBid[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [fetchedAt, setFetchedAt] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,8 +36,13 @@ export function usePeakMonsterPrices(): UsePeakMonsterPricesReturn {
           getPeakMonsterTopBidsAction(),
         ]);
         if (!cancelled) {
-          setPrices(pricesData.prices ?? []);
-          setBids(bidsData.bids ?? []);
+          setPrices(pricesData.data.prices ?? []);
+          setBids(bidsData.data.bids ?? []);
+          setFetchedAt(
+            [pricesData.fetchedAt, bidsData.fetchedAt].sort(
+              (a, b) => Date.parse(a) - Date.parse(b)
+            )[0]
+          );
         }
       } catch (err) {
         if (!cancelled) {
@@ -72,5 +79,5 @@ export function usePeakMonsterPrices(): UsePeakMonsterPricesReturn {
     [bids]
   );
 
-  return { prices, bids, loading, error, getPriceForCard, getTopBidForCard };
+  return { prices, bids, loading, error, fetchedAt, getPriceForCard, getTopBidForCard };
 }

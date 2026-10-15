@@ -32,8 +32,11 @@ export default function FortuneWinnersClient() {
         Fortune Winners
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3, maxWidth: 720 }}>
-        See who has won cards in the Splinterlands fortune draws. The all-time top ten is shown
-        below; add any account to the search list to see their individual wins.
+        See who has won cards in the Splinterlands fortune draws.
+        <br />
+        The all-time top ten is shown below
+        <br />
+        Add any account to the search list to see their individual wins.
       </Typography>
 
       {/* All-time top ten — always visible, independent of the account search */}
@@ -60,7 +63,7 @@ export default function FortuneWinnersClient() {
       </Stack>
 
       <Typography variant="h5" gutterBottom>
-        Search wins by account
+        Search wins by accoun
       </Typography>
       <Box sx={{ mb: 2, maxWidth: 560 }}>
         <AccountSelector accounts={players} setAccounts={setPlayers} search={search} />

@@ -1,5 +1,6 @@
 "use client";
 
+import { DataFreshness } from "@/components/jackpot-prizes/DataFreshness";
 import {
   MultiRecentWinnersSection,
   RecentWinnersConfig,
@@ -7,6 +8,7 @@ import {
 import { RecentWinnersCarousel } from "@/components/jackpot-prizes/RecentWinnersCarousel";
 import { useRecentWinners } from "@/hooks/jackpot-prizes/useRecentWinners";
 import { CardPrizeData } from "@/types/jackpot-prizes/shared";
+import { SplCardDetail } from "@/types/spl/cardDetails";
 import {
   Box,
   Container,
@@ -21,7 +23,6 @@ import { useCallback, useMemo, useState } from "react";
 import Card from "./Card";
 import DetailPane, { PaneSelection } from "./DetailPane";
 import RarityFilter from "./RarityFilter";
-import { SplCardDetail } from "@/types/spl/cardDetails";
 
 interface Props {
   prizeData: CardPrizeData[];
@@ -30,6 +31,7 @@ interface Props {
   subtitle?: string;
   showRecentWinnersForEdition?: number;
   recentWinnersConfigs?: RecentWinnersConfig[];
+  fetchedAt?: string;
 }
 
 export default function ClientCardGrid({
@@ -39,6 +41,7 @@ export default function ClientCardGrid({
   subtitle,
   showRecentWinnersForEdition,
   recentWinnersConfigs,
+  fetchedAt,
 }: Props) {
   const [selectedRarities, setSelectedRarities] = useState<number[]>([]);
   const [paneSelection, setPaneSelection] = useState<PaneSelection | null>(null);
@@ -92,23 +95,23 @@ export default function ClientCardGrid({
   );
 
   const winnersLabel = `Recent Winners (last 8 days)`;
-  const { winners, loading: winnersLoading } = useRecentWinners(
-    recentWinnersConfigs ? undefined : showRecentWinnersForEdition
-  );
+  const {
+    winners,
+    loading: winnersLoading,
+    fetchedAt: winnersFetchedAt,
+  } = useRecentWinners(recentWinnersConfigs ? undefined : showRecentWinnersForEdition);
 
   return (
     <Container maxWidth="xl">
-      <Box sx={{ mb: 4, display: "flex", justifyContent: "center", alignItems: "center" }}>
+      <Box sx={{ mb: 4, display: "flex" }}>
         <Stack>
-          <Typography variant="h4" align="center">
-            {title}
-          </Typography>
-          {subtitle && (
-            <Typography variant="body1" align="center">
-              {subtitle}
-            </Typography>
-          )}
-          <Typography variant="body1" align="center">
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Typography variant="h4">{title}</Typography>
+            <DataFreshness timestamp={fetchedAt} source="server-cache" provider="Splinterlands" />
+          </Stack>
+          {subtitle && <Typography variant="body1">{subtitle}</Typography>}
+
+          <Typography variant="body1">
             Totals: {totals.total_minted} minted / {totals.total} cards
           </Typography>
         </Stack>
@@ -123,8 +126,14 @@ export default function ClientCardGrid({
       {recentWinnersConfigs === undefined && showRecentWinnersForEdition !== undefined && (
         <Box sx={{ mb: 2, mt: 3 }}>
           <Typography variant="h6" gutterBottom>
-            {winnersLabel}
+            {winnersLabel}{" "}
+            <DataFreshness
+              timestamp={winnersFetchedAt}
+              source="server-cache"
+              provider="Splinterlands"
+            />
           </Typography>
+
           {winnersLoading ? (
             <Box sx={{ display: "flex", gap: "10px", py: 1, overflow: "hidden", maxWidth: "100%" }}>
               {Array.from({ length: 7 }).map((_, i) => (

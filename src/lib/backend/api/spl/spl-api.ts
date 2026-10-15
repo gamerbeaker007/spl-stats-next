@@ -20,12 +20,6 @@ import {
   SplFortuneDraw,
   SplFortuneEntry,
 } from "@/types/spl/draws";
-import {
-  SplInventoryItem,
-  SplPlayerCardDetail,
-  SplPlayerCollection,
-  SplSkin,
-} from "@/types/spl/jackpot";
 import { SplFormats, SplLeaderboardPlayer, SplLeaderboardResponse } from "@/types/spl/leaderboard";
 import { SplCardListingPriceEntry } from "@/types/spl/market";
 import type { SplMetricEntry } from "@/types/spl/metrics";
@@ -401,51 +395,11 @@ export async function fetchMintHistoryByDate(
 }
 
 /**
- * Fetch skins held by a named SPL account from /players/skins.
- * Used for bucket accounts such as $JACKPOT_SKINS, $MINOR_JACKPOT_SKINS, etc.
- */
-export async function fetchAccountSkins(username: string): Promise<SplSkin[]> {
-  try {
-    const res = await splBaseClient.get(SPL_API.PLAYER_SKINS, { params: { username } });
-    const data = res.data;
-    if (!data || !Array.isArray(data)) {
-      throw new Error("Invalid response from Splinterlands API: expected array");
-    }
-    return data as SplSkin[];
-  } catch (error) {
-    logger.error(
-      `Failed to fetch skins for ${username}: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-    throw error;
-  }
-}
-
-/** Fetch skins held by the $JACKPOT_SKINS account. */
-export async function fetchJackPotSkins(): Promise<SplSkin[]> {
-  return fetchAccountSkins("$JACKPOT_SKINS");
-}
-
-/** Fetch skins held by the $MINOR_JACKPOT_SKINS account. */
-export async function fetchMinorJackpotSkins(): Promise<SplSkin[]> {
-  return fetchAccountSkins("$MINOR_JACKPOT_SKINS");
-}
-
-/** Fetch skins held by the $MAJOR_JACKPOT_SKINS account. */
-export async function fetchMajorJackpotSkins(): Promise<SplSkin[]> {
-  return fetchAccountSkins("$MAJOR_JACKPOT_SKINS");
-}
-
-/** Fetch skins held by the $FRONTIER_JACKPOT_SKINS account. */
-export async function fetchFrontierJackpotSkins(): Promise<SplSkin[]> {
-  return fetchAccountSkins("$FRONTIER_SKIN_JACKPOT");
-}
-
-/**
  * Fetch pack jackpot gold from Splinterlands API
  */
 export async function fetchJackPotGold(): Promise<SplCAGoldReward[]> {
   const url = SPL_API.CA_GOLD_REWARDS;
-  console.info(`Fetching pack jackpot gold for username $JACKPOT_GOLD`);
+  console.info("Fetching CA gold jackpot rewards");
 
   try {
     const res = await splBaseClient.get(url);
@@ -514,91 +468,6 @@ export async function fetchFrontierDrawsPrizeOverview(): Promise<RankedDrawsPriz
   } catch (error) {
     console.error(
       `Failed to fetch frontier draws prize overview: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-    throw error;
-  }
-}
-
-/**
- * Fetch all cards held by a named SPL account from /cards/collection/<username>.
- * Used for bucket accounts such as $FRONTIER_JACKPOT, $JACKPOT, $ETN_REWARD_FOILS, etc.
- */
-export async function fetchAccountCardCollection(username: string): Promise<SplPlayerCardDetail[]> {
-  const url = SPL_API.CARDS_COLLECTION(username);
-  logger.info(`Fetching card collection for account ${username}`);
-
-  try {
-    const res = await splBaseClient.get(url);
-    const data = res.data as SplPlayerCollection;
-
-    if (!data || !Array.isArray(data.cards)) {
-      throw new Error("Invalid response from Splinterlands API: expected array");
-    }
-
-    return data.cards;
-  } catch (error) {
-    logger.error(
-      `Failed to fetch card collection for ${username}: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-    throw error;
-  }
-}
-
-/**
- * Fetch music inventory from Splinterlands API for $MUSIC_JACKPOT
- */
-export async function fetchJackpotMusic(): Promise<SplInventoryItem[]> {
-  const url = SPL_API.PLAYER_INVENTORY;
-  console.info(`Fetching music inventory for username $MUSIC_JACKPOT`);
-
-  try {
-    const res = await splBaseClient.get(url, { params: { username: "$MUSIC_JACKPOT" } });
-    const data = res.data;
-
-    // Handle API-level error even if HTTP status is 200
-    if (!data || !Array.isArray(data)) {
-      throw new Error("Invalid response from Splinterlands API: expected array");
-    }
-
-    // Filter items where type === "Music"
-    const musicItems = data.filter((item: SplInventoryItem) => item.type === "Music");
-
-    console.info(`Fetched ${musicItems.length} music items for username $MUSIC_JACKPOT`);
-
-    return musicItems as SplInventoryItem[];
-  } catch (error) {
-    console.error(
-      `Failed to fetch music inventory: ${error instanceof Error ? error.message : "Unknown error"}`
-    );
-    throw error;
-  }
-}
-
-/**
- * Fetch music inventory from Splinterlands API for $FRONTIER_MUSIC_JACKPOT
- */
-export async function fetchFrontierJackpotMusic(): Promise<SplInventoryItem[]> {
-  const url = SPL_API.PLAYER_INVENTORY;
-  console.info(`Fetching music inventory for username $FRONTIER_MUSIC_JACKPOT`);
-
-  try {
-    const res = await splBaseClient.get(url, { params: { username: "$FRONTIER_MUSIC_JACKPOT" } });
-    const data = res.data;
-
-    // Handle API-level error even if HTTP status is 200
-    if (!data || !Array.isArray(data)) {
-      throw new Error("Invalid response from Splinterlands API: expected array");
-    }
-
-    // Filter items where type === "Music"
-    const musicItems = data.filter((item: SplInventoryItem) => item.type === "Music");
-
-    console.info(`Fetched ${musicItems.length} music items for username $FRONTIER_MUSIC_JACKPOT`);
-
-    return musicItems as SplInventoryItem[];
-  } catch (error) {
-    console.error(
-      `Failed to fetch frontier music inventory: ${error instanceof Error ? error.message : "Unknown error"}`
     );
     throw error;
   }

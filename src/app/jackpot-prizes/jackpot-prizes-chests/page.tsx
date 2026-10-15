@@ -1,42 +1,16 @@
-import { BucketServer } from "@/components/jackpot-prizes/BucketServer";
+import { AccountSkinsSection } from "@/components/jackpot-prizes/AccountSkinsSection";
+import { BucketClient } from "@/components/jackpot-prizes/BucketClient";
 import { EditionTierCardsServer } from "@/components/jackpot-prizes/EditionTierCardsServer";
+import JackpotMusicSections from "@/components/jackpot-prizes/JackpotMusicSections";
 import LoadingSkeleton from "@/components/jackpot-prizes/LoadingSkeleton";
-import { MusicCard } from "@/components/jackpot-prizes/MusicCard";
-import { SkinsCard } from "@/components/jackpot-prizes/SkinsCard";
 import { getCardDetails } from "@/lib/backend/actions/jackpot-prizes/cardDetails";
-import { getJackpotMusic } from "@/lib/backend/actions/jackpot-prizes/jackpotMusic";
-import {
-  getFrontierJackpotSkins,
-  getJackpotSkins,
-  getMajorJackpotSkins,
-  getMinorJackpotSkins,
-} from "@/lib/backend/actions/jackpot-prizes/jackpotSkins";
-import { Alert, Box, Container, Divider, Typography } from "@mui/material";
+import { Alert, Container, Divider, Typography } from "@mui/material";
 import { Suspense } from "react";
 
 async function JackpotPrizesContent() {
-  let jackpotSkins,
-    minorJackpotSkins,
-    majorJackpotSkins,
-    frontierJackpotSkins,
-    jackpotMusicData,
-    cardDetails;
+  let cardDetails;
   try {
-    [
-      jackpotSkins,
-      minorJackpotSkins,
-      majorJackpotSkins,
-      frontierJackpotSkins,
-      jackpotMusicData,
-      cardDetails,
-    ] = await Promise.all([
-      getJackpotSkins(),
-      getMinorJackpotSkins(),
-      getMajorJackpotSkins(),
-      getFrontierJackpotSkins(),
-      getJackpotMusic(),
-      getCardDetails(),
-    ]);
+    cardDetails = await getCardDetails();
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return (
@@ -46,244 +20,59 @@ async function JackpotPrizesContent() {
     );
   }
 
-  const { chestMusic, frontierMusic } = jackpotMusicData;
-
   return (
     <Container maxWidth="lg" sx={{ mt: 4, pb: 4 }}>
-      {/* Minor Jackpot Skins */}
-      <Typography variant="h4" component="h2" gutterBottom>
-        Minor Chest Jackpot Skins
-      </Typography>
-      <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
-        <Typography variant="body2" component="div">
-          <strong>Found in the minor chests as jackpot prizes</strong>
-          <br />
-          • Minor: 1%
-          <br />
-        </Typography>
-      </Alert>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(3, 1fr)",
-            lg: "repeat(4, 1fr)",
-          },
-          gap: 3,
-        }}
-      >
-        {minorJackpotSkins.map((item) => (
-          <SkinsCard
-            key={`minor-jackpot-skins-${item.skin_detail_id}`}
-            item={item}
-            cardDetails={cardDetails}
-          />
-        ))}
-      </Box>
-      {minorJackpotSkins.length === 0 && (
-        <Box textAlign="center" mt={4}>
-          <Typography variant="h6" color="text.secondary">
-            No minor jackpot skins data available
-          </Typography>
-        </Box>
-      )}
-      <Divider sx={{ my: 4 }} />
+      <AccountSkinsSection
+        account="$MINOR_JACKPOT_SKINS"
+        title="Minor Chest Jackpot Skins"
+        description={
+          <>
+            <strong>Found in the minor chests as jackpot prizes</strong>
+            <br />• Minor: 1%
+          </>
+        }
+        emptyMessage="No minor jackpot skins data available"
+        cardDetails={cardDetails}
+      />
+      <AccountSkinsSection
+        account="$MAJOR_JACKPOT_SKINS"
+        title="Major Chest Jackpot Skins"
+        description={
+          <>
+            <strong>Found in the major chests as jackpot prizes</strong>
+            <br />• Major: 2%
+          </>
+        }
+        emptyMessage="No major jackpot skins data available"
+        cardDetails={cardDetails}
+      />
+      <AccountSkinsSection
+        account="$JACKPOT_SKINS"
+        title="Ultimate Chest Jackpot Skins"
+        description={
+          <>
+            <strong>Found in the ultimate chests as jackpot prizes</strong>
+            <br />• Ultimate: 3%
+          </>
+        }
+        emptyMessage="No jackpot skins data available"
+        cardDetails={cardDetails}
+      />
+      <AccountSkinsSection
+        account="$FRONTIER_SKIN_JACKPOT"
+        title="Frontier Jackpot Skins"
+        description={
+          <>
+            <strong>Found in the frontier as jackpot prizes</strong>
+            <br />• Frontier daily rewards: 2%
+          </>
+        }
+        emptyMessage="No frontier jackpot skins data available"
+        cardDetails={cardDetails}
+      />
 
-      {/* Major Jackpot Skins */}
-      <Typography variant="h4" component="h2" gutterBottom>
-        Major Chest Jackpot Skins
-      </Typography>
-      <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
-        <Typography variant="body2" component="div">
-          <strong>Found in the major chests as jackpot prizes</strong>
-          <br />
-          • Major: 2%
-          <br />
-        </Typography>
-      </Alert>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(3, 1fr)",
-            lg: "repeat(4, 1fr)",
-          },
-          gap: 3,
-        }}
-      >
-        {majorJackpotSkins.map((item) => (
-          <SkinsCard
-            key={`major-jackpot-skins-${item.skin_detail_id}`}
-            item={item}
-            cardDetails={cardDetails}
-          />
-        ))}
-      </Box>
-      {majorJackpotSkins.length === 0 && (
-        <Box textAlign="center" mt={4}>
-          <Typography variant="h6" color="text.secondary">
-            No major jackpot skins data available
-          </Typography>
-        </Box>
-      )}
-      <Divider sx={{ my: 4 }} />
+      <JackpotMusicSections />
 
-      {/* Second Part - Jackpot Skins Data */}
-      <Typography variant="h4" component="h2" gutterBottom>
-        Ultimate Chest Jackpot Skins
-      </Typography>
-      <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
-        <Typography variant="body2" component="div">
-          <strong>Found in the ultimate chests as jackpot prizes</strong>
-          <br />
-          • Ultimate: 3%
-          <br />
-        </Typography>
-      </Alert>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(3, 1fr)",
-            lg: "repeat(4, 1fr)",
-          },
-          gap: 3,
-        }}
-      >
-        {jackpotSkins.map((item) => (
-          <SkinsCard
-            key={`jackpot-skins-${item.skin_detail_id}`}
-            item={item}
-            cardDetails={cardDetails}
-          />
-        ))}
-      </Box>
-      {jackpotSkins.length === 0 && (
-        <Box textAlign="center" mt={4}>
-          <Typography variant="h6" color="text.secondary">
-            No jackpot skins data available
-          </Typography>
-        </Box>
-      )}
-      <Divider sx={{ my: 4 }} />
-
-      {/* Frontier Jackpot Skins Data */}
-      <Typography variant="h4" component="h2" gutterBottom>
-        Frontier Jackpot Skins
-      </Typography>
-      <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
-        <Typography variant="body2" component="div">
-          <strong>Found in the frontier as jackpot prizes</strong>
-          <br />
-          • Frontier daily rewards: 2%
-          <br />
-        </Typography>
-      </Alert>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(3, 1fr)",
-            lg: "repeat(4, 1fr)",
-          },
-          gap: 3,
-        }}
-      >
-        {frontierJackpotSkins.map((item) => (
-          <SkinsCard
-            key={`frontier-jackpot-skins-${item.skin_detail_id}`}
-            item={item}
-            cardDetails={cardDetails}
-          />
-        ))}
-      </Box>
-      {frontierJackpotSkins.length === 0 && (
-        <Box textAlign="center" mt={4}>
-          <Typography variant="h6" color="text.secondary">
-            No frontier jackpot skins data available
-          </Typography>
-        </Box>
-      )}
-
-      <Divider sx={{ my: 4 }} />
-
-      {/* Third Part - Chest Jackpot Music Data */}
-      <Typography variant="h4" component="h2" gutterBottom>
-        Jackpot Music (Chest)
-      </Typography>
-      <Alert severity="info" sx={{ mb: 4 }}>
-        <Typography variant="body2" component="div">
-          <strong>Found in the minor chest as jackpot prizes</strong>
-          <br />• Minor: 0.05%
-        </Typography>
-      </Alert>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(3, 1fr)",
-            lg: "repeat(4, 1fr)",
-          },
-          gap: 3,
-          mb: 3,
-        }}
-      >
-        {chestMusic.map((item) => (
-          <MusicCard key={`chest-music-${item.item_detail_id}`} item={item} />
-        ))}
-      </Box>
-      {chestMusic.length === 0 && (
-        <Box textAlign="center" mb={3}>
-          <Typography variant="h6" color="text.secondary">
-            No chest jackpot music data available
-          </Typography>
-        </Box>
-      )}
-      <Divider sx={{ my: 4 }} />
-      {/* Fourth Part - Frontier Jackpot Music Data */}
-      <Typography variant="h4" component="h2" gutterBottom>
-        Jackpot Music (Frontier)
-      </Typography>
-      <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
-        <Typography variant="body2" component="div">
-          <strong>Every claim (5 wins) 0.05% odds</strong>
-          <br />• Maximum 3 per day
-        </Typography>
-      </Alert>
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: {
-            xs: "1fr",
-            sm: "repeat(2, 1fr)",
-            md: "repeat(3, 1fr)",
-            lg: "repeat(4, 1fr)",
-          },
-          gap: 3,
-        }}
-      >
-        {frontierMusic.map((item) => (
-          <MusicCard key={`frontier-music-${item.item_detail_id}`} item={item} />
-        ))}
-      </Box>
-      {frontierMusic.length === 0 && (
-        <Box textAlign="center" mt={4}>
-          <Typography variant="h6" color="text.secondary">
-            No frontier jackpot music data available
-          </Typography>
-        </Box>
-      )}
-      <Divider sx={{ my: 4 }} />
       <Typography variant="h4" component="h2" gutterBottom>
         Jackpot Card Data Chest Reward Foils
       </Typography>
@@ -294,20 +83,15 @@ async function JackpotPrizesContent() {
           • Minor: 0.08%
           <br />
           • Major: 0.8%
-          <br />
-          • Ultimate: 8%
-          <br />
+          <br />• Ultimate: 8%
         </Typography>
       </Alert>
-      <Suspense fallback={<LoadingSkeleton />}>
-        <BucketServer username="$JACKPOT" />
-      </Suspense>
+      <BucketClient username="$JACKPOT" cardDetails={cardDetails} />
       <Divider sx={{ my: 3 }} />
 
       <Typography variant="h5" component="h2" gutterBottom>
         Jackpot Card Data ETN Reward Foils
       </Typography>
-
       <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
         <Typography variant="body2" component="div">
           <strong>Found as part of jackpot in reward chest</strong>
@@ -317,15 +101,10 @@ async function JackpotPrizesContent() {
           • Arcing : 0.05%
           <br />
           • Hyper: 0.25%
-          <br />
-          • Aurelius : 1.5%
-          <br />
+          <br />• Aurelius : 1.5%
         </Typography>
       </Alert>
-
-      <Suspense fallback={<LoadingSkeleton />}>
-        <BucketServer username="$ETN_REWARD_FOILS" />
-      </Suspense>
+      <BucketClient username="$ETN_REWARD_FOILS" cardDetails={cardDetails} />
       <Suspense fallback={<LoadingSkeleton />}>
         <EditionTierCardsServer
           edition={17}

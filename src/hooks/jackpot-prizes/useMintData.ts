@@ -14,6 +14,7 @@ interface LoadingState {
 
 export function useMintData() {
   const [mintData, setMintData] = useState<MintDataState>({});
+  const [fetchedAt, setFetchedAt] = useState<{ [key: string]: string }>({});
   const [loading, setLoading] = useState<LoadingState>({});
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   // Keys fetched (or being fetched) once. Also covers failures, so an error doesn't
@@ -29,8 +30,9 @@ export function useMintData() {
     setErrors((prev) => ({ ...prev, [key]: "" }));
 
     try {
-      const data = await getMintHistoryAction(foil, cardId);
-      setMintData((prev) => ({ ...prev, [key]: data }));
+      const result = await getMintHistoryAction(foil, cardId);
+      setMintData((prev) => ({ ...prev, [key]: result.data }));
+      setFetchedAt((prev) => ({ ...prev, [key]: result.fetchedAt }));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       console.error(`Error fetching mint data for foil ${foil}:`, errorMessage);
@@ -45,6 +47,11 @@ export function useMintData() {
       return mintData[`${cardId}-${foil}`] ?? null;
     },
     [mintData]
+  );
+
+  const getMintDataFetchedAt = useCallback(
+    (cardId: number, foil: number) => fetchedAt[`${cardId}-${foil}`] ?? null,
+    [fetchedAt]
   );
 
   const hasFoilData = useCallback(
@@ -70,6 +77,7 @@ export function useMintData() {
 
   return {
     getMintData,
+    getMintDataFetchedAt,
     fetchMintData,
     hasFoilData,
     isLoading,

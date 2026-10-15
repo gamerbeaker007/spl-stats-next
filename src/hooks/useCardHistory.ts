@@ -8,6 +8,7 @@ interface UseCardHistoryReturn {
   cardHistory: CardHistoryResponse | null;
   loading: boolean;
   error: string | null;
+  checkedAt: number | null;
   fetchCardHistory: (cardId: string) => Promise<void>;
 }
 
@@ -19,6 +20,7 @@ export function useCardHistory(): UseCardHistoryReturn {
   const [cardHistory, setCardHistory] = useState<CardHistoryResponse | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkedAt, setCheckedAt] = useState<number | null>(null);
 
   const fetchCardHistory = useCallback(async (cardId: string) => {
     if (!cardId || !cardId.trim()) {
@@ -28,6 +30,8 @@ export function useCardHistory(): UseCardHistoryReturn {
 
     setLoading(true);
     setError(null);
+    setCardHistory(null);
+    setCheckedAt(null);
 
     try {
       const result = await fetchCardHistoryInBrowser(cardId);
@@ -38,6 +42,7 @@ export function useCardHistory(): UseCardHistoryReturn {
       }
 
       setCardHistory(result);
+      setCheckedAt(Date.now());
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to fetch card history";
       setError(errorMessage);
@@ -51,6 +56,7 @@ export function useCardHistory(): UseCardHistoryReturn {
     cardHistory,
     loading,
     error,
+    checkedAt,
     fetchCardHistory,
   };
 }

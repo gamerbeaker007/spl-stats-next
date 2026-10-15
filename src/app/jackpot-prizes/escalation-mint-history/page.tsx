@@ -20,7 +20,8 @@ async function EscalationMintHistoryContent() {
 
   return (
     <ClientCardGrid
-      prizeData={jackpotData}
+      prizeData={jackpotData.data}
+      fetchedAt={jackpotData.fetchedAt}
       cardDetails={cardDetails}
       title="Escalation Jackpot Prize Overview"
       subtitle="Discover cards available in Escalation packs"
