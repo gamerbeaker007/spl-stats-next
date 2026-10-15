@@ -1,5 +1,6 @@
 "use client";
 
+import { useResettableState } from "@/hooks/useResettableState";
 import CardTableIcon from "@/components/collection/buy-missing-cc/CardTableIcon";
 import { getFoilLabel, toCardFoilInt } from "@/lib/shared/card-utils";
 import { formatPct, pctChange, pctColor } from "@/lib/shared/card-watch-utils";
@@ -19,7 +20,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import Image from "next/image";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { MdLocalOffer } from "react-icons/md";
 import type { CardDisplayItem } from "./card-display-item";
 import type { CardSort, CardSortField } from "./card-sort";
@@ -95,14 +96,9 @@ export function CardTable({
   /** Omit to hide the watch columns (guests). */
   onToggleWatch?: (cardDetailId: number, edition: number, foil: number) => void;
 }>) {
-  const [page, setPage] = useState(0);
+  // Back to page 1 on filter/sort changes; a live price refresh keeps the row count, so the page stays.
+  const [page, setPage] = useResettableState(0, `${items.length}:${sort.field}:${sort.dir}`);
   const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE);
-
-  useEffect(() => {
-    // Back to page 1 on filter/sort changes; a live price refresh keeps the row count, so the page stays.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPage(0);
-  }, [items.length, sort.field, sort.dir]);
 
   const maxPage = Math.max(0, Math.ceil(items.length / rowsPerPage) - 1);
   const currentPage = Math.min(page, maxPage);

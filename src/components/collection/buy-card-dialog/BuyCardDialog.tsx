@@ -214,33 +214,51 @@ export default function BuyCardDialog({
   const [dynamicCardUids, setDynamicCardUids] = useState<string[]>([]);
   const [allowExtraCopies, setAllowExtraCopies] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    setSelectedAccount(account.toLowerCase());
-    setSelectedFoil(initialFoilSelection);
-    setActiveMode(mode);
-    setTargetBracket(initialTargetBracket || "");
-    setContextError(null);
-    setResolvedSettings(settings ?? null);
-    setDynamicAccountStates(accountStates ?? {});
-    setDynamicBalances(accountBalances ?? {});
-  }, [
+  // Sync props into state while open ("adjust state during render" instead of an effect).
+  // Any change in the reset inputs (including the dialog opening) resets the dialog state
+  // to the props; a change in only the merge inputs merges the props into the dynamic state.
+  const resetInputs = [
+    open,
     account,
     accountBalances,
     accountStates,
     initialFoilSelection,
     initialTargetBracket,
     mode,
+    settings,
+  ] as const;
+  const mergeInputs = [
+    accountBalances,
+    accountStates,
+    rarity,
+    role,
+    cardStats,
+    tier,
     open,
     settings,
-  ]);
-
-  useEffect(() => {
-    if (!open) return;
-    if (settings) setResolvedSettings(settings);
-    if (accountStates) setDynamicAccountStates((prev) => ({ ...prev, ...accountStates }));
-    if (accountBalances) setDynamicBalances((prev) => ({ ...prev, ...accountBalances }));
-  }, [accountBalances, accountStates, rarity, role, cardStats, tier, open, settings]);
+  ] as const;
+  const [prevResetInputs, setPrevResetInputs] = useState(resetInputs);
+  const [prevMergeInputs, setPrevMergeInputs] = useState(mergeInputs);
+  const resetInputsChanged = resetInputs.some((value, i) => !Object.is(value, prevResetInputs[i]));
+  const mergeInputsChanged = mergeInputs.some((value, i) => !Object.is(value, prevMergeInputs[i]));
+  if (resetInputsChanged || mergeInputsChanged) {
+    setPrevResetInputs(resetInputs);
+    setPrevMergeInputs(mergeInputs);
+    if (open && resetInputsChanged) {
+      setSelectedAccount(account.toLowerCase());
+      setSelectedFoil(initialFoilSelection);
+      setActiveMode(mode);
+      setTargetBracket(initialTargetBracket || "");
+      setContextError(null);
+      setResolvedSettings(settings ?? null);
+      setDynamicAccountStates(accountStates ?? {});
+      setDynamicBalances(accountBalances ?? {});
+    } else if (open) {
+      if (settings) setResolvedSettings(settings);
+      if (accountStates) setDynamicAccountStates((prev) => ({ ...prev, ...accountStates }));
+      if (accountBalances) setDynamicBalances((prev) => ({ ...prev, ...accountBalances }));
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -347,11 +365,22 @@ export default function BuyCardDialog({
     });
   }, [cardDetailId, edition, fetchRows, open, selectedFoil, collectionRefreshVersion]);
 
-  useEffect(() => {
+  // Reset the manual-listing selection and paging whenever the filters change
+  // ("adjust state during render" instead of an effect).
+  const selectionResetInputs = [
+    selectedFoil,
+    levelFilter,
+    pageSize,
+    selectedAccount,
+    activeMode,
+  ] as const;
+  const [prevSelectionResetInputs, setPrevSelectionResetInputs] = useState(selectionResetInputs);
+  if (selectionResetInputs.some((value, i) => !Object.is(value, prevSelectionResetInputs[i]))) {
+    setPrevSelectionResetInputs(selectionResetInputs);
     setSelectedIds([]);
     setShiftAnchorIndex(null);
     setPage(1);
-  }, [selectedFoil, levelFilter, pageSize, selectedAccount, activeMode]);
+  }
 
   const listingLevels = useMemo(
     () => Array.from(new Set(rows.map((row) => row.level))).sort((a, b) => a - b),

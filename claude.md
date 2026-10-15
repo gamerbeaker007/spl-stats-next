@@ -232,6 +232,13 @@ scripts/
 - No copy-paste logic across files.
 - No barrel (`index.ts`) files unless 4+ exports always imported together.
 
+### Effects and State (`react-hooks/set-state-in-effect` is enforced)
+
+- Never call `setState` synchronously in an effect. Pick the replacement by what the effect did:
+  - **Load data** → `useAsyncData(key, loader, opts)` (`hooks/useAsyncData.ts`): `key = null` disables, encode every loader input in `key`; derived `loading`, drops stale responses, `refetch({ silent })`, `mutate(data)`. JWT sections → `useAuthenticatedData` (`hooks/useAuthenticatedData.ts`).
+  - **Reset state when an input changes** (page index, draft from props) → `useResettableState(initial, resetKey)`, the handler that changes the input, or "adjust state during render".
+  - **Read localStorage** → `useLocalStorageValue(key)` (`undefined` until hydrated, `null` when unset).
+
 ### Hydration
 
 - Any `<a>` or element with `href` needs `suppressHydrationWarning` — Hive Keychain extension mutates those nodes.
@@ -244,6 +251,7 @@ scripts/
 
 ## Code Conventions
 
+- **Always run `npm run format:all` after every code change** (Prettier → `eslint --fix` → `tsc --noEmit`) and make it pass before considering the work done. Fix real lint errors; only disable a rule in `eslint.config.mjs` (with a comment explaining why) when it is a false positive for this codebase.
 - Import alias: `@/` for all internal imports.
 - Prisma singleton: `@/lib/prisma` (backend-only).
 - Logger: `@/lib/backend/log/logger.server` (server-only).

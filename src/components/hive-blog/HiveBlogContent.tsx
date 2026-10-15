@@ -28,7 +28,7 @@ import Tabs from "@mui/material/Tabs";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import { type KeyboardEvent, useEffect, useState } from "react";
+import { type KeyboardEvent, useState } from "react";
 import { MdContentCopy, MdSend } from "react-icons/md";
 
 function CopyButton({ text, label }: { text: string; label: string }) {
@@ -74,14 +74,18 @@ function PostPanel({
   const [editedBody, setEditedBody] = useState(body);
   const [editedTitle, setEditedTitle] = useState(title);
 
-  // Sync when body prop changes externally (e.g. after market scan completes)
-  useEffect(() => {
+  // Sync when body/title props change externally (e.g. after market scan completes).
+  // Adjust-state-during-render: compare against the last seen prop value.
+  const [prevBody, setPrevBody] = useState(body);
+  const [prevTitle, setPrevTitle] = useState(title);
+  if (body !== prevBody) {
+    setPrevBody(body);
     setEditedBody(body);
-  }, [body]);
-
-  useEffect(() => {
+  }
+  if (title !== prevTitle) {
+    setPrevTitle(title);
     setEditedTitle(title);
-  }, [title]);
+  }
 
   return (
     <Box

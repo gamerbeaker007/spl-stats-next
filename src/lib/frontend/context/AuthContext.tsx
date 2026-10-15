@@ -38,27 +38,34 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
   const [reAuthVersion, setReAuthVersion] = useState(0);
   const [tokenStatusVersion, setTokenStatusVersion] = useState(0);
 
-  // Check if user is logged in (from server)
-  const checkAuthStatus = async () => {
-    try {
-      setError(null);
-      const data = await getAuthStatus();
+  // Check if user is logged in (from server). State is only set once the
+  // request settles, so this is safe to start from an effect.
+  const loadAuthStatus = (): Promise<void> =>
+    getAuthStatus()
+      .then(
+        (data) => {
+          if (data.authenticated && data.username) {
+            setUser({
+              username: data.username,
+              isAuthenticated: true,
+            });
+          } else {
+            setUser(null);
+          }
+        },
+        (error: unknown) => {
+          console.error("Auth check error:", error);
+          setError("Auth check error");
+          setUser(null);
+        }
+      )
+      .finally(() => {
+        setLoading(false);
+      });
 
-      if (data.authenticated && data.username) {
-        setUser({
-          username: data.username,
-          isAuthenticated: true,
-        });
-      } else {
-        setUser(null);
-      }
-    } catch (error) {
-      console.error("Auth check error:", error);
-      setError("Auth check error");
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
+  const checkAuthStatus = async () => {
+    setError(null);
+    await loadAuthStatus();
   };
 
   // Login function - throws errors for caller to handle
@@ -114,9 +121,9 @@ export function AuthProvider({ children }: Readonly<{ children: ReactNode }>) {
     setError(null);
   };
 
-  // Check auth status on mount
+  // Check auth status on mount (`error` already starts out `null`)
   useEffect(() => {
-    checkAuthStatus();
+    loadAuthStatus();
   }, []);
 
   const contextValue: AuthContextType = {

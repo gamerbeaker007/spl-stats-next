@@ -1,5 +1,6 @@
 "use client";
 
+import { useAsyncData } from "@/hooks/useAsyncData";
 import {
   DONATION_ACCOUNT,
   DONATION_MEMO,
@@ -43,7 +44,7 @@ import Select from "@mui/material/Select";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
 interface DonationSectionProps {
   username: string | null;
@@ -84,51 +85,48 @@ export default function DonationSection({
   authLoading,
   onMessage,
 }: Readonly<DonationSectionProps>) {
-  const [balances, setBalances] = useState<Balances | null>(null);
-  const [balanceError, setBalanceError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [currency, setCurrency] = useState<DonationCurrency>(SUPPORTED_DONATION_CURRENCIES[0]);
   const [amount, setAmount] = useState("");
   const [pending, setPending] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const loadingBalances = refreshing || (!!username && !authLoading && balances === null);
+  const balanceAccount = !authLoading && username ? username : null;
+  const balanceData = useAsyncData(
+    balanceAccount && `donation-balances:${balanceAccount}`,
+    async () => {
+      if (!balanceAccount) throw new Error("No account");
+      // DEC/SPS live from SPL in the browser; HIVE/HBD from the server.
+      const [spl, hive] = await Promise.allSettled([
+        fetchAccountBalances(balanceAccount),
+        getSupportHiveBalances(),
+      ]);
+      const splBalances = spl.status === "fulfilled" ? spl.value : [];
+      const hiveBalances =
+        hive.status === "fulfilled" ? hive.value : { hive: 0, hbd: 0, error: undefined };
+      const errors = [
+        spl.status === "rejected" ? "Could not load DEC/SPS balances" : null,
+        hive.status === "rejected"
+          ? "Could not load HIVE/HBD balances"
+          : (hiveBalances.error ?? null),
+      ].filter(Boolean);
+
+      return {
+        balances: {
+          dec: tokenBalance(splBalances, "DEC"),
+          sps: tokenBalance(splBalances, "SPS"),
+          hive: hiveBalances.hive,
+          hbd: hiveBalances.hbd,
+        } satisfies Balances,
+        error: errors.length > 0 ? errors.join("; ") : null,
+      };
+    }
+  );
+  const balances = balanceData.data?.balances ?? null;
+  const balanceError = balanceData.data?.error ?? null;
+  const loadingBalances = balanceData.loading;
+  const refreshBalances = balanceData.refetch;
   const selectedBalance = balances?.[BALANCE_KEY[currency]] ?? null;
   const decimals = DECIMALS[currency];
-
-  // Memoised because the mount effect below depends on it.
-  const refreshBalances = useCallback(async () => {
-    if (!username) return;
-    setRefreshing(true);
-    // DEC/SPS live from SPL in the browser; HIVE/HBD from the server.
-    const [spl, hive] = await Promise.allSettled([
-      fetchAccountBalances(username),
-      getSupportHiveBalances(),
-    ]);
-    const splBalances = spl.status === "fulfilled" ? spl.value : [];
-    const hiveBalances =
-      hive.status === "fulfilled" ? hive.value : { hive: 0, hbd: 0, error: undefined };
-    const errors = [
-      spl.status === "rejected" ? "Could not load DEC/SPS balances" : null,
-      hive.status === "rejected"
-        ? "Could not load HIVE/HBD balances"
-        : (hiveBalances.error ?? null),
-    ].filter(Boolean);
-
-    setBalances({
-      dec: tokenBalance(splBalances, "DEC"),
-      sps: tokenBalance(splBalances, "SPS"),
-      hive: hiveBalances.hive,
-      hbd: hiveBalances.hbd,
-    });
-    setBalanceError(errors.length > 0 ? errors.join("; ") : null);
-    setRefreshing(false);
-  }, [username]);
-
-  useEffect(() => {
-    if (authLoading) return;
-    void refreshBalances();
-  }, [authLoading, refreshBalances]);
 
   const validateAmount = (value: string): string | null => {
     const parsed = Number.parseFloat(value);

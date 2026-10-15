@@ -1,5 +1,6 @@
 "use client";
 
+import { useResettableState } from "@/hooks/useResettableState";
 import BuyCardDialog from "@/components/collection/buy-card-dialog/BuyCardDialog";
 import { useCardFilter } from "@/lib/frontend/context/CardFilterContext";
 import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
@@ -73,7 +74,6 @@ export const CardSection = ({
   const { field: sortBy, dir: sortDir } = sort;
   // Every card is missing in "only" mode, so the greyed-out missing styling adds nothing.
   const dimMissing = filter.missingCards !== "only";
-  const [visibleCount, setVisibleCount] = useState(GRID_BATCH_SIZE);
   const gridSentinelRef = useRef<HTMLDivElement | null>(null);
 
   // Rendered here, not inside Card: portal clicks bubble through the React tree to Card's onClick.
@@ -240,10 +240,10 @@ export const CardSection = ({
     return next;
   }, [displayItems, sortBy, sortDir]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setVisibleCount(GRID_BATCH_SIZE);
-  }, [sortedItems.length, sortBy, sortDir, viewMode]);
+  const [visibleCount, setVisibleCount] = useResettableState(
+    GRID_BATCH_SIZE,
+    `${sortedItems.length}:${sortBy}:${sortDir}:${viewMode}`
+  );
 
   useEffect(() => {
     if (viewMode !== "card") return;
@@ -264,7 +264,7 @@ export const CardSection = ({
 
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [sortedItems.length, viewMode, visibleCount]);
+  }, [setVisibleCount, sortedItems.length, viewMode, visibleCount]);
 
   const visibleGridItems = sortedItems.slice(0, visibleCount);
 

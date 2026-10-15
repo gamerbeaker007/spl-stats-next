@@ -1,8 +1,8 @@
 "use client";
 
+import { useAsyncData } from "@/hooks/useAsyncData";
 import { getCardDetails } from "@/lib/backend/actions/player-actions";
 import { SplCardDetail } from "@/types/spl/cardDetails";
-import { useCallback, useEffect, useState } from "react";
 
 interface UseCardDetailsReturn {
   cardDetails: SplCardDetail[];
@@ -15,38 +15,29 @@ interface UseCardDetailsOptions {
   autoFetch?: boolean;
 }
 
+const NO_CARDS: SplCardDetail[] = [];
+
+async function loadCardDetails(): Promise<SplCardDetail[]> {
+  try {
+    return await getCardDetails();
+  } catch (err) {
+    console.error("Card data fetch error:", err);
+    throw err;
+  }
+}
+
 export function useCardDetails(options: UseCardDetailsOptions = {}): UseCardDetailsReturn {
   const { autoFetch = true } = options;
-  const [cardDetails, setCardDetails] = useState<SplCardDetail[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const cardResult = await getCardDetails();
-      setCardDetails(cardResult);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to fetch data";
-      setError(errorMessage);
-      console.error("Card data fetch error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (autoFetch) {
-      fetchData();
-    }
-  }, [fetchData, autoFetch]);
+  const { data, loading, error, refetch } = useAsyncData(
+    autoFetch ? "card-details" : null,
+    loadCardDetails,
+    { errorMessage: "Failed to fetch data" }
+  );
 
   return {
-    cardDetails,
+    cardDetails: data ?? NO_CARDS,
     loading,
     error,
-    refetch: fetchData,
+    refetch,
   };
 }

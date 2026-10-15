@@ -30,7 +30,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { MdArrowBack, MdExpandMore, MdOpenInNew } from "react-icons/md";
-import { useEffect, useMemo, useState } from "react";
+import { useLocalStorageValue } from "@/hooks/useLocalStorageValue";
+import { useResettableState } from "@/hooks/useResettableState";
+import { useEffect, useMemo } from "react";
 import { DEFAULT_UNIFIED_FILTER } from "@/types/card-filter";
 
 const ACCOUNT_STORAGE_KEY = "card-detail-account";
@@ -296,8 +298,12 @@ export default function CardDetailContent({
 }: CardDetailContentProps) {
   const router = useRouter();
   const pathname = usePathname();
-  // initialAccount (server-validated) takes priority; fall back to localStorage
-  const [account, setAccount] = useState(initialAccount);
+  // initialAccount (server-validated) takes priority; fall back to localStorage.
+  // In tab mode the account always comes from the shared filter — skip localStorage.
+  const [storedAccount, setStoredAccount] = useLocalStorageValue(ACCOUNT_STORAGE_KEY);
+  // An explicit pick from the selector, cleared when initialAccount changes (URL navigation).
+  const [pickedAccount, setAccount] = useResettableState<string | null>(null, initialAccount);
+  const account = pickedAccount ?? (initialAccount || (tabMode ? "" : (storedAccount ?? "")));
   const { accounts, loading: accountsLoading } = useMonitoredAccountNames();
   // In tab mode the card is selected via the filter drawer — skip loading card options
   const { cards: cardOptions, loading: cardsLoading } = useCardOptions(tabMode ? "" : account);
@@ -325,32 +331,11 @@ export default function CardDetailContent({
     }
   };
 
-  // Sync account state when initialAccount changes (URL navigation or filter context change).
-  // In tab mode the account always comes from the shared filter — skip localStorage.
-  useEffect(() => {
-    if (initialAccount) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setAccount(initialAccount);
-      return;
-    }
-    if (tabMode) return;
-    try {
-      const saved = localStorage.getItem(ACCOUNT_STORAGE_KEY);
-      if (saved) setAccount(saved);
-    } catch {
-      // ignore
-    }
-  }, [initialAccount, tabMode]);
-
   // Persist account to localStorage in non-tab mode only
   useEffect(() => {
-    if (tabMode || !account) return;
-    try {
-      localStorage.setItem(ACCOUNT_STORAGE_KEY, account);
-    } catch {
-      // ignore
-    }
-  }, [account, tabMode]);
+    if (tabMode || !account || account === storedAccount) return;
+    setStoredAccount(account);
+  }, [account, storedAccount, setStoredAccount, tabMode]);
 
   return (
     <Box sx={{ p: 2 }}>

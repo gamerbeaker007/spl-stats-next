@@ -9,6 +9,21 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.31.0] - 2026-10-15
+
+### Changed
+
+- **No more `setState` in effects:** `eslint-plugin-react-hooks` 7.1 (via `eslint-config-next` 16.4) flagged 39 sites and broke `npm run format:all`. All are fixed and `react-hooks/set-state-in-effect` stays enforced.
+  - New shared `useAsyncData` hook (derived loading, stale responses dropped, abortable loader) replaces the copy-pasted load/loading/error state in the season, battle, dashboard, marketplace, portfolio and support data hooks. Switching accounts quickly can no longer show an older response over a newer one.
+  - New `useAuthenticatedData` (JWT sections: daily progress, land harvest), `useResettableState` (pagination/draft resets) and `useLocalStorageValue` (hydration-safe localStorage) hooks.
+  - `AccountsContext`, `AuthContext`, `BuyCardDialog`, `AddInvestmentDialog`, `HiveBlogContent` and `BuyMissingCcPageClient` sync props/derived state during render instead of in effects.
+
+### Fixed
+
+- Ref writes during render in battle hooks, self-referencing `useCallback` in `usePlayerSeasonRewards`, mutated closure variable in `AddInvestmentDialog`.
+
+---
+
 ## [v1.30.1] - 2026-10-14
 
 - Add frontier skins to jackpot prizes

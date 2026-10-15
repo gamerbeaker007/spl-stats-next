@@ -28,7 +28,8 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useLocalStorageValue } from "@/hooks/useLocalStorageValue";
+import { useMemo, useState } from "react";
 import { PlayerCard } from "./PlayerCard";
 
 const STORAGE_KEY = "spl-dashboard-order";
@@ -45,8 +46,6 @@ function applyStoredOrder(usernames: string[], stored: string[]): string[] {
 export default function PlayerStatusDashboard() {
   const { monitoredAccounts } = useAccounts();
   const { config, loading: configLoading, updateConfig } = useDashboardConfig();
-  const [usernames, setUsernames] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [reAuthAllBusy, setReAuthAllBusy] = useState(false);
   const [reAuthResult, setReAuthResult] = useState<{
@@ -57,16 +56,16 @@ export default function PlayerStatusDashboard() {
 
   // Accounts (and their SPL token state) come from AccountsContext, which
   // already fetched them — one request for the whole dashboard.
-  useEffect(() => {
+  const [storedOrder, setStoredOrder] = useLocalStorageValue(STORAGE_KEY);
+  const loading = storedOrder === undefined;
+  const usernames = useMemo(() => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const stored: string[] = raw ? JSON.parse(raw) : [];
-      setUsernames(applyStoredOrder(monitoredAccounts, stored));
+      const stored: string[] = storedOrder ? JSON.parse(storedOrder) : [];
+      return applyStoredOrder(monitoredAccounts, stored);
     } catch {
-      setUsernames(monitoredAccounts);
+      return monitoredAccounts;
     }
-    setLoading(false);
-  }, [monitoredAccounts]);
+  }, [monitoredAccounts, storedOrder]);
 
   const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor));
 
@@ -74,18 +73,10 @@ export default function PlayerStatusDashboard() {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    setUsernames((prev) => {
-      const oldIndex = prev.indexOf(active.id as string);
-      const newIndex = prev.indexOf(over.id as string);
-      if (oldIndex === -1 || newIndex === -1) return prev;
-      const next = arrayMove(prev, oldIndex, newIndex);
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        // localStorage may be unavailable
-      }
-      return next;
-    });
+    const oldIndex = usernames.indexOf(active.id as string);
+    const newIndex = usernames.indexOf(over.id as string);
+    if (oldIndex === -1 || newIndex === -1) return;
+    setStoredOrder(JSON.stringify(arrayMove(usernames, oldIndex, newIndex)));
   };
 
   const handleReAuthAll = async () => {

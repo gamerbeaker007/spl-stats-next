@@ -1,8 +1,8 @@
 "use client";
 
+import { useAsyncData } from "@/hooks/useAsyncData";
 import { getCardDetailAction } from "@/lib/backend/actions/battle-overview-actions";
 import type { CardDetailResult } from "@/types/battles";
-import { useCallback, useEffect, useRef, useState } from "react";
 import { UnifiedCardFilter } from "@/types/card-filter";
 
 interface UseCardDetailReturn {
@@ -16,46 +16,26 @@ export function useCardDetail(
   cardDetailId: number,
   filter: UnifiedCardFilter
 ): UseCardDetailReturn {
-  const [detail, setDetail] = useState<CardDetailResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const filterRef = useRef(filter);
-  filterRef.current = filter;
-
-  const fetchDetail = useCallback(async () => {
-    if (!filterRef.current.account || !cardDetailId) {
-      setDetail(null);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await getCardDetailAction(cardDetailId, filterRef.current);
-      setDetail(result);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load card detail");
-      setDetail(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [cardDetailId]);
-
-  useEffect(() => {
-    fetchDetail();
-  }, [
-    cardDetailId,
-    filter.account,
-    filter.formats,
-    filter.matchTypes,
-    filter.minManaCap,
-    filter.maxManaCap,
-    filter.rulesets,
-    filter.groupLevels,
-    filter.groupFoils,
-    filter.sinceDays,
-    fetchDetail,
-  ]);
-
-  return { detail, loading, error, refetch: fetchDetail };
+  // Only the filter fields the query uses — other fields change without a refetch.
+  const key =
+    filter.account && cardDetailId
+      ? `card-detail:${JSON.stringify([
+          cardDetailId,
+          filter.account,
+          filter.formats,
+          filter.matchTypes,
+          filter.minManaCap,
+          filter.maxManaCap,
+          filter.rulesets,
+          filter.groupLevels,
+          filter.groupFoils,
+          filter.sinceDays,
+        ])}`
+      : null;
+  const { data, loading, error, refetch } = useAsyncData(
+    key,
+    () => getCardDetailAction(cardDetailId, filter),
+    { errorMessage: "Failed to load card detail" }
+  );
+  return { detail: data ?? null, loading, error, refetch };
 }

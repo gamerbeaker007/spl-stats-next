@@ -10,6 +10,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
 } from "react";
 
 const STORAGE_KEY = "accounts-state-v1";
@@ -63,6 +64,20 @@ function arraysEqual(left: string[], right: string[]): boolean {
   return left.every((value, index) => value === right[index]);
 }
 
+type MonitoredState = {
+  /** The logged-in account the monitored list was last loaded for (`null`: not yet). */
+  loadedFor: string | null;
+  accounts: string[];
+  /** Keyed by lowercase username. */
+  tokens: Record<string, MonitoredAccountToken>;
+};
+
+const INITIAL_MONITORED_STATE: MonitoredState = { loadedFor: null, accounts: [], tokens: {} };
+/** Logged out: nothing is monitored, and that is known without a fetch. */
+const LOGGED_OUT_MONITORED_STATE: MonitoredState = { loadedFor: "", accounts: [], tokens: {} };
+
+const subscribeNoop = () => () => {};
+
 function readStoredState(): StoredAccountsState {
   if (typeof window === "undefined") {
     return {
@@ -108,59 +123,78 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
   const [savedAccounts, setSavedAccounts] = useState<string[]>([]);
   const [selectedAccount, setSelectedAccountState] = useState("");
   const [collectionSelectedAccounts, setCollectionSelectedAccountsState] = useState<string[]>([]);
-  const [monitoredAccounts, setMonitoredAccounts] = useState<string[]>([]);
-  const [monitoredAccountTokens, setMonitoredAccountTokens] = useState<
-    Record<string, MonitoredAccountToken>
-  >({});
+  const [monitored, setMonitored] = useState<MonitoredState>(INITIAL_MONITORED_STATE);
   const [hydrated, setHydrated] = useState(false);
-  /** The logged-in account the monitored list was last loaded for (`null`: not yet). */
-  const [monitoredLoadedFor, setMonitoredLoadedFor] = useState<string | null>(null);
 
   const loggedInAccount = normalizeAccount(user?.username);
 
-  useEffect(() => {
-    // Hydrate from localStorage after mount — reading it during render would
-    // cause an SSR/client hydration mismatch, so the sync must live in an effect.
+  // `false` on the server and during hydration, `true` afterwards. Reading
+  // localStorage before that would cause an SSR/client hydration mismatch.
+  const isClient = useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false
+  );
+
+  if (isClient && !hydrated) {
+    // Hydrate from localStorage once, right after hydration ("adjust state
+    // during render": React re-renders immediately, before committing).
     const stored = readStoredState();
 
     setSavedAccounts(stored.savedAccounts);
     setSelectedAccountState(stored.selectedAccount);
     setCollectionSelectedAccountsState(stored.collectionSelectedAccounts);
     setHydrated(true);
-  }, []);
+  }
 
-  const refreshMonitoredAccounts = useCallback(async () => {
-    if (!loggedInAccount) {
-      setMonitoredAccounts([]);
-      setMonitoredAccountTokens({});
-      setMonitoredLoadedFor("");
-      return;
-    }
+  if (!loggedInAccount && monitored !== LOGGED_OUT_MONITORED_STATE) {
+    // Logged out (or auth still loading): clear the monitored accounts. Also
+    // discards a response that arrives for an account that has since logged out.
+    setMonitored(LOGGED_OUT_MONITORED_STATE);
+  }
 
-    let rows: Awaited<ReturnType<typeof getMonitoredAccounts>>;
-    try {
-      rows = await getMonitoredAccounts();
-    } finally {
-      // Even on failure: reconcile against what is known rather than never.
-      setMonitoredLoadedFor(loggedInAccount);
-    }
-    setMonitoredAccounts(normalizeAccounts(rows.map((entry) => entry.username)));
-    // The same rows already carry the SPL token state, so publishing it here
-    // costs no extra round trip and replaces the per-card `getAccountTokenStatus`
-    // call that every `AuthenticationStatus` used to make.
-    setMonitoredAccountTokens(
-      Object.fromEntries(
-        rows.map((entry) => [
-          normalizeAccount(entry.username),
-          {
-            tokenStatus: (entry.splAccount?.tokenStatus ?? "unknown") as
-              | "valid"
-              | "invalid"
-              | "unknown",
-            jwtExpiresAt: entry.splAccount?.jwtExpiresAt ?? null,
-          },
-        ])
-      )
+  const monitoredAccounts = monitored.accounts;
+  const monitoredAccountTokens = monitored.tokens;
+  const monitoredLoadedFor = monitored.loadedFor;
+
+  const refreshMonitoredAccounts = useCallback((): Promise<void> => {
+    // Logged out: the render-time reset above already cleared the state.
+    if (!loggedInAccount) return Promise.resolve();
+
+    // State is only set once the request settles (never synchronously).
+    return getMonitoredAccounts().then(
+      (rows) => {
+        const accounts = normalizeAccounts(rows.map((entry) => entry.username));
+        setMonitored({
+          loadedFor: loggedInAccount,
+          accounts,
+          // The same rows already carry the SPL token state, so publishing it here
+          // costs no extra round trip and replaces the per-card `getAccountTokenStatus`
+          // call that every `AuthenticationStatus` used to make.
+          tokens: Object.fromEntries(
+            rows.map((entry) => [
+              normalizeAccount(entry.username),
+              {
+                tokenStatus: (entry.splAccount?.tokenStatus ?? "unknown") as
+                  | "valid"
+                  | "invalid"
+                  | "unknown",
+                jwtExpiresAt: entry.splAccount?.jwtExpiresAt ?? null,
+              },
+            ])
+          ),
+        });
+        // If an account is now monitored, it is no longer considered a removable local account.
+        setSavedAccounts((current) => {
+          const filtered = current.filter((account) => !accounts.includes(account));
+          return arraysEqual(filtered, current) ? current : filtered;
+        });
+      },
+      (err: unknown) => {
+        // Even on failure: reconcile against what is known rather than never.
+        setMonitored((prev) => ({ ...prev, loadedFor: loggedInAccount }));
+        throw err;
+      }
     );
     // `reAuthVersion` / `tokenStatusVersion` are intentional "refetch triggers":
     // they are not read in the body, but bumping either must re-read the token
@@ -169,20 +203,9 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
   }, [loggedInAccount, reAuthVersion, tokenStatusVersion]);
 
   useEffect(() => {
-    // Loads server-side monitored accounts (and clears them on logout) — an
-    // external-data sync that necessarily updates state from within the effect.
-
+    // Loads server-side monitored accounts; state is only set once the request settles.
     refreshMonitoredAccounts();
   }, [refreshMonitoredAccounts]);
-
-  useEffect(() => {
-    // If an account is now monitored, it is no longer considered a removable local account.
-
-    setSavedAccounts((current) => {
-      const filtered = current.filter((account) => !monitoredAccounts.includes(account));
-      return arraysEqual(filtered, current) ? current : filtered;
-    });
-  }, [monitoredAccounts]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -211,11 +234,11 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
   // re-select it, making every account-keyed loader fetch twice.
   const optionsLoaded = hydrated && !authLoading && monitoredLoadedFor === loggedInAccount;
 
-  useEffect(() => {
+  if (optionsLoaded) {
     // Reconcile the persisted selection against the currently valid account
-    // options (which arrive asynchronously). Both writes are guarded by an
-    // equality check so this converges rather than looping.
-    if (!optionsLoaded) return;
+    // options (which arrive asynchronously) — "adjust state during render", so
+    // consumers never see `accountsReady` with an unreconciled selection. Both
+    // writes are guarded by an equality check so this converges rather than looping.
     const safeSelected =
       selectedAccount && accountOptions.includes(selectedAccount)
         ? selectedAccount
@@ -236,14 +259,7 @@ export function AccountsProvider({ children }: Readonly<{ children: ReactNode }>
     if (!arraysEqual(nextCollection, collectionSelectedAccounts)) {
       setCollectionSelectedAccountsState(nextCollection);
     }
-  }, [
-    accountOptions,
-    collectionSelectedAccounts,
-    loggedInAccount,
-    optionsLoaded,
-    selectedAccount,
-    setCollectionSelectedAccountsState,
-  ]);
+  }
 
   useEffect(() => {
     // Writing before hydration would overwrite the stored state with the empty defaults.

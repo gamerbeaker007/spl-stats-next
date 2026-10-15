@@ -18,7 +18,8 @@ import {
   FormControlLabel,
   Typography,
 } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useResettableState } from "@/hooks/useResettableState";
+import { useState } from "react";
 
 interface Props {
   open: boolean;
@@ -28,13 +29,9 @@ interface Props {
 }
 
 export function DashboardSettings({ open, onClose, config, onSave }: Props) {
-  const [draft, setDraft] = useState<MultiAccountDashboardCategories>(config);
+  // Re-seeded when the config prop changes (e.g. initial load completes).
+  const [draft, setDraft] = useResettableState<MultiAccountDashboardCategories>(config, config);
   const [saving, setSaving] = useState(false);
-
-  // Keep draft in sync when config prop changes (e.g. initial load completes)
-  useEffect(() => {
-    setDraft(config);
-  }, [config]);
 
   const toggle = (id: keyof MultiAccountDashboardCategories) => {
     setDraft((prev) => ({ ...prev, [id]: !prev[id] }));

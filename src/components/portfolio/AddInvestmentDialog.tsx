@@ -78,7 +78,8 @@ export default function AddInvestmentDialog({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [page, setPage] = useState(0);
-  const [entriesLoading, setEntriesLoading] = useState(false);
+  // Starts `true` when mounted open: the mount effect below loads the entries.
+  const [entriesLoading, setEntriesLoading] = useState(open);
   const [dialogInvestments, setDialogInvestments] = useState<InvestmentEntry[]>(investments);
   const [sortBy, setSortBy] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDirection>("desc");
@@ -89,40 +90,45 @@ export default function AddInvestmentDialog({
 
   const disableActions = loading || entriesLoading;
 
-  const refreshEntries = useCallback(
-    async (options?: { silent?: boolean }) => {
-      const silent = options?.silent ?? false;
-      if (!silent) {
-        setEntriesLoading(true);
-      }
-      try {
-        const refreshed = await getPortfolioInvestmentsAction(selectedAccounts);
-        setDialogInvestments(refreshed);
-      } catch (err) {
-        setMsg({
-          type: "error",
-          text: err instanceof Error ? err.message : "Failed to refresh investment entries.",
-        });
-      } finally {
-        if (!silent) {
-          setEntriesLoading(false);
-        }
-      }
-    },
-    [selectedAccounts]
-  );
+  const showRefreshError = useCallback((err: unknown) => {
+    setMsg({
+      type: "error",
+      text: err instanceof Error ? err.message : "Failed to refresh investment entries.",
+    });
+  }, []);
+
+  /** Reloads the table from the server (used after add / delete / notes edits). */
+  const refreshEntries = useCallback(async () => {
+    try {
+      setDialogInvestments(await getPortfolioInvestmentsAction(selectedAccounts));
+    } catch (err) {
+      showRefreshError(err);
+    }
+  }, [selectedAccounts, showRefreshError]);
+
+  // While open, (re)seed the table from the `investments` prop, jump to page 0 and show the
+  // loading state whenever the dialog opens or its inputs change. Done during render (not in
+  // an effect) by comparing against the last seen inputs; the effect below then reloads.
+  const [prevInputs, setPrevInputs] = useState({ open, investments, selectedAccounts });
+  if (
+    prevInputs.open !== open ||
+    prevInputs.investments !== investments ||
+    prevInputs.selectedAccounts !== selectedAccounts
+  ) {
+    setPrevInputs({ open, investments, selectedAccounts });
+    if (open) {
+      setPage(0);
+      setDialogInvestments(investments);
+      setEntriesLoading(true);
+    }
+  }
 
   useEffect(() => {
     if (!open) return;
-    setPage(0);
-    setDialogInvestments(investments);
-    void refreshEntries();
-  }, [open, investments, refreshEntries]);
-
-  useEffect(() => {
-    if (!open) return;
-    setDialogInvestments(investments);
-  }, [investments, open]);
+    getPortfolioInvestmentsAction(selectedAccounts)
+      .then(setDialogInvestments, showRefreshError)
+      .finally(() => setEntriesLoading(false));
+  }, [open, investments, selectedAccounts, showRefreshError]);
 
   async function handleAdd(type: "deposit" | "withdraw") {
     const amount = parseFloat(formAmount);
@@ -147,7 +153,7 @@ export default function AddInvestmentDialog({
       setFormAmount("");
       setFormNotes("");
       setPage(0);
-      await refreshEntries({ silent: true });
+      await refreshEntries();
       await onSuccess({ silent: true });
     } else {
       setMsg({ type: "error", text: res.error });
@@ -160,7 +166,7 @@ export default function AddInvestmentDialog({
     setConfirmDeleteId(null);
     const res = await deleteUserInvestmentAction(id);
     if (res.success) {
-      await refreshEntries({ silent: true });
+      await refreshEntries();
       await onSuccess({ silent: true });
     }
     setDeleting(null);
@@ -171,7 +177,7 @@ export default function AddInvestmentDialog({
     const res = await updateUserInvestmentNotesAction(id, normalizeNotesInput(editingNotesText));
     if (res.success) {
       setEditingNotesId(null);
-      await refreshEntries({ silent: true });
+      await refreshEntries();
       await onSuccess({ silent: true });
     } else {
       setMsg({ type: "error", text: res.error });
@@ -185,11 +191,11 @@ export default function AddInvestmentDialog({
       return a.date.localeCompare(b.date);
     });
 
-    let running = 0;
-    return chronological.map((inv) => {
-      running += inv.amount;
-      return { ...inv, running };
-    });
+    return chronological.reduce<InvestmentRow[]>((acc, inv) => {
+      const running = (acc.at(-1)?.running ?? 0) + inv.amount;
+      acc.push({ ...inv, running });
+      return acc;
+    }, []);
   }, [dialogInvestments]);
 
   const sortedRows = useMemo(() => {

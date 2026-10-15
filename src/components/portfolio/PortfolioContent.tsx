@@ -1,5 +1,6 @@
 "use client";
 
+import { useAsyncData } from "@/hooks/useAsyncData";
 import AddInvestmentDialog from "@/components/portfolio/AddInvestmentDialog";
 import CollectionChart from "@/components/portfolio/CollectionChart";
 import OtherAssetsChart from "@/components/portfolio/OtherAssetsChart";
@@ -7,10 +8,6 @@ import PortfolioSummaryCards from "@/components/portfolio/PortfolioSummaryCards"
 import PortfolioTotalChart from "@/components/portfolio/PortfolioTotalChart";
 import InventoryChart from "@/components/portfolio/InventoryChart";
 import SpsChart from "@/components/portfolio/SpsChart";
-import type {
-  PortfolioHistoryResult,
-  PortfolioOverviewResult,
-} from "@/lib/backend/actions/portfolio-actions";
 import {
   getPortfolioHistoryAction,
   getPortfolioOverviewAction,
@@ -30,7 +27,7 @@ import OutlinedInput from "@mui/material/OutlinedInput";
 import Select, { type SelectChangeEvent } from "@mui/material/Select";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { MdAddCircleOutline } from "react-icons/md";
 
 interface Props {
@@ -39,46 +36,23 @@ interface Props {
 
 export default function PortfolioContent({ allAccounts }: Props) {
   const [selected, setSelected] = useState<string[]>(allAccounts);
-  const [overview, setOverview] = useState<PortfolioOverviewResult | null>(null);
-  const [historyData, setHistoryData] = useState<PortfolioHistoryResult | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const { theme } = useTheme();
 
-  const refresh = useCallback(
-    async (options?: { silent?: boolean }) => {
-      const silent = options?.silent ?? false;
-      if (selected.length === 0) {
-        setOverview(null);
-        setHistoryData(null);
-        return;
-      }
-      if (!silent) {
-        setLoading(true);
-      }
-      setError(null);
-      try {
-        const [ov, hist] = await Promise.all([
-          getPortfolioOverviewAction(selected),
-          getPortfolioHistoryAction(selected),
-        ]);
-        setOverview(ov);
-        setHistoryData(hist);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load portfolio");
-      } finally {
-        if (!silent) {
-          setLoading(false);
-        }
-      }
+  const portfolio = useAsyncData(
+    selected.length > 0 ? `portfolio:${selected.join(",")}` : null,
+    async () => {
+      const [overview, history] = await Promise.all([
+        getPortfolioOverviewAction(selected),
+        getPortfolioHistoryAction(selected),
+      ]);
+      return { overview, history };
     },
-    [selected]
+    { errorMessage: "Failed to load portfolio" }
   );
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  const { loading, error, refetch: refresh } = portfolio;
+  const overview = portfolio.data?.overview ?? null;
+  const historyData = portfolio.data?.history ?? null;
 
   function handleAccountChange(event: SelectChangeEvent<string[]>) {
     const value = event.target.value;

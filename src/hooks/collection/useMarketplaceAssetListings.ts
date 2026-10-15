@@ -2,60 +2,19 @@
 
 import { fetchMarketplaceAssetListings } from "@/lib/frontend/spl-browser-api";
 import type { MarketplaceAssetName, MarketplaceListingItem } from "@/types/marketplace-assets";
-import { useCallback, useEffect, useState } from "react";
+import { useAsyncData } from "@/hooks/useAsyncData";
+
+const NO_LISTINGS: MarketplaceListingItem[] = [];
 
 export function useMarketplaceAssetListings(
   assetName: MarketplaceAssetName,
   detailId: string,
   enabled: boolean
 ) {
-  const [listings, setListings] = useState<MarketplaceListingItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(
-    async (active: () => boolean): Promise<MarketplaceListingItem[]> => {
-      if (!enabled || !detailId) {
-        setListings([]);
-        setLoading(false);
-        setError(null);
-        return [];
-      }
-
-      setLoading(true);
-      setError(null);
-
-      try {
-        const next = await fetchMarketplaceAssetListings(assetName, detailId);
-        if (active()) setListings(next);
-        return next;
-      } catch (err) {
-        if (active()) setError(err instanceof Error ? err.message : "Failed to load listings");
-        return [];
-      } finally {
-        if (active()) setLoading(false);
-      }
-    },
-    [assetName, detailId, enabled]
+  const { data, loading, error, refetch } = useAsyncData(
+    enabled && detailId ? `asset-listings:${assetName}:${detailId}` : null,
+    () => fetchMarketplaceAssetListings(assetName, detailId),
+    { errorMessage: "Failed to load listings" }
   );
-
-  useEffect(() => {
-    if (!enabled || !detailId) {
-      setListings([]);
-      setLoading(false);
-      setError(null);
-      return;
-    }
-
-    let active = true;
-    load(() => active);
-
-    return () => {
-      active = false;
-    };
-  }, [detailId, enabled, load]);
-
-  const refresh = useCallback(() => load(() => true), [load]);
-
-  return { listings, loading, error, refresh };
+  return { listings: data ?? NO_LISTINGS, loading, error, refresh: refetch };
 }

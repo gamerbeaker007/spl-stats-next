@@ -1,5 +1,6 @@
 "use client";
 
+import { useAsyncData } from "@/hooks/useAsyncData";
 import {
   MAX_VALIDATOR_VOTES,
   SUPPORT_VALIDATOR,
@@ -23,7 +24,7 @@ import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 interface ValidatorSupportProps {
   username: string | null;
@@ -42,51 +43,48 @@ export default function ValidatorSupport({
   authLoading,
   onMessage,
 }: Readonly<ValidatorSupportProps>) {
-  const [state, setState] = useState<VotesState>({ kind: "idle" });
+  const votes = useAsyncData(
+    !authLoading && username ? `validator-votes:${username}` : null,
+    async () => {
+      const result = await getValidatorVotes();
+      if (result.error) throw new Error(result.error);
+      return result.votes;
+    }
+  );
+  const { refetch: refreshVotes, mutate: setVotes } = votes;
+  const state: VotesState = votes.loading
+    ? { kind: "loading" }
+    : votes.error
+      ? { kind: "error", error: votes.error }
+      : votes.data
+        ? { kind: "ready", votes: votes.data }
+        : { kind: "idle" };
   const [pendingValidator, setPendingValidator] = useState<string | null>(null);
 
-  const refreshVotes = useCallback(async () => {
-    if (!username) {
-      setState({ kind: "idle" });
-      return;
-    }
+  const waitForVotes = useCallback(
+    async (isVerified: (votes: ValidatorVote[]) => boolean) => {
+      const maxAttempts = 15;
+      const delayMs = 3000;
 
-    setState({ kind: "loading" });
-    const result = await getValidatorVotes();
-    if (result.error) {
-      setState({ kind: "error", error: result.error });
-      return;
-    }
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const refreshed = await getValidatorVotes();
 
-    setState({ kind: "ready", votes: result.votes });
-  }, [username]);
+        if (!refreshed.error) {
+          setVotes(refreshed.votes);
+          if (isVerified(refreshed.votes)) {
+            return true;
+          }
+        }
 
-  useEffect(() => {
-    if (authLoading) return;
-    void refreshVotes();
-  }, [authLoading, refreshVotes]);
-
-  const waitForVotes = useCallback(async (isVerified: (votes: ValidatorVote[]) => boolean) => {
-    const maxAttempts = 15;
-    const delayMs = 3000;
-
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const refreshed = await getValidatorVotes();
-
-      if (!refreshed.error) {
-        setState({ kind: "ready", votes: refreshed.votes });
-        if (isVerified(refreshed.votes)) {
-          return true;
+        if (attempt < maxAttempts - 1) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
         }
       }
 
-      if (attempt < maxAttempts - 1) {
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
-      }
-    }
-
-    return false;
-  }, []);
+      return false;
+    },
+    [setVotes]
+  );
 
   /**
    * Broadcast an (un)vote and poll until the validator API reflects it. The

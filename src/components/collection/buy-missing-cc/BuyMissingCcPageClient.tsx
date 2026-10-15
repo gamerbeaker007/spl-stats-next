@@ -120,11 +120,11 @@ export default function BuyMissingCcPageClient() {
   const [combineDialogRow, setCombineDialogRow] = useState<DisplayRow | null>(null);
   const [showUpgradeableOnly, setShowUpgradeableOnly] = useState(false);
 
-  useEffect(() => {
-    if (!selectedBracket) {
-      setBracketStateFilters(["all"]);
-    }
-  }, [selectedBracket]);
+  function handleSelectedBracketChange(next: League | "") {
+    setSelectedBracket(next);
+    // Clearing the bracket hides the state toggles — reset them so they start at "All".
+    if (!next) setBracketStateFilters(["all"]);
+  }
 
   useEffect(() => {
     let active = true;
@@ -539,7 +539,7 @@ export default function BuyMissingCcPageClient() {
           <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
             <BracketFilter
               selectedBracket={selectedBracket}
-              setSelectedBracket={setSelectedBracket}
+              setSelectedBracket={handleSelectedBracketChange}
             />
 
             {selectedBracket && (

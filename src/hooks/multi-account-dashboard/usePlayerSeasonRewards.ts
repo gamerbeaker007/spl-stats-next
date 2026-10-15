@@ -1,8 +1,9 @@
 "use client";
 
+import { useAsyncData } from "@/hooks/useAsyncData";
 import { fetchCurrentRewards } from "@/lib/frontend/spl-browser-api";
 import { SPLSeasonRewards } from "@/types/spl/seasonRewards";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 const AUTO_RETRY_DELAY_MS = 8_000;
 const MAX_AUTO_RETRIES = 3;
@@ -14,80 +15,46 @@ export interface UsePlayerSeasonRewardsReturn {
   refetch: () => Promise<void>;
 }
 
+function delay(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal.addEventListener("abort", () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    });
+  });
+}
+
 export function usePlayerSeasonRewards(
   username: string,
   options?: { enabled?: boolean }
 ): UsePlayerSeasonRewardsReturn {
   const enabled = options?.enabled ?? true;
-  const [seasonRewards, setSeasonRewards] = useState<SPLSeasonRewards | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const isMountedRef = useRef(true);
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const retryCountRef = useRef(0);
+  const key = enabled && username?.trim() ? `season-rewards:${username}` : null;
+  const [retryNotice, setRetryNotice] = useState<{ key: string; message: string } | null>(null);
 
-  const fetchRewards = useCallback(
-    async (isAutoRetry = false) => {
-      if (!enabled) return;
-      if (!username?.trim()) return;
-      if (!isMountedRef.current) return;
-
-      // Cancel any pending auto-retry before starting a new fetch
-      if (retryTimerRef.current) {
-        clearTimeout(retryTimerRef.current);
-        retryTimerRef.current = null;
-      }
-
-      // Manual refetch resets the retry counter
-      if (!isAutoRetry) {
-        retryCountRef.current = 0;
-      }
-
-      setLoading(true);
-      setError(null);
-
+  const { data, loading, error, refetch } = useAsyncData(key, async (signal) => {
+    for (let attempt = 1; ; attempt++) {
       try {
-        const rewards = await fetchCurrentRewards(username);
-        if (isMountedRef.current) {
-          retryCountRef.current = 0;
-          setSeasonRewards(rewards);
-        }
+        return await fetchCurrentRewards(username);
       } catch {
-        if (isMountedRef.current) {
-          if (retryCountRef.current < MAX_AUTO_RETRIES) {
-            retryCountRef.current += 1;
-            setError(
-              `Season glint unavailable — retrying (${retryCountRef.current}/${MAX_AUTO_RETRIES})`
-            );
-            retryTimerRef.current = setTimeout(() => {
-              if (isMountedRef.current) {
-                fetchRewards(true);
-              }
-            }, AUTO_RETRY_DELAY_MS);
-          } else {
-            setError("Unable to fetch data within 10s");
-          }
+        if (attempt > MAX_AUTO_RETRIES) throw new Error("Unable to fetch data within 10s");
+        if (key) {
+          setRetryNotice({
+            key,
+            message: `Season glint unavailable — retrying (${attempt}/${MAX_AUTO_RETRIES})`,
+          });
         }
-      } finally {
-        if (isMountedRef.current) {
-          setLoading(false);
-        }
+        await delay(AUTO_RETRY_DELAY_MS, signal);
       }
-    },
-    [username, enabled]
-  );
+    }
+  });
 
-  useEffect(() => {
-    isMountedRef.current = true;
-    retryCountRef.current = 0;
-    fetchRewards();
-    return () => {
-      isMountedRef.current = false;
-      if (retryTimerRef.current) {
-        clearTimeout(retryTimerRef.current);
-      }
-    };
-  }, [fetchRewards]);
-
-  return { seasonRewards, loading, error, refetch: fetchRewards };
+  const retrying = loading && retryNotice !== null && retryNotice.key === key;
+  return {
+    seasonRewards: data ?? null,
+    loading,
+    error: retrying ? retryNotice.message : error,
+    refetch,
+  };
 }

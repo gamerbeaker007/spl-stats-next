@@ -3,7 +3,9 @@
 import { fetchInventory, fetchMarketplaceAssetListings } from "@/lib/frontend/spl-browser-api";
 import { buildOwnedAssetInstances, listingsBySeller } from "@/lib/shared/marketplace-assets";
 import type { MarketplaceAssetName, OwnedAssetInstance } from "@/types/marketplace-assets";
-import { useCallback, useEffect, useState } from "react";
+import { useAsyncData } from "@/hooks/useAsyncData";
+
+const NO_INSTANCES: OwnedAssetInstance[] = [];
 
 /**
  * Loads every owned copy of one asset (with per-copy listed status + listing id)
@@ -16,51 +18,17 @@ export function useOwnedAssetInstances(
   detailId: string,
   enabled: boolean
 ) {
-  const [instances, setInstances] = useState<OwnedAssetInstance[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(
-    async (active: () => boolean) => {
-      if (!enabled || !account || !detailId) {
-        setInstances([]);
-        setLoading(false);
-        setError(null);
-        return;
-      }
-
-      setLoading(true);
-      setError(null);
-      try {
-        const normalized = account.trim().toLowerCase();
-        const [inventory, listings] = await Promise.all([
-          fetchInventory(normalized),
-          fetchMarketplaceAssetListings(assetName, detailId),
-        ]);
-        const next = buildOwnedAssetInstances(
-          inventory,
-          listingsBySeller(listings, normalized),
-          detailId
-        );
-        if (active()) setInstances(next);
-      } catch (err) {
-        if (active()) setError(err instanceof Error ? err.message : "Failed to load your copies");
-      } finally {
-        if (active()) setLoading(false);
-      }
+  const { data, loading, error, refetch } = useAsyncData(
+    enabled && account && detailId ? `owned-instances:${account}:${assetName}:${detailId}` : null,
+    async () => {
+      const normalized = account.trim().toLowerCase();
+      const [inventory, listings] = await Promise.all([
+        fetchInventory(normalized),
+        fetchMarketplaceAssetListings(assetName, detailId),
+      ]);
+      return buildOwnedAssetInstances(inventory, listingsBySeller(listings, normalized), detailId);
     },
-    [account, assetName, detailId, enabled]
+    { errorMessage: "Failed to load your copies" }
   );
-
-  useEffect(() => {
-    let isActive = true;
-    load(() => isActive);
-    return () => {
-      isActive = false;
-    };
-  }, [load]);
-
-  const refresh = useCallback(() => load(() => true), [load]);
-
-  return { instances, loading, error, refresh };
+  return { instances: data ?? NO_INSTANCES, loading, error, refresh: refetch };
 }
