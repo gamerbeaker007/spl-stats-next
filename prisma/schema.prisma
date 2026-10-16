@@ -165,6 +165,7 @@ model PlayerLeaderboard {
   league        Int?
   maxLeague     Int?   @map("max_league")
   rshares       Float?
+  leaderboard   String?
 
   @@unique([username, seasonId, format])
   @@index([username])

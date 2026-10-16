@@ -74,7 +74,7 @@ export const GLINT_SPILLOVER_TYPES = [
 ] as const;
 
 /** Unclaimed transaction types that are season-related spillover. */
-export const UNCLAIMED_SPILLOVER_TYPES = ["season"] as const;
+export const UNCLAIMED_SPILLOVER_TYPES = ["season", "modern"] as const;
 
 /** Map of balance_history tokens to their spillover types (only GLINT has spillover). */
 export const BALANCE_SPILLOVER_TYPES: Partial<Record<BalanceHistoryTokenType, readonly string[]>> =

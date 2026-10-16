@@ -6,6 +6,8 @@ export interface HiveBlogLeaderboardRow {
   wins: number;
   winPct: string;
   league: string;
+  leaderboard: string | null;
+  division: string | null;
   leagueNum: number | null;
   rating: number;
   rank: number | null;

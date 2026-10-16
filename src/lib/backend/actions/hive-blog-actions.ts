@@ -1,9 +1,13 @@
 "use server";
 
 import { getMonitoredAccounts } from "@/lib/backend/actions/auth-actions";
+import { fetchLeaderboardWithPlayer } from "@/lib/backend/api/spl/spl-api";
 import { decryptToken } from "@/lib/backend/auth/encryption";
-import { getCachedSplCardDetails } from "@/lib/backend/cache/spl-cache";
-import { getPlayerLeaderboardForSeason } from "@/lib/backend/db/player-leaderboard";
+import { getCachedSplCardDetails, getCachedSplSettings } from "@/lib/backend/cache/spl-cache";
+import {
+  getPlayerLeaderboardForSeason,
+  upsertPlayerLeaderboard,
+} from "@/lib/backend/db/player-leaderboard";
 import { getSeasonBalances } from "@/lib/backend/db/season-balances";
 import { getLatestSeason, getSeasonById } from "@/lib/backend/db/seasons";
 import { getSplAccountCredentials } from "@/lib/backend/db/spl-accounts";
@@ -13,12 +17,55 @@ import { buildMarketData } from "@/lib/backend/services/hive-blog-market";
 import { buildRewardSummary } from "@/lib/backend/services/hive-blog-rewards";
 import { buildTournaments } from "@/lib/backend/services/hive-blog-tournaments";
 import { leagueNames } from "@/lib/utils";
+import type { SplSettings } from "@/types/spl/season";
 import type { HiveBlogAccountData, HiveBlogPost, HiveBlogResult } from "@/types/hive-blog";
 
 async function getToken(username: string): Promise<string | undefined> {
   const creds = await getSplAccountCredentials(username);
   if (!creds) return undefined;
   return decryptToken(creds.encryptedToken, creds.iv, creds.authTag);
+}
+
+function getLeagueName(format: string, league: number | null): string {
+  if (league == null) return "—";
+  if (format === "modern") return "—";
+  return leagueNames[league] ?? `League ${league}`;
+}
+
+function getModernDivision(rating: number | null, settings: SplSettings): string | null {
+  if (rating == null || !Number.isFinite(rating)) return null;
+  const bracket = settings.modern_bracket_leagues
+    ?.filter((entry) => entry.min_rating <= rating)
+    .sort((a, b) => b.min_rating - a.min_rating)[0];
+  return bracket?.name ?? null;
+}
+
+// Remove after the next one or two seasons once historical leaderboard labels have been backfilled.
+async function refreshLeaderboardLabels(username: string, seasonId: number): Promise<void> {
+  const existingRows = await getPlayerLeaderboardForSeason(username, seasonId);
+  for (const format of ["wild", "modern"] as const) {
+    const row = existingRows.find((entry) => entry.format === format);
+    if (!row || row.leaderboard != null) continue;
+
+    const player = await fetchLeaderboardWithPlayer(username, seasonId, format);
+    if (!player || player.battles == null) continue;
+
+    await upsertPlayerLeaderboard({
+      username,
+      seasonId,
+      format,
+      rating: player.rating ?? null,
+      rank: player.rank ?? null,
+      battles: player.battles,
+      wins: player.wins ?? null,
+      longestStreak: player.longest_streak ?? null,
+      maxRating: player.max_rating ?? null,
+      league: player.league ?? null,
+      maxLeague: player.max_league ?? null,
+      rshares: player.rshares ?? null,
+      leaderboard: player.leaderboard ?? null,
+    });
+  }
 }
 
 export async function getMonitoredAccountsForBlogAction(): Promise<string[]> {
@@ -43,6 +90,7 @@ export async function generateHiveBlogAction(
   if (!latestSeason) throw new Error("No season data found in database");
 
   const previousSeasonId = latestSeason.id - 1;
+  const settings = await getCachedSplSettings();
 
   const [prevSeason, prevPrevSeason] = await Promise.all([
     getSeasonById(previousSeasonId),
@@ -65,6 +113,7 @@ export async function generateHiveBlogAction(
   const accounts: HiveBlogAccountData[] = [];
 
   for (const username of safeAccounts) {
+    await refreshLeaderboardLabels(username, previousSeasonId);
     const [leaderboardRows, token, seasonRows] = await Promise.all([
       getPlayerLeaderboardForSeason(username, previousSeasonId),
       getToken(username),
@@ -104,7 +153,9 @@ export async function generateHiveBlogAction(
         battles: r.battles ?? 0,
         wins: r.wins ?? 0,
         winPct: r.battles && r.battles > 0 ? (((r.wins ?? 0) / r.battles) * 100).toFixed(1) : "0.0",
-        league: r.league == null ? "—" : (leagueNames[r.league] ?? `League ${r.league}`),
+        league: getLeagueName(r.format, r.league),
+        leaderboard: r.leaderboard,
+        division: r.format === "modern" ? getModernDivision(r.rating, settings) : null,
         leagueNum: r.league ?? null,
         rating: r.rating ?? 0,
         rank: r.rank,

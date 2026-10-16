@@ -12,10 +12,40 @@ import { BALANCE_HISTORY_PAGE_LIMIT, REQUEST_DELAY_MS } from "../worker-config";
 /** Unclaimed balance history only exists from this season onwards. */
 export const UNCLAIMED_MIN_SEASON = 93;
 
+/** Modern rewards spill into the previous season starting with season 192. */
+/* This is since modern baracket reward distribution was introduced in season 192. */
+export const UNCLAIMED_MODERN_SPILLOVER_MIN_TARGET_SEASON = 192;
+
+interface SeasonRange {
+  id: number;
+  start: Date;
+  end: Date;
+}
+
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const isSpilloverType = (type: string): boolean =>
-  UNCLAIMED_SPILLOVER_TYPES.includes(type as (typeof UNCLAIMED_SPILLOVER_TYPES)[number]);
+const isSpilloverType = (type: string, targetSeasonId: number): boolean => {
+  if (!UNCLAIMED_SPILLOVER_TYPES.includes(type as (typeof UNCLAIMED_SPILLOVER_TYPES)[number])) {
+    return false;
+  }
+  return (
+    type === "season" ||
+    (type === "modern" && targetSeasonId >= UNCLAIMED_MODERN_SPILLOVER_MIN_TARGET_SEASON)
+  );
+};
+
+function getSeasonRanges(allSeasons: Season[]): SeasonRange[] {
+  const sorted = [...allSeasons].sort((a, b) => a.id - b.id);
+  return sorted.map((season, index) => ({
+    id: season.id,
+    start: index > 0 ? sorted[index - 1].endsAt : new Date(0),
+    end: season.endsAt,
+  }));
+}
+
+function findSeasonForDate(date: Date, ranges: SeasonRange[]): SeasonRange | undefined {
+  return ranges.find((range) => date > range.start && date <= range.end);
+}
 
 /**
  * Fetch unclaimed balance history items newer than stopAt (exclusive).
@@ -60,27 +90,22 @@ async function fetchItemsSince(
 
 /**
  * Assign each unclaimed item to its season bucket using created_date, applying spillover:
- * "season"-type items arrive in season N's window but belong to season N-1.
+ * "season"-type items always spill to season N-1; "modern" items do so only when the
+ * destination season is at least UNCLAIMED_MODERN_SPILLOVER_MIN_TARGET_SEASON.
  */
 function routeItemsToSeasons(
   items: SplUnclaimedBalanceHistoryItem[],
-  allSeasons: Season[]
+  ranges: SeasonRange[]
 ): Map<number, SplUnclaimedBalanceHistoryItem[]> {
-  const sorted = [...allSeasons].sort((a, b) => a.id - b.id);
-  const ranges = sorted.map((s, i) => ({
-    id: s.id,
-    start: i > 0 ? sorted[i - 1].endsAt : new Date(0),
-    end: s.endsAt,
-  }));
-
   const buckets = new Map<number, SplUnclaimedBalanceHistoryItem[]>();
 
   for (const item of items) {
     const d = new Date(item.created_date);
-    const season = ranges.find((r) => d > r.start && d <= r.end);
+    const season = findSeasonForDate(d, ranges);
     if (!season) continue;
 
-    const targetId = isSpilloverType(item.type) ? season.id - 1 : season.id;
+    const previousSeasonId = season.id - 1;
+    const targetId = isSpilloverType(item.type, previousSeasonId) ? previousSeasonId : season.id;
     if (!buckets.has(targetId)) buckets.set(targetId, []);
     buckets.get(targetId)!.push(item);
   }
@@ -144,10 +169,14 @@ export async function fetchIncrementalUnclaimedHistory(
     return max === null || d > max ? d : max;
   }, null);
 
-  const buckets = routeItemsToSeasons(items, allSeasons);
+  const seasonRanges = getSeasonRanges(allSeasons);
+  const buckets = routeItemsToSeasons(items, seasonRanges);
 
   for (const [seasonId, bucketItems] of buckets) {
-    const spilloverCount = bucketItems.filter((i) => isSpilloverType(i.type)).length;
+    const spilloverCount = bucketItems.filter((item) => {
+      const sourceSeason = findSeasonForDate(new Date(item.created_date), seasonRanges);
+      return sourceSeason !== undefined && isSpilloverType(item.type, sourceSeason.id - 1);
+    }).length;
     if (spilloverCount > 0) {
       logger.info(`${username}/UNCLAIMED/S${seasonId}: ${spilloverCount} spillover items`);
     }

@@ -9,6 +9,20 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.32.0] - 2026-10-15
+
+### Changed
+
+- **Improved league display in Hive Blog reports:** Modern now displays the API's leaderboard label alongside the Division, while keeping the existing Modern league emblem. Wild continues to use its legacy league names.
+- **Improved historical leaderboard data:** Leaderboard labels are now stored per season and format. Generating a Hive Blog report automatically refreshes the leaderboard data, even for previously scanned seasons. Modern divisions are calculated using season-specific rating thresholds from cached SPL settings. A temporary historical data refresh is included and will be removed after one or two seasons.
+
+### Fixed
+
+- **Modern unclaimed reward allocation:** Starting with season 192, unclaimed Modern rewards are now correctly attributed to the previous season. Rewards from earlier seasons remain assigned to their actual season.
+
+
+---
+
 ## [v1.31.1] - 2026-10-15
 
 ### Changed

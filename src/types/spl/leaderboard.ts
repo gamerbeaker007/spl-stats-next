@@ -12,6 +12,7 @@ export interface SplLeaderboardPlayer {
   league?: number;
   max_league?: number;
   rshares?: number;
+  leaderboard?: string | null;
 }
 
 /** Response shape — only the player field is used */
