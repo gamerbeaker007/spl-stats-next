@@ -44,3 +44,15 @@ export function leagueIconMd(format: string, leagueNum: number | null): string {
   const url = `${WEB_URL}website/icons/leagues/${folder}/league_${leagueNum}.png`;
   return img(url, 75);
 }
+
+export const DIVISION_ICON_URLS: Record<string, string> = {
+  "Division 1": img(`${WEB_URL}website/icons/leagues/modern_150/league_15.png`, 75),
+  "Division 2": img(`${WEB_URL}website/icons/leagues/modern_150/league_12.png`, 75),
+  "Division 3": img(`${WEB_URL}website/icons/leagues/modern_150/league_10.png`, 75),
+  "Division 4": img(`${WEB_URL}website/icons/leagues/modern_150/league_9.png`, 75),
+  "Division 5": img(`${WEB_URL}website/icons/leagues/modern_150/league_7.png`, 75),
+  "Division 6": img(`${WEB_URL}website/icons/leagues/modern_150/league_6.png`, 75),
+  "Division 7": img(`${WEB_URL}website/icons/leagues/modern_150/league_4.png`, 75),
+  "Division 8": img(`${WEB_URL}website/icons/leagues/modern_150/league_3.png`, 75),
+  "Division 9": img(`${WEB_URL}website/icons/leagues/modern_150/league_0.png`, 75),
+};

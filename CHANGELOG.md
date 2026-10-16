@@ -11,6 +11,14 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ## [v1.32.0] - 2026-10-15
 
+### Added
+
+- ** Hive Blog generationP** Add division to table
+
+---
+
+## [v1.32.0] - 2026-10-15
+
 ### Changed
 
 - **Improved league display in Hive Blog reports:** Modern now displays the API's leaderboard label alongside the Division, while keeping the existing Modern league emblem. Wild continues to use its legacy league names.

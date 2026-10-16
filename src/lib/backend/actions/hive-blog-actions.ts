@@ -17,8 +17,8 @@ import { buildMarketData } from "@/lib/backend/services/hive-blog-market";
 import { buildRewardSummary } from "@/lib/backend/services/hive-blog-rewards";
 import { buildTournaments } from "@/lib/backend/services/hive-blog-tournaments";
 import { leagueNames } from "@/lib/utils";
-import type { SplSettings } from "@/types/spl/season";
 import type { HiveBlogAccountData, HiveBlogPost, HiveBlogResult } from "@/types/hive-blog";
+import type { SplSettings } from "@/types/spl/season";
 
 async function getToken(username: string): Promise<string | undefined> {
   const creds = await getSplAccountCredentials(username);
@@ -34,7 +34,7 @@ function getLeagueName(format: string, league: number | null): string {
 
 function getModernDivision(rating: number | null, settings: SplSettings): string | null {
   if (rating == null || !Number.isFinite(rating)) return null;
-  const bracket = settings.modern_bracket_leagues
+  const bracket = settings.leagues.modern_bracket_leagues
     ?.filter((entry) => entry.min_rating <= rating)
     .sort((a, b) => b.min_rating - a.min_rating)[0];
   return bracket?.name ?? null;

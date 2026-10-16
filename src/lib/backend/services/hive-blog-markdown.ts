@@ -1,11 +1,12 @@
-import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 import {
+  DIVISION_ICON_URLS,
   img,
   leagueIconMd,
+  PROXY150,
   PROXY20,
   PROXY50,
-  PROXY150,
 } from "@/lib/backend/services/hive-blog-icons";
+import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
 import {
   credits_icon_url,
   dec_icon_url,
@@ -132,12 +133,18 @@ function buildBattleSectionLines(acc: HiveBlogAccountData): string[] {
       "| Format | League | Battles | Wins | Win% | Rating | Rank |",
       "|--------|--------|--------:|-----:|-----:|-------:|-----:|",
       ...acc.leaderboard.map((r) => {
-        const leagueName =
-          r.format === "modern" && r.leaderboard
-            ? `${r.leaderboard}${r.division ? ` (${r.division})` : ""}`
-            : r.league;
-        const leagueCell =
-          r.leagueNum != null ? `${leagueIconMd(r.format, r.leagueNum)} ${leagueName}` : leagueName;
+        const isModernBracket = r.format === "modern" && !!r.leaderboard;
+        const leagueName = isModernBracket ? `Bracket: ${r.leaderboard}` : r.league;
+        const divisionText = isModernBracket ? `<br>${r.division}` : "";
+
+        const icon = isModernBracket
+          ? DIVISION_ICON_URLS[r.division ?? "Division 9"]
+          : r.leagueNum != null
+            ? leagueIconMd(r.format, r.leagueNum)
+            : "";
+
+        const leagueCell = `${leagueName}${divisionText}${icon ? `<br>${icon}` : ""}`;
+
         return `| ${capitalize(r.format)} | ${leagueCell} | ${r.battles} | ${r.wins} | ${r.winPct}% | ${r.rating} | ${r.rank != null ? `#${r.rank}` : "—"} |`;
       }),
       ""
