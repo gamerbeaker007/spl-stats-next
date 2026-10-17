@@ -346,6 +346,40 @@ export async function fetchPlayerHistory(
   }
 }
 
+/** Fetch tournament IDs from a player's recent token transfers using JWT auth. */
+export async function fetchPlayerTournamentIds(
+  username: string,
+  jwtToken: string
+): Promise<string[]> {
+  try {
+    const res = await splAuthClient.get(
+      SPL_API.PLAYER_HISTORY,
+      bearerConfig(jwtToken, {
+        params: { username, types: "token_transfer", from_block: -1, limit: 500 },
+      })
+    );
+    if (!Array.isArray(res.data)) {
+      throw new Error("Invalid response: expected player history array");
+    }
+
+    const ids: string[] = [];
+    for (const entry of res.data as SplHistory[]) {
+      try {
+        const parsed = JSON.parse(entry.data) as { tournament_id?: string | number };
+        if (parsed.tournament_id) ids.push(String(parsed.tournament_id));
+      } catch {
+        // Some token transfers are unrelated to tournaments.
+      }
+    }
+    return [...new Set(ids)];
+  } catch (error) {
+    logger.error(
+      `Failed to fetch tournament history for ${username}: ${error instanceof Error ? error.message : "Unknown error"}`
+    );
+    throw error;
+  }
+}
+
 /**
  * Paginates fetchPlayerHistory until entries older than startDate are reached.
  * Returns entries within [startDate, endDate] sorted newest first.

@@ -578,28 +578,6 @@ export async function fetchTournament(id: string): Promise<SplTournament | null>
   }
 }
 
-/** Fetch tournament IDs from player's token_transfer history (last 500 entries). */
-export async function fetchPlayerTournamentIds(username: string, token: string): Promise<string[]> {
-  try {
-    const res = await splBaseClient.get(SPL_API.PLAYER_HISTORY, {
-      params: { username, token, types: "token_transfer", from_block: -1, limit: 500 },
-    });
-    if (!Array.isArray(res.data)) return [];
-    const ids: string[] = [];
-    for (const entry of res.data as Array<{ data: string }>) {
-      try {
-        const parsed = JSON.parse(entry.data ?? "{}");
-        if (parsed?.tournament_id) ids.push(String(parsed.tournament_id));
-      } catch {
-        // ignore
-      }
-    }
-    return [...new Set(ids)];
-  } catch {
-    return [];
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Market transaction lookup
 // ---------------------------------------------------------------------------

@@ -9,7 +9,15 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
-## [v1.32.0] - 2026-10-15
+## [v1.32.2] - 2026-10-17
+
+### Fixed
+
+- ** Hive Blog generation** Fix tournament fetch with authentication header.
+
+---
+
+## [v1.32.1] - 2026-10-15
 
 ### Added
 

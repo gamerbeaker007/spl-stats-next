@@ -1,4 +1,5 @@
-import { fetchPlayerTournamentIds, fetchTournament } from "@/lib/backend/api/spl/spl-api";
+import { fetchTournament } from "@/lib/backend/api/spl/spl-api";
+import { fetchPlayerTournamentIds } from "@/lib/backend/api/spl/spl-authenticated-api";
 import type { HiveBlogTournamentRow } from "@/types/hive-blog";
 
 const LEAGUE_NAMES_BY_RATING: Record<number, string> = {
