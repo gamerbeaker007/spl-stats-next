@@ -52,6 +52,7 @@ import type {
   Row,
 } from "./types";
 import { bracketStatus } from "./utils";
+import EstimateInfo from "./EstimateInfo";
 
 const COLLECTION_STICKY_BAR_HEIGHT = 58;
 // Vertical chrome above the page content on desktop: app bar (paddingTop) +
@@ -433,14 +434,17 @@ export default function BuyMissingCcPageClient() {
 
       const maxLevel = getCardMaxLevel(rates);
       const maxReq = calculateUpgradeRequirements(row.totalOwnedCc, maxLevel, rates);
-      const maxCost = calculateUpgradeCostEstimate(maxReq.missingCc, row.lowPriceUsd);
+      const maxCost = calculateUpgradeCostEstimate(maxReq.missingCc, row.lowPricePerBcxUsd);
       toMaxUsd += maxCost.usd;
 
       if (selectedBracket) {
         const [, bracketMax] = getBracketLevelRange(selectedBracket, row.rarity);
         const targetLevel = Math.min(bracketMax, maxLevel);
         const bracketReq = calculateUpgradeRequirements(row.totalOwnedCc, targetLevel, rates);
-        const bracketCost = calculateUpgradeCostEstimate(bracketReq.missingCc, row.lowPriceUsd);
+        const bracketCost = calculateUpgradeCostEstimate(
+          bracketReq.missingCc,
+          row.lowPricePerBcxUsd
+        );
         toBracketUsd += bracketCost.usd;
       }
     }
@@ -614,9 +618,12 @@ export default function BuyMissingCcPageClient() {
             )}
           </Stack>
 
-          <Typography variant="caption" color="text.secondary">
-            Estimate formula: (Required CC - Current CC) x Lowest Price for 1 CC.
-          </Typography>
+          <Stack direction="row" alignItems="center" spacing={0.5}>
+            <Typography variant="caption" color="text.secondary">
+              Estimate formula: (Required CC - Current CC) x Lowest price per CC.
+            </Typography>
+            <EstimateInfo />
+          </Stack>
         </Stack>
 
         <BuyMissingCcTable

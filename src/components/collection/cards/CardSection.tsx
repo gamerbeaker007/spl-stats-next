@@ -228,7 +228,7 @@ export const CardSection = ({
             (a.priceInfo?.lowPriceBcx ?? Number.MAX_SAFE_INTEGER) -
             (b.priceInfo?.lowPriceBcx ?? Number.MAX_SAFE_INTEGER)
           );
-        if (sortBy === "oneCc")
+        if (sortBy === "lowPrice")
           return (
             (a.priceInfo?.lowPrice ?? Number.MAX_SAFE_INTEGER) -
             (b.priceInfo?.lowPrice ?? Number.MAX_SAFE_INTEGER)

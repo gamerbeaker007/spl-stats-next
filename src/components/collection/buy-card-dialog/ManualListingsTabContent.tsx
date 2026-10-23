@@ -1,8 +1,7 @@
 "use client";
 
-import CurrencyAmountChip from "@/components/collection/top-bar/CurrencyAmountChip";
 import ScrollableTableContainer from "@/components/shared/ScrollableTableContainer";
-import { dec_icon_url } from "@/lib/staticsIconUrls";
+import { credits_icon_url, dec_icon_url } from "@/lib/staticsIconUrls";
 import { BuyMissingCcListing } from "@/types/buy-missing-cc";
 import {
   alpha,
@@ -27,6 +26,7 @@ import Image from "next/image";
 import ManualSelectionTotalsBar from "./ManualSelectionTotalsBar";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
+import { largeNumberFormat } from "@/lib/utils";
 
 /**
  * Stacked cell: a USD value on top with the equivalent DEC amount (plus the DEC
@@ -39,11 +39,16 @@ function UsdDecCell({
   decDecimals = 3,
 }: Readonly<{ usd: number; dec: number; usdDecimals?: number; decDecimals?: number }>) {
   return (
-    <Stack direction="row" spacing={2} sx={{ lineHeight: 1.25 }}>
-      <Typography variant="caption">${usd.toFixed(usdDecimals)}</Typography>
-      <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.3 }}>
-        <Image src={dec_icon_url} alt="DEC" width={12} height={12} />
-        <Typography variant="caption" color="text.secondary">
+    <Stack direction="row" spacing={0.5} sx={{ lineHeight: 1.25 }}>
+      <Typography variant="caption" fontSize={"0.825rem"} fontWeight={600}>
+        $ {usd.toFixed(usdDecimals)}
+      </Typography>
+      <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.1 }}>
+        <Typography variant="caption" color="text.secondary" fontSize={"0.825rem"}>
+          /
+        </Typography>
+        <Image src={dec_icon_url} alt="DEC" width={24} height={24} />
+        <Typography variant="caption" color="text.secondary" fontSize={"0.825rem"}>
           {dec.toFixed(decDecimals)}
         </Typography>
       </Box>
@@ -261,7 +266,12 @@ export default function ManualListingsTabContent({
                     <UsdDecCell usd={row.priceUsd} dec={row.priceDec} />
                   </TableCell>
                   <TableCell>
-                    <CurrencyAmountChip currency="CREDITS" value={row.priceCredits ?? 0} />
+                    <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
+                      <Image src={credits_icon_url} alt="DEC" width={16} height={16} />
+                      <Typography variant="caption" color="text.secondary" fontSize={"0.825rem"}>
+                        {largeNumberFormat(row.priceCredits)}
+                      </Typography>
+                    </Box>
                   </TableCell>
                   <TableCell>
                     {row.cc > 0 ? (

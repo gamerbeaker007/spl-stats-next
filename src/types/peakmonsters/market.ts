@@ -1,7 +1,3 @@
-export type PeakmonstersMarketPrices = {
-  prices: PeakmonstersMarketPriceEntry[];
-};
-
 export type PeakmonstersMarketPriceEntry = {
   id: number;
   card_detail_id: number;

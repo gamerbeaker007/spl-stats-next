@@ -1,6 +1,6 @@
 {
   "name": "spl-stats-next",
-  "version": "1.32.2",
+  "version": "1.32.3",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
@@ -22,7 +22,8 @@
     "docker:logs": "docker compose logs -f app",
     "docker:worker-logs": "docker compose logs -f worker",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "temp": "tsx --env-file=.env --tsconfig scripts/tsconfig.json scripts/temp_test.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

@@ -38,6 +38,7 @@ export interface VapiDeed {
   plot_status: string;
   magic_type: string;
   deed_type: string;
+  worksite_type: string;
   listing_price: number | null;
   status: string;
 }

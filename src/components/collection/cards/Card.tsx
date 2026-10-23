@@ -297,7 +297,7 @@ export const Card = ({
 
       {showPrices && priceInfo && (
         <Box sx={rowSx}>
-          <Tooltip title="Lowest 1 CC price" arrow>
+          <Tooltip title="Low price" arrow>
             <Box>
               <LivePrice value={priceInfo.lowPrice} />
             </Box>

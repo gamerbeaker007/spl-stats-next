@@ -9,6 +9,16 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.32.3] - 2026-10-23
+
+### Fixed
+
+- **Buy Missing CC** Upgrade estimates (Next / Bracket / Max and the summary chips) use the lowest price per CC again instead of `low_price`, which is the cheapest whole listing at any level (e.g. a 60 CC card) and inflated estimates. Added an info icon explaining the estimate is a best-case lower bound.
+- **Collection** Renamed the misleading "1 CC" price labels to "Low $" / "Low listing price" — the value is the cheapest listing, not a 1 CC price.
+- **Portfolio** Update value determination of castle and keep (just look at lowest price)
+
+---
+
 ## [v1.32.2] - 2026-10-17
 
 ### Fixed

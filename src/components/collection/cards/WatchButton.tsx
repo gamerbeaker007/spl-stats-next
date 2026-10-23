@@ -15,7 +15,7 @@ function WatchTooltip({
   priceInfo,
 }: Readonly<{ watch: CardWatch; priceInfo?: MarketPriceInfo }>) {
   const rows = [
-    { label: "1 CC", watched: watch.lowPriceAtWatch, current: priceInfo?.lowPrice },
+    { label: "Price", watched: watch.lowPriceAtWatch, current: priceInfo?.lowPrice },
     { label: "Price/CC", watched: watch.lowPriceBcxAtWatch, current: priceInfo?.lowPriceBcx },
   ];
 

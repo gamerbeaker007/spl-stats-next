@@ -55,7 +55,7 @@ export default function CardTableIcon({
             width={CARD_WIDTH}
             height={CARD_HEIGHT}
             style={{
-              width: "100%",
+              width: "auto",
               height: "auto",
               display: "block",
             }}

@@ -8,7 +8,7 @@ export type CardSortField =
   | "hiCc"
   | "totCc"
   | "priceCc"
-  | "oneCc"
+  | "lowPrice"
   | "listed";
 
 export type CardSortDir = "asc" | "desc";
@@ -27,7 +27,7 @@ export const CARD_SORT_OPTIONS: { value: CardSortField; label: string; needsPric
   { value: "hiCc", label: "Highest CC" },
   { value: "totCc", label: "Total CC" },
   { value: "priceCc", label: "Price / CC", needsPrices: true },
-  { value: "oneCc", label: "1 CC price", needsPrices: true },
+  { value: "lowPrice", label: "Low price", needsPrices: true },
   { value: "listed", label: "Listed", needsPrices: true },
 ];
 

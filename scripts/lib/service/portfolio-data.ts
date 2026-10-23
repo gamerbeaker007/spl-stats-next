@@ -169,20 +169,51 @@ interface DeedsResult {
 // Filter attributes applied in order — mirrors Python's progressive fallback.
 const DEED_FILTER_ATTRS = ["rarity", "plot_status", "magic_type", "deed_type"] as const;
 type DeedFilterAttr = (typeof DEED_FILTER_ATTRS)[number];
+const DEFAULT_PRICES = {
+  KEEP: 500,
+  CASTLE: 5000,
+} as const;
 
 /**
  * Find the minimum market listing price for a deed using progressive fallback.
  *
  * Mirrors the Python logic: for each attribute in order, narrow the candidate
  * listings. If narrowing would empty the set, skip that attribute (keep the
- * broader set) and log a warning. Returns 0 if the market is empty.
+ * broader set) and log a warning.
+ *
+ * Returns 0 if the market is empty. Except for castles (5000) and keeps (500)
  */
 function findBestMarketPrice(deed: VapiDeed, market: VapiDeed[]): number {
+
+  // when it is a keep or castle get the lowest price on the market.... if none on the market set a minimum price of keep 500$ and castle 5000$
+  const isMythic = deed.rarity === "mythic";
+  if (isMythic) {
+    const worksiteType = deed.worksite_type;
+    let defaultPrice: number;
+    switch (worksiteType) {
+      case "KEEP":
+        defaultPrice = DEFAULT_PRICES.KEEP;
+        break;
+      case "CASTLE":
+        defaultPrice = DEFAULT_PRICES.CASTLE;
+        break;
+      default:
+        defaultPrice = 0;
+    }
+
+    const prices = market
+      .filter((m) => m.worksite_type === worksiteType)
+      .map((m) => Number(m.listing_price))
+      .filter(isValidPrice);
+
+    return prices.length > 0 ? Math.min(...prices) : defaultPrice;
+  }
+
+
   if (market.length === 0) return 0;
 
   let candidates = market;
   const missingAttrs: DeedFilterAttr[] = [];
-
   for (const attr of DEED_FILTER_ATTRS) {
     const deedVal = deed[attr];
     const narrowed = candidates.filter((m) =>
@@ -202,14 +233,17 @@ function findBestMarketPrice(deed: VapiDeed, market: VapiDeed[]): number {
     );
   }
 
-  const validPrices = candidates
-    .map((m) => m.listing_price)
-    .filter((p): p is number => p != null && p > 0);
-
-  return validPrices.length > 0 ? Math.min(...validPrices) : 0;
+  const prices = candidates
+    .map((item) => Number(item.listing_price))
+    .filter(isValidPrice);
+  return prices.length > 0 ? Math.min(...prices) : 0;
 }
 
-function computeDeedValues(owned: VapiDeed[], market: VapiDeed[]): DeedsResult {
+function isValidPrice(price: number | null | undefined): price is number {
+  return typeof price === "number" && Number.isFinite(price) && price > 0;
+}
+
+export function computeDeedValues(owned: VapiDeed[], market: VapiDeed[]): DeedsResult {
   if (owned.length === 0) {
     return { deedsValue: 0, deedsQty: 0, deedDetails: [] };
   }

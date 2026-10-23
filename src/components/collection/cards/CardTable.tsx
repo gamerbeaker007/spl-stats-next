@@ -138,11 +138,11 @@ export function CardTable({
               <SortHeader field="totCc" title="Total owned BCX" {...sortProps}>
                 Tot CC
               </SortHeader>
-              <SortHeader field="priceCc" title="Lowest price per BCX" {...sortProps}>
+              <SortHeader field="priceCc" title="Lowest price per CC (BCX)" {...sortProps}>
                 Price/CC
               </SortHeader>
-              <SortHeader field="oneCc" title="Lowest 1 BCX price" {...sortProps}>
-                1 CC
+              <SortHeader field="lowPrice" title="Low price" {...sortProps}>
+                Price
               </SortHeader>
               <SortHeader field="listed" title="Number of listed cards" {...sortProps}>
                 Listed
@@ -155,8 +155,8 @@ export function CardTable({
                     </Tooltip>
                   </TableCell>
                   <TableCell>
-                    <Tooltip title="1 CC change since watched">
-                      <span>Δ 1 CC</span>
+                    <Tooltip title="Low listing price change since watched">
+                      <span>Δ Price</span>
                     </Tooltip>
                   </TableCell>
                 </>
