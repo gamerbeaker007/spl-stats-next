@@ -9,6 +9,14 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.32.5] - 2026-10-24
+
+### Fixed
+
+- Current ranked reward draw
+
+---
+
 ## [v1.32.4] - 2026-10-23
 
 ### Updated

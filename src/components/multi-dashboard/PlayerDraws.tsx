@@ -60,6 +60,9 @@ export default function PlayerDraws({ balances, frontier, ranked, playerDetails 
     ((playerDetails?.season_details?.wild?.battles ?? 0) ||
       (playerDetails?.season_details?.modern?.battles ?? 0)) > 0;
 
+  const currentDraw = ranked?.current_ranked_draw;
+  const unclaimedDraw = ranked?.first_unclaimed_ranked_draw;
+
   return (
     <Box mb={2} width={"100%"} height={175}>
       <Typography variant="h6">Battle Modes</Typography>
@@ -70,13 +73,17 @@ export default function PlayerDraws({ balances, frontier, ranked, playerDetails 
               Frontier
             </Typography>
             <MyProgressBar value={frontierEnergy ?? 0} max={50} />
-            <Typography variant="subtitle2" color="secondary">
-              Frontier Draw #{frontier.current_frontier_draw.id}
-            </Typography>
-            <Typography variant="body2">
-              Entries: {frontier.current_frontier_draw.player_entries} /{" "}
-              {frontier.current_frontier_draw.total_entries}
-            </Typography>
+            {frontier.current_frontier_draw && (
+              <>
+                <Typography variant="subtitle2" color="secondary">
+                  Frontier Draw #{frontier.current_frontier_draw.id}
+                </Typography>
+                <Typography variant="body2">
+                  Entries: {frontier.current_frontier_draw.player_entries} /{" "}
+                  {frontier.current_frontier_draw.total_entries}
+                </Typography>
+              </>
+            )}
             {frontier.first_unclaimed_frontier_draw && (
               <Typography variant="body2" color="warning.main">
                 Unclaimed Prizes: #{frontier.first_unclaimed_frontier_draw.id}
@@ -89,20 +96,30 @@ export default function PlayerDraws({ balances, frontier, ranked, playerDetails 
             <Typography variant="subtitle2" color="primary">
               Ranked
             </Typography>
+
             <MyProgressBar value={rankedEnergy ?? 0} max={50} />
-            <Typography variant="subtitle2" color="primary">
-              Ranked Draw #{ranked.current_ranked_draw.id}
-            </Typography>
-            <Typography variant="body2">
-              Entries: {ranked.current_ranked_draw.player_entries} /
-              {ranked.current_ranked_draw.total_entries}
-            </Typography>
-            <Typography variant="body2">
-              Has Pass: {ranked.current_ranked_draw.player_has_pass ? "Yes" : "No"}
-            </Typography>
-            {ranked.first_unclaimed_ranked_draw && (
+
+            {currentDraw ? (
+              <>
+                <Typography variant="subtitle2" color="primary">
+                  Ranked Draw #{currentDraw.id}
+                </Typography>
+                <Typography variant="body2">
+                  Entries: {currentDraw.player_entries} / {currentDraw.total_entries}
+                </Typography>
+                <Typography variant="body2">
+                  Has Pass: {currentDraw.player_has_pass ? "Yes" : "No"}
+                </Typography>
+              </>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                No current ranked draw available.
+              </Typography>
+            )}
+
+            {unclaimedDraw && (
               <Typography variant="body2" color="warning.main">
-                Unclaimed Prizes: #{ranked.first_unclaimed_ranked_draw.id}
+                Unclaimed Prizes: #{unclaimedDraw.id}
               </Typography>
             )}
           </Card>
