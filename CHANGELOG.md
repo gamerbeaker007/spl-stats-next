@@ -7,6 +7,21 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ## [Unreleased]
 
+
+---
+
+## [v1.33.0] - 2026-10-25
+
+### Added
+
+- **Player card balances:** Added live land-staked DEC and DEC-SPS liquidity-pool DEC totals using browser-side SPL/vAPI and Hive Engine requests.
+
+### Improved
+
+- **Collection pages:** Reduced vertical chrome, moved balances and the applicable purchase cart into the top bar, and compacted account selection controls.
+- **Buy Missing CC:** Removed the duplicate card search and moved the estimate formula into a touch-friendly info tooltip.
+- **Small screens:** Hid collection balances, the logged-in username, and the test-mode badge.
+
 ---
 
 ## [v1.32.5] - 2026-10-24

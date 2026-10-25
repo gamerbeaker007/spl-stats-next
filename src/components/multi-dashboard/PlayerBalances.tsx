@@ -15,6 +15,12 @@ interface Props {
   categories: MultiAccountDashboardCategories;
   balances?: SplBalance[];
   poolBalances?: PlayerPoolBalances;
+  poolBalancesError?: string;
+  stakedDec?: number;
+  stakedDecError?: string;
+  tradeHubDecBalance?: number;
+  tradeHubDecBalanceError?: string;
+  balanceLoading?: boolean;
   seasonRewards?: SPLSeasonRewards;
   glintLoading?: boolean;
   glintError?: string | null;
@@ -27,6 +33,12 @@ export default function PlayerBalances({
   categories,
   balances,
   poolBalances,
+  poolBalancesError,
+  stakedDec,
+  stakedDecError,
+  tradeHubDecBalance,
+  tradeHubDecBalanceError,
+  balanceLoading,
   seasonRewards,
   glintLoading,
   glintError,
@@ -40,7 +52,18 @@ export default function PlayerBalances({
 
   return (
     <Box sx={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 1 }}>
-      {categories.balanceMain && <TopBalances balances={balances} poolBalances={poolBalances} />}
+      {categories.balanceMain && (
+        <TopBalances
+          balances={balances}
+          poolBalances={poolBalances}
+          poolBalancesError={poolBalancesError}
+          stakedDec={stakedDec}
+          stakedDecError={stakedDecError}
+          tradeHubDecBalance={tradeHubDecBalance}
+          tradeHubDecBalanceError={tradeHubDecBalanceError}
+          loading={balanceLoading}
+        />
+      )}
       {categories.balanceElectronium && <ElectroneumBalances balances={balances} />}
       {hasPotionsScrollsGuild && (
         <Box sx={{ display: "flex", gap: 1, width: "100%" }}>

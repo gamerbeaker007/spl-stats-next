@@ -150,11 +150,13 @@ function DashboardContent() {
         sx={{
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
+          alignItems: "left",
           gap: 1.5,
-          mb: 4,
-          p: 2,
-          borderRadius: 2,
+          mb: 2,
+          p: 1,
+          borderRadius: 1,
+          border: 1,
+          borderColor: "divider",
           backgroundColor: "background.paper",
         }}
       >
@@ -205,6 +207,22 @@ function DashboardContent() {
             </Stack>
           }
         />
+      </Box>
+
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "left",
+          gap: 1.5,
+          mb: 2,
+          p: 1,
+          borderRadius: 1,
+          border: 1,
+          borderColor: "divider",
+          backgroundColor: "background.paper",
+        }}
+      >
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
           {isAuthenticated && (
             <FormControlLabel

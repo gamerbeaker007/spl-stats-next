@@ -11,9 +11,9 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { revalidateTagsAction } from "@/lib/backend/actions/cache-actions";
 import { loadDetailedCollection } from "@/lib/frontend/collection-data";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
-import { fetchMarketForSaleGrouped } from "@/lib/frontend/spl-browser-api";
 import { useBuyMissingCcFilter } from "@/lib/frontend/context/BuyMissingCcFilterContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
+import { fetchMarketForSaleGrouped } from "@/lib/frontend/spl-browser-api";
 import {
   calculateUpgradeCostEstimate,
   calculateUpgradeRequirements,
@@ -35,15 +35,14 @@ import {
   IconButton,
   Stack,
   Switch,
-  TextField,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
-  Typography,
 } from "@mui/material";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MdInfoOutline, MdRefresh } from "react-icons/md";
 import BracketFilter from "./BracketFilter";
+import EstimateInfo from "./EstimateInfo";
 import type {
   AccountCardState,
   BracketTableState,
@@ -52,7 +51,6 @@ import type {
   Row,
 } from "./types";
 import { bracketStatus } from "./utils";
-import EstimateInfo from "./EstimateInfo";
 
 const COLLECTION_STICKY_BAR_HEIGHT = 58;
 // Vertical chrome above the page content on desktop: app bar (paddingTop) +
@@ -116,7 +114,6 @@ export default function BuyMissingCcPageClient() {
   const [bracketStateFilters, setBracketStateFilters] = useState<BracketTableState[]>(["all"]);
   const [combineFoils, setCombineFoils] = useState(true);
   const [highestLevelOnly, setHighestLevelOnly] = useState(true);
-  const [search, setSearch] = useState("");
   const [dialogRow, setDialogRow] = useState<DisplayRow | null>(null);
   const [combineDialogRow, setCombineDialogRow] = useState<DisplayRow | null>(null);
   const [showUpgradeableOnly, setShowUpgradeableOnly] = useState(false);
@@ -380,7 +377,6 @@ export default function BuyMissingCcPageClient() {
       ) {
         return false;
       }
-      if (search && !row.name.toLowerCase().includes(search.toLowerCase())) return false;
       if (!selectedBracket) return true;
 
       if (bracketStateFilters.includes("all") || bracketStateFilters.length === 0) {
@@ -396,7 +392,6 @@ export default function BuyMissingCcPageClient() {
   }, [
     displayRowsWithCrossFoilProgress,
     filter,
-    search,
     selectedBracket,
     bracketStateFilters,
     combineFoils,
@@ -498,132 +493,141 @@ export default function BuyMissingCcPageClient() {
         }}
       >
         <Stack spacing={2} sx={{ mb: 2, flexShrink: 0 }}>
-          <Typography variant="h4">Buy Missing CC</Typography>
+          <Box
+            sx={{
+              p: 1,
+              borderRadius: 1,
+              backgroundColor: "background.paper",
+              border: 1,
+              borderColor: "divider",
+            }}
+          >
+            <AccountSelectorBar
+              accounts={accountOptions}
+              selectedAccount={selectedAccount}
+              onSelectedAccountChange={setSelectedAccount}
+              addAccountInput={addAccountInput}
+              onAddAccountInputChange={setAddAccountInput}
+              onAddAccount={handleAddAccount}
+              monitoredAccounts={monitoredAccounts}
+              localAccounts={savedAccounts}
+              onRemoveAccount={removeLocalAccount}
+              extraContent={
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+                  <Tooltip
+                    title={
+                      refreshCooldown
+                        ? "Refresh available in ~60s"
+                        : "Force refresh collection data"
+                    }
+                  >
+                    <span>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<MdRefresh />}
+                        disabled={refreshCooldown || !selectedAccount}
+                        onClick={handleHardRefresh}
+                      >
+                        Refresh
+                      </Button>
+                    </span>
+                  </Tooltip>
+                </Stack>
+              }
+            />
+          </Box>
 
-          <AccountSelectorBar
-            accounts={accountOptions}
-            selectedAccount={selectedAccount}
-            onSelectedAccountChange={setSelectedAccount}
-            addAccountInput={addAccountInput}
-            onAddAccountInputChange={setAddAccountInput}
-            onAddAccount={handleAddAccount}
-            monitoredAccounts={monitoredAccounts}
-            localAccounts={savedAccounts}
-            onRemoveAccount={removeLocalAccount}
-            extraContent={
-              <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                <TextField
+          <Box
+            gap={1}
+            display="flex"
+            flexDirection="column"
+            sx={{
+              p: 1,
+              borderRadius: 1,
+              backgroundColor: "background.paper",
+              border: 1,
+              borderColor: "divider",
+            }}
+          >
+            <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+              <BracketFilter
+                selectedBracket={selectedBracket}
+                setSelectedBracket={handleSelectedBracketChange}
+              />
+
+              {selectedBracket && (
+                <ToggleButtonGroup
+                  value={bracketStateFilters}
+                  onChange={(_event, value: BracketTableState[]) => handleBracketStateChange(value)}
                   size="small"
-                  label="Search card"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  sx={{ minWidth: 220 }}
-                />
-                <Tooltip
-                  title={
-                    refreshCooldown ? "Refresh available in ~60s" : "Force refresh collection data"
-                  }
                 >
-                  <span>
-                    <Button
+                  <ToggleButton value="all">All</ToggleButton>
+                  <ToggleButton value="below">Below Bracket</ToggleButton>
+                  <ToggleButton value="in-bracket">In Bracket</ToggleButton>
+                  <ToggleButton value="max">Max for Bracket</ToggleButton>
+                </ToggleButtonGroup>
+              )}
+            </Stack>
+
+            <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+              <Stack direction="row" alignItems="center" spacing={0.5}>
+                <FormControlLabel
+                  sx={{ ml: 0 }}
+                  control={
+                    <Switch
                       size="small"
-                      variant="outlined"
-                      startIcon={<MdRefresh />}
-                      disabled={refreshCooldown || !selectedAccount}
-                      onClick={handleHardRefresh}
-                    >
-                      Refresh
-                    </Button>
-                  </span>
+                      checked={combineFoils}
+                      onChange={(_event, checked) => setCombineFoils(checked)}
+                    />
+                  }
+                  label="Cross-Foil Progress"
+                />
+                <Tooltip title="Cross-Foil Progress ignores foil filter for cards you own and evaluates progress using owned foil data. Unowned cards still follow your selected foil filter.">
+                  <IconButton size="small" sx={{ p: 0.25 }}>
+                    <MdInfoOutline size={16} />
+                  </IconButton>
                 </Tooltip>
               </Stack>
-            }
-          />
 
-          <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
-            <BracketFilter
-              selectedBracket={selectedBracket}
-              setSelectedBracket={handleSelectedBracketChange}
-            />
+              <FormControlLabel
+                sx={{ ml: 0 }}
+                disabled={!combineFoils}
+                control={
+                  <Switch
+                    size="small"
+                    checked={highestLevelOnly}
+                    onChange={(_event, checked) => setHighestLevelOnly(checked)}
+                  />
+                }
+                label="Highest Level Only"
+              />
 
-            {selectedBracket && (
-              <ToggleButtonGroup
-                value={bracketStateFilters}
-                onChange={(_event, value: BracketTableState[]) => handleBracketStateChange(value)}
-                size="small"
-              >
-                <ToggleButton value="all">All</ToggleButton>
-                <ToggleButton value="below">Below Bracket</ToggleButton>
-                <ToggleButton value="in-bracket">In Bracket</ToggleButton>
-                <ToggleButton value="max">Max for Bracket</ToggleButton>
-              </ToggleButtonGroup>
-            )}
-          </Stack>
-
-          <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
-            <Stack direction="row" alignItems="center" spacing={0.5}>
               <FormControlLabel
                 sx={{ ml: 0 }}
                 control={
                   <Switch
                     size="small"
-                    checked={combineFoils}
-                    onChange={(_event, checked) => setCombineFoils(checked)}
+                    checked={showUpgradeableOnly}
+                    onChange={(_event, checked) => setShowUpgradeableOnly(checked)}
                   />
                 }
-                label="Cross-Foil Progress"
+                label="Upgradeable Cards"
               />
-              <Tooltip title="Cross-Foil Progress ignores foil filter for cards you own and evaluates progress using owned foil data. Unowned cards still follow your selected foil filter.">
-                <IconButton size="small" sx={{ p: 0.25 }}>
-                  <MdInfoOutline size={16} />
-                </IconButton>
-              </Tooltip>
             </Stack>
+            {error && <Alert severity="error">{error}</Alert>}
 
-            <FormControlLabel
-              sx={{ ml: 0 }}
-              disabled={!combineFoils}
-              control={
-                <Switch
-                  size="small"
-                  checked={highestLevelOnly}
-                  onChange={(_event, checked) => setHighestLevelOnly(checked)}
+            <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap" useFlexGap>
+              <Chip label={`Estimated to Max: $${summary.toMaxUsd.toFixed(2)}`} />
+              {selectedBracket && (
+                <Chip
+                  color="primary"
+                  label={`Estimated ${LEAGUE_BRACKETS[selectedBracket].label}: $${summary.toBracketUsd.toFixed(2)}`}
                 />
-              }
-              label="Highest Level Only"
-            />
-
-            <FormControlLabel
-              sx={{ ml: 0 }}
-              control={
-                <Switch
-                  size="small"
-                  checked={showUpgradeableOnly}
-                  onChange={(_event, checked) => setShowUpgradeableOnly(checked)}
-                />
-              }
-              label="Upgradeable Cards"
-            />
-          </Stack>
-
-          {error && <Alert severity="error">{error}</Alert>}
-
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
-            <Chip label={`Estimated to Max: $${summary.toMaxUsd.toFixed(2)}`} />
-            {selectedBracket && (
-              <Chip
-                color="primary"
-                label={`Estimated ${LEAGUE_BRACKETS[selectedBracket].label}: $${summary.toBracketUsd.toFixed(2)}`}
-              />
-            )}
-          </Stack>
-
-          <Stack direction="row" alignItems="center" spacing={0.5}>
-            <Typography variant="caption" color="text.secondary">
-              Estimate formula: (Required CC - Current CC) x Lowest price per CC.
-            </Typography>
-            <EstimateInfo />
-          </Stack>
+              )}
+              <EstimateInfo />
+            </Stack>
+          </Box>
         </Stack>
 
         <BuyMissingCcTable

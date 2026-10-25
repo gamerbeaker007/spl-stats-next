@@ -12,6 +12,11 @@ export interface PlayerStatusData {
   /** DEC/SPS held in DEC-SPS liquidity pools — additive to `balances`. */
   poolBalances?: PlayerPoolBalances;
   poolBalancesError?: string;
+  /** DEC currently staked across the player's land plots. */
+  stakedDec?: number;
+  stakedDecError?: string;
+  tradeHubDecBalance?: number;
+  tradeHubDecBalanceError?: string;
   draws?: {
     frontier: SplFrontierDrawStatus;
     ranked: SplRankedDrawStatus;

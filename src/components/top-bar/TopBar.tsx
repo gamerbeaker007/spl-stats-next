@@ -1,6 +1,10 @@
 "use client";
 
+import PurchaseCartButton from "@/components/collection/top-bar/PurchaseCartButton";
 import { isActive, navLinks } from "@/components/nav/navLinks";
+import SupportDialog from "@/components/support/SupportDialog";
+import TopBarBalances from "@/components/top-bar/TopBarBalances";
+import { isCollectionCartAvailable } from "@/lib/shared/collection-routes";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
@@ -8,13 +12,11 @@ import Toolbar from "@mui/material/Toolbar";
 import Tooltip from "@mui/material/Tooltip";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
-import { MdMenu } from "react-icons/md";
-import { MdFavorite } from "react-icons/md";
+import { Suspense, useState } from "react";
+import { MdFavorite, MdMenu } from "react-icons/md";
 import InvalidTokenAlert from "./InvalidTokenAlert";
 import LoginComponent from "./LoginComponent";
 import SplMaintenanceIndicator from "./SplMaintenanceIndicator";
-import SupportDialog from "@/components/support/SupportDialog";
 import ThemeToggle from "./ThemeToggle";
 
 export const APP_BAR_HEIGHT = 50;
@@ -28,6 +30,7 @@ interface TopBarProps {
 export default function TopBar({ onHamburgerClick }: Readonly<TopBarProps>) {
   const pathname = usePathname();
   const [supportOpen, setSupportOpen] = useState(false);
+  const isCollection = pathname === "/collection" || pathname.startsWith("/collection/");
 
   return (
     <AppBar
@@ -67,6 +70,14 @@ export default function TopBar({ onHamburgerClick }: Readonly<TopBarProps>) {
         {/* Spacer */}
         <Box sx={{ flex: 1 }} />
 
+        {isCollection && (
+          <Box sx={{ display: { xs: "none", md: "flex" }, alignItems: "center", gap: 0.5 }}>
+            <Suspense fallback={<Box sx={{ width: 120, height: 24 }} />}>
+              <TopBarBalances />
+            </Suspense>
+          </Box>
+        )}
+
         {/* Mobile: first x nav icons */}
         <Box sx={{ display: { xs: "flex", md: "none" }, alignItems: "center", gap: 0.5 }}>
           {navLinks.slice(1, MOBILE_NAV_COUNT).map(({ href, label, icon }) => (
@@ -91,6 +102,7 @@ export default function TopBar({ onHamburgerClick }: Readonly<TopBarProps>) {
 
         {/* Right side: maintenance indicator + invalid token alert + theme + user */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          {isCollectionCartAvailable(pathname) && <PurchaseCartButton />}
           <SplMaintenanceIndicator />
           <InvalidTokenAlert />
           <ThemeToggle />

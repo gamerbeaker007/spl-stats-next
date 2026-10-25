@@ -41,10 +41,16 @@ import type { SplFrontierDrawStatus, SplRankedDrawStatus } from "@/types/spl/dra
 import type { SplInventoryItem, SplSkin } from "@/types/spl/jackpot";
 import type { SplCardListingPriceEntry } from "@/types/spl/market";
 import type { SPLSeasonRewards } from "@/types/spl/seasonRewards";
+import type {
+  VapiLandResourcePool,
+  VapiResourcePool,
+  VapiStakedDecEntry,
+} from "../backend/api/spl/vapi-spl";
 
 /**
  * The only path for every "browser (live)" SPL data type (see CLAUDE.md):
- * balances, inventory, card collection, grouped market prices, card history,
+ * balances, land-staked DEC, DEC-SPS pool positions, inventory, card collection,
+ * grouped market prices, card history,
  * owned land regions, marketplace holdings (landing / player listings / skins),
  * dashboard player details / draws / season rewards, and jackpot prize account
  * collections / inventories / skins,
@@ -60,13 +66,16 @@ import type { SPLSeasonRewards } from "@/types/spl/seasonRewards";
  */
 
 const BROWSER_TIMEOUT_MS = 15_000;
+let landResourcePoolsRequest: Promise<VapiResourcePool[]> | null = null;
 
 async function requestJson(baseUrl: string, path: string, init?: RequestInit): Promise<unknown> {
   const res = await fetch(`${baseUrl}${path}`, {
     ...init,
     signal: AbortSignal.timeout(BROWSER_TIMEOUT_MS),
   });
-  if (!res.ok) throw new Error(`Splinterlands ${path} returned HTTP ${res.status}`);
+  if (!res.ok) {
+    throw new Error(`${new URL(baseUrl).host}${path} returned HTTP ${res.status}`);
+  }
   return res.json();
 }
 
@@ -118,6 +127,35 @@ export async function fetchAccountBalances(account: string): Promise<SplBalance[
   return data as SplBalance[];
 }
 
+export async function fetchStakedDEC(account: string): Promise<number> {
+  const response = (await vapiGet(SPL_VAPI.LAND_STAKE_DEC_STAKED, {
+    player: account.trim().toLowerCase(),
+  })) as { data?: VapiStakedDecEntry[] } | null;
+
+  const entries = response?.data ?? [];
+  if (!Array.isArray(entries)) throw new Error("Invalid staked DEC response");
+  return entries.reduce((sum, e) => sum + (e.amount ?? 0), 0);
+}
+
+export function fetchLandResourcePools(): Promise<VapiResourcePool[]> {
+  if (!landResourcePoolsRequest) {
+    landResourcePoolsRequest = (async () => {
+      const response = (await vapiGet(
+        SPL_VAPI.LAND_LIQUIDITY_POOLS,
+        {}
+      )) as VapiLandResourcePool | null;
+      const entries = response?.data ?? [];
+      if (!Array.isArray(entries)) throw new Error("Invalid land resource pools response");
+      return entries as VapiResourcePool[];
+    })().catch((error: unknown) => {
+      landResourcePoolsRequest = null;
+      throw error;
+    });
+  }
+
+  return landResourcePoolsRequest;
+}
+
 export function fetchBalancesForAccounts(accounts: string[]): Promise<AccountBalances[]> {
   const uniqueAccounts = Array.from(new Set(accounts.map((a) => a.toLowerCase())));
   return Promise.all(
@@ -128,18 +166,24 @@ export function fetchBalancesForAccounts(accounts: string[]): Promise<AccountBal
   );
 }
 
-/** The account's live item inventory (uids with listed / in-use state). */
-export async function fetchInventory(username: string): Promise<SplInventoryItem[]> {
-  const data = await apiGet(SPL_API.PLAYER_INVENTORY, { username: username.trim().toLowerCase() });
+async function loadInventory(
+  account: string,
+  normalizeUsername: boolean
+): Promise<SplInventoryItem[]> {
+  const username = normalizeUsername ? account.trim().toLowerCase() : account.trim();
+  const data = await apiGet(SPL_API.PLAYER_INVENTORY, { username });
   if (!Array.isArray(data)) throw new Error("Invalid inventory response");
   return data as SplInventoryItem[];
 }
 
-/** Inventory for a named SPL account, including system accounts prefixed with `$`. */
+/** Live item inventory for a player username; normalizes player names to lowercase. */
+export async function fetchInventory(username: string): Promise<SplInventoryItem[]> {
+  return loadInventory(username, true);
+}
+
+/** Same inventory endpoint, preserving case for system accounts prefixed with `$`. */
 export async function fetchAccountInventory(account: string): Promise<SplInventoryItem[]> {
-  const data = await apiGet(SPL_API.PLAYER_INVENTORY, { username: account.trim() });
-  if (!Array.isArray(data)) throw new Error("Invalid account inventory response");
-  return data as SplInventoryItem[];
+  return loadInventory(account, false);
 }
 
 /** Skins held by a named SPL account, including system accounts prefixed with `$`. */

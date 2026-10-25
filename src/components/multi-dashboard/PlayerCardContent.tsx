@@ -24,6 +24,7 @@ export interface PlayerCardContentProps {
   categories: MultiAccountDashboardCategories;
   loadAll: boolean;
   loadingAll: boolean;
+  playerLoading?: boolean;
   onLoadAll: () => void;
 
   player: PlayerStatusData | null;
@@ -57,6 +58,7 @@ export function PlayerCardContent({
   categories,
   loadAll,
   loadingAll,
+  playerLoading,
   onLoadAll,
   player,
   collectionData,
@@ -137,6 +139,12 @@ export function PlayerCardContent({
             categories={categories}
             balances={player?.balances}
             poolBalances={player?.poolBalances}
+            poolBalancesError={player?.poolBalancesError}
+            stakedDec={player?.stakedDec}
+            stakedDecError={player?.stakedDecError}
+            tradeHubDecBalance={player?.tradeHubDecBalance}
+            tradeHubDecBalanceError={player?.tradeHubDecBalanceError}
+            balanceLoading={playerLoading}
             seasonRewards={seasonRewards ?? undefined}
             glintLoading={seasonRewardsLoading}
             glintError={seasonRewardsError}

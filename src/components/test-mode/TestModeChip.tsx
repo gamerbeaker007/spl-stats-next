@@ -16,6 +16,7 @@ export default function TestModeChip() {
       size="small"
       sx={{
         position: "fixed",
+        display: { xs: "none", sm: "inline-flex" },
         bottom: 16,
         left: 16,
         zIndex: 1400,

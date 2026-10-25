@@ -1,8 +1,10 @@
 import { getPlayerBrawl, getPlayerPoolBalances } from "@/lib/backend/actions/player-actions";
 import {
   fetchAccountBalances,
+  fetchLandResourcePools,
   fetchPlayerDetails,
   fetchPlayerDraws,
+  fetchStakedDEC,
 } from "@/lib/frontend/spl-browser-api";
 import { toSectionAuthState } from "@/lib/shared/authenticated-result";
 import { PlayerStatusData } from "@/types/playerStatus";
@@ -47,13 +49,21 @@ export function usePlayerStatus(
     setError(null);
 
     try {
-      const [balancesResult, drawsResult, detailsResult, poolBalancesResult] =
-        await Promise.allSettled([
-          fetchAccountBalances(username),
-          fetchPlayerDraws(username),
-          fetchPlayerDetails(username),
-          getPlayerPoolBalances(username),
-        ]);
+      const [
+        balancesResult,
+        drawsResult,
+        detailsResult,
+        poolBalancesResult,
+        stakedDecResult,
+        landResourcePoolsResult,
+      ] = await Promise.allSettled([
+        fetchAccountBalances(username),
+        fetchPlayerDraws(username),
+        fetchPlayerDetails(username),
+        getPlayerPoolBalances(username),
+        fetchStakedDEC(username),
+        fetchLandResourcePools(),
+      ]);
 
       if (!isMountedRef.current) return;
 
@@ -64,6 +74,30 @@ export function usePlayerStatus(
 
       if (balancesResult.status === "fulfilled") {
         result.balances = balancesResult.value;
+
+        if (landResourcePoolsResult.status === "fulfilled") {
+          let totalValue = 0;
+          for (const pool of landResourcePoolsResult.value) {
+            if (pool.token_symbol === "SPS") continue; // SPS is not a land resource, skip
+            const balanceEntry = result.balances.find(
+              (b) => b.token === "DEC-" + pool.token_symbol
+            );
+            if (balanceEntry) {
+              const totalShares = Number(pool.total_shares ?? 0);
+              const shares = balanceEntry.balance ?? 0; // shares
+              const ownership = totalShares > 0 && shares > 0 ? shares / totalShares : 0;
+              const decQuantity = Number(pool.dec_quantity ?? 0);
+              const poolDecQty = ownership > 0 ? decQuantity * ownership : 0;
+              totalValue += poolDecQty;
+            }
+          }
+          result.tradeHubDecBalance = totalValue;
+        } else {
+          result.tradeHubDecBalanceError =
+            landResourcePoolsResult.reason instanceof Error
+              ? landResourcePoolsResult.reason.message
+              : "Failed to fetch land resource pools";
+        }
       } else {
         result.balancesError =
           balancesResult.reason instanceof Error
@@ -78,6 +112,15 @@ export function usePlayerStatus(
           poolBalancesResult.reason instanceof Error
             ? poolBalancesResult.reason.message
             : "Failed to fetch pool balances";
+      }
+
+      if (stakedDecResult.status === "fulfilled") {
+        result.stakedDec = stakedDecResult.value;
+      } else {
+        result.stakedDecError =
+          stakedDecResult.reason instanceof Error
+            ? stakedDecResult.reason.message
+            : "Failed to fetch land-staked DEC";
       }
 
       if (drawsResult.status === "fulfilled") {

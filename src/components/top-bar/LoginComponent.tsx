@@ -126,7 +126,9 @@ export default function LoginComponent() {
               />
             </Avatar>
             <Typography variant="body2" sx={{ fontWeight: 500 }}>
-              {user.username}
+              <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                {user.username}
+              </Box>
             </Typography>
           </>
         ) : (

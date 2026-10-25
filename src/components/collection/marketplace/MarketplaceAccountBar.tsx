@@ -38,8 +38,8 @@ export default function MarketplaceAccountBar({
   return (
     <Box
       sx={{
-        p: 2,
-        borderRadius: 2,
+        p: 1,
+        borderRadius: 1,
         backgroundColor: "background.paper",
         border: 1,
         borderColor: "divider",

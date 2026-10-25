@@ -2,8 +2,8 @@
 
 import {
   Box,
-  Button,
   IconButton,
+  InputAdornment,
   Stack,
   TextField,
   ToggleButton,
@@ -58,7 +58,14 @@ export default function AccountSelectorBar(props: Readonly<AccountSelectorBarPro
   const localSet = new Set(localAccounts ?? []);
 
   return (
-    <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }}>
+    <Stack
+      direction="row"
+      spacing={1}
+      alignItems="center"
+      flexWrap="wrap"
+      useFlexGap
+      sx={{ rowGap: 1 }}
+    >
       <ToggleButtonGroup
         exclusive={!multiSelect}
         value={selectedValue}
@@ -111,7 +118,7 @@ export default function AccountSelectorBar(props: Readonly<AccountSelectorBarPro
 
       <TextField
         size="small"
-        label="Add Account"
+        label="Add account"
         value={addAccountInput}
         onChange={(event) => onAddAccountInputChange(event.target.value)}
         onKeyDown={(event) => {
@@ -120,12 +127,28 @@ export default function AccountSelectorBar(props: Readonly<AccountSelectorBarPro
             onAddAccount();
           }
         }}
-        sx={{ minWidth: 220 }}
+        sx={{
+          minWidth: { xs: 170, sm: 200 },
+          "& .MuiOutlinedInput-root": { pr: 0.5 },
+        }}
+        slotProps={{
+          input: {
+            endAdornment: (
+              <InputAdornment position="end">
+                <IconButton
+                  size="small"
+                  aria-label="Add account"
+                  onClick={onAddAccount}
+                  disabled={!addAccountInput.trim()}
+                  edge="end"
+                >
+                  <MdAdd />
+                </IconButton>
+              </InputAdornment>
+            ),
+          },
+        }}
       />
-
-      <Button size="small" variant="outlined" startIcon={<MdAdd />} onClick={onAddAccount}>
-        Add Account
-      </Button>
 
       {extraContent ? <Box>{extraContent}</Box> : null}
     </Stack>

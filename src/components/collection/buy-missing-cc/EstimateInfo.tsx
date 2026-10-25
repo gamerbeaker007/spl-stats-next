@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, Tooltip, Typography } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography } from "@mui/material";
 import { MdInfoOutline } from "react-icons/md";
 
 /**
@@ -13,6 +13,12 @@ export default function EstimateInfo() {
     <Tooltip
       title={
         <Box>
+          <Typography variant="caption" component="div" sx={{ fontWeight: 700 }}>
+            Estimate formula:
+          </Typography>
+          <Typography variant="caption" component="div" sx={{ mb: 0.5 }}>
+            (Required CC - Current CC) × Lowest price per CC.
+          </Typography>
           <Typography variant="caption" component="div">
             Estimates use the lowest price per CC on the market, so they are the lowest possible
             cost (a best case).
@@ -27,13 +33,12 @@ export default function EstimateInfo() {
           </Typography>
         </Box>
       }
+      enterTouchDelay={0}
+      leaveTouchDelay={3000}
     >
-      <Box
-        component="span"
-        sx={{ display: "inline-flex", alignItems: "center", color: "text.secondary" }}
-      >
-        <MdInfoOutline size={14} />
-      </Box>
+      <IconButton size="small" aria-label="Estimate formula and pricing explanation">
+        <MdInfoOutline size={20} />
+      </IconButton>
     </Tooltip>
   );
 }

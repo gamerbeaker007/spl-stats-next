@@ -184,7 +184,6 @@ const DEFAULT_PRICES = {
  * Returns 0 if the market is empty. Except for castles (5000) and keeps (500)
  */
 function findBestMarketPrice(deed: VapiDeed, market: VapiDeed[]): number {
-
   // when it is a keep or castle get the lowest price on the market.... if none on the market set a minimum price of keep 500$ and castle 5000$
   const isMythic = deed.rarity === "mythic";
   if (isMythic) {
@@ -209,7 +208,6 @@ function findBestMarketPrice(deed: VapiDeed, market: VapiDeed[]): number {
     return prices.length > 0 ? Math.min(...prices) : defaultPrice;
   }
 
-
   if (market.length === 0) return 0;
 
   let candidates = market;
@@ -233,9 +231,7 @@ function findBestMarketPrice(deed: VapiDeed, market: VapiDeed[]): number {
     );
   }
 
-  const prices = candidates
-    .map((item) => Number(item.listing_price))
-    .filter(isValidPrice);
+  const prices = candidates.map((item) => Number(item.listing_price)).filter(isValidPrice);
   return prices.length > 0 ? Math.min(...prices) : 0;
 }
 

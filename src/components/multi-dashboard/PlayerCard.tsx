@@ -276,6 +276,7 @@ export const PlayerCard = ({ username, config }: Props) => {
         categories={effectiveCategories}
         loadAll={loadAll}
         loadingAll={loadingAll}
+        playerLoading={loading}
         onLoadAll={() => setLoadAll(true)}
         currentSeasonId={currentSeasonId}
         player={player}
