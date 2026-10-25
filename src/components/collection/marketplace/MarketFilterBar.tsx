@@ -1,5 +1,6 @@
 "use client";
 
+import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
 import type { MarketAssetFilter } from "@/lib/shared/marketplace-assets";
 import {
   FormControlLabel,
@@ -10,12 +11,13 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from "@mui/material";
+import type { ReactNode } from "react";
 import { MdArrowDownward, MdArrowUpward } from "react-icons/md";
-import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
 
 interface MarketFilterBarProps {
   filter: MarketAssetFilter;
   onChange: (next: MarketAssetFilter) => void;
+  extraControls?: ReactNode;
 }
 
 function parsePrice(value: string): number | null {
@@ -29,7 +31,11 @@ function parsePrice(value: string): number | null {
  * name/price sorting. Price uses number inputs (not a slider) because listing
  * prices are unbounded and vary widely per asset — exact entry beats a range.
  */
-export default function MarketFilterBar({ filter, onChange }: Readonly<MarketFilterBarProps>) {
+export default function MarketFilterBar({
+  filter,
+  onChange,
+  extraControls,
+}: Readonly<MarketFilterBarProps>) {
   const { viewMode } = useMarketplaceView();
 
   return (
@@ -76,6 +82,8 @@ export default function MarketFilterBar({ filter, onChange }: Readonly<MarketFil
         }
         label="Outbid"
       />
+
+      {extraControls}
 
       {viewMode != "table" && (
         <>

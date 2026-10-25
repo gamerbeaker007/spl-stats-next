@@ -1,5 +1,7 @@
 "use client";
 
+import { LivePriceValue } from "@/components/collection/cards/LivePrice";
+
 import {
   LandDetailIcons,
   LandResourceIcons,
@@ -208,7 +210,9 @@ export default function LandMarketCard({
         <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="h6" component="p" fontWeight={800} lineHeight={1.1}>
-              {formatLandPriceUsd(listing.priceUsd)}
+              <LivePriceValue value={listing.priceUsd}>
+                {formatLandPriceUsd(listing.priceUsd)}
+              </LivePriceValue>
             </Typography>
             {decPriceUsd !== null && (
               <Typography variant="caption" color="text.secondary">

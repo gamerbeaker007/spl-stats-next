@@ -1,6 +1,9 @@
 "use client";
 
+import { LiveCountValue, LivePriceValue } from "@/components/collection/cards/LivePrice";
 import type { MarketActionMode } from "@/components/collection/marketplace/MarketActionDialogHost";
+import { ItemWatchButton } from "@/lib/frontend/context/AssetWatchContext";
+import { ItemWatchPriceDelta } from "@/lib/frontend/context/AssetWatchContext";
 import {
   getActivateTooltip,
   getActualOwnedQuantity,
@@ -119,22 +122,32 @@ export default function MarketAssetCard({
       sx={{
         width: 220,
         px: 1,
-        borderRadius: 2,
+        borderRadius: 1,
         border: activeSkin ? 2 : 1,
         borderColor: activeSkin ? "success.main" : "divider",
         backgroundColor: "background.paper",
         boxShadow: activeSkin ? "0 0 0 1px rgba(76, 175, 80, 0.15)" : "none",
       }}
     >
-      <Typography variant="caption" align="center" title={item.displayName} pt={1}>
-        {item.displayName}
-      </Typography>
+      <Stack direction="row" alignItems="center" justifyContent="space-between" pt={1}>
+        <Typography
+          variant="caption"
+          align="left"
+          title={item.displayName}
+          sx={{ flex: 1, minWidth: 0 }}
+        >
+          {item.displayName}
+        </Typography>
+        <ItemWatchButton item={item} />
+      </Stack>
 
       <Stack direction="row" justifyContent="space-between" alignItems="center">
         <Tooltip title="Market listed quantity">
           <Stack direction="row" spacing={0.4} alignItems="center" sx={{ color: "text.secondary" }}>
             <StorefrontOutlinedIcon sx={{ fontSize: "0.92rem" }} />
-            <Typography variant="caption">{largeNumberFormat(listedItems)}</Typography>
+            <Typography variant="caption">
+              <LiveCountValue value={listedItems}>{largeNumberFormat(listedItems)}</LiveCountValue>
+            </Typography>
           </Stack>
         </Tooltip>
         <Tooltip title="Circulation">
@@ -193,7 +206,13 @@ export default function MarketAssetCard({
           </Typography>
         )}
         <Typography variant="caption">
-          Lowest: <strong>{lowestUsd !== null ? `$${lowestUsd.toFixed(2)}` : "-"}</strong>
+          Lowest:{" "}
+          <strong>
+            <LivePriceValue value={lowestUsd ?? undefined}>
+              {lowestUsd !== null ? `$${lowestUsd.toFixed(2)}` : "-"}
+            </LivePriceValue>
+          </strong>
+          <ItemWatchPriceDelta item={item} hideWhenUnavailable />
         </Typography>
       </Stack>
 

@@ -1,6 +1,12 @@
 "use client";
 
+import { LiveCountValue, LivePriceValue } from "@/components/collection/cards/LivePrice";
 import type { MarketActionMode } from "@/components/collection/marketplace/MarketActionDialogHost";
+import {
+  ItemWatchButton,
+  ItemWatchPriceDelta,
+  useAssetWatchContext,
+} from "@/lib/frontend/context/AssetWatchContext";
 import {
   formatAssetPriceLabel,
   getActualOwnedQuantity,
@@ -8,6 +14,7 @@ import {
   getDeedImg,
   getListTooltip,
   getLowestPrice,
+  getLowestUsdPrice,
   isSkinActive,
 } from "@/lib/shared/marketplace-assets";
 import type { MarketplaceAssetItem, OutbidStatus } from "@/types/marketplace-assets";
@@ -60,6 +67,7 @@ export default function MarketAssetTable({
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
+  const assetWatchContext = useAssetWatchContext();
 
   const sortedItems = useMemo(() => {
     const withMetrics = items.map((item) => ({
@@ -115,9 +123,10 @@ export default function MarketAssetTable({
 
   return (
     <Box sx={{ overflowX: "auto", border: 1, borderColor: "divider", borderRadius: 2 }}>
-      <Table size="small" sx={{ minWidth: 640 }}>
+      <Table size="small" sx={{ minWidth: 720 }}>
         <TableHead>
           <TableRow>
+            {assetWatchContext && <TableCell sx={{ px: 0.5 }} />}
             <TableCell>
               <TableSortLabel
                 active={sortBy === "displayName"}
@@ -165,6 +174,11 @@ export default function MarketAssetTable({
                 Price
               </TableSortLabel>
             </TableCell>
+            <TableCell align="right">
+              <Tooltip title="Lowest price change since watched">
+                <span>Δ Price</span>
+              </Tooltip>
+            </TableCell>
             <TableCell align="right">Actions</TableCell>
           </TableRow>
         </TableHead>
@@ -201,6 +215,11 @@ export default function MarketAssetTable({
                       : undefined
                 }
               >
+                {assetWatchContext && (
+                  <TableCell sx={{ px: 0.5 }}>
+                    <ItemWatchButton item={item} />
+                  </TableCell>
+                )}
                 <TableCell>
                   <Tooltip
                     followCursor
@@ -245,11 +264,15 @@ export default function MarketAssetTable({
                 </TableCell>
                 <TableCell align="right">{item.numCirculation}</TableCell>
                 {hasAccount && <TableCell align="right">{actualOwned}</TableCell>}
-                <TableCell align="right">{item.numListed}</TableCell>
+                <TableCell align="right">
+                  <LiveCountValue value={item.numListed}>{item.numListed}</LiveCountValue>
+                </TableCell>
                 <TableCell align="right">
                   <Stack direction="column" spacing={0.5} alignItems="flex-end">
                     <Typography variant="body2" color="text.secondary" noWrap>
-                      {formatAssetPriceLabel(item)}
+                      <LivePriceValue value={getLowestUsdPrice(item.prices) ?? undefined}>
+                        {formatAssetPriceLabel(item)}
+                      </LivePriceValue>
                     </Typography>
                     {hasAccount && outbid?.isOutbid && (
                       <Tooltip
@@ -265,6 +288,9 @@ export default function MarketAssetTable({
                       </Tooltip>
                     )}
                   </Stack>
+                </TableCell>
+                <TableCell align="right">
+                  <ItemWatchPriceDelta item={item} />
                 </TableCell>
                 <TableCell align="right">
                   <Stack direction="row" spacing={0.5} justifyContent="flex-end">

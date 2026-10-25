@@ -45,28 +45,51 @@ function FlashOnChange<T>({
   );
 }
 
+const priceKind = (prev: number | undefined, next: number | undefined): FlashKind | null =>
+  prev && next && prev !== next ? (next > prev ? "up" : "down") : null;
+
+const countKind = (prev: number | undefined, next: number | undefined): FlashKind | null =>
+  prev !== undefined && next !== undefined ? "changed" : null;
+
+/**
+ * Renders `children` (any price label, e.g. "1.25 DEC / 0.01 USD") and flashes it red (up) or
+ * green (down) when the numeric `value` changes. Non-positive / missing values never flash.
+ */
+export function LivePriceValue({
+  value,
+  children,
+}: Readonly<{ value: number | undefined; children: ReactNode }>) {
+  return (
+    <FlashOnChange value={value} kindOf={priceKind}>
+      {children}
+    </FlashOnChange>
+  );
+}
+
+/** Renders `children` (a formatted count) and flashes it in a neutral color when `value` changes. */
+export function LiveCountValue({
+  value,
+  children,
+}: Readonly<{ value: number | undefined; children: ReactNode }>) {
+  return (
+    <FlashOnChange value={value} kindOf={countKind}>
+      {children}
+    </FlashOnChange>
+  );
+}
+
 /** USD price that flashes bold red (up) or bold green (down) when it changes. */
 export function LivePrice({ value }: Readonly<{ value: number | undefined }>) {
   return (
-    <FlashOnChange
-      value={value}
-      kindOf={(prev, next) => (prev && next ? (next > prev ? "up" : "down") : null)}
-    >
+    <LivePriceValue value={value}>
       {value && value > 0 ? `$${value.toFixed(3)}` : "-"}
-    </FlashOnChange>
+    </LivePriceValue>
   );
 }
 
 /** Count (e.g. listed quantity) that flashes in a neutral color when it changes. */
 export function LiveCount({ value }: Readonly<{ value: number | undefined }>) {
-  return (
-    <FlashOnChange
-      value={value}
-      kindOf={(prev, next) => (prev !== undefined && next !== undefined ? "changed" : null)}
-    >
-      {value ?? "-"}
-    </FlashOnChange>
-  );
+  return <LiveCountValue value={value}>{value ?? "-"}</LiveCountValue>;
 }
 
 /** Timestamp that flashes when it changes, e.g. when new market data arrives. */

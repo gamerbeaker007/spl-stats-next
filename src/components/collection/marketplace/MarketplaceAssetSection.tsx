@@ -7,10 +7,12 @@ import MarketActionDialogHost, {
 import MarketAssetCard from "@/components/collection/marketplace/MarketAssetCard";
 import MarketAssetTable from "@/components/collection/marketplace/MarketAssetTable";
 import MarketFilterBar from "@/components/collection/marketplace/MarketFilterBar";
+import MarketPricesStamp from "@/components/collection/marketplace/MarketPricesStamp";
 import { LoadingSpinnerOverlay } from "@/components/ui/LoadingSpinnerOverlay";
 import { useIncrementalViewportList } from "@/hooks/collection/useIncrementalViewportList";
 import { useMarketplaceAssetsPageData } from "@/hooks/collection/useMarketplaceAssetsPageData";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
+import { AssetWatchProvider, useAssetWatchContext } from "@/lib/frontend/context/AssetWatchContext";
 import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import {
@@ -58,6 +60,16 @@ interface MarketplaceAssetSectionProps {
  * sections on one page stay in sync.
  */
 export default function MarketplaceAssetSection({
+  ...props
+}: Readonly<MarketplaceAssetSectionProps>) {
+  return (
+    <AssetWatchProvider assetName={props.assetName}>
+      <MarketplaceAssetSectionContent {...props} />
+    </AssetWatchProvider>
+  );
+}
+
+function MarketplaceAssetSectionContent({
   assetName,
   title,
   showDescription = false,
@@ -65,6 +77,7 @@ export default function MarketplaceAssetSection({
   filterControls,
   itemFilterKey = "",
 }: Readonly<MarketplaceAssetSectionProps>) {
+  const assetWatchContext = useAssetWatchContext();
   const { selectedAccount } = useAccounts();
   const { viewMode } = useMarketplaceView();
   // No login needed: ownership data is public and every action is signed via
@@ -74,6 +87,7 @@ export default function MarketplaceAssetSection({
     usePurchasePlan();
 
   const [ownedOnly, setOwnedOnly] = useState(false);
+  const [watchedOnly, setWatchedOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<MarketAssetFilter>(DEFAULT_MARKET_ASSET_FILTER);
   const [dialogState, setDialogState] = useState<MarketActionState | null>(null);
@@ -106,6 +120,7 @@ export default function MarketplaceAssetSection({
     const query = search.trim().toLowerCase();
     const base = (data?.items ?? []).filter((item) => {
       if (hasAccount && ownedOnly && getActualOwnedQuantity(item) < 1) return false;
+      if (watchedOnly && !assetWatchContext?.watches[item.detailId]) return false;
       if (query && !item.displayName.toLowerCase().includes(query)) return false;
       if (itemFilter && !itemFilter(item)) return false;
       return true;
@@ -120,13 +135,32 @@ export default function MarketplaceAssetSection({
         : base;
 
     return applyMarketAssetFilters(withOutbid, filter);
-  }, [data?.items, filter, hasAccount, itemFilter, outbidStatuses, ownedOnly, search]);
+  }, [
+    assetWatchContext?.watches,
+    data?.items,
+    filter,
+    hasAccount,
+    itemFilter,
+    outbidStatuses,
+    ownedOnly,
+    search,
+    watchedOnly,
+  ]);
 
   // Restart the lazy-load window only when the *selection* changes — a re-fetch
   // after a buy/list/delist/transfer keeps whatever the user scrolled into view.
   const listResetKey = useMemo(
-    () => JSON.stringify([selectedAccount, ownedOnly, search, filter, viewMode, itemFilterKey]),
-    [selectedAccount, ownedOnly, search, filter, viewMode, itemFilterKey]
+    () =>
+      JSON.stringify([
+        selectedAccount,
+        ownedOnly,
+        watchedOnly,
+        search,
+        filter,
+        viewMode,
+        itemFilterKey,
+      ]),
+    [selectedAccount, ownedOnly, watchedOnly, search, filter, viewMode, itemFilterKey]
   );
 
   const {
@@ -180,15 +214,38 @@ export default function MarketplaceAssetSection({
           onChange={(event) => setSearch(event.target.value)}
           sx={{ minWidth: 220 }}
         />
-        {hasAccount && (
-          <FormControlLabel
-            control={
-              <Switch checked={ownedOnly} onChange={(_e, checked) => setOwnedOnly(checked)} />
-            }
-            label="Owned items only"
-          />
+        <MarketFilterBar
+          filter={filter}
+          onChange={setFilter}
+          extraControls={
+            <>
+              {hasAccount && (
+                <FormControlLabel
+                  control={
+                    <Switch checked={ownedOnly} onChange={(_e, checked) => setOwnedOnly(checked)} />
+                  }
+                  label="Owned items only"
+                />
+              )}
+              {assetWatchContext && (
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={watchedOnly}
+                      onChange={(_e, checked) => setWatchedOnly(checked)}
+                    />
+                  }
+                  label="Watched items only"
+                />
+              )}
+            </>
+          }
+        />
+        {!loading && !error && (
+          <Box sx={{ ml: "auto", display: "flex", justifyContent: "flex-end" }}>
+              <MarketPricesStamp fetchedAt={data?.fetchedAt} />
+          </Box>
         )}
-        <MarketFilterBar filter={filter} onChange={setFilter} />
       </Stack>
 
       {filterControls}

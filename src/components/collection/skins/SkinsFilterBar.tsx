@@ -20,6 +20,9 @@ interface SkinsFilterBarProps {
   hasAccount: boolean;
   ownedOnly: boolean;
   onOwnedOnlyChange: (checked: boolean) => void;
+  showWatchedOnly: boolean;
+  watchedOnly: boolean;
+  onWatchedOnlyChange: (checked: boolean) => void;
   missingEquippedOnly: boolean;
   onMissingEquippedOnlyChange: (checked: boolean) => void;
   skinSets: string[];
@@ -72,6 +75,9 @@ export function SkinsFilterBar({
   hasAccount,
   ownedOnly,
   onOwnedOnlyChange,
+  showWatchedOnly,
+  watchedOnly,
+  onWatchedOnlyChange,
   missingEquippedOnly,
   onMissingEquippedOnlyChange,
   skinSets,
@@ -144,7 +150,25 @@ export function SkinsFilterBar({
         alignItems={{ xs: "stretch", md: "center" }}
         justifyContent="space-between"
       >
-        <MarketFilterBar filter={marketFilter} onChange={onMarketFilterChange} />
+        <MarketFilterBar
+          filter={marketFilter}
+          onChange={onMarketFilterChange}
+          extraControls={
+            showWatchedOnly ? (
+              <FormControlLabel
+                sx={{ ml: 0 }}
+                control={
+                  <Switch
+                    size="small"
+                    checked={watchedOnly}
+                    onChange={(_, checked) => onWatchedOnlyChange(checked)}
+                  />
+                }
+                label="Watched only"
+              />
+            ) : null
+          }
+        />
 
         {showViewModeToggle && (
           <ToggleButtonGroup
