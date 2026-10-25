@@ -16,6 +16,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 - **Live market updates:** Skins, Music, Packs, Titles, Consumables, Collector Stickers, Totems, Land and the Land Market now refresh silently on the same interval as the Cards page (paused in hidden tabs) and flash changed prices and listed counts, using the Cards page colors.
 
+- **Marketplace watches:** Added a watched-items-only filter to non-card market pages, including Skins, colored price-change indicators with watch details, and a dedicated leading watch column in table view.
 
 ### Improved
 

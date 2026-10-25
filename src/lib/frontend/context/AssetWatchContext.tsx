@@ -4,8 +4,10 @@ import AssetWatchButton from "@/components/collection/marketplace/AssetWatchButt
 import { useAssetWatches } from "@/hooks/collection/useAssetWatches";
 import { useAuth } from "@/lib/frontend/context/AuthContext";
 import { getLowestUsdPrice } from "@/lib/shared/marketplace-assets";
+import { formatPct, pctChange, pctColor } from "@/lib/shared/card-watch-utils";
 import type { AssetWatch } from "@/types/asset-watch";
 import type { MarketplaceAssetItem, MarketplaceAssetName } from "@/types/marketplace-assets";
+import { Box, Tooltip, Typography } from "@mui/material";
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 
 interface AssetWatchContextValue {
@@ -14,6 +16,10 @@ interface AssetWatchContextValue {
 }
 
 const AssetWatchContext = createContext<AssetWatchContextValue | null>(null);
+
+export function useAssetWatchContext() {
+  return useContext(AssetWatchContext);
+}
 
 /** Loads the user's watches once per page so every card/row can show its heart. */
 export function AssetWatchProvider({
@@ -31,7 +37,7 @@ export function AssetWatchProvider({
 
 /** Heart for one item; renders nothing outside a provider or when logged out. */
 export function ItemWatchButton({ item }: Readonly<{ item: MarketplaceAssetItem }>) {
-  const ctx = useContext(AssetWatchContext);
+  const ctx = useAssetWatchContext();
   if (!ctx) return null;
   const price = getLowestUsdPrice(item.prices) ?? undefined;
   return (
@@ -40,5 +46,50 @@ export function ItemWatchButton({ item }: Readonly<{ item: MarketplaceAssetItem 
       currentPriceUsd={price}
       onToggle={() => ctx.toggleWatch(item.detailId, price)}
     />
+  );
+}
+
+/** Percentage change from the saved watch price to the current lowest USD price. */
+export function ItemWatchPriceDelta({
+  item,
+  hideWhenUnavailable = false,
+}: Readonly<{ item: MarketplaceAssetItem; hideWhenUnavailable?: boolean }>) {
+  const ctx = useAssetWatchContext();
+  const watch = ctx?.watches[item.detailId];
+  const currentPrice = getLowestUsdPrice(item.prices);
+  const pct = watch ? pctChange(watch.priceAtWatch, currentPrice ?? undefined) : null;
+
+  if (pct === null || !watch || currentPrice === null) {
+    return hideWhenUnavailable ? null : (
+      <Typography component="span" variant="caption">
+        -
+      </Typography>
+    );
+  }
+
+  const title = (
+    <Box>
+      <Typography variant="caption" display="block">
+        Difference since watched
+      </Typography>
+      <Typography variant="caption" display="block">
+        Watched: ${watch.priceAtWatch.toFixed(3)} → Current: ${currentPrice.toFixed(3)}
+      </Typography>
+      <Typography variant="caption" display="block">
+        Watched since {new Date(watch.watchedAt).toLocaleString()}
+      </Typography>
+    </Box>
+  );
+
+  return (
+    <Tooltip title={title} arrow>
+      <Typography
+        component="span"
+        variant="caption"
+        sx={{ color: pctColor(pct), ml: 0.5, cursor: "help", whiteSpace: "nowrap" }}
+      >
+        {formatPct(pct)}
+      </Typography>
+    </Tooltip>
   );
 }

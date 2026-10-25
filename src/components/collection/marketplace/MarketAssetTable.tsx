@@ -2,7 +2,11 @@
 
 import { LiveCountValue, LivePriceValue } from "@/components/collection/cards/LivePrice";
 import type { MarketActionMode } from "@/components/collection/marketplace/MarketActionDialogHost";
-import { ItemWatchButton } from "@/lib/frontend/context/AssetWatchContext";
+import {
+  ItemWatchButton,
+  ItemWatchPriceDelta,
+  useAssetWatchContext,
+} from "@/lib/frontend/context/AssetWatchContext";
 import {
   formatAssetPriceLabel,
   getActualOwnedQuantity,
@@ -63,6 +67,7 @@ export default function MarketAssetTable({
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
+  const assetWatchContext = useAssetWatchContext();
 
   const sortedItems = useMemo(() => {
     const withMetrics = items.map((item) => ({
@@ -118,9 +123,10 @@ export default function MarketAssetTable({
 
   return (
     <Box sx={{ overflowX: "auto", border: 1, borderColor: "divider", borderRadius: 2 }}>
-      <Table size="small" sx={{ minWidth: 640 }}>
+      <Table size="small" sx={{ minWidth: 720 }}>
         <TableHead>
           <TableRow>
+            {assetWatchContext && <TableCell sx={{ px: 0.5 }} />}
             <TableCell>
               <TableSortLabel
                 active={sortBy === "displayName"}
@@ -168,6 +174,11 @@ export default function MarketAssetTable({
                 Price
               </TableSortLabel>
             </TableCell>
+            <TableCell align="right">
+              <Tooltip title="Lowest price change since watched">
+                <span>Δ Price</span>
+              </Tooltip>
+            </TableCell>
             <TableCell align="right">Actions</TableCell>
           </TableRow>
         </TableHead>
@@ -204,6 +215,11 @@ export default function MarketAssetTable({
                       : undefined
                 }
               >
+                {assetWatchContext && (
+                  <TableCell sx={{ px: 0.5 }}>
+                    <ItemWatchButton item={item} />
+                  </TableCell>
+                )}
                 <TableCell>
                   <Tooltip
                     followCursor
@@ -243,7 +259,6 @@ export default function MarketAssetTable({
                         {item.displayName}
                         {activeSkin ? " (Active)" : ""}
                       </Typography>
-                      <ItemWatchButton item={item} />
                     </Stack>
                   </Tooltip>
                 </TableCell>
@@ -273,6 +288,9 @@ export default function MarketAssetTable({
                       </Tooltip>
                     )}
                   </Stack>
+                </TableCell>
+                <TableCell align="right">
+                  <ItemWatchPriceDelta item={item} />
                 </TableCell>
                 <TableCell align="right">
                   <Stack direction="row" spacing={0.5} justifyContent="flex-end">
