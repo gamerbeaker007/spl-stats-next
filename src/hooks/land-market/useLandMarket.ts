@@ -5,6 +5,7 @@ import {
   refreshLandMarketAction,
 } from "@/lib/backend/actions/land-market-actions";
 import { LAND_MARKET_STALE_SECONDS } from "@/lib/shared/land-market";
+import { useLivePolling } from "@/hooks/collection/useLivePolling";
 import type { LandMarketData, LandMarketListing } from "@/types/land/landMarket";
 import { useCallback, useEffect, useState } from "react";
 
@@ -80,6 +81,15 @@ export function useLandMarket() {
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [load]);
+
+  // Keep listings live while the page stays open (paused in hidden tabs).
+  useLivePolling(
+    () => {
+      if (isStale()) return load(false);
+    },
+    true,
+    { runImmediately: false }
+  );
 
   const refresh = useCallback(() => load(true), [load]);
 

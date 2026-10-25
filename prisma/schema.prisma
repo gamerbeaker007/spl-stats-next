@@ -70,6 +70,21 @@ model CardWatch {
   @@map("card_watches")
 }
 
+// Watched non-card marketplace items (skins, packs, music, ...). Keyed by the
+// marketplace asset name + detailId (string); stores the lowest USD price at watch time.
+model AssetWatch {
+  id           String   @id @default(cuid())
+  username     String
+  assetName    String   @map("asset_name")
+  detailId     String   @map("detail_id")
+  priceAtWatch Float    @map("price_at_watch")
+  watchedAt    DateTime @default(now()) @map("watched_at")
+
+  @@unique([username, assetName, detailId])
+  @@index([username])
+  @@map("asset_watches")
+}
+
 // Centralised SPL account token store.
 // One row per unique SPL username; multiple users can link to the same row
 // without needing to re-authenticate via Keychain.

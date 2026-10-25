@@ -1,6 +1,8 @@
 "use client";
 
+import { LiveCountValue, LivePriceValue } from "@/components/collection/cards/LivePrice";
 import type { MarketActionMode } from "@/components/collection/marketplace/MarketActionDialogHost";
+import { ItemWatchButton } from "@/lib/frontend/context/AssetWatchContext";
 import {
   formatAssetPriceLabel,
   getActualOwnedQuantity,
@@ -8,6 +10,7 @@ import {
   getDeedImg,
   getListTooltip,
   getLowestPrice,
+  getLowestUsdPrice,
   isSkinActive,
 } from "@/lib/shared/marketplace-assets";
 import type { MarketplaceAssetItem, OutbidStatus } from "@/types/marketplace-assets";
@@ -240,16 +243,21 @@ export default function MarketAssetTable({
                         {item.displayName}
                         {activeSkin ? " (Active)" : ""}
                       </Typography>
+                      <ItemWatchButton item={item} />
                     </Stack>
                   </Tooltip>
                 </TableCell>
                 <TableCell align="right">{item.numCirculation}</TableCell>
                 {hasAccount && <TableCell align="right">{actualOwned}</TableCell>}
-                <TableCell align="right">{item.numListed}</TableCell>
+                <TableCell align="right">
+                  <LiveCountValue value={item.numListed}>{item.numListed}</LiveCountValue>
+                </TableCell>
                 <TableCell align="right">
                   <Stack direction="column" spacing={0.5} alignItems="flex-end">
                     <Typography variant="body2" color="text.secondary" noWrap>
-                      {formatAssetPriceLabel(item)}
+                      <LivePriceValue value={getLowestUsdPrice(item.prices) ?? undefined}>
+                        {formatAssetPriceLabel(item)}
+                      </LivePriceValue>
                     </Typography>
                     {hasAccount && outbid?.isOutbid && (
                       <Tooltip

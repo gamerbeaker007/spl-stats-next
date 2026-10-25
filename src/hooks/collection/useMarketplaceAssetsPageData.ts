@@ -1,6 +1,7 @@
 "use client";
 
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { useLivePolling } from "@/hooks/collection/useLivePolling";
 import { loadCardDetails, loadDetailedCollection } from "@/lib/frontend/collection-data";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import { loadMarketplacePageData } from "@/lib/frontend/marketplace-data";
@@ -24,6 +25,7 @@ export interface MarketplaceAssetsPageData {
   publicSkinFilterCards: Record<number, FilterableCard[]>;
   playerListings: MarketplacePlayerListing[];
   outbidStatuses: OutbidStatus[];
+  fetchedAt: string;
 }
 
 export interface MarketplaceAssetsPageDataLoadOptions {
@@ -49,7 +51,7 @@ export function useMarketplaceAssetsPageData(
       )
     : null;
 
-  const { data, loading, error } = useAsyncData(
+  const { data, loading, error, refetch } = useAsyncData(
     key,
     async (): Promise<MarketplaceAssetsPageData> => {
       // Marketplace holdings and the collection are read from SPL in the browser;
@@ -71,6 +73,10 @@ export function useMarketplaceAssetsPageData(
     },
     { errorMessage: "Failed to load marketplace data" }
   );
+
+  // Re-reads silently every MARKET_PRICE_REFRESH_SECONDS so prices flash live;
+  // `refetch` is a no-op until a key exists, and the first load is `useAsyncData`'s.
+  useLivePolling(() => refetch({ silent: true }), accountsReady, { runImmediately: false });
 
   return { data: data ?? null, loading: loading || !accountsReady, error };
 }

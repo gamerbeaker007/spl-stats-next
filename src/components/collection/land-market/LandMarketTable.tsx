@@ -1,5 +1,7 @@
 "use client";
 
+import { LivePriceValue } from "@/components/collection/cards/LivePrice";
+
 import {
   LandDetailIcons,
   LandRarityIcon,
@@ -186,7 +188,9 @@ export default function LandMarketTable({
                 </Tooltip>
               </TableCell>
               <TableCell align="right" sx={{ whiteSpace: "nowrap", fontWeight: 700 }}>
-                {formatLandPriceUsd(listing.priceUsd)}
+                <LivePriceValue value={listing.priceUsd}>
+                  {formatLandPriceUsd(listing.priceUsd)}
+                </LivePriceValue>
               </TableCell>
               <TableCell align="center">
                 <LandCartButton

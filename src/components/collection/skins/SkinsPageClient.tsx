@@ -9,6 +9,8 @@ import MarketplaceAccountBar from "@/components/collection/marketplace/Marketpla
 import { SkinsFilterBar } from "@/components/collection/skins/SkinsFilterBar";
 import { SkinsResultsView } from "@/components/collection/skins/SkinsResultsView";
 import { LoadingSpinnerOverlay } from "@/components/ui/LoadingSpinnerOverlay";
+import MarketPricesStamp from "@/components/collection/marketplace/MarketPricesStamp";
+import { AssetWatchProvider } from "@/lib/frontend/context/AssetWatchContext";
 import { useMarketplaceAssetsPageData } from "@/hooks/collection/useMarketplaceAssetsPageData";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
 import { useCardFilter } from "@/lib/frontend/context/CardFilterContext";
@@ -274,74 +276,79 @@ export default function SkinsPageClient() {
       : "No skin data matches the selected filters.";
 
   return (
-    <Box display="flex" flex={1}>
-      <Box flex={1}>
-        <Stack spacing={2}>
-          <MarketplaceAccountBar />
+    <AssetWatchProvider assetName="SKINS">
+      <Box display="flex" flex={1}>
+        <Box flex={1}>
+          <Stack spacing={2}>
+            <MarketplaceAccountBar />
 
-          <SkinsFilterBar
-            hasAccount={hasAccount}
-            ownedOnly={ownedOnly}
-            onOwnedOnlyChange={setOwnedOnly}
-            missingEquippedOnly={missingEquippedOnly}
-            onMissingEquippedOnlyChange={setMissingEquippedOnly}
-            skinSets={skinSets}
-            selectedSkinSet={selectedSkinSet}
-            onSelectedSkinSetChange={setSelectedSkinSet}
-            marketFilter={marketFilter}
-            onMarketFilterChange={setMarketFilter}
-            viewMode={viewMode}
-            onViewModeChange={setViewMode}
-            showViewModeToggle={!tableMode}
-          />
-
-          {loading && (
-            <LoadingSpinnerOverlay loading={loading} message="Loading marketplace skins..." />
-          )}
-
-          {!loading && error && <Alert severity="error">{error}</Alert>}
-
-          {!loading && !error && isEmpty && <Alert severity="info">{emptyMessage}</Alert>}
-
-          {/* Hidden while reloading: the hook keeps the previous account's
-                    data, and a stale exact number misleads more than a missing one. */}
-          {data && !loading && (
-            <Chip
-              size="small"
-              variant="outlined"
-              label={
-                hasAccount
-                  ? `Number of skins: ${skinTotals.total} (${skinTotals.owned} owned)`
-                  : `Number of skins: ${skinTotals.total}`
-              }
+            <SkinsFilterBar
+              hasAccount={hasAccount}
+              ownedOnly={ownedOnly}
+              onOwnedOnlyChange={setOwnedOnly}
+              missingEquippedOnly={missingEquippedOnly}
+              onMissingEquippedOnlyChange={setMissingEquippedOnly}
+              skinSets={skinSets}
+              selectedSkinSet={selectedSkinSet}
+              onSelectedSkinSetChange={setSelectedSkinSet}
+              marketFilter={marketFilter}
+              onMarketFilterChange={setMarketFilter}
+              viewMode={viewMode}
+              onViewModeChange={setViewMode}
+              showViewModeToggle={!tableMode}
             />
-          )}
 
-          <SkinsResultsView
-            tableMode={tableMode}
-            flatMode={flatMode}
-            rows={rows}
-            flatSkins={flatSkins}
-            listResetKey={listResetKey}
-            presentation={presentation}
-          />
-        </Stack>
+            {loading && (
+              <LoadingSpinnerOverlay loading={loading} message="Loading marketplace skins..." />
+            )}
+
+            {!loading && error && <Alert severity="error">{error}</Alert>}
+
+            {!loading && !error && isEmpty && <Alert severity="info">{emptyMessage}</Alert>}
+
+            {/* Hidden while reloading: the hook keeps the previous account's
+                    data, and a stale exact number misleads more than a missing one. */}
+            {data && !loading && (
+              <Stack direction="row" spacing={1.5} alignItems="center">
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={
+                    hasAccount
+                      ? `Number of skins: ${skinTotals.total} (${skinTotals.owned} owned)`
+                      : `Number of skins: ${skinTotals.total}`
+                  }
+                />
+                <MarketPricesStamp fetchedAt={data.fetchedAt} />
+              </Stack>
+            )}
+
+            <SkinsResultsView
+              tableMode={tableMode}
+              flatMode={flatMode}
+              rows={rows}
+              flatSkins={flatSkins}
+              listResetKey={listResetKey}
+              presentation={presentation}
+            />
+          </Stack>
+        </Box>
+
+        <CardFilterDrawer
+          showFoils={false}
+          showHideMissing={false}
+          cardOptions={skinCardOptions ?? []}
+          cardOptionsLoading={loading && !skinCardOptions}
+        />
+
+        <MarketActionDialogHost
+          state={resolvedDialogState}
+          assetName="SKINS"
+          account={selectedAccount}
+          onClose={() => setDialogState(null)}
+          onCompleted={handleCompleted}
+        />
       </Box>
-
-      <CardFilterDrawer
-        showFoils={false}
-        showHideMissing={false}
-        cardOptions={skinCardOptions ?? []}
-        cardOptionsLoading={loading && !skinCardOptions}
-      />
-
-      <MarketActionDialogHost
-        state={resolvedDialogState}
-        assetName="SKINS"
-        account={selectedAccount}
-        onClose={() => setDialogState(null)}
-        onCompleted={handleCompleted}
-      />
-    </Box>
+    </AssetWatchProvider>
   );
 }

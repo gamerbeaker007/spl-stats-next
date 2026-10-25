@@ -10,6 +10,23 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.34.0] - 2026-10-25
+
+### Added
+
+- **Live market updates:** Skins, Music, Packs, Titles, Consumables, Collector Stickers, Totems, Land and the Land Market now refresh silently on the same interval as the Cards page (paused in hidden tabs) and flash changed prices and listed counts, using the Cards page colors.
+
+
+### Improved
+
+- **Shared polling:** New useLivePolling hook drives card prices, marketplace assets and the land market.
+- **detailId watching:** Marketplace `detailId` data is live-polled through the existing landing feed; persistent DB watches remain card-only (they are keyed by card detail/edition/foil).
+
+### Fixed
+
+- Related formatting, lint and type issues found during implementation.
+
+---
 ## [v1.33.0] - 2026-10-25
 
 ### Added

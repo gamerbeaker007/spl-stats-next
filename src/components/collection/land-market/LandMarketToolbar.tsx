@@ -1,5 +1,6 @@
 "use client";
 
+import MarketPricesStamp from "@/components/collection/marketplace/MarketPricesStamp";
 import type { LandMarketSort, LandMarketSortField } from "@/types/land/landMarket";
 import {
   Button,
@@ -105,6 +106,7 @@ export default function LandMarketToolbar({
             {sort.direction === "asc" ? <MdArrowUpward /> : <MdArrowDownward />}
           </IconButton>
         </Tooltip>
+        <MarketPricesStamp fetchedAt={fetchedAt} />
         <Tooltip title={updated ? `Updated ${updated} — refresh listings` : "Refresh listings"}>
           <span>
             <IconButton

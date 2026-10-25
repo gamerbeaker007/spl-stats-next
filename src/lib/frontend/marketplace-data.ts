@@ -63,6 +63,8 @@ export interface MarketplacePageData {
   groups: MarketplaceAssetGroup[];
   playerListings: MarketplacePlayerListing[];
   outbidStatuses: OutbidStatus[];
+  /** ISO time the landing prices were read (drives the live "Prices:" stamp). */
+  fetchedAt: string;
 }
 
 /** Skins get their `active` flag from `/players/skins`; other assets pass through. */
@@ -128,6 +130,7 @@ export async function loadMarketplacePageData(
       groups: groupMarketplaceAssetsByCardDetailId(items),
       playerListings: [],
       outbidStatuses: [],
+      fetchedAt: new Date().toISOString(),
     };
   }
 
@@ -143,6 +146,7 @@ export async function loadMarketplacePageData(
     outbidStatuses: includeOutbidStatuses
       ? Array.from(computeOutbidStatuses(assetListings, items, assetName).values())
       : [],
+    fetchedAt: new Date().toISOString(),
   };
 }
 
