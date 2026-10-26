@@ -7,6 +7,13 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ## [Unreleased]
 
+## [v1.34.1] - 2026-10-26
+
+### Improved
+
+- **Card filters:** Support multiple card selections, bloodline and ability filters with removable chips, including ability icons.
+- **Beta Orb edition filter:** Split Beta Orb promo cards (detail IDs 116-129) from the regular Beta Promo filter.
+
 
 ---
 

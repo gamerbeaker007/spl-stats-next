@@ -1,4 +1,9 @@
-import { EDITION_OPTIONS, EDITION_SET_GROUPS, getCardSetTier } from "@/lib/shared/edition-utils";
+import {
+  EDITION_OPTIONS,
+  EDITION_SET_GROUPS,
+  getCardSetTier,
+  isBetaOrbCardDetailId,
+} from "@/lib/shared/edition-utils";
 import { RARITY_DEFS } from "@/lib/shared/rarity-utils";
 import type { DetailedPlayerCardCollectionItem } from "@/types/card";
 import { FILTER_STORAGE_KEYS, type UnifiedCardFilter } from "@/types/card-filter";
@@ -13,7 +18,7 @@ const MODERN_SET_NAMES = ["rebellion", "conclave", "foundation"] as const;
 
 export function getModernEditionPreset(): Pick<
   UnifiedCardFilter,
-  "editions" | "promoTiers" | "rewardTiers" | "extraTiers"
+  "editions" | "promoTiers" | "rewardTiers" | "extraTiers" | "betaOrbPromo"
 > {
   const groups = EDITION_SET_GROUPS.filter((g) =>
     (MODERN_SET_NAMES as readonly string[]).includes(g.setName)
@@ -26,6 +31,7 @@ export function getModernEditionPreset(): Pick<
     promoTiers: groups.filter((g) => g.hasPromo && g.tier !== null).map((g) => g.tier!),
     rewardTiers: groups.filter((g) => g.hasReward && g.tier !== null).map((g) => g.tier!),
     extraTiers: groups.filter((g) => g.hasExtra && g.tier !== null).map((g) => g.tier!),
+    betaOrbPromo: false,
   };
 }
 
@@ -48,26 +54,39 @@ export function clearAllFilterStorage(): void {
 // ---------------------------------------------------------------------------
 
 function hasEditionFilter(
-  filter: Pick<UnifiedCardFilter, "editions" | "promoTiers" | "rewardTiers" | "extraTiers">
+  filter: Pick<
+    UnifiedCardFilter,
+    "editions" | "promoTiers" | "rewardTiers" | "extraTiers" | "betaOrbPromo"
+  >
 ): boolean {
   return (
     filter.editions.length > 0 ||
     filter.promoTiers.length > 0 ||
     filter.rewardTiers.length > 0 ||
-    filter.extraTiers.length > 0
+    filter.extraTiers.length > 0 ||
+    filter.betaOrbPromo
   );
 }
 
 function matchesEditionFilter(
   edition: number,
   tier: number | null,
-  filter: Pick<UnifiedCardFilter, "editions" | "promoTiers" | "rewardTiers" | "extraTiers">
+  filter: Pick<
+    UnifiedCardFilter,
+    "editions" | "promoTiers" | "rewardTiers" | "extraTiers" | "betaOrbPromo"
+  >,
+  cardDetailId?: number
 ): boolean {
   if (!hasEditionFilter(filter)) return true;
   // Cross-era prints (promo=2, reward=3, extra=17) filter by their set's era tier.
   // getCardSetTier resolves the legacy tier=3 Untamed promos to the Untamed tier.
   const eraTier = getCardSetTier(edition, tier);
-  if (edition === 2) return eraTier != null && filter.promoTiers.includes(eraTier);
+  if (edition === 2) {
+    if (eraTier === 1 && cardDetailId !== undefined && isBetaOrbCardDetailId(cardDetailId)) {
+      return filter.betaOrbPromo;
+    }
+    return eraTier != null && filter.promoTiers.includes(eraTier);
+  }
   if (edition === 3) return eraTier != null && filter.rewardTiers.includes(eraTier);
   if (edition === 17) return eraTier != null && filter.extraTiers.includes(eraTier);
   return filter.editions.includes(edition);
@@ -90,13 +109,29 @@ export interface FilterableCard {
   color: string;
   secondaryColor?: string;
   role: DetailedPlayerCardCollectionItem["role"];
+  subType?: string;
+  abilities?: string[];
 }
 
 export function matchesCardFilter(card: FilterableCard, filter: UnifiedCardFilter): boolean {
-  if (filter.selectedCardDetailId > 0 && card.cardDetailId !== filter.selectedCardDetailId) {
+  const selectedIds =
+    filter.selectedCardDetailIds?.length > 0
+      ? filter.selectedCardDetailIds
+      : filter.selectedCardDetailId > 0
+        ? [filter.selectedCardDetailId]
+        : [];
+  if (selectedIds.length > 0 && !selectedIds.includes(card.cardDetailId)) {
     return false;
   }
-  if (!matchesEditionFilter(card.edition, card.tier ?? null, filter)) return false;
+  if (!matchesEditionFilter(card.edition, card.tier ?? null, filter, card.cardDetailId))
+    return false;
+  if (filter.bloodlines.length > 0 && !filter.bloodlines.includes(card.subType ?? "")) return false;
+  if (
+    filter.abilities.length > 0 &&
+    !filter.abilities.some((ability) => card.abilities?.includes(ability))
+  ) {
+    return false;
+  }
   if (filter.rarities.length > 0) {
     const rarityId = RARITY_DEFS.find((r) => r.name === card.rarity)?.id;
     if (!rarityId || !filter.rarities.includes(rarityId)) return false;
@@ -127,7 +162,13 @@ export function matchesCardFilter(card: FilterableCard, filter: UnifiedCardFilte
 // ---------------------------------------------------------------------------
 
 export function matchesCardStatsRow(row: CardDistributionRow, filter: UnifiedCardFilter): boolean {
-  if (!matchesEditionFilter(row.edition, row.tier, filter)) return false;
+  if (!matchesEditionFilter(row.edition, row.tier, filter, row.cardDetailId)) return false;
+  if (filter.bloodlines.length > 0 && !filter.bloodlines.includes(row.subType)) return false;
+  if (
+    filter.abilities.length > 0 &&
+    !filter.abilities.some((ability) => row.abilities.includes(ability))
+  )
+    return false;
   if (filter.rarities.length > 0 && !filter.rarities.includes(row.rarity)) return false;
 
   if (filter.colors.length > 0) {
@@ -140,8 +181,13 @@ export function matchesCardStatsRow(row: CardDistributionRow, filter: UnifiedCar
   if (filter.cardTypes.length > 0 && !filter.cardTypes.includes(row.role)) return false;
   if (filter.foilCategories.length > 0 && !filter.foilCategories.includes(row.foilCategory))
     return false;
-  if (filter.selectedCardDetailId > 0 && row.cardDetailId !== filter.selectedCardDetailId)
-    return false;
+  const selectedIds =
+    filter.selectedCardDetailIds?.length > 0
+      ? filter.selectedCardDetailIds
+      : filter.selectedCardDetailId > 0
+        ? [filter.selectedCardDetailId]
+        : [];
+  if (selectedIds.length > 0 && !selectedIds.includes(row.cardDetailId)) return false;
 
   return true;
 }

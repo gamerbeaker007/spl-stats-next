@@ -230,6 +230,8 @@ export default function BuyMissingCcPageClient() {
               color: item.color,
               secondaryColor: item.secondaryColor,
               role: item.role,
+              subType: item.subType,
+              abilities: item.abilities,
               availableFoils: item.availableFoils,
               cardStats: item.cardStats,
               allCards: item.allCards,
@@ -365,6 +367,8 @@ export default function BuyMissingCcPageClient() {
         color: (row.color ?? "gray").toLowerCase(),
         secondaryColor: row.secondaryColor?.toLowerCase(),
         role: row.role,
+        subType: row.subType,
+        abilities: row.abilities,
       };
 
       if (!matchesCardFilter(pseudo, filter)) return false;

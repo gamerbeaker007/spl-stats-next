@@ -55,6 +55,8 @@ function buildCollectionItem(
     color: detail.color as CardColor,
     secondaryColor: detail.secondary_color as CardColor,
     role: toCardRole(detail.type),
+    subType: detail.sub_type,
+    abilities: Array.from(new Set((detail.stats.abilities ?? []).flat())),
     availableFoils: parseAvailableFoils(detail, edition),
     cardStats: detail.stats,
     allCards: [],

@@ -67,6 +67,12 @@ export interface EditionDef {
    * `SET_DEFS.tier` is derived from this flag — never hardcoded separately.
    */
   readonly primary?: true;
+  /** SPL promo prints that form a separately filterable named subgroup. */
+  readonly specialCategories?: readonly {
+    readonly label: string;
+    readonly setName: CardSetName;
+    readonly detailIdRange: readonly [number, number];
+  }[];
 }
 
 // Ordered by edition ID. Add new editions here only.
@@ -93,6 +99,7 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     urlName: "promo",
     setName: undefined,
     iconUrl: edition_promo_icon_url,
+    specialCategories: [{ label: "Beta Orb", setName: "beta", detailIdRange: [116, 129] }],
   },
   {
     id: 3,
@@ -232,6 +239,19 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     iconUrl: edition_verico_icon_url,
   },
 ];
+
+const betaOrbDetailIdRange = EDITION_DEFS.find(
+  (edition) => edition.id === 2
+)!.specialCategories!.find((category) => category.label === "Beta Orb")!.detailIdRange;
+
+export const BETA_ORB_CARD_DETAIL_IDS = Array.from(
+  { length: betaOrbDetailIdRange[1] - betaOrbDetailIdRange[0] + 1 },
+  (_, index) => betaOrbDetailIdRange[0] + index
+);
+
+export function isBetaOrbCardDetailId(cardDetailId: number): boolean {
+  return BETA_ORB_CARD_DETAIL_IDS.includes(cardDetailId);
+}
 
 export const SOULKEEP_EDITIONS = new Set([9, 11]);
 // ---------------------------------------------------------------------------

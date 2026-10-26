@@ -23,6 +23,8 @@ export interface CardDistributionRow {
   secondaryColor: string | undefined;
   /** Card role: "Monster" | "Summoner" */
   role: string;
+  subType: string;
+  abilities: string[];
   numCards: number;
   numBurned: number;
   unboundCards: number;

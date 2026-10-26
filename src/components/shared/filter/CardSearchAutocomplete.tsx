@@ -8,8 +8,8 @@ import TextField from "@mui/material/TextField";
 interface Props {
   options: CardOption[];
   loading: boolean;
-  value: CardOption | null;
-  onChange: (value: CardOption | null) => void;
+  value: CardOption[];
+  onChange: (value: CardOption[]) => void;
   disabled?: boolean;
 }
 
@@ -21,7 +21,8 @@ export default function CardSearchAutocomplete({
   disabled,
 }: Props) {
   return (
-    <Autocomplete<CardOption>
+    <Autocomplete<CardOption, true>
+      multiple
       options={options}
       getOptionLabel={(o) => o.cardName}
       filterOptions={(opts, { inputValue }) => {
@@ -34,13 +35,14 @@ export default function CardSearchAutocomplete({
       isOptionEqualToValue={(o, v) => o.cardDetailId === v.cardDetailId}
       value={value}
       onChange={(_, newValue) => onChange(newValue)}
+      renderValue={() => null}
       loading={loading}
       disabled={disabled}
       renderInput={(params) => (
         <TextField
           {...params}
           size="small"
-          label="Search card"
+          label="Search cards"
           slotProps={{
             input: {
               ...params.InputProps,

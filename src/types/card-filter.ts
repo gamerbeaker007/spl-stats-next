@@ -15,6 +15,10 @@ export interface UnifiedCardFilter {
   foilCategories: CardFoil[];
   cardName: string;
   selectedCardDetailId: number; // 0 = none
+  selectedCardDetailIds: number[];
+  bloodlines: string[];
+  abilities: string[];
+  betaOrbPromo: boolean;
   missingCards: MissingCardsMode; // collection display option
 
   // Sorting — frontend controls whether to show UI
@@ -50,6 +54,10 @@ export const DEFAULT_UNIFIED_FILTER: UnifiedCardFilter = {
   foilCategories: [],
   cardName: "",
   selectedCardDetailId: 0,
+  selectedCardDetailIds: [],
+  bloodlines: [],
+  abilities: [],
+  betaOrbPromo: false,
   missingCards: "all",
   sortBy: "battles",
   groupLevels: true,
@@ -75,6 +83,8 @@ export interface FilterDrawerConfig {
   showCardTypes?: boolean;
   showFoils?: boolean;
   showCardSearch?: boolean;
+  showBloodlines?: boolean;
+  showAbilities?: boolean;
   showHideMissing?: boolean;
   // Battle-specific sections
   showAccount?: boolean;

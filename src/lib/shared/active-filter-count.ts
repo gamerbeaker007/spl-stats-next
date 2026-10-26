@@ -32,13 +32,19 @@ const FILTER_GROUPS: readonly FilterGroup[] = [
       f.editions.length > 0 ||
       f.promoTiers.length > 0 ||
       f.rewardTiers.length > 0 ||
-      f.extraTiers.length > 0,
+      f.extraTiers.length > 0 ||
+      f.betaOrbPromo,
   },
   { section: "showRarities", isActive: (f) => f.rarities.length > 0 },
   { section: "showColors", isActive: (f) => f.colors.length > 0 },
   { section: "showCardTypes", isActive: (f) => f.cardTypes.length > 0 },
   { section: "showFoils", isActive: (f) => f.foilCategories.length > 0 },
-  { section: "showCardSearch", isActive: (f) => f.selectedCardDetailId > 0 },
+  {
+    section: "showCardSearch",
+    isActive: (f) => (f.selectedCardDetailIds?.length ?? 0) > 0 || f.selectedCardDetailId > 0,
+  },
+  { section: "showBloodlines", isActive: (f) => f.bloodlines.length > 0 },
+  { section: "showAbilities", isActive: (f) => f.abilities.length > 0 },
   { section: "showHideMissing", isActive: (f) => f.missingCards !== "all" },
   { section: "showFormats", isActive: (f) => f.formats.length > 0 },
   { section: "showMatchTypes", isActive: (f) => f.matchTypes.length > 0 },

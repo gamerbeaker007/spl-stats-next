@@ -2,13 +2,13 @@
 
 import CardSearchAutocomplete from "@/components/shared/filter/CardSearchAutocomplete";
 import EditionSetFilter from "@/components/shared/filter/EditionSetFilter";
+import FilterPanelShell from "@/components/shared/filter/FilterPanelShell";
 import FilterSection from "@/components/shared/filter/FilterSection";
 import FoilFilterChips from "@/components/shared/filter/FoilFilterChips";
 import IconFilterGroup from "@/components/shared/filter/IconFilterGroup";
-import FilterPanelShell from "@/components/shared/filter/FilterPanelShell";
+import { useAllCardOptions } from "@/hooks/useAllCardOptions";
 import { countActiveFilters } from "@/lib/shared/active-filter-count";
-import type { FilterDrawerConfig, UnifiedCardFilter } from "@/types/card-filter";
-import type { CardFoil, CardOption } from "@/types/card";
+import { abilityIconUrl } from "@/lib/shared/card-utils";
 import {
   CARD_TYPE_OPTIONS,
   COLOR_OPTIONS,
@@ -19,6 +19,12 @@ import {
   SORT_OPTIONS,
   TOP_COUNT_OPTIONS,
 } from "@/types/battles";
+import type { CardFoil, CardOption } from "@/types/card";
+import type { FilterDrawerConfig, UnifiedCardFilter } from "@/types/card-filter";
+import Autocomplete from "@mui/material/Autocomplete";
+import Avatar from "@mui/material/Avatar";
+import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import Divider from "@mui/material/Divider";
 import FormControl from "@mui/material/FormControl";
 import FormControlLabel from "@mui/material/FormControlLabel";
@@ -32,7 +38,6 @@ import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Typography from "@mui/material/Typography";
 import { useMemo } from "react";
-import { useAllCardOptions } from "@/hooks/useAllCardOptions";
 
 interface Props {
   filter: UnifiedCardFilter;
@@ -65,28 +70,55 @@ function CardSearchField({
   loading,
   disabled,
 }: Readonly<CardSearchFieldProps>) {
-  // Fall back to the persisted name so a stored selection still renders while
-  // the options load (or when it is not among them).
-  const selectedCard: CardOption | null = filter.selectedCardDetailId
-    ? (options.find((o) => o.cardDetailId === filter.selectedCardDetailId) ?? {
-        cardDetailId: filter.selectedCardDetailId,
-        cardName: filter.cardName,
-      })
-    : null;
+  const selectedIds =
+    filter.selectedCardDetailIds?.length > 0
+      ? filter.selectedCardDetailIds
+      : filter.selectedCardDetailId > 0
+        ? [filter.selectedCardDetailId]
+        : [];
+  const selectedCards = selectedIds.map(
+    (id) =>
+      options.find((option) => option.cardDetailId === id) ?? {
+        cardDetailId: id,
+        cardName: id === filter.selectedCardDetailId ? filter.cardName : `Card ${id}`,
+      }
+  );
+
+  const setSelectedCards = (cards: CardOption[]) => {
+    const ids = cards.map((card) => card.cardDetailId);
+    setFilter({
+      selectedCardDetailIds: ids,
+      selectedCardDetailId: ids[0] ?? 0,
+      cardName: cards.length === 1 ? cards[0].cardName : "",
+    });
+  };
 
   return (
-    <CardSearchAutocomplete
-      options={options}
-      loading={loading}
-      value={selectedCard}
-      onChange={(v) =>
-        setFilter({
-          cardName: v?.cardName ?? "",
-          selectedCardDetailId: v?.cardDetailId ?? 0,
-        })
-      }
-      disabled={disabled}
-    />
+    <Box>
+      <CardSearchAutocomplete
+        options={options}
+        loading={loading}
+        value={selectedCards}
+        onChange={setSelectedCards}
+        disabled={disabled}
+      />
+      {selectedCards.length > 0 && (
+        <Stack direction="row" useFlexGap flexWrap="wrap" spacing={0.75} sx={{ mt: 1 }}>
+          {selectedCards.map((card) => (
+            <Chip
+              key={card.cardDetailId}
+              label={card.cardName}
+              size="small"
+              onDelete={() =>
+                setSelectedCards(
+                  selectedCards.filter((item) => item.cardDetailId !== card.cardDetailId)
+                )
+              }
+            />
+          ))}
+        </Stack>
+      )}
+    </Box>
   );
 }
 
@@ -94,6 +126,102 @@ function CardSearchField({
 function AllCardsSearchField(props: Readonly<Omit<CardSearchFieldProps, "options" | "loading">>) {
   const { cards, loading } = useAllCardOptions();
   return <CardSearchField {...props} options={cards} loading={loading} />;
+}
+
+function CardMetadataFilters({
+  filter,
+  setFilter,
+  showBloodlines,
+  showAbilities,
+}: Readonly<{
+  filter: UnifiedCardFilter;
+  setFilter: (updates: Partial<UnifiedCardFilter>) => void;
+  showBloodlines: boolean;
+  showAbilities: boolean;
+}>) {
+  const { cards: allCards } = useAllCardOptions();
+  const options = allCards;
+  const bloodlines = Array.from(new Set(options.map((card) => card.subType).filter(Boolean))).sort(
+    (a, b) => a!.localeCompare(b!)
+  ) as string[];
+  const abilities = Array.from(
+    new Set(options.flatMap((card) => card.abilities ?? []).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+
+  return (
+    <>
+      {showBloodlines && (
+        <FilterSection title="Bloodline">
+          <Autocomplete<string, true>
+            multiple
+            options={bloodlines}
+            value={filter.bloodlines}
+            onChange={(_, value) => setFilter({ bloodlines: value })}
+            renderValue={() => null}
+            renderInput={(params) => (
+              <TextField {...params} size="small" label="Search bloodlines" />
+            )}
+          />
+          {filter.bloodlines.length > 0 && (
+            <Stack direction="row" useFlexGap flexWrap="wrap" spacing={0.75} sx={{ mt: 1 }}>
+              {filter.bloodlines.map((bloodline) => (
+                <Chip
+                  key={bloodline}
+                  label={bloodline}
+                  size="small"
+                  onDelete={() =>
+                    setFilter({
+                      bloodlines: filter.bloodlines.filter((item) => item !== bloodline),
+                    })
+                  }
+                />
+              ))}
+            </Stack>
+          )}
+        </FilterSection>
+      )}
+      {showAbilities && (
+        <FilterSection title="Abilities">
+          <Autocomplete<string, true>
+            multiple
+            options={abilities}
+            value={filter.abilities}
+            onChange={(_, value) => setFilter({ abilities: value })}
+            renderValue={() => null}
+            renderOption={(props, ability) => (
+              <Box
+                component="li"
+                {...props}
+                key={ability}
+                sx={{ display: "flex", alignItems: "center", gap: 1 }}
+              >
+                <Avatar key={ability} src={abilityIconUrl(ability)} alt="" />
+                {ability}
+              </Box>
+            )}
+            renderInput={(params) => (
+              <TextField {...params} size="small" label="Search abilities" />
+            )}
+          />
+          {filter.abilities.length > 0 && (
+            <Stack direction="row" useFlexGap flexWrap="wrap" spacing={0.75} sx={{ mt: 1 }}>
+              {filter.abilities.map((ability) => (
+                <Chip
+                  key={ability}
+                  label={ability}
+                  size="small"
+                  avatar={<Avatar key={ability} src={abilityIconUrl(ability)} alt="" />}
+                  onDelete={() =>
+                    setFilter({ abilities: filter.abilities.filter((item) => item !== ability) })
+                  }
+                />
+              ))}
+            </Stack>
+          )}
+        </FilterSection>
+      )}
+    </>
+  );
 }
 
 export default function UnifiedCardFilterDrawer({
@@ -118,7 +246,9 @@ export default function UnifiedCardFilterDrawer({
     config.showRarities ||
     config.showColors ||
     config.showEditions ||
-    config.showFoils
+    config.showFoils ||
+    config.showBloodlines ||
+    config.showAbilities
   );
   const hasGroup4 = !!config.showMana;
   const hasGroup5 = !!(
@@ -176,23 +306,33 @@ export default function UnifiedCardFilterDrawer({
       )}
 
       {config.showCardSearch && (
-        <FilterSection title="Card">
-          {cardOptions ? (
-            <CardSearchField
+        <>
+          <FilterSection title="Card">
+            {cardOptions ? (
+              <CardSearchField
+                filter={filter}
+                setFilter={setFilter}
+                options={cardOptions}
+                loading={cardOptionsLoading}
+                disabled={config.showAccount && !filter.account}
+              />
+            ) : (
+              <AllCardsSearchField
+                filter={filter}
+                setFilter={setFilter}
+                disabled={config.showAccount && !filter.account}
+              />
+            )}
+          </FilterSection>
+          {(config.showBloodlines || config.showAbilities) && (
+            <CardMetadataFilters
               filter={filter}
               setFilter={setFilter}
-              options={cardOptions}
-              loading={cardOptionsLoading}
-              disabled={config.showAccount && !filter.account}
-            />
-          ) : (
-            <AllCardsSearchField
-              filter={filter}
-              setFilter={setFilter}
-              disabled={config.showAccount && !filter.account}
+              showBloodlines={!!config.showBloodlines}
+              showAbilities={!!config.showAbilities}
             />
           )}
-        </FilterSection>
+        </>
       )}
 
       {hasGroup1 && hasGroup2 && <Divider sx={{ my: 1 }} />}
@@ -262,6 +402,8 @@ export default function UnifiedCardFilterDrawer({
             onRewardTiersChange={(v) => setFilter({ rewardTiers: v })}
             selectedExtraTiers={filter.extraTiers}
             onExtraTiersChange={(v) => setFilter({ extraTiers: v })}
+            selectedBetaOrbPromo={filter.betaOrbPromo}
+            onBetaOrbPromoChange={(v) => setFilter({ betaOrbPromo: v })}
             onSelectionChange={(v) => setFilter(v)}
           />
         </FilterSection>

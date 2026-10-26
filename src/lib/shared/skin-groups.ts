@@ -165,6 +165,8 @@ export function buildPublicSkinFilterCards(
       color: detail.color as CardColor,
       secondaryColor: detail.secondary_color ?? undefined,
       role: toCardRole(detail.type),
+      subType: detail.sub_type,
+      abilities: Array.from(new Set((detail.stats.abilities ?? []).flat())),
     }));
   }
 

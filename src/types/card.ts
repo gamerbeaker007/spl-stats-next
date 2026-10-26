@@ -87,6 +87,8 @@ export interface DetailedPlayerCardCollectionItem {
   color: CardColor;
   secondaryColor: CardColor | undefined;
   role: CardRole;
+  subType: string;
+  abilities: string[];
   /** Foils this card was printed in for this edition (derived from the API distribution). */
   availableFoils: CardFoil[];
   highestLevelCard?: CardDetail;
@@ -99,4 +101,6 @@ export type DetailedPlayerCardCollection = Record<string, DetailedPlayerCardColl
 export interface CardOption {
   cardDetailId: number;
   cardName: string;
+  subType?: string;
+  abilities?: string[];
 }

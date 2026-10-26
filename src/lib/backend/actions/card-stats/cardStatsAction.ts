@@ -234,6 +234,8 @@ function flattenAndCompute(cards: SplCardDetail[], settings: SplSettings): CardD
         color: card.color ?? "",
         secondaryColor: card.secondary_color ?? undefined,
         role: card.type ?? "Monster",
+        subType: card.sub_type,
+        abilities: Array.from(new Set((card.stats.abilities ?? []).flat())),
         numCards,
         numBurned,
         unboundCards,
@@ -271,7 +273,12 @@ export async function getCardNamesAction(): Promise<CardOption[]> {
   for (const c of cards) {
     if (!seen.has(c.id)) {
       seen.add(c.id);
-      result.push({ cardDetailId: c.id, cardName: c.name });
+      result.push({
+        cardDetailId: c.id,
+        cardName: c.name,
+        subType: c.sub_type,
+        abilities: Array.from(new Set((c.stats.abilities ?? []).flat())),
+      });
     }
   }
   return result.sort((a, b) => a.cardName.localeCompare(b.cardName));

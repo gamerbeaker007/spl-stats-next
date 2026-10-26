@@ -45,12 +45,19 @@ function toQueryFilter(filter: UnifiedCardFilter): BattleQueryFilter {
     promoTiers: filter.promoTiers,
     rewardTiers: filter.rewardTiers,
     extraTiers: filter.extraTiers,
+    betaOrbPromo: filter.betaOrbPromo,
     minManaCap: filter.minManaCap,
     maxManaCap: filter.maxManaCap,
     rulesets: filter.rulesets,
     groupLevels: filter.groupLevels,
     groupFoils: filter.groupFoils,
     cardName: filter.cardName || undefined,
+    cardDetailIds:
+      filter.selectedCardDetailIds?.length > 0
+        ? filter.selectedCardDetailIds
+        : filter.selectedCardDetailId > 0
+          ? [filter.selectedCardDetailId]
+          : [],
     minBattleCount: filter.minBattleCount,
     sortBy: filter.sortBy,
     foilCategories: filter.foilCategories

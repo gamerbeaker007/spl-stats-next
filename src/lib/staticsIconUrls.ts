@@ -50,6 +50,7 @@ export const reward_draw_legendary_icon_url = `${WEB_URL}website/ui_elements/sho
 export const edition_alpha_icon_url = `${WEB_URL}website/icons/icon-edition-alpha.svg`;
 export const edition_beta_icon_url = `${WEB_URL}website/icons/icon-edition-beta.svg`;
 export const edition_promo_icon_url = `${WEB_URL}website/icons/icon-edition-promo.svg`;
+export const edition_orb_icon_url = `${WEB_URL}website/icons/icon-edition-essence-orb.svg`;
 export const edition_reward_icon_url = `${WEB_URL}website/icons/icon-edition-reward.svg`;
 export const edition_untamed_icon_url = `${WEB_URL}website/icons/icon-edition-untamed.svg`;
 export const edition_dice_icon_url = `${WEB_URL}website/icons/icon-edition-dice.svg`;

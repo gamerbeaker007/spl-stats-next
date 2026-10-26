@@ -22,7 +22,11 @@ export default function BestCardsContent() {
 
   const handleCardClick = (cardDetailId: number) => {
     const card = cards.find((c) => c.cardDetailId === cardDetailId);
-    setFilter({ selectedCardDetailId: cardDetailId, cardName: card?.cardName ?? "" });
+    setFilter({
+      selectedCardDetailId: cardDetailId,
+      selectedCardDetailIds: [cardDetailId],
+      cardName: card?.cardName ?? "",
+    });
     router.push("/battles/card");
   };
 

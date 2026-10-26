@@ -12,6 +12,8 @@ const CONFIG: FilterDrawerConfig = {
   showCardTypes: true,
   showFoils: true,
   showCardSearch: true,
+  showBloodlines: true,
+  showAbilities: true,
   showHideMissing: false,
 };
 

@@ -1,5 +1,6 @@
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { BETA_ORB_CARD_DETAIL_IDS } from "@/lib/shared/edition-utils";
 
 /**
  * The DB stores the raw card `tier`. Halfling Alchemist (#237) and Mighty Dricken
@@ -162,6 +163,8 @@ export interface BattleQueryFilter {
   groupLevels: boolean;
   groupFoils: boolean;
   cardName?: string; // optional case-insensitive substring match
+  cardDetailIds: number[];
+  betaOrbPromo: boolean;
   minBattleCount: number;
   sortBy: string;
   since?: string; // ISO date string — only include battles on or after this date
@@ -171,6 +174,7 @@ export interface BattleQueryFilter {
 function buildPlayerWhere(filter: BattleQueryFilter): Prisma.PlayerBattleCardWhereInput {
   const AND: Prisma.PlayerBattleCardWhereInput[] = [{ account: filter.account }];
   if (filter.cardName) AND.push({ cardName: { contains: filter.cardName, mode: "insensitive" } });
+  if (filter.cardDetailIds.length > 0) AND.push({ cardDetailId: { in: filter.cardDetailIds } });
   if (filter.formats.length > 0) AND.push({ format: { in: filter.formats } });
   if (filter.cardTypes.length > 0) AND.push({ cardType: { in: filter.cardTypes } });
   if (filter.matchTypes.length > 0) AND.push({ matchType: { in: filter.matchTypes } });
@@ -179,9 +183,17 @@ function buildPlayerWhere(filter: BattleQueryFilter): Prisma.PlayerBattleCardWhe
   // Edition / tier filter: native editions, promo-era, reward-era — all OR-combined
   const editionConds: Prisma.PlayerBattleCardWhereInput[] = [];
   if (filter.editions.length > 0) editionConds.push({ edition: { in: filter.editions } });
-  if (filter.promoTiers.length > 0)
+  const promoTiers = withLegacyUntamedPromoTier(filter.promoTiers);
+  const regularPromoTiers = promoTiers.filter((tier) => tier !== 1);
+  if (regularPromoTiers.length > 0)
+    editionConds.push({ AND: [{ edition: 2 }, { tier: { in: regularPromoTiers } }] });
+  if (promoTiers.includes(1))
     editionConds.push({
-      AND: [{ edition: 2 }, { tier: { in: withLegacyUntamedPromoTier(filter.promoTiers) } }],
+      AND: [{ edition: 2 }, { tier: 1 }, { cardDetailId: { notIn: BETA_ORB_CARD_DETAIL_IDS } }],
+    });
+  if (filter.betaOrbPromo)
+    editionConds.push({
+      AND: [{ edition: 2 }, { tier: 1 }, { cardDetailId: { in: BETA_ORB_CARD_DETAIL_IDS } }],
     });
   if (filter.rewardTiers.length > 0)
     editionConds.push({ AND: [{ edition: 3 }, { tier: { in: filter.rewardTiers } }] });
@@ -208,6 +220,7 @@ function buildPlayerWhere(filter: BattleQueryFilter): Prisma.PlayerBattleCardWhe
 function buildOpponentWhere(filter: BattleQueryFilter): Prisma.OpponentBattleCardWhereInput {
   const AND: Prisma.OpponentBattleCardWhereInput[] = [{ account: filter.account }];
   if (filter.cardName) AND.push({ cardName: { contains: filter.cardName, mode: "insensitive" } });
+  if (filter.cardDetailIds.length > 0) AND.push({ cardDetailId: { in: filter.cardDetailIds } });
   if (filter.formats.length > 0) AND.push({ format: { in: filter.formats } });
   if (filter.matchTypes.length > 0) AND.push({ matchType: { in: filter.matchTypes } });
   if (filter.cardTypes.length > 0) AND.push({ cardType: { in: filter.cardTypes } });
@@ -216,9 +229,17 @@ function buildOpponentWhere(filter: BattleQueryFilter): Prisma.OpponentBattleCar
   // Edition / tier filter: native editions, promo-era, reward-era, extra-era — all OR-combined
   const oppEditionConds: Prisma.OpponentBattleCardWhereInput[] = [];
   if (filter.editions.length > 0) oppEditionConds.push({ edition: { in: filter.editions } });
-  if (filter.promoTiers.length > 0)
+  const promoTiers = withLegacyUntamedPromoTier(filter.promoTiers);
+  const regularPromoTiers = promoTiers.filter((tier) => tier !== 1);
+  if (regularPromoTiers.length > 0)
+    oppEditionConds.push({ AND: [{ edition: 2 }, { tier: { in: regularPromoTiers } }] });
+  if (promoTiers.includes(1))
     oppEditionConds.push({
-      AND: [{ edition: 2 }, { tier: { in: withLegacyUntamedPromoTier(filter.promoTiers) } }],
+      AND: [{ edition: 2 }, { tier: 1 }, { cardDetailId: { notIn: BETA_ORB_CARD_DETAIL_IDS } }],
+    });
+  if (filter.betaOrbPromo)
+    oppEditionConds.push({
+      AND: [{ edition: 2 }, { tier: 1 }, { cardDetailId: { in: BETA_ORB_CARD_DETAIL_IDS } }],
     });
   if (filter.rewardTiers.length > 0)
     oppEditionConds.push({ AND: [{ edition: 3 }, { tier: { in: filter.rewardTiers } }] });

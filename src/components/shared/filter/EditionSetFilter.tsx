@@ -7,6 +7,7 @@
  */
 
 import { EDITION_OPTIONS, EDITION_SET_GROUPS } from "@/lib/shared/edition-utils";
+import { edition_orb_icon_url } from "@/lib/staticsIconUrls";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
@@ -73,6 +74,8 @@ export interface EditionSetFilterProps {
   onRewardTiersChange: (v: number[]) => void;
   selectedExtraTiers: number[];
   onExtraTiersChange: (v: number[]) => void;
+  selectedBetaOrbPromo: boolean;
+  onBetaOrbPromoChange: (v: boolean) => void;
   onSelectionChange?: (selection: EditionFilterSelection) => void;
 }
 
@@ -81,6 +84,7 @@ export interface EditionFilterSelection {
   promoTiers: number[];
   rewardTiers: number[];
   extraTiers: number[];
+  betaOrbPromo: boolean;
 }
 
 export default function EditionSetFilter({
@@ -92,6 +96,8 @@ export default function EditionSetFilter({
   onRewardTiersChange,
   selectedExtraTiers,
   onExtraTiersChange,
+  selectedBetaOrbPromo,
+  onBetaOrbPromoChange,
   onSelectionChange,
 }: EditionSetFilterProps) {
   const validIds = (group: (typeof EDITION_SET_GROUPS)[number]) =>
@@ -107,6 +113,7 @@ export default function EditionSetFilter({
     onPromoTiersChange(selection.promoTiers);
     onRewardTiersChange(selection.rewardTiers);
     onExtraTiersChange(selection.extraTiers);
+    onBetaOrbPromoChange(selection.betaOrbPromo);
   };
 
   const handleModern = () => {
@@ -118,11 +125,18 @@ export default function EditionSetFilter({
       promoTiers: groups.filter((g) => g.hasPromo && g.tier !== null).map((g) => g.tier!),
       rewardTiers: groups.filter((g) => g.hasReward && g.tier !== null).map((g) => g.tier!),
       extraTiers: groups.filter((g) => g.hasExtra && g.tier !== null).map((g) => g.tier!),
+      betaOrbPromo: false,
     });
   };
 
   const handleWild = () => {
-    applySelection({ editions: [], promoTiers: [], rewardTiers: [], extraTiers: [] });
+    applySelection({
+      editions: [],
+      promoTiers: [],
+      rewardTiers: [],
+      extraTiers: [],
+      betaOrbPromo: false,
+    });
   };
 
   const toggleEdition = (id: number) => {
@@ -186,7 +200,10 @@ export default function EditionSetFilter({
         const nativeFull = ids.every((id) => selectedEditions.includes(id));
         const nativeAny = ids.some((id) => selectedEditions.includes(id));
         const promoFull =
-          !group.hasPromo || (group.tier !== null && selectedPromoTiers.includes(group.tier));
+          !group.hasPromo ||
+          (group.tier !== null &&
+            selectedPromoTiers.includes(group.tier) &&
+            (group.setName !== "beta" || selectedBetaOrbPromo));
         const rewardFull =
           !group.hasReward || (group.tier !== null && selectedRewardTiers.includes(group.tier));
         const extraFull =
@@ -196,6 +213,7 @@ export default function EditionSetFilter({
           !full &&
           (nativeAny ||
             (group.hasPromo && group.tier !== null && selectedPromoTiers.includes(group.tier)) ||
+            (group.setName === "beta" && selectedBetaOrbPromo) ||
             (group.hasReward && group.tier !== null && selectedRewardTiers.includes(group.tier)) ||
             (group.hasExtra && group.tier !== null && selectedExtraTiers.includes(group.tier)));
 
@@ -217,6 +235,7 @@ export default function EditionSetFilter({
                 group.hasExtra && group.tier !== null
                   ? selectedExtraTiers.filter((t) => t !== group.tier)
                   : selectedExtraTiers,
+              betaOrbPromo: group.setName === "beta" ? false : selectedBetaOrbPromo,
             });
           } else {
             applySelection({
@@ -233,6 +252,7 @@ export default function EditionSetFilter({
                 group.hasExtra && group.tier !== null
                   ? [...new Set([...selectedExtraTiers, group.tier])]
                   : selectedExtraTiers,
+              betaOrbPromo: group.setName === "beta" ? true : selectedBetaOrbPromo,
             });
           }
         };
@@ -299,6 +319,15 @@ export default function EditionSetFilter({
                 label={`${group.label} (Promo)`}
                 active={selectedPromoTiers.includes(group.tier)}
                 onClick={() => togglePromoTier(group.tier!)}
+              />
+            )}
+
+            {group.setName === "beta" && (
+              <SubIcon
+                iconUrl={edition_orb_icon_url}
+                label="Beta Orb"
+                active={selectedBetaOrbPromo}
+                onClick={() => onBetaOrbPromoChange(!selectedBetaOrbPromo)}
               />
             )}
 
