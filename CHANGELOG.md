@@ -7,6 +7,16 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ## [Unreleased]
 
+---
+
+## [v1.34.2] - 2026-10-26
+
+### Fix
+
+- **Beta Orb edition filter:** Split Beta Orb promo cards (detail IDs 118-129) from the regular Beta Promo filter.
+
+---
+
 ## [v1.34.1] - 2026-10-26
 
 ### Improved

@@ -19,17 +19,17 @@ describe("matchesCardFilter", () => {
   it("filters card, bloodline and ability multi-selections", () => {
     const filter = {
       ...DEFAULT_UNIFIED_FILTER,
-      selectedCardDetailIds: [116, 120],
-      selectedCardDetailId: 116,
+      selectedCardDetailIds: [118, 120],
+      selectedCardDetailId: 118,
       bloodlines: ["Fire", "Water"],
       abilities: ["Flying"],
     };
 
-    expect(matchesCardFilter(betaPromoCard(116), filter)).toBe(true);
+    expect(matchesCardFilter(betaPromoCard(118), filter)).toBe(true);
     expect(matchesCardFilter(betaPromoCard(120), filter)).toBe(true);
     expect(matchesCardFilter(betaPromoCard(121), filter)).toBe(false);
     expect(
-      matchesCardFilter({ ...betaPromoCard(116), subType: "Water", abilities: ["Sneak"] }, filter)
+      matchesCardFilter({ ...betaPromoCard(118), subType: "Water", abilities: ["Sneak"] }, filter)
     ).toBe(false);
   });
 
@@ -44,12 +44,12 @@ describe("matchesCardFilter", () => {
     };
 
     expect(matchesCardFilter(betaPromoCard(115), regularBetaPromoFilter)).toBe(true);
-    expect(matchesCardFilter(betaPromoCard(116), regularBetaPromoFilter)).toBe(false);
+    expect(matchesCardFilter(betaPromoCard(118), regularBetaPromoFilter)).toBe(false);
     expect(matchesCardFilter(betaPromoCard(129), regularBetaPromoFilter)).toBe(false);
     expect(matchesCardFilter(betaPromoCard(130), regularBetaPromoFilter)).toBe(true);
 
     expect(matchesCardFilter(betaPromoCard(115), betaOrbFilter)).toBe(false);
-    expect(matchesCardFilter(betaPromoCard(116), betaOrbFilter)).toBe(true);
+    expect(matchesCardFilter(betaPromoCard(118), betaOrbFilter)).toBe(true);
     expect(matchesCardFilter(betaPromoCard(129), betaOrbFilter)).toBe(true);
     expect(matchesCardFilter(betaPromoCard(130), betaOrbFilter)).toBe(false);
   });

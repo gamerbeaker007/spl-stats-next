@@ -99,7 +99,7 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     urlName: "promo",
     setName: undefined,
     iconUrl: edition_promo_icon_url,
-    specialCategories: [{ label: "Beta Orb", setName: "beta", detailIdRange: [116, 129] }],
+    specialCategories: [{ label: "Beta Orb", setName: "beta", detailIdRange: [118, 129] }],
   },
   {
     id: 3,
