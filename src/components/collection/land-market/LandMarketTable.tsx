@@ -12,8 +12,10 @@ import {
 } from "@/components/collection/land-market/LandAttributeIcons";
 import LandCartButton from "@/components/collection/land-market/LandCartButton";
 import LandDeedImage from "@/components/collection/land-market/LandDeedImage";
+import LandMarketWatch from "@/components/collection/land-market/LandMarketWatch";
 import ScrollableTableContainer from "@/components/shared/ScrollableTableContainer";
 import type { LandCartState } from "@/hooks/land-market/useLandCart";
+import { useAssetWatchContext } from "@/lib/frontend/context/AssetWatchContext";
 import { formatLandPriceUsd, formatListingAge } from "@/lib/shared/land-deed-utils";
 import type {
   LandMarketListing,
@@ -38,9 +40,12 @@ interface Column {
   short?: string;
   sortField?: LandMarketSortField;
   align?: "left" | "right" | "center";
+  width?: string;
+  watch?: boolean;
 }
 
 const COLUMNS: Column[] = [
+  { label: "", width: "32px", watch: true },
   { label: "Deed" },
   { label: "Location", sortField: "location" },
   { label: "Region" },
@@ -54,6 +59,7 @@ const COLUMNS: Column[] = [
   { label: "Seller" },
   { label: "Since", sortField: "since" },
   { label: "Price", sortField: "price", align: "right" },
+  { label: "Δ Price" },
   { label: "Cart", align: "center" },
 ];
 
@@ -88,19 +94,33 @@ export default function LandMarketTable({
   onToggleCart,
   now,
 }: Readonly<LandMarketTableProps>) {
+  const assetWatchContext = useAssetWatchContext();
+
   return (
     <ScrollableTableContainer maxHeight={{ xs: "none", md: "70vh" }}>
       <Table size="small" stickyHeader aria-label="Land market listings">
         <TableHead>
           <TableRow>
-            {COLUMNS.map((column) => {
+            {COLUMNS.filter(
+              (column) => (!column.watch && column.label !== "Δ Price") || assetWatchContext
+            ).map((column) => {
               const active = column.sortField !== undefined && sort.field === column.sortField;
               return (
                 <TableCell
-                  key={column.label}
+                  key={column.watch ? "watch" : column.label}
                   align={column.align}
                   sortDirection={active ? sort.direction : false}
-                  sx={{ whiteSpace: "nowrap", fontWeight: 600, ...(column.short && ICON_CELL_SX) }}
+                  sx={{
+                    whiteSpace: "nowrap",
+                    fontWeight: 600,
+                    ...(column.short && ICON_CELL_SX),
+                    ...(column.width !== undefined && {
+                      width: column.width,
+                      minWidth: column.width,
+                      maxWidth: column.width,
+                    }),
+                    ...(column.watch && { px: 0 }),
+                  }}
                 >
                   {column.sortField ? (
                     <TableSortLabel
@@ -121,6 +141,11 @@ export default function LandMarketTable({
         <TableBody>
           {listings.map((listing) => (
             <TableRow key={listing.listingItemId} hover>
+              {assetWatchContext && (
+                <TableCell align="center" sx={{ width: 32, minWidth: 32, maxWidth: 32, px: 0.5 }}>
+                  <LandMarketWatch listing={listing} display="button" />
+                </TableCell>
+              )}
               <TableCell sx={{ py: 0.5 }}>
                 <LandDeedImage
                   src={listing.imageUrl}
@@ -192,6 +217,11 @@ export default function LandMarketTable({
                   {formatLandPriceUsd(listing.priceUsd)}
                 </LivePriceValue>
               </TableCell>
+              {assetWatchContext && (
+                <TableCell>
+                  <LandMarketWatch listing={listing} display="delta" />
+                </TableCell>
+              )}
               <TableCell align="center">
                 <LandCartButton
                   variant="icon"

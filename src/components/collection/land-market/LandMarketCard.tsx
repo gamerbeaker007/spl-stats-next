@@ -24,6 +24,7 @@ import {
 } from "@/lib/shared/land-deed-utils";
 import type { LandMarketListing } from "@/types/land/landMarket";
 import { Box, Stack, Tooltip, Typography, alpha } from "@mui/material";
+import LandMarketWatch from "./LandMarketWatch";
 
 /** Matches the CDN deed artwork (800×422). */
 const ARTWORK_ASPECT_RATIO = "800 / 422";
@@ -207,7 +208,7 @@ export default function LandMarketCard({
 
         <Box sx={{ flex: 1 }} />
 
-        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={0.5}>
           <Box sx={{ minWidth: 0 }}>
             <Typography variant="h6" component="p" fontWeight={800} lineHeight={1.1}>
               <LivePriceValue value={listing.priceUsd}>
@@ -224,6 +225,7 @@ export default function LandMarketCard({
               </Typography>
             )}
           </Box>
+          <LandMarketWatch listing={listing} />
           <LandCartButton state={cartState} location={listing.location} onToggle={onToggleCart} />
         </Stack>
       </Stack>

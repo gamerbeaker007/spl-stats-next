@@ -55,11 +55,29 @@ export function ItemWatchPriceDelta({
   hideWhenUnavailable = false,
 }: Readonly<{ item: MarketplaceAssetItem; hideWhenUnavailable?: boolean }>) {
   const ctx = useAssetWatchContext();
-  const watch = ctx?.watches[item.detailId];
   const currentPrice = getLowestUsdPrice(item.prices);
-  const pct = watch ? pctChange(watch.priceAtWatch, currentPrice ?? undefined) : null;
+  return (
+    <AssetWatchPriceDelta
+      watch={ctx?.watches[item.detailId]}
+      currentPriceUsd={currentPrice ?? undefined}
+      hideWhenUnavailable={hideWhenUnavailable}
+    />
+  );
+}
 
-  if (pct === null || !watch || currentPrice === null) {
+/** Percentage change from a saved watch price to a current USD price. */
+export function AssetWatchPriceDelta({
+  watch,
+  currentPriceUsd,
+  hideWhenUnavailable = false,
+}: Readonly<{
+  watch?: AssetWatch;
+  currentPriceUsd?: number;
+  hideWhenUnavailable?: boolean;
+}>) {
+  const pct = watch ? pctChange(watch.priceAtWatch, currentPriceUsd) : null;
+
+  if (pct === null || !watch || !currentPriceUsd) {
     return hideWhenUnavailable ? null : (
       <Typography component="span" variant="caption">
         -
@@ -73,7 +91,7 @@ export function ItemWatchPriceDelta({
         Difference since watched
       </Typography>
       <Typography variant="caption" display="block">
-        Watched: ${watch.priceAtWatch.toFixed(3)} → Current: ${currentPrice.toFixed(3)}
+        Watched: ${watch.priceAtWatch.toFixed(3)} → Current: ${currentPriceUsd.toFixed(3)}
       </Typography>
       <Typography variant="caption" display="block">
         Watched since {new Date(watch.watchedAt).toLocaleString()}

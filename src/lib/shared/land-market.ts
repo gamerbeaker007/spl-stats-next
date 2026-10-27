@@ -33,6 +33,11 @@ import {
 export const LAND_MARKET_STALE_SECONDS = 60;
 export const LAND_OWNED_STALE_SECONDS = 5 * 60;
 
+/** Namespace deed watches so plot UIDs cannot collide with marketplace detail IDs. */
+export function landMarketWatchId(deedUid: string): string {
+  return `land-market:${deedUid}`;
+}
+
 // ---------------------------------------------------------------------------
 // Parsing helpers
 // ---------------------------------------------------------------------------

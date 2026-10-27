@@ -1,5 +1,6 @@
 "use client";
 
+import LandMarketControls from "@/components/collection/land-market/LandMarketControls";
 import LandMarketFilterPanel from "@/components/collection/land-market/LandMarketFilterPanel";
 import LandMarketGrid from "@/components/collection/land-market/LandMarketGrid";
 import LandMarketTable from "@/components/collection/land-market/LandMarketTable";
@@ -11,8 +12,10 @@ import { useLandMarket } from "@/hooks/land-market/useLandMarket";
 import { LAND_MARKET_PAGE_SIZES, useLandMarketView } from "@/hooks/land-market/useLandMarketView";
 import { useOwnedLandRegions } from "@/hooks/land-market/useOwnedLandRegions";
 import { useAccounts } from "@/lib/frontend/context/AccountsContext";
+import { AssetWatchProvider, useAssetWatchContext } from "@/lib/frontend/context/AssetWatchContext";
 import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
+import { landMarketWatchId } from "@/lib/shared/land-market";
 import {
   Alert,
   Box,
@@ -23,7 +26,7 @@ import {
   Stack,
   TablePagination,
 } from "@mui/material";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const NOW_TICK_MS = 60_000;
 
@@ -52,24 +55,44 @@ function useNow(): number {
  * purchase cart.
  */
 export default function LandMarketPageClient() {
+  return (
+    <AssetWatchProvider assetName="DEEDS">
+      <LandMarketPageContent />
+    </AssetWatchProvider>
+  );
+}
+
+function LandMarketPageContent() {
   const { selectedAccount } = useAccounts();
   const account = selectedAccount ? selectedAccount : null;
   const { viewMode } = useMarketplaceView();
   const { collectionRefreshVersion, purchasedMarketIds } = usePurchasePlan();
 
   const market = useLandMarket();
+  const assetWatchContext = useAssetWatchContext();
   const owned = useOwnedLandRegions(account, collectionRefreshVersion);
   const cart = useLandCart(account);
   const now = useNow();
 
   const [showOwnRegions, setShowOwnRegions] = useState(false);
+  const [watchedOnly, setWatchedOnly] = useState(false);
   const [filterOpen, setFilterOpen] = useState(true);
   const ownRegionsActive = showOwnRegions && account !== null;
   // Never fall back to unfiltered results while the toggle is on: until the
   // regions are known the results area shows a loading or error state instead.
   const ownRegionsReady = !ownRegionsActive || (owned.loaded && !owned.error);
 
-  const view = useLandMarketView(market.listings, {
+  const filteredListings = useMemo(
+    () =>
+      watchedOnly
+        ? market.listings.filter(
+            (listing) => assetWatchContext?.watches[landMarketWatchId(listing.deedUid)]
+          )
+        : market.listings,
+    [assetWatchContext?.watches, market.listings, watchedOnly]
+  );
+
+  const view = useLandMarketView(filteredListings, {
     regionUids: ownRegionsActive ? owned.regionUids : null,
     hiddenMarketIds: purchasedMarketIds,
   });
@@ -188,34 +211,49 @@ export default function LandMarketPageClient() {
   }
 
   const showPagination = ownRegionsReady && view.total > 0;
+  const clearFilters = () => {
+    view.resetFilter();
+    setWatchedOnly(false);
+  };
 
   return (
     <>
       <Stack spacing={2}>
         <MarketplaceAccountBar />
 
-        <OwnRegionsToggle
-          account={account}
-          enabled={showOwnRegions}
-          onChange={(enabled) => {
-            setShowOwnRegions(enabled);
-            setPage(0);
-          }}
-          regionCount={owned.regionCount}
-          loaded={owned.loaded}
-          loading={owned.loading}
-          error={owned.error}
-          onRetry={owned.retry}
-        />
+        <Stack direction="row" spacing={1}>
+          <OwnRegionsToggle
+            account={account}
+            enabled={showOwnRegions}
+            onChange={(enabled) => {
+              setShowOwnRegions(enabled);
+              setPage(0);
+            }}
+            regionCount={owned.regionCount}
+            loaded={owned.loaded}
+            loading={owned.loading}
+            error={owned.error}
+            onRetry={owned.retry}
+          />
 
+          <LandMarketControls
+            showWatchedOnly={assetWatchContext !== null}
+            watchedOnly={watchedOnly}
+            onWatchedOnlyChange={(enabled) => {
+              setWatchedOnly(enabled);
+              setPage(0);
+            }}
+            sort={view.sort}
+            onSortChange={view.toggleSort}
+            viewMode={viewMode}
+          />
+        </Stack>
         <Box ref={resultsTopRef} sx={{ scrollMarginTop: 140 }}>
           <LandMarketToolbar
             total={market.listings.length}
             matching={ownRegionsReady ? view.total : 0}
-            activeFilterCount={view.activeFilterCount}
-            onClearFilters={view.resetFilter}
-            sort={view.sort}
-            onSortChange={view.toggleSort}
+            activeFilterCount={view.activeFilterCount + Number(watchedOnly)}
+            onClearFilters={clearFilters}
             refreshing={market.refreshing}
             fetchedAt={market.fetchedAt}
             onRefresh={() => void market.refresh()}

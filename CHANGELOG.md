@@ -9,6 +9,14 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.34.3] - 2026-10-27
+
+### Added
+
+- **Land market watches:** Watch individual deeds, see price changes since watching, and filter to watched deeds.
+
+---
+
 ## [v1.34.2] - 2026-10-26
 
 ### Fix

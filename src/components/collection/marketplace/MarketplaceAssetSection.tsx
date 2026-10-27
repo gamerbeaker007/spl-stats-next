@@ -243,7 +243,7 @@ function MarketplaceAssetSectionContent({
         />
         {!loading && !error && (
           <Box sx={{ ml: "auto", display: "flex", justifyContent: "flex-end" }}>
-              <MarketPricesStamp fetchedAt={data?.fetchedAt} />
+            <MarketPricesStamp fetchedAt={data?.fetchedAt} />
           </Box>
         )}
       </Stack>

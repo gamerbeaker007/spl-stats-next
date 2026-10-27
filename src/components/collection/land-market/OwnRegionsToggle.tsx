@@ -6,8 +6,8 @@ import {
   Button,
   CircularProgress,
   FormControlLabel,
-  Switch,
   Stack,
+  Switch,
 } from "@mui/material";
 
 interface OwnRegionsToggleProps {
@@ -36,41 +36,31 @@ export default function OwnRegionsToggle({
   const countLabel = hasAccount && loaded ? ` (${regionCount})` : "";
 
   return (
-    <Box
-      sx={{
-        px: 2,
-        py: 1,
-        borderRadius: 2,
-        backgroundColor: "background.paper",
-        border: 1,
-        borderColor: "divider",
-      }}
-    >
-      <Stack direction="row" alignItems="center" spacing={1.5} flexWrap="wrap" useFlexGap>
-        <FormControlLabel
-          control={
-            <Switch
-              checked={hasAccount && enabled}
-              onChange={(_event, checked) => onChange(checked)}
-              disabled={!hasAccount}
-            />
-          }
-          label={`Show Own Regions${countLabel}`}
-        />
-        {loading && hasAccount && <CircularProgress size={16} aria-label="Loading owned regions" />}
-        {!hasAccount && (
-          <Box component="span" sx={{ color: "text.secondary", typography: "body2" }}>
-            Select an account to only show listings in regions where it already owns land.
-          </Box>
-        )}
-        {hasAccount && loaded && !error && (
-          <Box component="span" sx={{ color: "text.secondary", typography: "body2" }}>
-            {regionCount === 0
-              ? `${account} owns no land yet.`
-              : `Regions where ${account} owns at least one plot.`}
-          </Box>
-        )}
-      </Stack>
+    <Stack direction="column" spacing={0.5}>
+      <FormControlLabel
+        control={
+          <Switch
+            checked={hasAccount && enabled}
+            onChange={(_event, checked) => onChange(checked)}
+            disabled={!hasAccount}
+            size="small"
+          />
+        }
+        label={`Show Own Regions${countLabel}`}
+      />
+      {loading && hasAccount && <CircularProgress size={16} aria-label="Loading owned regions" />}
+      {!hasAccount && (
+        <Box component="span" sx={{ color: "text.secondary", typography: "body2" }}>
+          Select an account to only show listings in regions where it already owns land.
+        </Box>
+      )}
+      {hasAccount && loaded && !error && (
+        <Box component="span" sx={{ color: "text.secondary", typography: "body2" }}>
+          {regionCount === 0
+            ? `${account} owns no land yet.`
+            : `Regions where ${account} owns at least one plot.`}
+        </Box>
+      )}
       {hasAccount && error && (
         <Alert
           severity="error"
@@ -84,6 +74,6 @@ export default function OwnRegionsToggle({
           Could not load owned land for {account}: {error}
         </Alert>
       )}
-    </Box>
+    </Stack>
   );
 }
