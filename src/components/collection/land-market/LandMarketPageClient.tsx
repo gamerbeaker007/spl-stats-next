@@ -221,7 +221,17 @@ function LandMarketPageContent() {
       <Stack spacing={2}>
         <MarketplaceAccountBar />
 
-        <Stack direction="row" spacing={1}>
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            p: 1,
+            borderRadius: 1,
+            border: 1,
+            borderColor: "divider",
+            backgroundColor: "background.paper",
+          }}
+        >
           <OwnRegionsToggle
             account={account}
             enabled={showOwnRegions}
