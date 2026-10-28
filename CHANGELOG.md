@@ -9,6 +9,15 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.34.4] - 2026-10-28
+
+### Added
+
+- Support Land feast set.
+
+
+---
+
 ## [v1.34.3] - 2026-10-27
 
 ### Added

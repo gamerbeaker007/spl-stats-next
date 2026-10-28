@@ -238,6 +238,13 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     setName: "eternal",
     iconUrl: edition_verico_icon_url,
   },
+  {
+    id: 23,
+    label: "Feast",
+    urlName: "land",
+    setName: "eternal",
+    iconUrl: edition_land_card_icon_url,
+  },
 ];
 
 const betaOrbDetailIdRange = EDITION_DEFS.find(
