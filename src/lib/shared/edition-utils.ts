@@ -33,6 +33,7 @@ import {
   edition_soulbound_icon_url,
   edition_soulbound_rebellion_icon_url,
   edition_soulkeep_icon_url,
+  edition_starlight_icon_url,
   edition_untamed_icon_url,
   edition_verico_icon_url,
 } from "@/lib/staticsIconUrls";
@@ -237,6 +238,14 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     urlName: "verico",
     setName: "eternal",
     iconUrl: edition_verico_icon_url,
+  },
+  {
+    id: 22,
+    label: "Starlight",
+    urlName: "starlight",
+    setName: "foundation",
+    soulbound: true,
+    iconUrl: edition_starlight_icon_url,
   },
   {
     id: 23,

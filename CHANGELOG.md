@@ -9,6 +9,14 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.34.5] - 2026-11-03
+
+### Added
+
+- Support foundation startlight set.
+
+---
+
 ## [v1.34.4] - 2026-10-28
 
 ### Added
