@@ -316,13 +316,14 @@ export async function fetchMarketForSaleGrouped(): Promise<SplCardListingPriceEn
  * Fetch pack jackpot overview from Splinterlands API
  */
 export async function fetchPackJackpotOverview(edition: number = 14): Promise<PackJackpotCard[]> {
-  const url = SPL_API.PACK_JACKPOT_OVERVIEW;
-  console.info(`Fetching pack jackpot overview for edition ${edition}`);
+  const isStarlight = edition === 22;
+  const url = isStarlight ? SPL_API.STARLIGHT_PRIZE_OVERVIEW : SPL_API.PACK_JACKPOT_OVERVIEW;
+  console.info(
+    `Fetching ${isStarlight ? "starlight prize overview" : "pack jackpot overview"} for edition ${edition}`
+  );
 
   try {
-    const res = await splBaseClient.get(url, {
-      params: { edition },
-    });
+    const res = await splBaseClient.get(url, isStarlight ? undefined : { params: { edition } });
     const data = res.data;
 
     // Handle API-level error even if HTTP status is 200
@@ -330,7 +331,7 @@ export async function fetchPackJackpotOverview(edition: number = 14): Promise<Pa
       throw new Error("Invalid response from Splinterlands API: expected array");
     }
 
-    console.info(`Fetched ${data.length} pack jackpot cards for edition ${edition}`);
+    console.info(`Fetched ${data.length} jackpot cards for edition ${edition}`);
 
     return data as PackJackpotCard[];
   } catch (error) {

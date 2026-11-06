@@ -6,6 +6,7 @@ import {
   RecentWinnersConfig,
 } from "@/components/jackpot-prizes/MultiRecentWinnersSection";
 import { RecentWinnersCarousel } from "@/components/jackpot-prizes/RecentWinnersCarousel";
+import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 import { useRecentWinners } from "@/hooks/jackpot-prizes/useRecentWinners";
 import { CardPrizeData } from "@/types/jackpot-prizes/shared";
 import { SplCardDetail } from "@/types/spl/cardDetails";
@@ -33,6 +34,11 @@ interface Props {
   recentWinnersConfigs?: RecentWinnersConfig[];
   fetchedAt?: string;
 }
+
+const JACKPOT_NAV_HEIGHT = 48;
+const DESKTOP_SIDE_PANE_TOP = APP_BAR_HEIGHT + JACKPOT_NAV_HEIGHT + 16;
+const DESKTOP_SIDE_PANE_WIDTH = 380;
+const DESKTOP_CONTENT_HEIGHT = `calc(100dvh - ${DESKTOP_SIDE_PANE_TOP}px)`;
 
 export default function ClientCardGrid({
   prizeData,
@@ -165,11 +171,21 @@ export default function ClientCardGrid({
         </Stack>
       </Box>
 
-      <Box sx={{ display: "flex", gap: 3, alignItems: "flex-start" }}>
+      <Box
+        sx={{
+          display: "flex",
+          gap: 3,
+          alignItems: "flex-start",
+          height: { md: DESKTOP_CONTENT_HEIGHT },
+        }}
+      >
         <Box
           sx={{
             flex: 1,
+            p: 1,
             minWidth: 0,
+            maxHeight: DESKTOP_CONTENT_HEIGHT,
+            overflowY: "auto",
             display: "grid",
             gridTemplateColumns: {
               xs: "1fr",
@@ -198,11 +214,10 @@ export default function ClientCardGrid({
         {!isMobile && (
           <Box
             sx={{
-              width: 380,
+              width: DESKTOP_SIDE_PANE_WIDTH,
               flexShrink: 0,
-              position: "sticky",
-              top: 80,
-              height: "calc(100vh - 100px)",
+              alignSelf: "flex-start",
+              height: DESKTOP_CONTENT_HEIGHT,
             }}
           >
             <DetailPane selection={paneSelection} onClose={() => setPaneSelection(null)} />

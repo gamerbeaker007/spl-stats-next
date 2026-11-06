@@ -41,6 +41,7 @@ export const SPL_API = {
   CARD_HISTORY: "/cards/history",
   MINT_HISTORY: "/cards/mint_history",
   PACK_JACKPOT_OVERVIEW: "/cards/pack_jackpot_overview",
+  STARLIGHT_PRIZE_OVERVIEW: "/cards/starlight_prize_overview",
   CA_GOLD_REWARDS: "/cards/ca_gold_rewards",
 
   // Ranked / frontier draws

@@ -9,6 +9,20 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.35.1] - 2026-11-06
+
+### Added
+
+- Jackpot prizes: added a dedicated Starlight mint history page (`/jackpot-prizes/starlight-mint-history`) and linked it from the Jackpot Prizes landing page and Jackpot navigation.
+
+### Improved
+
+- Jackpot prizes desktop layout: adjusted the details side panel sticky offset so it stays visible while scrolling long card lists.
+
+
+
+---
+
 ## [v1.35.0] - 2026-11-06
 
 ### Added

@@ -4,8 +4,7 @@ import { getCardImageV2 } from "@/lib/shared/card-image-utils";
 import { getFoilLabel } from "@/lib/shared/card-utils";
 import { CardPrizeData } from "@/types/jackpot-prizes/shared";
 import { SplCardDetail } from "@/types/spl/cardDetails";
-import { Info } from "@mui/icons-material";
-import { Box, CardContent, IconButton, Card as MuiCard, Typography } from "@mui/material";
+import { Box, Button, CardContent, Card as MuiCard, Typography } from "@mui/material";
 import Image from "next/image";
 import { memo, useMemo } from "react";
 
@@ -26,6 +25,7 @@ function Card({ prizeData, card, onFoilClick, selectedFoil }: Props) {
   const isFrontierDraws = editions.includes("15") || editions.includes("16");
   const isEdition17Extra = editions.includes("17");
   const isLandCard = editions.includes("19");
+  const isStarlight = editions.includes("22");
 
   const foilTypes = useMemo(
     () => (isArchmageYabanius ? ALL_FOIL_TYPES : DEFAULT_FOIL_TYPES),
@@ -63,14 +63,34 @@ function Card({ prizeData, card, onFoilClick, selectedFoil }: Props) {
                   <Typography variant="body2" sx={{ color: "warning.main" }}>
                     <strong>Gold Foil:</strong>
                   </Typography>
-                  <IconButton
+
+                  <Button
                     size="small"
+                    variant="outlined"
                     onClick={() => onFoilClick(1)}
-                    sx={{ p: 0.5, color: selectedFoil === 1 ? "primary.main" : "warning.main" }}
+                    sx={{
+                      ml: "auto",
+                      flexShrink: 0,
+                      px: 1,
+                      py: 0.25,
+                      minWidth: 0,
+                      fontSize: "0.7rem",
+                      fontWeight: 600,
+                      textTransform: "none",
+                      borderRadius: 1.5,
+                      lineHeight: 1.4,
+                      color: selectedFoil === 1 ? "primary.main" : "warning.main",
+                      borderColor: selectedFoil === 1 ? "primary.main" : "warning.main",
+                      "&:hover": {
+                        borderColor: "primary.main",
+                        color: "primary.main",
+                        bgcolor: "action.hover",
+                      },
+                    }}
                     title="View Gold Foil mint history (on special request for land cards)"
                   >
-                    <Info fontSize="small" />
-                  </IconButton>
+                    Details
+                  </Button>
                 </Box>
               )}
 
@@ -86,7 +106,8 @@ function Card({ prizeData, card, onFoilClick, selectedFoil }: Props) {
                   isConclaveArcanaRewardEdition ||
                   isFrontierDraws ||
                   isEdition17Extra ||
-                  isLandCard;
+                  isLandCard ||
+                  isStarlight;
                 const displayText = hasData
                   ? showFullStats
                     ? `${minted} / ${total}`
@@ -100,13 +121,33 @@ function Card({ prizeData, card, onFoilClick, selectedFoil }: Props) {
                     <Typography variant="body2">
                       <strong>{getFoilLabel(foil)}:</strong> {displayText}
                     </Typography>
-                    <IconButton
+                    <Button
                       size="small"
+                      variant="outlined"
                       onClick={() => onFoilClick(foil)}
-                      sx={{ p: 0.5, color: isFoilSelected ? "primary.main" : "inherit" }}
+                      sx={{
+                        ml: "auto",
+                        flexShrink: 0,
+                        px: 1,
+                        py: 0.25,
+                        minWidth: 0,
+                        fontSize: "0.7rem",
+                        fontWeight: 600,
+                        textTransform: "none",
+                        borderRadius: 1.5,
+                        lineHeight: 1.4,
+                        color: isFoilSelected ? "primary.main" : "text.secondary",
+                        borderColor: isFoilSelected ? "primary.main" : "divider",
+                        "&:hover": {
+                          borderColor: "primary.main",
+                          color: "primary.main",
+                          bgcolor: "action.hover",
+                        },
+                      }}
+                      title={`View ${getFoilLabel(foil)} mint history`}
                     >
-                      <Info fontSize="small" />
-                    </IconButton>
+                      Details
+                    </Button>{" "}
                   </Box>
                 );
               })}

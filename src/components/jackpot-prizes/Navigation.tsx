@@ -4,6 +4,7 @@ import { APP_BAR_HEIGHT } from "@/components/top-bar/TopBar";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   conclave_icon_url,
+  edition_starlight_icon_url,
   escalation_icon_url,
   frontier_icon_url,
   jackpot_icon_url,
@@ -40,6 +41,7 @@ const iconMap = {
   frontier: frontier_icon_url,
   ranked: ranked_icon_url,
   land: land_icon_url,
+  starlight: edition_starlight_icon_url,
 };
 
 interface NavItem {
@@ -62,6 +64,12 @@ const mintHistory: NavItem[] = [
     href: `${BASE}/escalation-mint-history`,
     icon: iconMap.escalation,
     alt: "Escalation",
+  },
+  {
+    label: "Starlight Mint History",
+    href: `${BASE}/starlight-mint-history`,
+    icon: iconMap.starlight,
+    alt: "Starlight",
   },
   {
     label: "Land Mint History",
