@@ -9,6 +9,19 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.35.0] - 2026-11-06
+
+### Added
+
+- Multi-account dashboard: land net DEC per hour per account (land category). Production after 10% region tax minus grain and recipe consumption, valued at the trade hub pool price (matches splinter-lands-next "Production Net DEC"). AURA valued via the Midnight Potion price (1 potion = 40 AURA).
+- Buy Missing CC: Extras (17) and the new edition (24) are exempt from the bracket minimum level (`MIN_LEVEL_EXEMPT_EDITIONS` in `league-brackets.ts`).
+
+### Fixed
+
+- Buy Missing CC: Foundation-set cards are capped at level 5 / 4 / 3 / 2 (common / rare / epic / legendary). Starlight (22) now uses the Foundation combine rates, so its max level and upgrade estimates are capped.
+
+---
+
 ## [v1.34.5] - 2026-11-03
 
 ### Added

@@ -108,6 +108,7 @@ interface TargetLevelTabContentView {
   cardStats: CardStats;
   rarity: CardRarity;
   targetBracket: League | "";
+  edition: number;
   accountHighestLevel: number;
   accountTotalCc: number;
   accountOwnedBreakdown: OwnedCcBreakdown;
@@ -140,6 +141,7 @@ export default function TargetLevelTabContent({
     cardStats,
     rarity,
     targetBracket,
+    edition,
     accountHighestLevel,
     accountTotalCc,
     accountOwnedBreakdown,
@@ -220,7 +222,7 @@ export default function TargetLevelTabContent({
 
               const [targetMin, targetMax] =
                 rarity && targetBracket !== ""
-                  ? getBracketLevelRange(targetBracket, rarity)
+                  ? getBracketLevelRange(targetBracket, rarity, edition)
                   : [null, null];
 
               const targetBottom = row.level === targetMin;

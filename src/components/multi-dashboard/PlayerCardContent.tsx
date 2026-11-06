@@ -1,6 +1,7 @@
 "use client";
 
 import { LandHarvestStatus } from "@/components/multi-dashboard/LandHarvestStatus";
+import { LandNetDec } from "@/components/multi-dashboard/LandNetDec";
 import GuildInfo from "@/components/multi-dashboard/PlayerBrawl";
 import NeedsReAuthNotice from "@/components/shared/NeedsReAuthNotice";
 import type { SectionAuthState } from "@/lib/shared/authenticated-result";
@@ -156,7 +157,7 @@ export function PlayerCardContent({
       )}
 
       {categories.land && (
-        <Box width="100%">
+        <Box width="100%" minHeight={55}>
           <LandHarvestStatus
             username={username}
             data={landHarvest}
@@ -164,6 +165,7 @@ export function PlayerCardContent({
             error={landHarvestError}
             authState={landHarvestAuthState}
           />
+          <LandNetDec username={username} />
         </Box>
       )}
 

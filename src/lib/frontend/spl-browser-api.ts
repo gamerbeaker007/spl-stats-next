@@ -15,6 +15,7 @@ import { normalizeTransactionLookup } from "@/lib/shared/trx-lookup-parser";
 import type { CardFoil } from "@/types/card";
 import type { CardHistoryResponse } from "@/types/jackpot-prizes/cardHistory";
 import type { LandOwnedRegionRaw } from "@/types/land/landMarket";
+import type { LandPlayerDeedsRaw } from "@/types/land/landNetDec";
 import type {
   FetchMarketplaceListingItemsParams,
   MarketplaceAssetMetaDetail,
@@ -358,6 +359,19 @@ export async function fetchMarketplaceAssetListings(
     sort: { field: "price", order: "asc" },
   });
   return page.items;
+}
+
+/** A player's deeds with worksite + staking details (`/land/deeds?player=…`). */
+export async function fetchPlayerLandDeeds(player: string): Promise<LandPlayerDeedsRaw> {
+  const body = (await vapiGet(SPL_VAPI.LAND_DEEDS, { player: player.trim().toLowerCase() })) as {
+    data?: Partial<LandPlayerDeedsRaw>;
+  } | null;
+  const data = body?.data;
+  if (!data) throw new Error("Invalid land deeds response");
+  return {
+    worksite_details: Array.isArray(data.worksite_details) ? data.worksite_details : [],
+    staking_details: Array.isArray(data.staking_details) ? data.staking_details : [],
+  };
 }
 
 /** Regions a player owns plots in, as `{ uid: region_uid, count }` rows. */

@@ -261,6 +261,12 @@ export const LAND_WORKSITES: readonly LandWorksiteDef[] = [
   },
 ];
 
+/** Resource icon for a produced token (`GRAIN`, `AURA`, `SPS`, …), `null` when unknown. */
+export function getLandTokenIconUrl(token: string): string | null {
+  const upper = token.toUpperCase();
+  return LAND_WORKSITES.find((def) => def.token === upper)?.resourceIconUrl ?? null;
+}
+
 const WORKSITE_BY_TYPE = new Map(LAND_WORKSITES.map((def) => [def.type.toUpperCase(), def]));
 
 export function getLandWorksiteDef(type: string | null): LandWorksiteDef | null {

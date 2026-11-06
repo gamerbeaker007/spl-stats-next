@@ -1,4 +1,5 @@
 import { toCardFoilInt } from "@/lib/shared/card-utils";
+import { getSetName } from "@/lib/shared/edition-utils";
 import { getRarityId } from "@/lib/shared/rarity-utils";
 import type {
   BuildPurchasePlanInput,
@@ -108,8 +109,9 @@ export function getCombineRatesForCard(
   // they are Untamed (see getCardSetName in edition-utils.ts).
   if (resolvedEdition === 3) resolvedEdition = 1;
 
-  // Foundation editions have special combine rates
-  if (resolvedEdition === 15 || resolvedEdition === 16) {
+  // Foundation-set editions (15, 16, Starlight 22, …) level on the capped
+  // Foundation combine rates (max level 5 / 4 / 3 / 2).
+  if (getSetName(resolvedEdition) === "foundation") {
     const table =
       normalizedFoil === "gold"
         ? settings.foundations_combine_rates_gold

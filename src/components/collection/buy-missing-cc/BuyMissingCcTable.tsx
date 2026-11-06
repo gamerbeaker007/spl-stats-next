@@ -130,8 +130,8 @@ export default function BuyMissingCcTable({
       if (sortBy === "1bcx") return lowPriceA - lowPriceB;
       if (sortBy === "bracket") {
         if (!selectedBracket || !ratesA || !ratesB) return 0;
-        const [, bracketMaxA] = getBracketLevelRange(selectedBracket, a.rarity);
-        const [, bracketMaxB] = getBracketLevelRange(selectedBracket, b.rarity);
+        const [, bracketMaxA] = getBracketLevelRange(selectedBracket, a.rarity, a.edition);
+        const [, bracketMaxB] = getBracketLevelRange(selectedBracket, b.rarity, b.edition);
         const targetA = Math.min(bracketMaxA, maxLevelA);
         const targetB = Math.min(bracketMaxB, maxLevelB);
         const bracketReqA = calculateUpgradeRequirements(a.totalOwnedCc, targetA, ratesA);
@@ -334,7 +334,11 @@ export default function BuyMissingCcTable({
 
               const bracketEst = (() => {
                 if (!selectedBracket || !rates) return null;
-                const [, bracketMax] = getBracketLevelRange(selectedBracket, row.rarity);
+                const [, bracketMax] = getBracketLevelRange(
+                  selectedBracket,
+                  row.rarity,
+                  row.edition
+                );
                 const target = Math.min(bracketMax, maxLevel);
                 const req = calculateUpgradeRequirements(row.totalOwnedCc, target, rates);
                 return calculateUpgradeCostEstimate(req.missingCc, row.lowPricePerBcxUsd);
@@ -352,7 +356,7 @@ export default function BuyMissingCcTable({
 
               const status =
                 selectedBracket && rates
-                  ? bracketStatus(row.highestOwnedLevel, selectedBracket, row.rarity)
+                  ? bracketStatus(row.highestOwnedLevel, selectedBracket, row.rarity, row.edition)
                   : null;
               const bracketLabel = selectedBracket ? LEAGUE_BRACKETS[selectedBracket].label : "";
 

@@ -7,8 +7,8 @@ export function isMaxOnlyFoil(foil: CardFoil): boolean {
   return foil === "black" || foil === "gold arcane" || foil === "black arcane";
 }
 
-export function bracketStatus(level: number, bracket: League, rarity: CardRarity) {
-  const [min, max] = getBracketLevelRange(bracket, rarity);
+export function bracketStatus(level: number, bracket: League, rarity: CardRarity, edition: number) {
+  const [min, max] = getBracketLevelRange(bracket, rarity, edition);
   if (level >= max) return "max" as const;
   if (level >= min) return "in-bracket" as const;
   return "below-bracket" as const;

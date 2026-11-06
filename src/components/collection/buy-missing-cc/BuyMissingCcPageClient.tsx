@@ -387,7 +387,7 @@ export default function BuyMissingCcPageClient() {
         return true;
       }
 
-      const status = bracketStatus(row.highestOwnedLevel, selectedBracket, row.rarity);
+      const status = bracketStatus(row.highestOwnedLevel, selectedBracket, row.rarity, row.edition);
       const mapped: Exclude<BracketTableState, "all"> =
         status === "below-bracket" ? "below" : status;
 
@@ -437,7 +437,7 @@ export default function BuyMissingCcPageClient() {
       toMaxUsd += maxCost.usd;
 
       if (selectedBracket) {
-        const [, bracketMax] = getBracketLevelRange(selectedBracket, row.rarity);
+        const [, bracketMax] = getBracketLevelRange(selectedBracket, row.rarity, row.edition);
         const targetLevel = Math.min(bracketMax, maxLevel);
         const bracketReq = calculateUpgradeRequirements(row.totalOwnedCc, targetLevel, rates);
         const bracketCost = calculateUpgradeCostEstimate(

@@ -79,9 +79,24 @@ export function rarityNameById(rarity: number): keyof (typeof LEAGUE_BRACKETS)["
   return "common";
 }
 
+/**
+ * Editions whose cards are exempt from the bracket minimum level, matched on the
+ * edition id only (any tier): Extras (17) and the upcoming set (24 — not in
+ * `EDITION_DEFS` yet).
+ */
+export const MIN_LEVEL_EXEMPT_EDITIONS: ReadonlySet<number> = new Set([17, 24]);
+
+/** Whether an edition ignores the bracket minimum level. */
+export function isMinLevelExempt(edition: number): boolean {
+  return MIN_LEVEL_EXEMPT_EDITIONS.has(edition);
+}
+
+/** `[min, max]` level of a rarity in a bracket; exempt editions have no minimum (`[1, max]`). */
 export function getBracketLevelRange(
   bracket: League,
-  rarity: CardRarity
+  rarity: CardRarity,
+  edition: number
 ): readonly [number, number] {
-  return LEAGUE_BRACKETS[bracket].byRarity[rarity];
+  const [min, max] = LEAGUE_BRACKETS[bracket].byRarity[rarity];
+  return isMinLevelExempt(edition) ? [1, max] : [min, max];
 }

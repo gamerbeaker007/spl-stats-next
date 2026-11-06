@@ -117,9 +117,9 @@ function extractErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-function getPlayableBrackets(level: number, rarity: CardRarity): League[] {
+function getPlayableBrackets(level: number, rarity: CardRarity, edition: number): League[] {
   return BRACKET_ORDER.filter((bracket) => {
-    const [min, max] = getBracketLevelRange(bracket, rarity);
+    const [min, max] = getBracketLevelRange(bracket, rarity, edition);
     return level >= min && level <= max;
   });
 }
@@ -600,7 +600,7 @@ export default function BuyCardDialog({
         return {
           level,
           statsLevel,
-          playableBrackets: getPlayableBrackets(statsLevel, rarity),
+          playableBrackets: getPlayableBrackets(statsLevel, rarity, edition),
           targetCc: null,
           ownedBcx: accountState.totalCc,
           neededBcx: null,
@@ -639,7 +639,7 @@ export default function BuyCardDialog({
       return {
         level,
         statsLevel,
-        playableBrackets: getPlayableBrackets(statsLevel, rarity),
+        playableBrackets: getPlayableBrackets(statsLevel, rarity, edition),
         targetCc: req.targetCc,
         ownedBcx: accountState.totalCc,
         neededBcx: req.missingCc,
@@ -665,6 +665,7 @@ export default function BuyCardDialog({
     name,
     combineRates,
     rarity,
+    edition,
     cardStats,
     rows,
     selectedAccount,
@@ -849,8 +850,8 @@ export default function BuyCardDialog({
               {activeMode === "target-level" && rarity && targetBracket !== "" && (
                 <Typography variant="body2" color="error.main">
                   Target: {LEAGUE_BRACKETS[targetBracket].label} (
-                  {getBracketLevelRange(targetBracket, rarity)[0]}-
-                  {getBracketLevelRange(targetBracket, rarity)[1]})
+                  {getBracketLevelRange(targetBracket, rarity, edition)[0]}-
+                  {getBracketLevelRange(targetBracket, rarity, edition)[1]})
                 </Typography>
               )}
               <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
@@ -911,6 +912,7 @@ export default function BuyCardDialog({
                 cardStats,
                 rarity,
                 targetBracket,
+                edition,
                 accountHighestLevel: accountState.highestLevel,
                 accountTotalCc: accountState.totalCc,
                 accountOwnedBreakdown,
