@@ -58,6 +58,7 @@ export default function PlayerStatusDashboard() {
   // already fetched them — one request for the whole dashboard.
   const [storedOrder, setStoredOrder] = useLocalStorageValue(STORAGE_KEY);
   const loading = storedOrder === undefined;
+  const dashboardLoading = loading || configLoading;
   const usernames = useMemo(() => {
     try {
       const stored: string[] = storedOrder ? JSON.parse(storedOrder) : [];
@@ -97,11 +98,13 @@ export default function PlayerStatusDashboard() {
     }
   };
 
-  if (loading) {
+  if (dashboardLoading) {
     return (
       <Container maxWidth="xl" sx={{ px: { xs: 2, md: 6, lg: 8 } }}>
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
-          <Typography>Loading accounts...</Typography>
+          <Typography>
+            {loading ? "Loading accounts..." : "Loading dashboard settings..."}
+          </Typography>
         </Box>
       </Container>
     );

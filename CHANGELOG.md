@@ -9,6 +9,14 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.35.2] - 2026-11-07
+
+### Fixed
+
+- Multi-account dashboard: wait for the saved dashboard config before rendering player cards, preventing initial fetches for sections that are disabled in user settings.
+
+---
+
 ## [v1.35.1] - 2026-11-06
 
 ### Added
