@@ -21,7 +21,7 @@ async function JackpotPrizesContent() {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, pb: 4 }}>
+    <Container maxWidth="xl" sx={{ mt: 4, pb: 4 }}>
       <AccountSkinsSection
         account="$MINOR_JACKPOT_SKINS"
         title="Minor Chest Jackpot Skins"
@@ -94,17 +94,29 @@ async function JackpotPrizesContent() {
       </Typography>
       <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
         <Typography variant="body2" component="div">
-          <strong>Found as part of jackpot in reward chest</strong>
-          <br />
-          • Volt: 0.005%
-          <br />
-          • Arcing : 0.05%
-          <br />
-          • Hyper: 0.25%
+          <strong>Found as part of jackpot in ETN chest</strong>
+          <br />• Volt: 0.005%
+          <br />• Arcing : 0.05%
+          <br />• Hyper: 0.25%
           <br />• Aurelius : 1.5%
         </Typography>
       </Alert>
       <BucketClient username="$ETN_REWARD_FOILS" cardDetails={cardDetails} />
+      <AccountSkinsSection
+        account="$ETN_REWARD_SKINS"
+        title="Electro Fox skins"
+        description={
+          <>
+            <strong>Found as part of jackpot in ETN chest</strong>
+            <br />• Volt: 0.01%
+            <br />• Arcing: 0.1%
+            <br />• Hyper: 0.5%
+            <br />• Aurelius: 3%
+          </>
+        }
+        emptyMessage="No Electro Fox skins data available"
+        cardDetails={cardDetails}
+      />
       <Suspense fallback={<LoadingSkeleton />}>
         <EditionTierCardsServer
           edition={17}

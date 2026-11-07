@@ -9,6 +9,14 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.35.3] - 2026-11-07
+
+### Added
+
+- Added Elctro Fox Skins bucket
+
+---
+
 ## [v1.35.2] - 2026-11-07
 
 ### Fixed
