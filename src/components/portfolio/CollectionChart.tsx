@@ -1,37 +1,69 @@
 "use client";
 
+import type { ChartMetric } from "@/components/portfolio/ChartMetricToggle";
 import PlotlyChart, { type AppTheme } from "@/components/shared/PlotlyChart";
-import type { PortfolioHistoryPoint } from "@/lib/backend/actions/portfolio-actions";
-import { getEditionLabel } from "@/lib/shared/edition-utils";
+import type { CollectionHistoryPoint } from "@/lib/backend/actions/portfolio-actions";
 import Typography from "@mui/material/Typography";
 import type { Data, Layout } from "plotly.js";
-import { PORTFOLIO_CHART_HEIGHT } from "./chartConstants";
+import { useMemo } from "react";
+import { firstDateWithData, PORTFOLIO_CHART_HEIGHT, SERIES_COLORS } from "./chartConstants";
+
+export interface EditionSeries {
+  edition: number;
+  name: string;
+}
 
 interface Props {
-  history: PortfolioHistoryPoint[];
+  history: CollectionHistoryPoint[];
+  /** Every edition with data (fixes each edition's colour regardless of the filter). */
+  editions: EditionSeries[];
+  /** Editions to draw; empty = all. */
+  selected: ReadonlySet<number>;
+  metric: ChartMetric;
   theme: AppTheme;
 }
 
-// Cycling palette — one colour per edition, BCX lines share same colour but dashed on y2
-const EDITION_COLORS = [
-  "#4e79a7",
-  "#f28e2b",
-  "#e15759",
-  "#76b7b2",
-  "#59a14f",
-  "#edc948",
-  "#b07aa1",
-  "#ff9da7",
-  "#9c755f",
-  "#bab0ac",
-];
+export default function CollectionChart({ history, editions, selected, metric, theme }: Props) {
+  const traces = useMemo<Data[]>(() => {
+    const dates = history.map((p) => p.date);
+    const byDate = history.map((p) => new Map(p.editionValues.map((e) => [e.edition, e])));
+    const out: Data[] = [];
 
-function editionName(edition: number): string {
-  return getEditionLabel(edition) ?? `Ed ${edition}`;
-}
+    editions.forEach(({ edition, name }, idx) => {
+      if (selected.size > 0 && !selected.has(edition)) return;
+      const color = SERIES_COLORS[idx % SERIES_COLORS.length];
+      const showValue = metric !== "qty";
 
-export default function CollectionChart({ history, theme }: Props) {
-  if (history.length === 0) {
+      if (showValue) {
+        out.push({
+          name,
+          legendgroup: name,
+          showlegend: true,
+          x: dates,
+          y: byDate.map((m) => m.get(edition)?.marketValue ?? null),
+          type: "scatter",
+          mode: "lines",
+          line: { color, width: 1.5 },
+        } as Data);
+      }
+      if (metric !== "value") {
+        out.push({
+          name: showValue ? `${name} BCX` : name,
+          legendgroup: name,
+          showlegend: !showValue,
+          x: dates,
+          y: byDate.map((m) => m.get(edition)?.bcx ?? null),
+          type: "scatter",
+          mode: "lines",
+          yaxis: showValue ? "y2" : "y",
+          line: { color, dash: "dash", width: 1.5 },
+        } as Data);
+      }
+    });
+    return out;
+  }, [history, editions, selected, metric]);
+
+  if (history.length === 0 || editions.length === 0) {
     return (
       <Typography variant="body2" color="text.secondary">
         No collection history available yet.
@@ -39,83 +71,31 @@ export default function CollectionChart({ history, theme }: Props) {
     );
   }
 
-  const dates = history.map((p) => p.date);
+  const firstDataDate = firstDateWithData(history, (p) =>
+    p.editionValues.some((ev) => ev.marketValue > 0 || ev.bcx > 0)
+  );
 
-  const traces: Data[] = [];
-
-  // Collect all editions that have at least one non-zero value across history
-  const allEditions = new Set<number>();
-  for (const p of history) {
-    for (const ev of p.editionValues) {
-      if (ev.marketValue > 0 || ev.bcx > 0) allEditions.add(ev.edition);
-    }
-  }
-
-  // Find the earliest date that has actual edition data (skip leading nulls)
-  let firstDataDate = dates[0];
-  for (let i = 0; i < history.length; i++) {
-    if (
-      history[i].editionValues.some(
-        (ev) => allEditions.has(ev.edition) && (ev.marketValue > 0 || ev.bcx > 0)
-      )
-    ) {
-      firstDataDate = dates[i];
-      break;
-    }
-  }
-
-  let colorIdx = 0;
-  for (const edId of Array.from(allEditions).sort((a, b) => a - b)) {
-    const color = EDITION_COLORS[colorIdx % EDITION_COLORS.length];
-    colorIdx++;
-    const name = editionName(edId);
-
-    // Market value on y1 — shown in legend with the edition name
-    traces.push({
-      name,
-      legendgroup: name,
-      showlegend: true,
-      x: dates,
-      y: history.map((p) => p.editionValues.find((e) => e.edition === edId)?.marketValue ?? null),
-      type: "scatter",
-      mode: "lines",
-      line: { color, width: 1.5 },
-    } as Data);
-
-    // BCX on y2 (dashed) — hidden from legend, toggled via the group
-    traces.push({
-      name: `${name} BCX`,
-      legendgroup: name,
-      showlegend: false,
-      x: dates,
-      y: history.map((p) => p.editionValues.find((e) => e.edition === edId)?.bcx ?? null),
-      type: "scatter",
-      mode: "lines",
-      yaxis: "y2",
-      line: { color, dash: "dash", width: 1.5 },
-    } as Data);
-  }
+  const valueAxis = { title: { text: "Value (USD)" }, tickprefix: "$", tickformat: "~s" };
+  const bcxAxis = { title: { text: "BCX" }, tickformat: "~s" };
 
   const layout = {
     title: { text: "Card Collection Value" },
     xaxis: {
       title: { text: "Date" },
       type: "date",
-      range: [firstDataDate, dates[dates.length - 1]],
+      range: [firstDataDate, history[history.length - 1].date],
     },
-    yaxis: {
-      title: { text: "Value (USD)" },
-      tickprefix: "$",
-      tickformat: "~s",
-      showgrid: false,
-    },
-    yaxis2: {
-      title: { text: "BCX" },
-      overlaying: "y" as const,
-      side: "right" as const,
-      showgrid: false,
-      tickformat: "~s",
-    },
+    yaxis: { ...(metric === "qty" ? bcxAxis : valueAxis), showgrid: false },
+    ...(metric === "both"
+      ? {
+          yaxis2: {
+            ...bcxAxis,
+            overlaying: "y" as const,
+            side: "right" as const,
+            showgrid: false,
+          },
+        }
+      : {}),
     legendgroupclick: "togglegroup",
   } as Partial<Layout>;
 

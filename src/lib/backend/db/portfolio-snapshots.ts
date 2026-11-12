@@ -78,19 +78,79 @@ export async function upsertPortfolioSnapshotBatch(items: PortfolioData[]): Prom
   );
 }
 
-/** Return all portfolio snapshots for a given username, ordered by date asc. */
-export async function getPortfolioSnapshots(username: string) {
+/** Scalar value/qty columns used by the portfolio value history (no JSON detail columns). */
+const VALUE_HISTORY_SELECT = {
+  date: true,
+  collectionMarketValue: true,
+  collectionListValue: true,
+  decValue: true,
+  decQty: true,
+  decStakedValue: true,
+  decStakedQty: true,
+  spsValue: true,
+  spsQty: true,
+  spspValue: true,
+  spspQty: true,
+  voucherValue: true,
+  voucherQty: true,
+  creditsValue: true,
+  creditsQty: true,
+  decBValue: true,
+  decBQty: true,
+  voucherGValue: true,
+  voucherGQty: true,
+  licenseValue: true,
+  licenseQty: true,
+  deedsValue: true,
+  deedsQty: true,
+  landResourceValue: true,
+  landResourceQty: true,
+  liqPoolDecValue: true,
+  liqPoolDecQty: true,
+  liqPoolSpsValue: true,
+  liqPoolSpsQty: true,
+  inventoryValue: true,
+  inventoryQty: true,
+} satisfies Prisma.PortfolioSnapshotSelect;
+
+/** Portfolio value history (scalar totals only) for a username, ordered by date asc. */
+export async function getPortfolioValueSnapshots(username: string) {
   return prisma.portfolioSnapshot.findMany({
     where: { username },
     orderBy: { date: "asc" },
+    select: VALUE_HISTORY_SELECT,
   });
 }
 
-/** Return the latest portfolio snapshot for a given username. */
+/** Per-edition collection history for a username, ordered by date asc. */
+export async function getPortfolioCollectionSnapshots(username: string) {
+  return prisma.portfolioSnapshot.findMany({
+    where: { username },
+    orderBy: { date: "asc" },
+    select: {
+      date: true,
+      collectionMarketValue: true,
+      collectionListValue: true,
+      collectionDetails: true,
+    },
+  });
+}
+
+/** Per-item inventory history for a username, ordered by date asc. */
+export async function getPortfolioInventorySnapshots(username: string) {
+  return prisma.portfolioSnapshot.findMany({
+    where: { username },
+    orderBy: { date: "asc" },
+    select: { date: true, inventoryValue: true, inventoryQty: true, inventoryDetail: true },
+  });
+}
+
+/** Return the latest portfolio snapshot for a given username (without the unused deed details). */
 export async function getLatestPortfolioSnapshot(username: string) {
   return prisma.portfolioSnapshot.findFirst({
     where: { username },
     orderBy: { date: "desc" },
+    omit: { deedDetails: true },
   });
 }
 

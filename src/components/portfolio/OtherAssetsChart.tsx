@@ -13,7 +13,7 @@ interface Props {
 
 type AssetKey = keyof Omit<
   PortfolioHistoryPoint,
-  "date" | "totalValue" | "collectionMarketValue" | "collectionListValue" | "editionValues"
+  "date" | "totalValue" | "collectionMarketValue" | "collectionListValue"
 >;
 
 interface AssetDef {

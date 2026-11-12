@@ -14,9 +14,10 @@ import { MdAdd, MdClose } from "react-icons/md";
 
 interface AccountSelectorBarBaseProps {
   accounts: string[];
-  addAccountInput: string;
-  onAddAccountInputChange: (value: string) => void;
-  onAddAccount: () => void;
+  /** Add-account field — omit all three to hide it (e.g. pages limited to monitored accounts). */
+  addAccountInput?: string;
+  onAddAccountInputChange?: (value: string) => void;
+  onAddAccount?: () => void;
   extraContent?: ReactNode;
   /** Accounts that are locally saved (not monitored) — shows an X button for direct removal. */
   localAccounts?: string[];
@@ -116,39 +117,41 @@ export default function AccountSelectorBar(props: Readonly<AccountSelectorBarPro
         ))}
       </ToggleButtonGroup>
 
-      <TextField
-        size="small"
-        label="Add account"
-        value={addAccountInput}
-        onChange={(event) => onAddAccountInputChange(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            onAddAccount();
-          }
-        }}
-        sx={{
-          minWidth: { xs: 170, sm: 200 },
-          "& .MuiOutlinedInput-root": { pr: 0.5 },
-        }}
-        slotProps={{
-          input: {
-            endAdornment: (
-              <InputAdornment position="end">
-                <IconButton
-                  size="small"
-                  aria-label="Add account"
-                  onClick={onAddAccount}
-                  disabled={!addAccountInput.trim()}
-                  edge="end"
-                >
-                  <MdAdd />
-                </IconButton>
-              </InputAdornment>
-            ),
-          },
-        }}
-      />
+      {onAddAccount && onAddAccountInputChange && (
+        <TextField
+          size="small"
+          label="Add account"
+          value={addAccountInput ?? ""}
+          onChange={(event) => onAddAccountInputChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              onAddAccount();
+            }
+          }}
+          sx={{
+            minWidth: { xs: 170, sm: 200 },
+            "& .MuiOutlinedInput-root": { pr: 0.5 },
+          }}
+          slotProps={{
+            input: {
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    size="small"
+                    aria-label="Add account"
+                    onClick={onAddAccount}
+                    disabled={!addAccountInput?.trim()}
+                    edge="end"
+                  >
+                    <MdAdd />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            },
+          }}
+        />
+      )}
 
       {extraContent ? <Box>{extraContent}</Box> : null}
     </Stack>

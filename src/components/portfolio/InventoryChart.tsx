@@ -1,34 +1,69 @@
 "use client";
 
+import type { ChartMetric } from "@/components/portfolio/ChartMetricToggle";
 import PlotlyChart, { type AppTheme } from "@/components/shared/PlotlyChart";
-import type { PortfolioHistoryPoint } from "@/lib/backend/actions/portfolio-actions";
+import type { InventoryHistoryPoint } from "@/lib/backend/actions/portfolio-actions";
 import Typography from "@mui/material/Typography";
 import type { Data, Layout } from "plotly.js";
-import { PORTFOLIO_CHART_HEIGHT } from "./chartConstants";
+import { useMemo } from "react";
+import {
+  firstDateWithData,
+  MAX_LEGEND_ITEMS,
+  PORTFOLIO_CHART_HEIGHT,
+  SERIES_COLORS,
+} from "./chartConstants";
 
 interface Props {
-  history: PortfolioHistoryPoint[];
+  history: InventoryHistoryPoint[];
+  /** Every item name with data, sorted (fixes each item's colour regardless of the filter). */
+  allNames: string[];
+  /** Item names to draw (already filtered). */
+  visibleNames: ReadonlySet<string>;
+  metric: ChartMetric;
   theme: AppTheme;
 }
 
-// Cycling colour palette for inventory items
-const ITEM_COLORS = [
-  "#4e79a7",
-  "#f28e2b",
-  "#e15759",
-  "#76b7b2",
-  "#59a14f",
-  "#edc948",
-  "#b07aa1",
-  "#ff9da7",
-  "#9c755f",
-  "#bab0ac",
-  "#1f77b4",
-  "#2ca02c",
-];
+export default function InventoryChart({ history, allNames, visibleNames, metric, theme }: Props) {
+  const traces = useMemo<Data[]>(() => {
+    const dates = history.map((p) => p.date);
+    const byDate = history.map((p) => new Map(p.items.map((item) => [item.name, item])));
+    const out: Data[] = [];
 
-export default function InventoryChart({ history, theme }: Props) {
-  if (history.length === 0) {
+    allNames.forEach((name, idx) => {
+      if (!visibleNames.has(name)) return;
+      const color = SERIES_COLORS[idx % SERIES_COLORS.length];
+      const showValue = metric !== "qty";
+
+      if (showValue) {
+        out.push({
+          name,
+          legendgroup: name,
+          showlegend: true,
+          x: dates,
+          y: byDate.map((m) => m.get(name)?.value ?? null),
+          type: "scatter",
+          mode: "lines+markers",
+          line: { color, width: 1.5 },
+        } as Data);
+      }
+      if (metric !== "value") {
+        out.push({
+          name: showValue ? `${name} Qty` : name,
+          legendgroup: name,
+          showlegend: !showValue,
+          x: dates,
+          y: byDate.map((m) => m.get(name)?.qty ?? null),
+          type: "scatter",
+          mode: "lines+markers",
+          yaxis: showValue ? "y2" : "y",
+          line: { color, dash: "dot", width: 1 },
+        } as Data);
+      }
+    });
+    return out;
+  }, [history, allNames, visibleNames, metric]);
+
+  if (history.length === 0 || allNames.length === 0) {
     return (
       <Typography variant="body2" color="text.secondary">
         No inventory history available yet.
@@ -36,85 +71,41 @@ export default function InventoryChart({ history, theme }: Props) {
     );
   }
 
-  // Collect all item names that have non-zero value or qty at some point
-  const allNames = new Set<string>();
-  for (const p of history) {
-    for (const inv of p.inventoryDetails) {
-      if (inv.value > 0 || inv.qty > 0) allNames.add(inv.name);
-    }
-  }
-
-  if (allNames.size === 0) {
+  if (visibleNames.size === 0) {
     return (
       <Typography variant="body2" color="text.secondary">
-        No inventory data available yet.
+        No inventory items match the selected filter.
       </Typography>
     );
   }
 
-  const dates = history.map((p) => p.date);
+  const firstDataDate = firstDateWithData(history, (p) => p.items.length > 0);
+  // Many items make the legend unreadable — identify series by hover instead.
+  const showLegend = visibleNames.size <= MAX_LEGEND_ITEMS;
 
-  // Find earliest date with any inventory data
-  let firstDataDate = dates[0];
-  for (let i = 0; i < history.length; i++) {
-    if (history[i].inventoryDetails.some((d) => d.value > 0 || d.qty > 0)) {
-      firstDataDate = dates[i];
-      break;
-    }
-  }
-
-  const sortedNames = Array.from(allNames).sort();
-  const traces: Data[] = [];
-
-  sortedNames.forEach((name, idx) => {
-    const color = ITEM_COLORS[idx % ITEM_COLORS.length];
-
-    // Value on y1 — shown in legend with the item name
-    traces.push({
-      name,
-      legendgroup: name,
-      showlegend: true,
-      x: dates,
-      y: history.map((p) => p.inventoryDetails.find((d) => d.name === name)?.value ?? null),
-      type: "scatter",
-      mode: "lines+markers",
-      line: { color, width: 1.5 },
-    } as Data);
-
-    // Qty on y2 (dotted) — hidden from legend, toggled via the group
-    traces.push({
-      name: `${name} Qty`,
-      legendgroup: name,
-      showlegend: false,
-      x: dates,
-      y: history.map((p) => p.inventoryDetails.find((d) => d.name === name)?.qty ?? null),
-      type: "scatter",
-      mode: "lines+markers",
-      yaxis: "y2",
-      line: { color, dash: "dot", width: 1 },
-    } as Data);
-  });
+  const valueAxis = { title: { text: "Value (USD)" }, tickprefix: "$", tickformat: "~s" };
+  const qtyAxis = { title: { text: "Quantity" }, tickformat: "~s" };
 
   const layout = {
     title: { text: "Inventory" },
+    showlegend: showLegend,
+    hovermode: "closest",
     xaxis: {
       title: { text: "Date" },
       type: "date",
-      range: [firstDataDate, dates[dates.length - 1]],
+      range: [firstDataDate, history[history.length - 1].date],
     },
-    yaxis: {
-      title: { text: "Value (USD)" },
-      tickprefix: "$",
-      tickformat: "~s",
-      showgrid: false,
-    },
-    yaxis2: {
-      title: { text: "Quantity" },
-      overlaying: "y" as const,
-      side: "right" as const,
-      showgrid: false,
-      tickformat: "~s",
-    },
+    yaxis: { ...(metric === "qty" ? qtyAxis : valueAxis), showgrid: false },
+    ...(metric === "both"
+      ? {
+          yaxis2: {
+            ...qtyAxis,
+            overlaying: "y" as const,
+            side: "right" as const,
+            showgrid: false,
+          },
+        }
+      : {}),
     legendgroupclick: "togglegroup",
   } as Partial<Layout>;
 

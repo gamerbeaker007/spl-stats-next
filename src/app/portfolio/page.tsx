@@ -1,14 +1,10 @@
-import PortfolioServer from "@/components/portfolio/PortfolioServer";
-import PortfolioSkeleton from "@/components/portfolio/PortfolioSkeleton";
+import PortfolioValuePage from "@/components/portfolio/PortfolioValuePage";
 import PageErrorBoundary from "@/components/shared/error-boundaries/PageErrorBoundary";
-import { Suspense } from "react";
 
 export default function PortfolioPage() {
   return (
     <PageErrorBoundary>
-      <Suspense fallback={<PortfolioSkeleton />}>
-        <PortfolioServer />
-      </Suspense>
+      <PortfolioValuePage />
     </PageErrorBoundary>
   );
 }

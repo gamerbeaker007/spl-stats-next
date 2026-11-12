@@ -1,10 +1,11 @@
 "use client";
 
+import { usePortfolioInvestments } from "@/hooks/portfolio/usePortfolioInvestments";
+import { useResettableState } from "@/hooks/useResettableState";
 import type { InvestmentEntry } from "@/lib/backend/actions/portfolio-actions";
 import {
   addUserInvestmentAction,
   deleteUserInvestmentAction,
-  getPortfolioInvestmentsAction,
   updateUserInvestmentNotesAction,
 } from "@/lib/backend/actions/portfolio-actions";
 import Alert from "@mui/material/Alert";
@@ -33,7 +34,7 @@ import TableSortLabel from "@mui/material/TableSortLabel";
 import TextField from "@mui/material/TextField";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { MdCheck, MdClose, MdDelete, MdEdit } from "react-icons/md";
 
 interface Props {
@@ -41,8 +42,8 @@ interface Props {
   onClose: () => void;
   selectedAccounts: string[];
   accounts: string[];
-  investments: InvestmentEntry[];
-  onSuccess: (options?: { silent?: boolean }) => Promise<void>;
+  /** Called after an entry was added / deleted / edited (refresh totals in the background). */
+  onChanged: () => void;
 }
 
 const PAGE_SIZE = 10;
@@ -66,8 +67,7 @@ export default function AddInvestmentDialog({
   onClose,
   selectedAccounts,
   accounts,
-  investments,
-  onSuccess,
+  onChanged,
 }: Props) {
   const [formDate, setFormDate] = useState(new Date().toISOString().slice(0, 10));
   const [formAccount, setFormAccount] = useState(accounts[0] ?? "");
@@ -77,10 +77,12 @@ export default function AddInvestmentDialog({
   const [deleting, setDeleting] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [page, setPage] = useState(0);
-  // Starts `true` when mounted open: the mount effect below loads the entries.
-  const [entriesLoading, setEntriesLoading] = useState(open);
-  const [dialogInvestments, setDialogInvestments] = useState<InvestmentEntry[]>(investments);
+  // Back to the first page whenever the dialog (re)opens or the account selection changes.
+  const [page, setPage] = useResettableState(0, `${open}:${selectedAccounts.join(",")}`);
+  // Loads only while open; entries are read from the (tag-invalidated) server cache.
+  const investments = usePortfolioInvestments(selectedAccounts, open);
+  const dialogInvestments = useMemo(() => investments.data ?? [], [investments.data]);
+  const entriesLoading = investments.loading && investments.data === undefined;
   const [sortBy, setSortBy] = useState<SortField>("date");
   const [sortDir, setSortDir] = useState<SortDirection>("desc");
 
@@ -90,45 +92,11 @@ export default function AddInvestmentDialog({
 
   const disableActions = loading || entriesLoading;
 
-  const showRefreshError = useCallback((err: unknown) => {
-    setMsg({
-      type: "error",
-      text: err instanceof Error ? err.message : "Failed to refresh investment entries.",
-    });
-  }, []);
-
-  /** Reloads the table from the server (used after add / delete / notes edits). */
-  const refreshEntries = useCallback(async () => {
-    try {
-      setDialogInvestments(await getPortfolioInvestmentsAction(selectedAccounts));
-    } catch (err) {
-      showRefreshError(err);
-    }
-  }, [selectedAccounts, showRefreshError]);
-
-  // While open, (re)seed the table from the `investments` prop, jump to page 0 and show the
-  // loading state whenever the dialog opens or its inputs change. Done during render (not in
-  // an effect) by comparing against the last seen inputs; the effect below then reloads.
-  const [prevInputs, setPrevInputs] = useState({ open, investments, selectedAccounts });
-  if (
-    prevInputs.open !== open ||
-    prevInputs.investments !== investments ||
-    prevInputs.selectedAccounts !== selectedAccounts
-  ) {
-    setPrevInputs({ open, investments, selectedAccounts });
-    if (open) {
-      setPage(0);
-      setDialogInvestments(investments);
-      setEntriesLoading(true);
-    }
+  /** Reloads the table after a mutation and lets the page refresh its totals (not awaited). */
+  async function afterMutation() {
+    await investments.refetch({ silent: true });
+    onChanged();
   }
-
-  useEffect(() => {
-    if (!open) return;
-    getPortfolioInvestmentsAction(selectedAccounts)
-      .then(setDialogInvestments, showRefreshError)
-      .finally(() => setEntriesLoading(false));
-  }, [open, investments, selectedAccounts, showRefreshError]);
 
   async function handleAdd(type: "deposit" | "withdraw") {
     const amount = parseFloat(formAmount);
@@ -153,8 +121,7 @@ export default function AddInvestmentDialog({
       setFormAmount("");
       setFormNotes("");
       setPage(0);
-      await refreshEntries();
-      await onSuccess({ silent: true });
+      await afterMutation();
     } else {
       setMsg({ type: "error", text: res.error });
     }
@@ -166,8 +133,9 @@ export default function AddInvestmentDialog({
     setConfirmDeleteId(null);
     const res = await deleteUserInvestmentAction(id);
     if (res.success) {
-      await refreshEntries();
-      await onSuccess({ silent: true });
+      await afterMutation();
+    } else {
+      setMsg({ type: "error", text: res.error });
     }
     setDeleting(null);
   }
@@ -177,8 +145,7 @@ export default function AddInvestmentDialog({
     const res = await updateUserInvestmentNotesAction(id, normalizeNotesInput(editingNotesText));
     if (res.success) {
       setEditingNotesId(null);
-      await refreshEntries();
-      await onSuccess({ silent: true });
+      await afterMutation();
     } else {
       setMsg({ type: "error", text: res.error });
     }
@@ -318,6 +285,11 @@ export default function AddInvestmentDialog({
         {msg && (
           <Alert severity={msg.type} sx={{ mb: 2 }}>
             {msg.text}
+          </Alert>
+        )}
+        {investments.error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {investments.error}
           </Alert>
         )}
 

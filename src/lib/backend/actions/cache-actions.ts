@@ -6,7 +6,7 @@ import {
   dashboardAccountTags,
 } from "@/lib/backend/cache/cache-tags";
 import { PORTFOLIO_CACHE_TAGS } from "@/lib/backend/cache/portfolio-cache-tags";
-import { revalidateTag } from "next/cache";
+import { revalidateTag, updateTag } from "next/cache";
 
 const REVALIDATE_PROFILE = "max";
 
@@ -56,6 +56,15 @@ export async function revalidateTagsAction(targets: CacheInvalidationTarget[]) {
       for (const username of uniqueLower(target.usernames)) {
         revalidateTag(PORTFOLIO_CACHE_TAGS.snapshots(username), REVALIDATE_PROFILE);
         revalidateTag(PORTFOLIO_CACHE_TAGS.investments(username), REVALIDATE_PROFILE);
+      }
+      continue;
+    }
+
+    if (target.type === "portfolio-investments") {
+      // Read-your-own-writes: the investment dialog refetches right after a mutation,
+      // so expire immediately instead of serving stale-while-revalidate.
+      for (const username of uniqueLower(target.usernames)) {
+        updateTag(PORTFOLIO_CACHE_TAGS.investments(username));
       }
       continue;
     }

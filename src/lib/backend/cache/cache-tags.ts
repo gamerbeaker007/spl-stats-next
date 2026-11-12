@@ -38,4 +38,5 @@ export type CacheInvalidationTarget =
   | { type: "maintenance" }
   | { type: "land-market" }
   | { type: "portfolio"; usernames: string[] }
+  | { type: "portfolio-investments"; usernames: string[] }
   | { type: "dashboard-account"; usernames: string[] };

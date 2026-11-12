@@ -9,6 +9,27 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.36.0] - 2026-11-09
+
+### Added
+
+- Portfolio split into three pages with tabs: **Portfolio** (value history vs. investments, SPS history, other assets + investments dialog), **Card Collection** (`/portfolio/collection`) and **Inventory** (`/portfolio/inventory`).
+- Shared portfolio header on every page: multi-select account bar (same toggle bar as Collection → Cards, no URL param, all monitored accounts selected on each visit) plus the current-value tiles. The selection and tiles persist while switching between the portfolio pages.
+- Card Collection chart: edition filter chips (with edition icons) and a Value / BCX toggle, in addition to the legend.
+- Inventory chart: item-type filter chips, an item picker and a Value / Quantity toggle. With more than 10 items shown the legend is hidden and items are identified on hover.
+
+### Changed
+
+- Portfolio performance: each page loads only its own history. The value history reads scalar columns only (no per-edition/per-item/deed JSON), the collection and inventory histories read only their own JSON column, and the latest snapshot (tiles) is now cached and skips the unused deed details.
+- Investments dialog: loads its own entries only while open and no longer reloads the full portfolio history (with snapshot cache invalidation) after each add/delete/notes edit. Mutations only expire the investments cache (`updateTag`, read-your-own-writes) and refresh the totals in the background. Pagination stays client-side (entry counts are small; the slowness was the reload cascade, not the table).
+- `AccountSelectorBar`: the add-account field is optional.
+
+### Removed
+
+- Unused `InvestmentTable` and `CollectionDetails` portfolio components.
+
+---
+
 ## [v1.35.3] - 2026-11-07
 
 ### Added
@@ -34,8 +55,6 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 ### Improved
 
 - Jackpot prizes desktop layout: adjusted the details side panel sticky offset so it stays visible while scrolling long card lists.
-
-
 
 ---
 
@@ -66,7 +85,6 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 - Support Land feast set.
 
-
 ---
 
 ## [v1.34.3] - 2026-10-27
@@ -92,7 +110,6 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 - **Card filters:** Support multiple card selections, bloodline and ability filters with removable chips, including ability icons.
 - **Beta Orb edition filter:** Split Beta Orb promo cards (detail IDs 116-129) from the regular Beta Promo filter.
 
-
 ---
 
 ## [v1.34.0] - 2026-10-25
@@ -113,6 +130,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 - Related formatting, lint and type issues found during implementation.
 
 ---
+
 ## [v1.33.0] - 2026-10-25
 
 ### Added
@@ -140,7 +158,6 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 ### Updated
 
 - Update dependencies (CvE)
-
 
 ---
 
@@ -181,7 +198,6 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 - **Modern unclaimed reward allocation:** Starting with season 192, unclaimed Modern rewards are now correctly attributed to the previous season. Rewards from earlier seasons remain assigned to their actual season.
 
-
 ---
 
 ## [v1.31.1] - 2026-10-15
@@ -195,7 +211,6 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 - **Jackpot data freshness:** Jackpot-prize pages now show when cached data was refreshed or when browser/database data was checked, displayed in the browser's local timezone. No background polling was added.
 
 - **Jackpot freshness display:** Replaced inline freshness text with a timestamp icon whose tooltip shows the exact time in the viewer's local timezone.
-
 
 ---
 
@@ -235,7 +250,6 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 ### Added
 
 - Major chest skins added to jackpot prizes chest
-
 
 ---
 
@@ -380,13 +394,11 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ### Added
 
-* **Configurable Multi-Account Dashboard.** Users can now choose which information is displayed on their dashboard through a new settings menu. Preferences are saved automatically and restored on future visits.
-
-  * Dashboard sections can be enabled or disabled individually across balances, gameplay, account information, rankings, and general information.
-  * Disabled sections are not loaded, reducing unnecessary data requests and keeping the dashboard focused on the information you want to see.
-  * Added a **Load All** option to individual PlayerCards to temporarily load and display all available information without changing saved preferences.
-  * Existing users keep the previous dashboard behaviour by default, with all sections enabled.
-
+- **Configurable Multi-Account Dashboard.** Users can now choose which information is displayed on their dashboard through a new settings menu. Preferences are saved automatically and restored on future visits.
+  - Dashboard sections can be enabled or disabled individually across balances, gameplay, account information, rankings, and general information.
+  - Disabled sections are not loaded, reducing unnecessary data requests and keeping the dashboard focused on the information you want to see.
+  - Added a **Load All** option to individual PlayerCards to temporarily load and display all available information without changing saved preferences.
+  - Existing users keep the previous dashboard behaviour by default, with all sections enabled.
 
 ### Updated
 
@@ -505,7 +517,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
   - New shared `NeedsReAuthNotice`: one card-level banner with a Re-authenticate button plus a muted hint per affected section, replacing the previous mix of a blank section, a bare red "Error" chip, and a dropped error message.
   - Brawl degrades to the public response instead of vanishing — cycle/status/battles stay visible, only fray selection is flagged.
   - Token status is fetched once per dashboard via `AccountsContext` instead of once per card, and re-authenticating now expires that account's cached dashboard reads.
-- **Worker: a token that dies mid-run now parks the account.** Expired tokens were already filtered out before a cycle starts, but a token expiring or being revoked *during* a run was logged and retried indefinitely.
+- **Worker: a token that dies mid-run now parks the account.** Expired tokens were already filtered out before a cycle starts, but a token expiring or being revoked _during_ a run was logged and retried indefinitely.
   - 401/403 responses (`isAuthFailure`) now propagate instead of being swallowed per token type / per battle format, so one dead token no longer produces a doomed request for every remaining token type.
   - The account is marked `invalid`, so the next cycle skips it and the dashboard shows the re-auth prompt; re-authenticating clears the flag and re-queues it.
   - `BALANCE_META.lastRunAt` and `lastSeasonProcessed` are no longer advanced by a run that collected nothing — previously the 24 h skip gate closed on a fully failed run and the season-rollover trigger was consumed.
@@ -537,6 +549,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
   - Improved loading behavior while the scroll sentinel remains visible.
   - Increased the preload distance so additional cards load sooner.
   - Fixed market price updates resetting an already-scrolled grid back to the first batch.
+
 ---
 
 ## [v1.14.0] - 2026-08-16
@@ -562,7 +575,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 - **Global price fetches shared across accounts** — `getPlayersCardCollection` previously re-fetched listing prices and PeakMonsters market prices once per dashboard card. Both are now globally cached, so a 10-account dashboard makes 2 of these calls instead of 20.
 - **Energy deliberately not heavily cached** — Ranked/frontier energy is derived from the `ECR`/`FECR` entries of `/players/balances`, and energy is consumed per battle. Because one response feeds both the slow-moving wallet tokens and energy, the balances cache stays on the short `minutes` profile — the strictest freshness requirement wins. Same reasoning keeps player details, draws, season rewards and daily progress on `minutes`.
 - **Single fetch per data source** — `CardCollection` and `PlayerDailies` no longer fetch on their own; `PlayerCard` owns `usePlayerCardCollection` and `useDailyProgress` and passes the results down. This removes the duplicate collection hook instance and lets the force refresh re-fetch daily progress along with everything else.
-- **Authenticated cache wrappers** — New `lib/backend/cache/spl-authenticated-cache.ts` resolves the SPL JWT *inside* the cached function, so the token never becomes part of a cache key. The shared `getDecryptedJwt` helper moved from `player-actions.ts` to `lib/backend/auth/jwt.ts`.
+- **Authenticated cache wrappers** — New `lib/backend/cache/spl-authenticated-cache.ts` resolves the SPL JWT _inside_ the cached function, so the token never becomes part of a cache key. The shared `getDecryptedJwt` helper moved from `player-actions.ts` to `lib/backend/auth/jwt.ts`.
 
 ### Fixed
 
@@ -601,7 +614,6 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 - **Combine availability (wagon cards)** Combine validation and card-selection now apply the same wagon rule: at most one wagon card can be used for a combine, and wallet cards are always consumed first. This fixes false "too many cards on wagon" rejections when only one wagon card was actually needed/allowed.
 
-
 ---
 
 ## [v1.10.0] - 2026-07-18
@@ -632,7 +644,6 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 - **Hive blog generation** Make title editable.
 
-
 ---
 
 ## [v1.9.3] - 2026-07-17
@@ -649,7 +660,6 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 - **Buy Missing CC** Sorting on 1 CC and Next Bracket.
 - Fixed combine rates for alpha promo >=0 iso > 0
-
 
 ---
 
@@ -717,7 +727,6 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 - Improved combine-card validation by checking overall eligibility before evaluating land restrictions, resulting in more accurate tooltips.
 
-
 ## [v1.7.2] - 2026-07-12
 
 ### Changed
@@ -781,6 +790,7 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 - Card collection and ownership now refresh after a successful purchase. `BuyCardDialog` (both target-level and manual-listings modes) and the cart checkout dialog now reload the dialog's own ownership/target-level rows plus the underlying pages (Buy Missing CC table and `/collection/cards` grid) once the transaction is verified, instead of showing stale data.
 
 ---
+
 ## [v1.5.0] - 2026-07-06
 
 ### Added
@@ -822,7 +832,6 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 ### Fix
 
 - Fix loading intial account for fortune winners
-
 
 ---
 
