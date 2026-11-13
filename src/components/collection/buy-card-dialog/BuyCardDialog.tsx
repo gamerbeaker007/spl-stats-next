@@ -193,7 +193,6 @@ export default function BuyCardDialog({
   >("pricePerCcDec");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [buyBusy, setBuyBusy] = useState(false);
-  const [contextLoading, setContextLoading] = useState(false);
   const [contextError, setContextError] = useState<string | null>(null);
   const [resolvedSettings, setResolvedSettings] = useState<SplSettings | null>(settings ?? null);
   const [dynamicAccountStates, setDynamicAccountStates] = useState<
@@ -296,7 +295,6 @@ export default function BuyCardDialog({
     let active = true;
 
     async function loadAccountContext() {
-      setContextLoading(true);
       try {
         // Balances and ownership are live data (browser); the collection is shared
         // with the page that opened the dialog (memoized per tab).
@@ -343,8 +341,6 @@ export default function BuyCardDialog({
             ? err.message
             : "Failed to load selected account balances and ownership"
         );
-      } finally {
-        if (active) setContextLoading(false);
       }
     }
 
@@ -899,9 +895,6 @@ export default function BuyCardDialog({
           </Box>
 
           {(error || contextError) && <Alert severity="error">{error ?? contextError}</Alert>}
-          {contextLoading && (
-            <Alert severity="info">Refreshing account balances and ownership...</Alert>
-          )}
 
           {activeMode === "target-level" ? (
             <TargetLevelTabContent

@@ -19,7 +19,6 @@ import {
   TableHead,
   TableRow,
   TableSortLabel,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import Image from "next/image";
@@ -212,7 +211,7 @@ export default function ManualListingsTabContent({
               const inCart = inCartSet.has(row.marketId);
               const reservedByOther = reservedByOtherAccountSet.has(row.marketId);
               const cannotAddBecauseReserved = !inCart && reservedByOther;
-              const cartButtonTooltip = cannotAddBecauseReserved
+              const cartButtonLabel = cannotAddBecauseReserved
                 ? "This marketplace listing is already reserved by another account in your purchase plan."
                 : inCart
                   ? "Remove from cart"
@@ -237,28 +236,21 @@ export default function ManualListingsTabContent({
                         : (event) => actions.toggleCartByButton(globalIndex, event.shiftKey)
                     }
                   >
-                    <Tooltip title={cartButtonTooltip}>
-                      <span>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          color={inCart ? "error" : "success"}
-                          disabled={cannotAddBecauseReserved}
-                          sx={{
-                            minWidth: 36,
-                            px: 1,
-                            textTransform: "none",
-                            "&:hover": { opacity: 0.9 },
-                          }}
-                        >
-                          {inCart ? (
-                            <RemoveIcon fontSize="small" />
-                          ) : (
-                            <AddIcon fontSize="small" />
-                          )}{" "}
-                        </Button>
-                      </span>
-                    </Tooltip>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      color={inCart ? "error" : "success"}
+                      disabled={cannotAddBecauseReserved}
+                      aria-label={cartButtonLabel}
+                      sx={{
+                        minWidth: 36,
+                        px: 1,
+                        textTransform: "none",
+                        "&:hover": { opacity: 0.9 },
+                      }}
+                    >
+                      {inCart ? <RemoveIcon fontSize="small" /> : <AddIcon fontSize="small" />}
+                    </Button>
                   </TableCell>
                   <TableCell>{row.level}</TableCell>
                   <TableCell>{row.cc}</TableCell>

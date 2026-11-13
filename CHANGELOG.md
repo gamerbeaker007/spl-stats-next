@@ -9,6 +9,15 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.37.1] - 2026-11-13
+
+### Fixed
+
+- Keep collection cards and open dialogs visible while purchases refresh ownership in the background, including the delayed retry for SPL updates.
+- Remove cart button tooltips that obstructed adjacent listings.
+
+---
+
 ## [v1.37.0] - 2026-11-13
 
 ### Changed

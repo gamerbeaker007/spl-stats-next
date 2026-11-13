@@ -344,7 +344,7 @@ export const CardSection = ({
         />
       )}
 
-      {dialogCard && (
+      {dialogCard && dialogOpen && (
         <BuyCardDialog
           open={dialogOpen}
           mode="manual-listings"

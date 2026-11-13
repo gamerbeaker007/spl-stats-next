@@ -61,7 +61,7 @@ export function PlayerCardsContent({
     };
   }, [username, collectionRefreshVersion]);
 
-  if (loading) {
+  if (loading && !cardCollection) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
         <CircularProgress />
@@ -69,7 +69,7 @@ export function PlayerCardsContent({
     );
   }
 
-  if (error) {
+  if (error && !cardCollection) {
     return (
       <Alert severity="error" sx={{ mb: 3 }}>
         {error}
@@ -87,6 +87,11 @@ export function PlayerCardsContent({
 
   return (
     <Box>
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
       {showHeader && (
         <Typography variant="h5" fontWeight="bold" sx={{ mb: 3, textAlign: "center" }}>
           {username}
