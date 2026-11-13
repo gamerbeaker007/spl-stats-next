@@ -9,6 +9,17 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.37.0] - 2026-11-13
+
+### Changed
+
+- Jackpot Prizes overview (`/jackpot-prizes`) redesigned: split into **Jackpot Prizes** (incl. Frontier Extra Rewards), **Fortune Draws** (Fortune Draw Winners, Ranked and Frontier Reward Draws) and **Mint History** sections, each with a section icon. The sub-navigation bar is hidden on the overview page itself. The wall of "View …" buttons is replaced by clickable tiles with the set/reward icon, a short description and a hover arrow.
+- Bucket and mint history content split into separate pages. **Jackpot Prizes** (chests) and **Frontier Extra Rewards** now only show what is left in the buckets. Recent winners plus mint history moved to two new pages under Mint History: **Conclave Rewards Mint History** (`/jackpot-prizes/conclave-rewards-mint-history`, edition 17 tier 14) and **Frontier Extra Mint History** (`/jackpot-prizes/frontier-extra-mint-history`, edition 17 tier 15).
+- Jackpot sub-navigation: dropdown buttons have group icons and show the active page; menu items show an icon plus a one-line description; new overview icon button. The mobile drawer gets group icons and an Overview entry.
+- Overview page, dropdowns and mobile drawer now share one config (`components/jackpot-prizes/jackpot-nav-items.tsx`), so they can no longer drift apart.
+
+---
+
 ## [v1.36.0] - 2026-11-09
 
 ### Added

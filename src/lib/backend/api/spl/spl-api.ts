@@ -3,7 +3,6 @@ import logger from "@/lib/backend/log/logger.server";
 import { SPL_API, SPL_PRICES_API, SPL_PRICES_BASE_URL } from "@/lib/shared/config/spl-endpoints";
 import { splApiConfig } from "@/lib/shared/config/splApiConfig";
 import { normalizeTransactionLookup } from "@/lib/shared/trx-lookup-parser";
-import { SplCAGoldReward } from "@/types/jackpot-prizes/cardCollection";
 import { PackJackpotCard } from "@/types/jackpot-prizes/packJackpot";
 import { RankedDrawsPrizeCard } from "@/types/jackpot-prizes/rankedDraws";
 import { MintHistoryByDateItem, MintHistoryResponse } from "@/types/jackpot-prizes/shared";
@@ -390,31 +389,6 @@ export async function fetchMintHistoryByDate(
       `Failed to fetch mint history by date for foil ${foil}, edition ${edition}: ${
         error instanceof Error ? error.message : "Unknown error"
       }`
-    );
-    throw error;
-  }
-}
-
-/**
- * Fetch pack jackpot gold from Splinterlands API
- */
-export async function fetchJackPotGold(): Promise<SplCAGoldReward[]> {
-  const url = SPL_API.CA_GOLD_REWARDS;
-  console.info("Fetching CA gold jackpot rewards");
-
-  try {
-    const res = await splBaseClient.get(url);
-    const data = res.data;
-
-    // Handle API-level error even if HTTP status is 200
-    if (!data || !Array.isArray(data)) {
-      throw new Error("Invalid response from Splinterlands API: expected array");
-    }
-
-    return data as SplCAGoldReward[];
-  } catch (error) {
-    console.error(
-      `Failed to fetch jackpot gold: ${error instanceof Error ? error.message : "Unknown error"}`
     );
     throw error;
   }

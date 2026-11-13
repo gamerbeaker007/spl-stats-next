@@ -1,5 +1,4 @@
 import { BucketClient } from "@/components/jackpot-prizes/BucketClient";
-import { EditionTierCardsServer } from "@/components/jackpot-prizes/EditionTierCardsServer";
 import LoadingSkeleton from "@/components/jackpot-prizes/LoadingSkeleton";
 import { getCardDetails } from "@/lib/backend/actions/jackpot-prizes/cardDetails";
 import { Alert, Box, Container, Divider, Typography } from "@mui/material";
@@ -25,12 +24,12 @@ async function FrontierBuckets() {
   return (
     <Box>
       <Typography variant="h5" gutterBottom>
-        Frontier Extra Rewards Buckets
+        Foundation - Extra
       </Typography>
       <BucketClient username="$FRONTIER_JACKPOT" cardDetails={cardDetails} />
       <Divider sx={{ my: 3 }} />
       <Typography variant="h5" gutterBottom>
-        Frontier Vanguard Rewards Buckets
+        Foundation - Extra (Vanguard)
       </Typography>
       <BucketClient username="$COMMUNITY_JACKPOT" cardDetails={cardDetails} />
     </Box>
@@ -39,22 +38,10 @@ async function FrontierBuckets() {
 
 export default function FrontierExtraRewardsPage() {
   return (
-    <Box>
-      <Container maxWidth="xl" sx={{ py: 3 }}>
-        <Suspense fallback={<LoadingSkeleton />}>
-          <FrontierBuckets />
-        </Suspense>
-      </Container>
-      <Divider />
+    <Container maxWidth="xl" sx={{ py: 3 }}>
       <Suspense fallback={<LoadingSkeleton />}>
-        <EditionTierCardsServer
-          edition={17}
-          tier={15}
-          title="Frontier Extra Cards"
-          subtitle="Extra cards from the frontier era"
-          recentWinnersLabel="Recent Winners Frontier Extra (last 8 days)"
-        />
+        <FrontierBuckets />
       </Suspense>
-    </Box>
+    </Container>
   );
 }

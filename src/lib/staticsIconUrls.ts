@@ -98,8 +98,6 @@ export const format_modern_icon_url = `${SPL_URL}assets/cards/icon_format_modern
 export const format_foundation_icon_url = `${WEB_URL}website/nav/img_nav_items.png`;
 export const format_survival_icon_url = `${WEB_URL}website/nav/img_nav_play.png`;
 
-export const conclave_icon_url = `${WEB_URL}website/icons/icon-edition-conclave-arcana.svg`;
-export const escalation_icon_url = `${WEB_URL}website/icons/icon-edition-mini-set.svg`;
 export const jackpot_icon_url = `${WEB_URL}website/ui_elements/shop/ranked/draws/img_chest-ultimate_250.webp`;
 export const frontier_icon_url = `${WEB_URL}website/icons/icon_fp.svg`;
 export const ranked_icon_url = `${WEB_URL}website/icons/img_fortune-entry_ca.svg`;

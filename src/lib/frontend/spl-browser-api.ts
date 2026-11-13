@@ -47,6 +47,7 @@ import type {
   VapiResourcePool,
   VapiStakedDecEntry,
 } from "../backend/api/spl/vapi-spl";
+import { SplCAGoldReward } from "@/types/jackpot-prizes/cardCollection";
 
 /**
  * The only path for every "browser (live)" SPL data type (see CLAUDE.md):
@@ -254,6 +255,17 @@ export async function fetchCardCollection(
     SPL_API.CARDS_COLLECTION(collectionAccount)
   )) as SplCardCollection | null;
   if (!Array.isArray(data?.cards)) throw new Error("Invalid card collection response");
+  return data;
+}
+
+/** Fetch conclave gold rewards cards */
+export async function fetchCAGoldRewardsCards(): Promise<SplCAGoldReward[]> {
+  const data = (await requestJson(
+    splApiConfig.publicBaseUrl,
+    SPL_API.CA_GOLD_REWARDS
+  )) as SplCAGoldReward | null;
+
+  if (!Array.isArray(data)) throw new Error("Invalid card collection response");
   return data;
 }
 

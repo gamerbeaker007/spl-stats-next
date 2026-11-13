@@ -1,6 +1,5 @@
 import { AccountSkinsSection } from "@/components/jackpot-prizes/AccountSkinsSection";
 import { BucketClient } from "@/components/jackpot-prizes/BucketClient";
-import { EditionTierCardsServer } from "@/components/jackpot-prizes/EditionTierCardsServer";
 import JackpotMusicSections from "@/components/jackpot-prizes/JackpotMusicSections";
 import LoadingSkeleton from "@/components/jackpot-prizes/LoadingSkeleton";
 import { getCardDetails } from "@/lib/backend/actions/jackpot-prizes/cardDetails";
@@ -28,7 +27,7 @@ async function JackpotPrizesContent() {
         description={
           <>
             <strong>Found in the minor chests as jackpot prizes</strong>
-            <br />• Minor: 1%
+            <br />• Minor: 0.3%
           </>
         }
         emptyMessage="No minor jackpot skins data available"
@@ -40,7 +39,7 @@ async function JackpotPrizesContent() {
         description={
           <>
             <strong>Found in the major chests as jackpot prizes</strong>
-            <br />• Major: 2%
+            <br />• Major: 0.125%
           </>
         }
         emptyMessage="No major jackpot skins data available"
@@ -52,7 +51,7 @@ async function JackpotPrizesContent() {
         description={
           <>
             <strong>Found in the ultimate chests as jackpot prizes</strong>
-            <br />• Ultimate: 3%
+            <br />• Ultimate: 0.5%
           </>
         }
         emptyMessage="No jackpot skins data available"
@@ -64,7 +63,7 @@ async function JackpotPrizesContent() {
         description={
           <>
             <strong>Found in the frontier as jackpot prizes</strong>
-            <br />• Frontier daily rewards: 2%
+            <br />• Frontier daily rewards: 1%
           </>
         }
         emptyMessage="No frontier jackpot skins data available"
@@ -117,15 +116,6 @@ async function JackpotPrizesContent() {
         emptyMessage="No Electro Fox skins data available"
         cardDetails={cardDetails}
       />
-      <Suspense fallback={<LoadingSkeleton />}>
-        <EditionTierCardsServer
-          edition={17}
-          tier={14}
-          title="Jackpot Chest Reward Foils"
-          subtitle="Edition 17 Tier 14 special cards"
-          recentWinnersLabel="Recent Winners (last 8 days)"
-        />
-      </Suspense>
     </Container>
   );
 }

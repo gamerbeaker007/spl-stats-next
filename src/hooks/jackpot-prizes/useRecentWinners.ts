@@ -2,7 +2,7 @@
 
 import { getRecentWinnersAction } from "@/lib/backend/actions/jackpot-prizes/mintHistory";
 import { useEffect, useState } from "react";
-import { RecentWinner } from "../../types/jackpot-prizes/shared";
+import { RecentWinner } from "@/types/jackpot-prizes/shared";
 
 export function useRecentWinners(edition: number | undefined) {
   const [result, setResult] = useState<{

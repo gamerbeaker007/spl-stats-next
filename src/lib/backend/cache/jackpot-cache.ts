@@ -7,7 +7,6 @@ import {
 import {
   fetchFrontierDrawsPrizeOverview,
   fetchFrontierDrawsRecentPrizes,
-  fetchJackPotGold,
   fetchMintHistory,
   fetchMintHistoryByDate,
   fetchPackJackpotOverview,
@@ -47,14 +46,6 @@ export async function getCachedFrontierDrawsOverview() {
   cacheLife(JACKPOT_CACHE_LIFE);
   cacheTag(CACHE_TAGS.splJackpot);
   const data = await fetchFrontierDrawsPrizeOverview();
-  return { data, fetchedAt: new Date().toISOString() } satisfies CachedData<typeof data>;
-}
-
-export async function getCachedCaGoldRewards() {
-  "use cache";
-  cacheLife(JACKPOT_CACHE_LIFE);
-  cacheTag(CACHE_TAGS.splJackpot);
-  const data = await fetchJackPotGold();
   return { data, fetchedAt: new Date().toISOString() } satisfies CachedData<typeof data>;
 }
 

@@ -36,45 +36,49 @@ function CardTile({ entry }: CardTileProps) {
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        width: 100,
+        width: 200,
         gap: 0.5,
       }}
     >
-      <Box sx={{ position: "relative", width: 100, height: 140 }}>
+      <Box sx={{ position: "relative", width: 200, height: 280 }}>
         <Image src={imageUrl} alt={entry.name} fill style={{ objectFit: "contain" }} unoptimized />
       </Box>
       <Typography
         variant="caption"
         fontWeight="bold"
         textAlign="center"
-        sx={{ lineHeight: 1.2, fontSize: "0.65rem" }}
+        sx={{ lineHeight: 1.2, fontSize: "1rem" }}
       >
         {entry.name}
       </Typography>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, width: "100%" }}>
-        {entry.foils.map(({ foil, count }) => (
-          <Box
-            key={foil}
-            sx={{
-              display: "flex",
-              justifyContent: "space-between",
-              px: 0.5,
-              borderRadius: 0.5,
-              bgcolor: "action.hover",
-            }}
-          >
-            <Typography
-              variant="caption"
-              sx={{ fontSize: "0.6rem", color: FOIL_COLOR[foil] ?? "text.secondary" }}
-              title={getFoilLabel(foil)}
+        {entry.foils.map(({ foil, count, max }) => {
+          const maxStr = max ? ` / ${max}` : "";
+
+          return (
+            <Box
+              key={foil}
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                px: 0.5,
+                borderRadius: 0.5,
+                bgcolor: "action.hover",
+              }}
             >
-              {FOIL_SHORT[foil] ?? `F${foil}`}
-            </Typography>
-            <Typography variant="caption" sx={{ fontSize: "0.6rem", fontWeight: "bold" }}>
-              {count}
-            </Typography>
-          </Box>
-        ))}
+              <Typography
+                variant="caption"
+                sx={{ fontSize: "0.8rem", color: FOIL_COLOR[foil] ?? "text.secondary" }}
+                title={getFoilLabel(foil)}
+              >
+                {FOIL_SHORT[foil] ?? `F${foil}`}
+              </Typography>
+              <Typography variant="caption" sx={{ fontSize: "0.8rem", fontWeight: "bold" }}>
+                {count} {maxStr}
+              </Typography>
+            </Box>
+          );
+        })}
       </Box>
     </Box>
   );
@@ -97,7 +101,7 @@ export function BucketOverview({ cards, settledAt }: Props & { settledAt: number
     <Box>
       <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
         <Typography variant="h6" fontWeight="bold" gutterBottom>
-          Cards Left in Bucket
+          Cards Remaining in the Bucket
         </Typography>
         <DataFreshness timestamp={settledAt} source="browser" provider="Splinterlands" />
       </Stack>

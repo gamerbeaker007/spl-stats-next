@@ -1,21 +1,45 @@
 "use client";
 
-import { DataFreshness } from "@/components/jackpot-prizes/DataFreshness";
-import RarityFilter from "@/components/jackpot-prizes/RarityFilter";
-import { SplCardDetail } from "@/types/spl/cardDetails";
-import { Alert, Box, Container, Divider, Stack, Typography } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
-import { SplCAGoldReward } from "../../../types/jackpot-prizes/cardCollection";
-import { CAGoldRewardCardDetail } from "./CAGoldRerwardCardDetail";
+import { Alert, Box, CircularProgress, Container, Divider, Stack, Typography } from "@mui/material";
+
+import { BucketOverview } from "@/components/jackpot-prizes/BucketOverview";
+
+import type { SplCardDetail } from "@/types/spl/cardDetails";
+import type { BucketCardEntry } from "@/types/jackpot-prizes/bucket";
+
+import { useAsyncData } from "@/hooks/useAsyncData";
+import { fetchCAGoldRewardsCards } from "@/lib/frontend/spl-browser-api";
+import RarityFilter from "@/components/jackpot-prizes/RarityFilter";
 
 interface Props {
-  caGoldRewards: SplCAGoldReward[];
   cardDetails: SplCardDetail[];
-  fetchedAt: string;
 }
 
-export default function CAGoldRewardsClient({ caGoldRewards, cardDetails, fetchedAt }: Props) {
+const GOLD_DISTRIBUTION: Record<number, number> = {
+  1: 5000, // Common
+  2: 2000, // Rare
+  3: 1200, // Epic
+  4: 400, // Legendary
+};
+
+export default function CAGoldRewardsClient({ cardDetails }: Readonly<Props>) {
   const [selectedRarities, setSelectedRarities] = useState<number[]>([]);
+
+  const {
+    data: caGoldRewards,
+    loading,
+    error,
+    settledAt,
+  } = useAsyncData("jackpot-bucket:ca-gold", fetchCAGoldRewardsCards, {
+    errorMessage: "Could not load jackpot gold reward data",
+  });
+
+  // Fast card detail lookups
+  const cardDetailsMap = useMemo(
+    () => new Map(cardDetails.map((card) => [card.id, card])),
+    [cardDetails]
+  );
 
   const toggleRarity = useCallback((rarity: number) => {
     setSelectedRarities((prev) =>
@@ -23,95 +47,154 @@ export default function CAGoldRewardsClient({ caGoldRewards, cardDetails, fetche
     );
   }, []);
 
+  // Filter rewards by card rarity
   const filteredCards = useMemo(() => {
-    if (selectedRarities.length === 0) return caGoldRewards;
-    return caGoldRewards.filter((rewardCard) => {
-      const card = cardDetails.find((c) => c.id === rewardCard.card_detail_id);
-      return card && selectedRarities.includes(card.rarity);
+    if (!caGoldRewards) return [];
+
+    if (selectedRarities.length === 0) {
+      return caGoldRewards;
+    }
+
+    return caGoldRewards.filter((reward) => {
+      const card = cardDetailsMap.get(reward.card_detail_id);
+
+      return card ? selectedRarities.includes(card.rarity) : false;
     });
-  }, [caGoldRewards, cardDetails, selectedRarities]);
+  }, [caGoldRewards, cardDetailsMap, selectedRarities]);
+
+  // Transform API rewards into bucket entries
+  const cards = useMemo<BucketCardEntry[]>(
+    () =>
+      filteredCards.map((reward) => {
+        const cardDetail = cardDetailsMap.get(reward.card_detail_id);
+        const count = Number(reward.count);
+
+        return {
+          card_detail_id: reward.card_detail_id,
+          name: cardDetail?.name ?? "Unknown Card",
+          foils: [
+            {
+              foil: 1, // Gold foil
+              count,
+              max: GOLD_DISTRIBUTION[reward.rarity] ?? 0,
+            },
+          ],
+          total: count,
+        };
+      }),
+    [filteredCards, cardDetailsMap]
+  );
+
+  const hasData = caGoldRewards != null;
+  const isInitialLoading = loading && !hasData;
+  const hasError = Boolean(error);
+  const isEmpty = hasData && caGoldRewards.length === 0;
+  const hasNoMatches = hasData && filteredCards.length === 0;
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, pb: 4 }}>
-      {/* Page Title */}
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
+      {/* Page title */}
+      <Stack direction="row" alignItems="center" flexWrap="wrap" spacing={1} sx={{ mb: 2 }}>
+        <Typography variant="h4" component="h1">
           Jackpot Gold
         </Typography>
-        <DataFreshness timestamp={fetchedAt} source="server-cache" provider="Splinterlands" />
+
+        {loading && hasData && <CircularProgress size={18} aria-label="Refreshing data" />}
       </Stack>
 
+      {/* Information */}
       <Alert severity="info" sx={{ mt: 3, mb: 4 }}>
         <Typography variant="body2" component="div">
-          <strong>Found in loot chest and rarity draws (reward shop)</strong>
-          <br />
-          <br />
-          <strong>Rarity Draws:</strong>
-          <br />
-          • Common: 0.5%
-          <br />
-          • Rare: 0.5%
-          <br />
-          • Epic: 1%
-          <br />
-          • Legendary: 1%
-          <br />
-          <br />
-          <strong>Loot Chest:</strong>
-          <br />
-          • Minor: 0.25% (chance to be a card: 39.99%)
-          <br />
-          • Major: 0.75% (chance to be a card: 39.9%)
-          <br />
-          • Ultimate: 2% (chance to be a card: 39%)
-          <br />
-          <br />
-          <em>Note: Alchemy potions will double the gold foil chance</em>
+          <strong>Found in loot chests and rarity draws (reward shop)</strong>
+
+          <Box sx={{ mt: 2 }}>
+            <strong>Rarity Draws:</strong>
+            <br />
+            • Common: 0.5%
+            <br />
+            • Rare: 0.5%
+            <br />
+            • Epic: 1%
+            <br />• Legendary: 1%
+          </Box>
+
+          <Box sx={{ mt: 2 }}>
+            <strong>Loot Chests:</strong>
+            <br />
+            • Minor: 0.25% (chance to be a card: 39.99%)
+            <br />
+            • Major: 0.75% (chance to be a card: 39.9%)
+            <br />• Ultimate: 2% (chance to be a card: 39%)
+          </Box>
+
+          <Typography variant="body2" sx={{ mt: 2 }}>
+            <em>Note: Alchemy potions will double the gold foil chance.</em>
+          </Typography>
         </Typography>
       </Alert>
 
-      {/* Rarity Filter */}
-      <Box sx={{ mb: 4 }}>
-        <RarityFilter selected={selectedRarities} onToggle={toggleRarity} />
-      </Box>
-
-      {/* Cards Grid */}
-      {cardDetails && filteredCards && (
+      {/* Loading state */}
+      {isInitialLoading && (
         <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: {
-              xs: "1fr",
-              sm: "repeat(2, 1fr)",
-              md: "repeat(3, 1fr)",
-              lg: "repeat(4, 1fr)",
-            },
-            gap: 3,
-            mb: 6,
-          }}
+          role="status"
+          aria-live="polite"
+          display="flex"
+          flexDirection="column"
+          alignItems="center"
+          justifyContent="center"
+          sx={{ py: 8 }}
         >
-          {filteredCards.map((item) => {
-            return (
-              <CAGoldRewardCardDetail
-                key={item.card_detail_id}
-                item={item}
-                cardDetails={cardDetails}
-              />
-            );
-          })}
-        </Box>
-      )}
-      {filteredCards.length === 0 && (
-        <Box textAlign="center" mb={6}>
-          <Typography variant="h6" color="text.secondary">
-            {selectedRarities.length === 0
-              ? "No jackpot data available"
-              : "No cards match the selected rarity filters"}
+          <CircularProgress />
+
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+            Loading jackpot gold rewards...
           </Typography>
         </Box>
       )}
 
-      {/* Divider */}
+      {/* Error state */}
+      {hasError && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {typeof error === "string" ? error : "Failed to load jackpot gold rewards."}
+
+          {hasData && (
+            <Typography variant="body2" sx={{ mt: 1 }}>
+              Showing the last available data.
+            </Typography>
+          )}
+        </Alert>
+      )}
+
+      {/* Content */}
+      {hasData && (
+        <>
+          {/* Rarity filter */}
+          <Box sx={{ mb: 4 }}>
+            <RarityFilter selected={selectedRarities} onToggle={toggleRarity} />
+          </Box>
+
+          {/* Bucket overview */}
+          {cards.length > 0 && <BucketOverview cards={cards} settledAt={settledAt} />}
+
+          {/* Empty states */}
+          {hasNoMatches && (
+            <Box textAlign="center" sx={{ py: 6 }}>
+              <Typography variant="h6" color="text.secondary">
+                {isEmpty
+                  ? "No jackpot data available"
+                  : "No cards match the selected rarity filters"}
+              </Typography>
+
+              {!isEmpty && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Try selecting different rarities.
+                </Typography>
+              )}
+            </Box>
+          )}
+        </>
+      )}
+
       <Divider sx={{ my: 4 }} />
     </Container>
   );

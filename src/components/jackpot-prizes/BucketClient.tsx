@@ -69,9 +69,5 @@ export function BucketClient({ username, cardDetails }: Props) {
     );
   }
 
-  return (
-    <>
-      <BucketOverview cards={cards} settledAt={settledAt} />
-    </>
-  );
+  return <BucketOverview cards={cards} settledAt={settledAt} />;
 }
