@@ -23,7 +23,11 @@ import {
   selectCheapestListings,
   type CombineCardState,
 } from "@/lib/shared/buy-missing-cc";
-import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
+import {
+  getCardImageByLevel,
+  getCardImageLevel,
+  isMaxOnlyFoil,
+} from "@/lib/shared/card-image-utils";
 import { getFoilLabel } from "@/lib/shared/card-utils";
 import {
   getCardSetIconUrl,
@@ -122,10 +126,6 @@ function getPlayableBrackets(level: number, rarity: CardRarity, edition: number)
     const [min, max] = getBracketLevelRange(bracket, rarity, edition);
     return level >= min && level <= max;
   });
-}
-
-function isMaxOnlyFoil(foil: CardFoil): boolean {
-  return foil === "gold arcane" || foil === "black" || foil === "black arcane";
 }
 
 function cumulativeAbilities(abilitiesByLevel: string[] | string[][], level: number): string[] {
@@ -822,7 +822,7 @@ export default function BuyCardDialog({
                 name,
                 edition,
                 selectedFoil,
-                Math.max(1, accountState.highestLevel)
+                getCardImageLevel(selectedFoil, rarity, edition, tier, accountState.highestLevel)
               )}
               alt={name}
               width={100}

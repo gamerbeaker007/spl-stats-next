@@ -9,6 +9,14 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.37.2] - 2026-11-14
+
+### Fixed
+
+- Show max-level images for missing gold arcane, black, and black arcane cards in the collection and buy dialog.
+
+---
+
 ## [v1.37.1] - 2026-11-13
 
 ### Fixed

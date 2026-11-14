@@ -6,7 +6,7 @@ import { useCardFilter } from "@/lib/frontend/context/CardFilterContext";
 import { useMarketplaceView } from "@/lib/frontend/context/MarketplaceViewContext";
 import { usePurchasePlan } from "@/lib/frontend/context/PurchasePlanContext";
 import { matchesCardFilter } from "@/lib/shared/card-filter-utils";
-import { getCardImageByLevel } from "@/lib/shared/card-image-utils";
+import { getCardImageByLevel, getCardImageLevel } from "@/lib/shared/card-image-utils";
 import { toCardFoilInt } from "@/lib/shared/card-utils";
 import { getRarityId } from "@/lib/shared/rarity-utils";
 import {
@@ -191,7 +191,12 @@ export const CardSection = ({
             highestCc: 0,
             totalCc: 0,
             isMissing: true,
-            imageUrl: getCardImageByLevel(cardItem.name, cardItem.edition, foil),
+            imageUrl: getCardImageByLevel(
+              cardItem.name,
+              cardItem.edition,
+              foil,
+              getCardImageLevel(foil, cardItem.rarity, cardItem.edition, cardItem.tier)
+            ),
             groupCards: [],
             priceInfo: marketPrices?.[editionFoilKey],
             watch: watches?.[editionFoilKey],

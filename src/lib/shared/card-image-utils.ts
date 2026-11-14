@@ -8,9 +8,10 @@
  *   - cardImageMd() in hive-blog-actions.ts             — markdown image string
  */
 
-import { getEditionUrlName } from "@/lib/shared/edition-utils";
+import { getCardSetName, getEditionUrlName } from "@/lib/shared/edition-utils";
+import { getBracketLevelRange } from "@/lib/shared/league-brackets";
 import { WEB_URL } from "@/lib/staticsIconUrls";
-import type { CardFoil } from "@/types/card";
+import type { CardFoil, CardRarity } from "@/types/card";
 
 // ---------------------------------------------------------------------------
 // Foil suffix maps
@@ -55,6 +56,25 @@ export const FOIL_SHORT_LABEL: Record<CardFoil, string> = {
   black: "BF",
   "black arcane": "BFA",
 };
+
+export function isMaxOnlyFoil(foil: CardFoil): boolean {
+  return foil === "gold arcane" || foil === "black" || foil === "black arcane";
+}
+
+/** Level to render when no copy is owned; owned cards retain their actual level. */
+export function getCardImageLevel(
+  foil: CardFoil,
+  rarity: CardRarity,
+  edition: number,
+  tier: number,
+  ownedLevel = 0
+): number {
+  if (ownedLevel > 0) return ownedLevel;
+  if (!isMaxOnlyFoil(foil)) return 1;
+
+  const maxLevel = getBracketLevelRange("champion", rarity, edition)[1];
+  return getCardSetName(edition, tier) === "foundation" ? maxLevel / 2 : maxLevel;
+}
 
 // ---------------------------------------------------------------------------
 // cards_by_level format — PNG, includes edition folder and level
