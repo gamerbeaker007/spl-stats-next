@@ -9,6 +9,15 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.37.3] - 2026-11-18
+
+### Fixed
+
+- Update specific card sking images
+- Update dependencies (Security)
+
+---
+
 ## [v1.37.2] - 2026-11-14
 
 ### Fixed

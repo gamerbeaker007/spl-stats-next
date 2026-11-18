@@ -138,24 +138,22 @@ export function getSkinImageUrl(cardName: string, skin: string): string {
   const cleanCardName = cardName.trim();
   const encodedName = encodeURIComponent(cleanCardName);
 
-  if (cleanCardName === "Venari Marksrat") {
-    return `${WEB_URL}cards_soulbound/${skin}/${encodedName}.jpg`;
+  if (
+    cleanCardName === "Venari Wavesmith" ||
+    cleanCardName === "Venari Heatsmith" ||
+    cleanCardName === "Ever-Hungry Skull"
+  ) {
+    return `${WEB_URL}cards_beta/${skin}/${encodedName}.jpg`;
   }
-  if (cleanCardName === "Kelya Frendul" || cleanCardName === "Uraeus") {
+
+  if (cleanCardName === "General Sloan") {
     return `${WEB_URL}cards_chaos/${skin}/${encodedName}.jpg`;
   }
-  if (
-    cleanCardName === "Akane" ||
-    cleanCardName === "Eternal Tofu" ||
-    cleanCardName === "Gobalano Soldier" ||
-    cleanCardName === "Daigendark Surveyor" ||
-    cleanCardName === "Nimbledook Ranger" ||
-    cleanCardName === "Nimbledook Scout"
-  ) {
+  if (cleanCardName === "Solace Ashinach") {
     return `${WEB_URL}cards_rebellion/${skin}/${encodedName}.jpg`;
   }
-  if (cleanCardName === "Dark Arborist") {
-    return `${WEB_URL}cards_soulboundrb/${skin}/${encodedName}.jpg`;
+  if (cleanCardName === "Bila the Radiant") {
+    return `${WEB_URL}cards_untamed/${skin}/${encodedName}.jpg`;
   }
   return `${WEB_URL}cards_v2.2/${skin}/${encodedName}.jpg`;
 }
