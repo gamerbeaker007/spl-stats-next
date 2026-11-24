@@ -27,6 +27,7 @@ import {
   edition_gladius_icon_url,
   edition_land_card_icon_url,
   edition_promo_icon_url,
+  edition_reckoning_icon_url,
   edition_rebellion_icon_url,
   edition_reward_icon_url,
   edition_rift_icon_url,
@@ -253,6 +254,13 @@ export const EDITION_DEFS: readonly EditionDef[] = [
     urlName: "land",
     setName: "eternal",
     iconUrl: edition_land_card_icon_url,
+  },
+  {
+    id: 24,
+    label: "Reckoning",
+    urlName: "reckoning",
+    setName: "conclave",
+    iconUrl: edition_reckoning_icon_url,
   },
 ];
 

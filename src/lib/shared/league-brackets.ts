@@ -81,8 +81,7 @@ export function rarityNameById(rarity: number): keyof (typeof LEAGUE_BRACKETS)["
 
 /**
  * Editions whose cards are exempt from the bracket minimum level, matched on the
- * edition id only (any tier): Extras (17) and the upcoming set (24 — not in
- * `EDITION_DEFS` yet).
+ * edition id only (any tier): Extras (17) and Reckoning (24).
  */
 export const MIN_LEVEL_EXEMPT_EDITIONS: ReadonlySet<number> = new Set([17, 24]);
 

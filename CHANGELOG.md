@@ -9,6 +9,14 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.37.4] - 2026-11-24
+
+### Added
+
+- Added Reckoning (edition 24) to card edition labels, filters, and image paths.
+
+---
+
 ## [v1.37.3] - 2026-11-18
 
 ### Fixed
