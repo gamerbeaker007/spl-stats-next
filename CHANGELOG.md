@@ -9,6 +9,14 @@ Format: `## [vX.Y.Z] - YYYY-MM-DD` followed by categorized entries.
 
 ---
 
+## [v1.38.0] - 2026-11-25
+
+### Added
+
+- Filter collection skins by multiple sets, with removable selection chips, selected-menu indicators, and a clear-all control.
+
+---
+
 ## [v1.37.4] - 2026-11-24
 
 ### Added

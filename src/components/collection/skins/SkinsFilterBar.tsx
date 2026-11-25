@@ -5,7 +5,9 @@ import type { MarketAssetFilter } from "@/lib/shared/marketplace-assets";
 import type { SkinViewMode } from "@/types/skins";
 import {
   Box,
+  Chip,
   FormControlLabel,
+  IconButton,
   MenuItem,
   Select,
   Stack,
@@ -13,8 +15,9 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
+  type SelectChangeEvent,
 } from "@mui/material";
-import { MdGridView, MdInfoOutline, MdViewAgenda } from "react-icons/md";
+import { MdClose, MdGridView, MdInfoOutline, MdViewAgenda } from "react-icons/md";
 
 interface SkinsFilterBarProps {
   hasAccount: boolean;
@@ -26,8 +29,8 @@ interface SkinsFilterBarProps {
   missingEquippedOnly: boolean;
   onMissingEquippedOnlyChange: (checked: boolean) => void;
   skinSets: string[];
-  selectedSkinSet: string;
-  onSelectedSkinSetChange: (skinSet: string) => void;
+  selectedSkinSets: string[];
+  onSelectedSkinSetsChange: (skinSets: string[]) => void;
   marketFilter: MarketAssetFilter;
   onMarketFilterChange: (filter: MarketAssetFilter) => void;
   viewMode: SkinViewMode;
@@ -81,14 +84,23 @@ export function SkinsFilterBar({
   missingEquippedOnly,
   onMissingEquippedOnlyChange,
   skinSets,
-  selectedSkinSet,
-  onSelectedSkinSetChange,
+  selectedSkinSets,
+  onSelectedSkinSetsChange,
   marketFilter,
   onMarketFilterChange,
   viewMode,
   onViewModeChange,
   showViewModeToggle,
 }: Readonly<SkinsFilterBarProps>) {
+  const handleSkinSetsChange = (event: SelectChangeEvent<string[]>) => {
+    const value = event.target.value;
+    onSelectedSkinSetsChange(typeof value === "string" ? value.split(",") : value);
+  };
+
+  const removeSkinSet = (skinSet: string) => {
+    onSelectedSkinSetsChange(selectedSkinSets.filter((selected) => selected !== skinSet));
+  };
+
   return (
     <Box
       sx={{
@@ -125,21 +137,62 @@ export function SkinsFilterBar({
           />
         )}
 
-        <Select
-          size="small"
-          value={selectedSkinSet}
-          onChange={(event) => onSelectedSkinSetChange(event.target.value)}
-          displayEmpty
-          sx={{ minWidth: 180 }}
-        >
-          <MenuItem value="">All skin sets</MenuItem>
+        <Box sx={{ minWidth: 240, maxWidth: "100%" }}>
+          <Select
+            size="small"
+            multiple
+            displayEmpty
+            fullWidth
+            inputProps={{ "aria-label": "Skin sets" }}
+            value={selectedSkinSets}
+            onChange={handleSkinSetsChange}
+            endAdornment={
+              selectedSkinSets.length > 1 ? (
+                <IconButton
+                  aria-label="Clear all skin sets"
+                  color="error"
+                  size="small"
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onClick={() => onSelectedSkinSetsChange([])}
+                  sx={{ mr: 2 }}
+                >
+                  <MdClose size={16} />
+                </IconButton>
+              ) : null
+            }
+            renderValue={(selected) => {
+              if (selected.length === 0) {
+                return <Box sx={{ color: "text.secondary" }}>All skin sets</Box>;
+              }
 
-          {skinSets.map((skinSet) => (
-            <MenuItem key={skinSet} value={skinSet}>
-              {skinSet}
-            </MenuItem>
-          ))}
-        </Select>
+              return (
+                <Stack direction="row" spacing={0.5} useFlexGap flexWrap="wrap">
+                  {selected.map((skinSet) => (
+                    <Chip
+                      key={skinSet}
+                      size="small"
+                      label={skinSet}
+                      aria-label={`Remove ${skinSet}`}
+                      onDelete={() => removeSkinSet(skinSet)}
+                      deleteIcon={<MdClose onMouseDown={(event) => event.stopPropagation()} />}
+                    />
+                  ))}
+                </Stack>
+              );
+            }}
+          >
+            {skinSets.map((skinSet) => (
+              <MenuItem key={skinSet} value={skinSet} sx={{ gap: 1 }}>
+                {skinSet}
+                {selectedSkinSets.includes(skinSet) && (
+                  <Box component="span" sx={{ ml: "auto", display: "inline-flex" }}>
+                    <MdClose aria-hidden="true" />
+                  </Box>
+                )}
+              </MenuItem>
+            ))}
+          </Select>
+        </Box>
       </Stack>
 
       <Box mt={1} mb={1} borderBottom={1} borderColor="divider" />

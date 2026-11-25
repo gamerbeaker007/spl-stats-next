@@ -59,7 +59,7 @@ function SkinsPageContent() {
   const [ownedOnly, setOwnedOnly] = useState(false);
   const [watchedOnly, setWatchedOnly] = useState(false);
   const [missingEquippedOnly, setMissingEquippedOnly] = useState(false);
-  const [selectedSkinSet, setSelectedSkinSet] = useState("");
+  const [selectedSkinSets, setSelectedSkinSets] = useState<string[]>([]);
   const [marketFilter, setMarketFilter] = useState<MarketAssetFilter>(DEFAULT_MARKET_ASSET_FILTER);
   const [viewMode, setViewMode] = useState<SkinViewMode>("grouped");
   const [dialogState, setDialogState] = useState<MarketActionState | null>(null);
@@ -122,7 +122,7 @@ function SkinsPageContent() {
         );
 
         const setOwnedSkins = group.items.filter((skin) => {
-          if (selectedSkinSet && skin.setName !== selectedSkinSet) return false;
+          if (selectedSkinSets.length > 0 && !selectedSkinSets.includes(skin.setName)) return false;
           if (hasAccount && ownedOnly && getActualOwnedQuantity(skin) < 1) return false;
           if (watchedOnly && !assetWatchContext?.watches[skin.detailId]) return false;
           if (
@@ -181,7 +181,7 @@ function SkinsPageContent() {
     hasAccount,
     assetWatchContext?.watches,
     outbidStatuses,
-    selectedSkinSet,
+    selectedSkinSets,
     ownedOnly,
     watchedOnly,
     missingEquippedOnly,
@@ -214,7 +214,7 @@ function SkinsPageContent() {
         ownedOnly,
         watchedOnly,
         watchedOnly ? Object.keys(assetWatchContext?.watches ?? {}).sort() : [],
-        selectedSkinSet,
+        [...selectedSkinSets].sort(),
         marketFilter,
         cardFilter,
         viewMode,
@@ -224,7 +224,7 @@ function SkinsPageContent() {
       ownedOnly,
       watchedOnly,
       assetWatchContext?.watches,
-      selectedSkinSet,
+      selectedSkinSets,
       marketFilter,
       cardFilter,
       viewMode,
@@ -315,8 +315,8 @@ function SkinsPageContent() {
             missingEquippedOnly={missingEquippedOnly}
             onMissingEquippedOnlyChange={setMissingEquippedOnly}
             skinSets={skinSets}
-            selectedSkinSet={selectedSkinSet}
-            onSelectedSkinSetChange={setSelectedSkinSet}
+            selectedSkinSets={selectedSkinSets}
+            onSelectedSkinSetsChange={setSelectedSkinSets}
             marketFilter={marketFilter}
             onMarketFilterChange={setMarketFilter}
             viewMode={viewMode}
